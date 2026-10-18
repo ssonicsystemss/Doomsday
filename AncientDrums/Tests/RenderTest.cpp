@@ -72,7 +72,6 @@ static void soloKick (AncientProcessor& p, bool forge)
     p.setCurrentProgram (0);
     set (p, ParamIDs::id (Punch, ParamIDs::on), 0);
     set (p, ParamIDs::id (Crunch, ParamIDs::on), 0);
-    set (p, ParamIDs::rumOn, 0);
     set (p, ParamIDs::fOn, forge ? 1.f : 0.f);
     silence (p);
 }
@@ -87,6 +86,25 @@ int main (int argc, char** argv)
     proc.prepareToPlay (sr, block);
 
     const int beat = (int) (sr * 60.0 / 150.0);
+
+    // tuning mode: RenderTest <dir> tune <param=value>... -> renders "Ancient Raw" with overrides to tune.wav
+    if (argc > 2 && String (argv[2]) == "tune")
+    {
+        proc.setCurrentProgram (0);
+        for (int a = 3; a < argc; ++a)
+        {
+            const auto kv = StringArray::fromTokens (argv[a], "=", "");
+            if (kv.size() == 2) set (proc, kv[0], kv[1].getFloatValue());
+        }
+        AudioBuffer<float> t (2, beat * 4); t.clear();
+        renderHits (proc, &t, 0);
+        auto f = outDir.getChildFile ("tune.wav"); f.deleteFile();
+        WavAudioFormat wav;
+        std::unique_ptr<AudioFormatWriter> w (wav.createWriterFor (new FileOutputStream (f), sr, 2, 24, {}, 0));
+        w->writeFromAudioSampleBuffer (t, 0, t.getNumSamples());
+        return 0;
+    }
+
     AudioBuffer<float> demo (2, beat * 4 * proc.getNumPrograms());
     demo.clear();
 
@@ -106,7 +124,6 @@ int main (int argc, char** argv)
         {
             proc.setCurrentProgram (0);
             for (int o = 0; o < NumSampleLayers; ++o) set (proc, ParamIDs::id (o, ParamIDs::on), o == l);
-            set (proc, ParamIDs::rumOn, 0);
             set (proc, ParamIDs::id (l, ParamIDs::src), (float) s);
             auto st = renderHits (proc, nullptr, 0, 1);
             if (st.nan || st.peak < 0.05f) { printf ("library layer %d sample %d FAIL (%.3f)\n", l, s, st.peak); ok = false; }
@@ -116,7 +133,6 @@ int main (int argc, char** argv)
     // ---- all layers off -> silence
     proc.setCurrentProgram (0);
     for (int l = 0; l < NumSampleLayers; ++l) set (proc, ParamIDs::id (l, ParamIDs::on), 0);
-    set (proc, ParamIDs::rumOn, 0);
     silence (proc);
     check (renderHits (proc, nullptr, 0, 2).peak < 0.001f, "all layers off -> silence");
 
@@ -128,6 +144,52 @@ int main (int argc, char** argv)
     const int onset100 = renderHits (proc, nullptr, 0, 1).firstAbove;
     check (std::abs ((onset100 - onset0) - 4800) < 60, "kick offset +100 ms moves the onset by 4800 samples",
            "(" + String (onset100 - onset0) + ")");
+
+    // ---- big offsets: nothing blocks a long drag
+    soloKick (proc, false);
+    set (proc, ParamIDs::id (Kick, ParamIDs::offset), 1500.f);
+    silence (proc);
+    {
+        int onset = -1;
+        MidiBuffer m; m.addEvent (MidiMessage::noteOn (1, 60, (uint8) 120), 0);
+        for (int b = 0; b < (int) (2.0 * sr) / block && onset < 0; ++b)
+        {
+            AudioBuffer<float> buf (2, block); buf.clear(); proc.processBlock (buf, m); m.clear();
+            for (int i = 0; i < block; ++i) if (std::abs (buf.getSample (0, i)) > 0.01f) { onset = b * block + i; break; }
+        }
+        check (std::abs ((onset - onset0) - 72000) < 60, "kick offset +1500 ms", "(" + String (onset - onset0) + ")");
+    }
+    set (proc, ParamIDs::id (Kick, ParamIDs::offset), -2000.f);
+    check (std::abs (proc.apvts.getRawParameterValue (ParamIDs::id (Kick, ParamIDs::offset))->load() + 2000.f) < 0.01f, "offset reaches -2000 ms");
+
+    // ---- negative offset: the envelope starts where the layer becomes audible
+    soloKick (proc, false);
+    set (proc, ParamIDs::id (Kick, ParamIDs::offset), -50.f);
+    {
+        Envelope e; e.points = { { 0.f, 1.f }, { 60.f, 1.f }, { 80.f, 0.f } };
+        proc.setEnvelope (Kick, e);
+    }
+    silence (proc);
+    {
+        float early = 0.f, late = 0.f;
+        MidiBuffer m; m.addEvent (MidiMessage::noteOn (1, 60, (uint8) 120), 0);
+        for (int b = 0; b < 40; ++b)
+        {
+            AudioBuffer<float> buf (2, block); buf.clear(); proc.processBlock (buf, m); m.clear();
+            const int t0 = b * block;
+            if (t0 < (int) (0.05 * sr)) early = jmax (early, buf.getMagnitude (0, 0, block));
+            if (t0 > (int) (0.09 * sr)) late = jmax (late, buf.getMagnitude (0, 0, block));
+        }
+        check (early > 0.05f && late < 0.01f, "negative offset: envelope runs from the audible start",
+               "(early " + String (early, 3) + ", late " + String (late, 4) + ")");
+    }
+    {
+        Envelope e; e.points = { { 35.f, 0.4f }, { 10.f, 1.f }, { 200.f, 0.f } };
+        proc.setEnvelope (Kick, e);
+        auto got = proc.getEnvelope (Kick);
+        check (got->points.front().ms == 0.f && std::abs (got->points.front().gain - 1.f) < 0.001f, "first envelope point is pinned at 0 ms");
+    }
+    set (proc, ParamIDs::id (Kick, ParamIDs::offset), 0.f);
 
     // ---- envelope: a short one stops the kick, a zero one silences it
     soloKick (proc, false);
@@ -162,8 +224,28 @@ int main (int argc, char** argv)
     const double hiOff = renderHits (proc, nullptr, 0, 1).highRatio;
     soloKick (proc, true);
     const double hiOn = renderHits (proc, nullptr, 0, 1).highRatio;
-    check (hiOn > hiOff * 2.0 && hiOn > 0.04, "FORGE adds upper harmonics",
+    check (hiOn > hiOff * 1.5 && hiOn > 0.03, "FORGE adds upper harmonics",
            "(>800 Hz: " + String (hiOff * 100.0, 2) + "% -> " + String (hiOn * 100.0, 2) + "%)");
+
+    // ---- FORGE MIX at 0 sounds like FORGE off
+    soloKick (proc, false);
+    {
+        AudioBuffer<float> a (2, beat); a.clear();
+        renderHits (proc, &a, 0, 1);
+        soloKick (proc, true);
+        set (proc, ParamIDs::fMix, 0.f);
+        silence (proc);
+        AudioBuffer<float> b (2, beat); b.clear();
+        renderHits (proc, &b, 0, 1);
+        double best = 1e9; int bestLag = 0;
+        for (int lag = 0; lag < 24; ++lag)     // the FORGE path carries the oversampling latency
+        {
+            double diff = 0.0, ref = 0.0;
+            for (int i = 0; i + lag < beat; ++i) { const double d = a.getSample (0, i) - b.getSample (0, i + lag); diff += d * d; ref += (double) a.getSample (0, i) * a.getSample (0, i); }
+            if (diff / ref < best) { best = diff / ref; bestLag = lag; }
+        }
+        check (best < 0.01, "FORGE mix 0% = clean signal", "(err " + String (best * 100.0, 3) + "%, latency " + String (bestLag) + ")");
+    }
 
     // ---- forge tails die out
     {
@@ -173,17 +255,6 @@ int main (int argc, char** argv)
         for (int b = 0; b < (int) (sr * 2.0) / block; ++b) { AudioBuffer<float> buf (2, block); buf.clear(); proc.processBlock (buf, none); }
         for (int b = 0; b < 20; ++b) { AudioBuffer<float> buf (2, block); buf.clear(); proc.processBlock (buf, none); tail = jmax (tail, buf.getMagnitude (0, 0, block)); }
         check (tail < 0.002f, "tails silent 2.4 s after the hit", "(" + String (tail, 5) + ")");
-    }
-
-    // ---- sub waves
-    for (int w = 0; w < 3; ++w)
-    {
-        proc.setCurrentProgram (0);
-        for (int l = 0; l < NumSampleLayers; ++l) set (proc, ParamIDs::id (l, ParamIDs::on), 0);
-        set (proc, ParamIDs::rumOn, 0);
-        set (proc, ParamIDs::subOn, 1); set (proc, ParamIDs::subWave, (float) w);
-        auto st = renderHits (proc, nullptr, 0, 1);
-        check (st.peak > 0.05f && ! st.nan, ("sub wave " + String (w)).toRawUTF8());
     }
 
     // ---- user sample + state round trip (sample path + envelope)
@@ -277,6 +348,10 @@ int main (int argc, char** argv)
     proc.setZoomMs (500.f);
     set (proc, ParamIDs::id (Kick, ParamIDs::rev), 1);
     snap ("ancient_gui_crunch.png");
+    proc.setSelectedLayer (Kick);
+    proc.setZoomMs (1000.f);
+    set (proc, ParamIDs::id (Kick, ParamIDs::offset), 1450.f);
+    snap ("ancient_gui_offscreen.png");
 
     printf (ok ? "ALL OK\n" : "SOME CHECKS FAILED\n");
     return ok ? 0 : 1;

@@ -41,6 +41,7 @@ struct Envelope
     {
         for (auto& p : points) { p.ms = std::max (0.f, p.ms); p.gain = juce::jlimit (0.f, 1.f, p.gain); }
         std::stable_sort (points.begin(), points.end(), [] (const Point& a, const Point& b) { return a.ms < b.ms; });
+        if (! points.empty()) points.front().ms = 0.f;      // the first point is pinned to the layer start
     }
 
     juce::String toString() const

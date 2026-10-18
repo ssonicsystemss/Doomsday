@@ -30,25 +30,8 @@ namespace ParamIDs
     inline constexpr const char* fCrunch = "f_crunch";
     inline constexpr const char* fTone   = "f_tone";
     inline constexpr const char* fOtt    = "f_ott";
-
-    // SUB
-    inline constexpr const char* subOn     = "s_on";
-    inline constexpr const char* subWave   = "s_wave";
-    inline constexpr const char* subOct    = "s_oct";
-    inline constexpr const char* subLevel  = "s_level";
-    inline constexpr const char* subAttack = "s_attack";
-    inline constexpr const char* subLength = "s_length";
-    inline constexpr const char* subTone   = "s_tone";
-    inline constexpr const char* subDrive  = "s_drive";
-
-    // RUMBLE
-    inline constexpr const char* rumOn    = "r_on";
-    inline constexpr const char* rumLevel = "r_level";
-    inline constexpr const char* rumDelay = "r_delay";
-    inline constexpr const char* rumDecay = "r_decay";
-    inline constexpr const char* rumDrive = "r_drive";
-    inline constexpr const char* rumLp    = "r_lp";
-    inline constexpr const char* rumDuck  = "r_duck";
+    inline constexpr const char* fSmooth = "f_smooth";   // v2.1
+    inline constexpr const char* fMix    = "f_mix";      // v2.1
 
     // MASTER
     inline constexpr const char* root     = "root";
@@ -83,9 +66,4 @@ namespace Library
 
     // all library tails are tuned to this pitch (C2); playing the ROOT note = no transposition
     inline constexpr float tailHz = 65.406f;
-}
-
-namespace Choices
-{
-    inline const juce::StringArray subWaves { "SINE", "SAW", "SQUARE" };
 }

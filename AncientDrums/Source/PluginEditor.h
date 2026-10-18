@@ -141,7 +141,7 @@ public:
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     void mouseDoubleClick (const juce::MouseEvent&) override;
-    void mouseExit (const juce::MouseEvent&) override { hoverNode = -1; repaint(); }
+    void mouseExit (const juce::MouseEvent&) override { hoverNode = -1; hoverReset = false; repaint(); }
 
     bool isInterestedInFileDrag (const juce::StringArray&) override;
     void fileDragEnter (const juce::StringArray&, int, int) override { dragHover = true; repaint(); }
@@ -155,6 +155,8 @@ private:
         EnvPtr env;
         float offsetMs = 0.f, rate = 1.f;
         bool on = true, reverse = false;
+        float startMs() const { return std::max (0.f, offsetMs); }     // where the layer starts sounding
+        float lengthMs() const;                                         // sample length on the timeline
     };
     LayerView viewOf (int layer) const;
     float msToX (float ms) const;
@@ -166,12 +168,16 @@ private:
     void drawEnvelope (juce::Graphics&, int layer);
     juce::Rectangle<int> chipBounds (int i) const;
     juce::Rectangle<int> zoomBounds (int i) const;
+    juce::Rectangle<int> resetBounds() const;
+    bool layerOutOfView (int layer) const;
+    void resetOffset();
     juce::RangedAudioParameter* offsetParam (int layer) const;
 
     AncientProcessor& proc;
     juce::Rectangle<float> plot;
     int hoverNode = -1, dragNode = -1;
-    bool draggingOffset = false, dragHover = false;
+    bool draggingOffset = false, dragHover = false, hoverReset = false;
+    static constexpr float padX = 10.f, padY = 10.f;     // keeps the envelope points fully inside the screen
     float dragStartMs = 0.f, dragStartOffset = 0.f;
     Envelope editing;              // envelope being dragged (committed on every move)
     int lastSerial = -1, lastLen = -1;
@@ -208,10 +214,8 @@ private:
     std::array<std::unique_ptr<LayerControls>, NumSampleLayers> layerControls;
     KickScreen screen;
     std::vector<std::unique_ptr<juce::Component>> owned;
-    std::vector<juce::Component*> forgeCells, subCells, rumCells, masterCells;
+    std::vector<juce::Component*> forgeCells, masterCells;
     Switch* forgePower = nullptr;
-    Switch* subPower = nullptr;
-    Switch* rumPower = nullptr;
     int shownLayer = -1;
 
     juce::ComboBox presetBox;

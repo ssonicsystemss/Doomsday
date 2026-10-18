@@ -455,8 +455,8 @@ constexpr float KickScreen::zooms[3];
 KickScreen::KickScreen (AncientProcessor& p) : proc (p)
 {
     setTooltip ("Drag the waveform: move the layer in time (Shift = fine)\n"
-                "Drag a point: shape the volume\n"
-                "Double-click: add a point / remove a point\n"
+                "Drag a point: shape the volume (the first point only moves up / down)\n"
+                "Double-click: add a point (keep holding to place it) / remove a point\n"
                 "Right-click a point: delete it\n"
                 "Drop an audio file here to load it into the selected layer");
 }
@@ -467,8 +467,36 @@ void KickScreen::resized()
     plot = inner.withTrimmedTop (42.f).withTrimmedBottom (26.f).reduced (14.f, 0.f);
 }
 
-Rectangle<int> KickScreen::chipBounds (int i) const { return { 22 + i * 98, 18, 92, 24 }; }
-Rectangle<int> KickScreen::zoomBounds (int i) const { return { getWidth() - 22 - (3 - i) * 58, 18, 54, 24 }; }
+Rectangle<int> KickScreen::chipBounds (int i) const { return { 22 + i * 90, 18, 84, 24 }; }
+Rectangle<int> KickScreen::zoomBounds (int i) const { return { getWidth() - 22 - (3 - i) * 52, 18, 48, 24 }; }
+Rectangle<int> KickScreen::resetBounds() const
+{
+    const int x0 = chipBounds (2).getRight() + 10, x1 = zoomBounds (0).getX() - 10;
+    return { x0, 18, x1 - x0, 24 };
+}
+
+float KickScreen::LayerView::lengthMs() const
+{
+    return sample == nullptr ? 0.f : (float) ((double) sample->data.size() / sample->sampleRate * 1000.0 / rate);
+}
+
+bool KickScreen::layerOutOfView (int layer) const
+{
+    auto v = viewOf (layer);
+    if (v.sample == nullptr) return false;
+    return v.offsetMs >= proc.getZoomMs() || v.offsetMs + v.lengthMs() <= 0.f;
+}
+
+void KickScreen::resetOffset()
+{
+    if (auto* p = offsetParam (proc.getSelectedLayer()))
+    {
+        p->beginChangeGesture();
+        p->setValueNotifyingHost (p->getDefaultValue());
+        p->endChangeGesture();
+    }
+    repaint();
+}
 
 RangedAudioParameter* KickScreen::offsetParam (int layer) const
 {
@@ -488,21 +516,22 @@ KickScreen::LayerView KickScreen::viewOf (int l) const
     return v;
 }
 
-float KickScreen::msToX (float ms) const { return plot.getX() + ms / proc.getZoomMs() * plot.getWidth(); }
-float KickScreen::xToMs (float x) const { return (x - plot.getX()) / plot.getWidth() * proc.getZoomMs(); }
-float KickScreen::gainToY (float g) const { return plot.getBottom() - 8.f - g * (plot.getHeight() - 16.f); }
-float KickScreen::yToGain (float y) const { return jlimit (0.f, 1.f, (plot.getBottom() - 8.f - y) / (plot.getHeight() - 16.f)); }
+float KickScreen::msToX (float ms) const { return plot.getX() + padX + ms / proc.getZoomMs() * (plot.getWidth() - 2.f * padX); }
+float KickScreen::xToMs (float x) const { return (x - plot.getX() - padX) / (plot.getWidth() - 2.f * padX) * proc.getZoomMs(); }
+float KickScreen::gainToY (float g) const { return plot.getBottom() - padY - g * (plot.getHeight() - 2.f * padY); }
+float KickScreen::yToGain (float y) const { return jlimit (0.f, 1.f, (plot.getBottom() - padY - y) / (plot.getHeight() - 2.f * padY)); }
 
 int KickScreen::nodeAt (Point<float> pt) const
 {
     const int sel = proc.getSelectedLayer();
     auto env = proc.getEnvelope (sel);
     if (env == nullptr) return -1;
-    const float off = viewOf (sel).offsetMs;
+    const float start = viewOf (sel).startMs();
     int best = -1; float bestD = 10.f;
     for (size_t i = 0; i < env->points.size(); ++i)
     {
-        const Point<float> np (msToX (off + env->points[i].ms), gainToY (env->points[i].gain));
+        const Point<float> np (msToX (start + env->points[i].ms), gainToY (env->points[i].gain));
+        if (! plot.contains (np)) continue;            // points outside the view can't be grabbed
         const float d = np.getDistanceFrom (pt);
         if (d < bestD) { bestD = d; best = (int) i; }
     }
@@ -534,6 +563,7 @@ void KickScreen::drawLayer (Graphics& g, int l, bool selected)
     const int x0 = (int) plot.getX(), x1 = (int) plot.getRight();
     const float mid = plot.getCentreY(), amp = plot.getHeight() * 0.40f;
     const double perMs = v.sample->sampleRate / 1000.0 * v.rate;
+    const float trimMs = jmax (0.f, -v.offsetMs);            // envelope time starts where the layer becomes audible
 
     Path fill, edgeTop, edgeBot;
     std::vector<Point<float>> top, bot;
@@ -547,8 +577,9 @@ void KickScreen::drawLayer (Graphics& g, int l, bool selected)
         float g0 = 1.f;
         if (v.env != nullptr)
         {
-            if (v.env->endsSilent() && msA >= v.env->endMs()) break;
-            g0 = v.env->eval (jmax (0.f, msA), seg);
+            const float em = jmax (0.f, msA - trimMs);
+            if (v.env->endsSilent() && em >= v.env->endMs()) break;
+            g0 = v.env->eval (em, seg);
         }
         float lo = 0.f, hi = 0.f;
         const int ia = (int) pa, ib = (int) jmin (len, pb);
@@ -608,14 +639,11 @@ void KickScreen::drawEnvelope (Graphics& g, int l)
     if (v.env == nullptr) return;
     const auto& pts = v.env->points;
     Path line;
-    const float startX = msToX (jmax (0.f, v.offsetMs));
-    line.startNewSubPath (jmax (startX, msToX (v.offsetMs)), gainToY (pts.front().gain));
-    for (auto& p : pts) line.lineTo (msToX (v.offsetMs + p.ms), gainToY (p.gain));
+    const float start = v.startMs();
+    line.startNewSubPath (msToX (start), gainToY (pts.front().gain));
+    for (auto& p : pts) line.lineTo (msToX (start + p.ms), gainToY (p.gain));
     if (! v.env->endsSilent() && v.sample != nullptr)
-    {
-        const float endMs = v.offsetMs + (float) ((double) v.sample->data.size() / v.sample->sampleRate * 1000.0 / v.rate);
-        line.lineTo (msToX (endMs), gainToY (pts.back().gain));
-    }
+        line.lineTo (msToX (v.offsetMs + v.lengthMs()), gainToY (pts.back().gain));
 
     {
         Graphics::ScopedSaveState ss (g);
@@ -626,13 +654,22 @@ void KickScreen::drawEnvelope (Graphics& g, int l)
         g.strokePath (line, PathStrokeType (1.6f, PathStrokeType::curved, PathStrokeType::rounded));
     }
     Graphics::ScopedSaveState ss (g);
-    g.reduceClipRegion (plot.expanded (9.f).toNearestInt());
+    g.reduceClipRegion (plot.toNearestInt());
 
     for (size_t i = 0; i < pts.size(); ++i)
     {
-        const Point<float> c (msToX (v.offsetMs + pts[i].ms), gainToY (pts[i].gain));
+        const Point<float> c (msToX (start + pts[i].ms), gainToY (pts[i].gain));
+        if (! plot.contains (c)) continue;              // outside the current zoom: not drawn, not grabbable
         const bool hot = (int) i == hoverNode || (int) i == dragNode;
         const float r = hot ? 7.f : 5.f;
+        if (i == 0)                                      // the pinned start point: a small diamond
+        {
+            Path d; d.addQuadrilateral (c.x, c.y - r - 1.f, c.x + r + 1.f, c.y, c.x, c.y + r + 1.f, c.x - r - 1.f, c.y);
+            g.setColour (Palette::cyan.withAlpha (hot ? 0.45f : 0.25f)); g.strokePath (d, PathStrokeType (5.f));
+            g.setColour (Palette::lcdDeep); g.fillPath (d);
+            g.setColour (hot ? Colours::white : Palette::ice); g.strokePath (d, PathStrokeType (1.6f));
+            continue;
+        }
         g.setColour (Palette::cyan.withAlpha (hot ? 0.45f : 0.25f));
         g.fillEllipse (Rectangle<float> (r * 2.f + 6.f, r * 2.f + 6.f).withCentre (c));
         g.setColour (Palette::lcdDeep);
@@ -701,6 +738,21 @@ void KickScreen::paint (Graphics& g)
         g.drawText (zooms[i] < 1000.f ? "0.5s" : String ((int) (zooms[i] / 1000.f)) + "s", c, Justification::centred);
     }
 
+    // RESET SAMPLE POSITION
+    {
+        auto c = resetBounds().toFloat();
+        const auto v = viewOf (sel);
+        const bool moved = std::abs (v.offsetMs) > 0.05f;
+        const bool lost = layerOutOfView (sel);
+        const auto col = lost ? Colour (0xffffc861) : Palette::cyan;
+        if (lost || hoverReset) { g.setColour (col.withAlpha (lost ? 0.22f : 0.12f)); g.fillRoundedRectangle (c, 5.f); }
+        g.setColour (moved ? col.withAlpha (hoverReset || lost ? 1.f : 0.7f) : Palette::grid.brighter (0.3f));
+        g.drawRoundedRectangle (c, 5.f, 1.f);
+        g.setFont (lnf.monoFont (10.5f, 0.02f));
+        g.setColour (moved ? (lost ? col : Palette::ice.withAlpha (hoverReset ? 1.f : 0.8f)) : Palette::cyan.withAlpha (0.35f));
+        g.drawText ("RESET SAMPLE POSITION", c, Justification::centred);
+    }
+
     // grid + ruler
     {
         Graphics::ScopedSaveState ss (g);
@@ -734,6 +786,19 @@ void KickScreen::paint (Graphics& g)
     }
     drawEnvelope (g, sel);
 
+    // the selected layer was dragged out of the view: show where it went
+    if (layerOutOfView (sel))
+    {
+        const auto v = viewOf (sel);
+        const bool right = v.offsetMs >= zoom;
+        const String txt = right ? String (layerNames[sel]) + " AT +" + String (roundToInt (v.offsetMs)) + " ms  >"
+                                 : "<  " + String (layerNames[sel]) + " TRIMMED AWAY (" + String (roundToInt (v.offsetMs)) + " ms)";
+        g.setFont (lnf.monoFont (11.5f, 0.04f));
+        auto r = plot.reduced (12.f, 0.f).withSizeKeepingCentre (plot.getWidth() - 24.f, 22.f);
+        g.setColour (Colour (0xffffc861));
+        g.drawText (txt, r, right ? Justification::centredRight : Justification::centredLeft);
+    }
+
     // playhead of the last hit
     {
         const double sr = proc.getSampleRate() > 0 ? proc.getSampleRate() : 48000.0;
@@ -750,7 +815,7 @@ void KickScreen::paint (Graphics& g)
     {
         auto v = viewOf (sel);
         String info = String (layerNames[sel]) + "   OFFSET " + (v.offsetMs >= 0.f ? "+" : "") + String (v.offsetMs, 1) + " ms";
-        if (v.env != nullptr) info << "   END " << roundToInt (v.offsetMs + v.env->endMs()) << " ms";
+        if (v.env != nullptr) info << "   END " << roundToInt (v.startMs() + v.env->endMs()) << " ms";
         if (v.reverse) info << "   REVERSE";
         g.setFont (lnf.monoFont (11.f));
         g.setColour (Palette::ice.withAlpha (0.85f));
@@ -783,6 +848,9 @@ void KickScreen::mouseMove (const MouseEvent& e)
 {
     const int n = plot.contains (e.position) ? nodeAt (e.position) : -1;
     if (n != hoverNode) { hoverNode = n; repaint(); }
+    const bool hr = resetBounds().contains (e.getPosition());
+    if (hr != hoverReset) { hoverReset = hr; repaint(); }
+    if (hr) { setMouseCursor (MouseCursor::PointingHandCursor); return; }
     if (n >= 0) setMouseCursor (MouseCursor::DraggingHandCursor);
     else if (plot.contains (e.position)) setMouseCursor (MouseCursor::LeftRightResizeCursor);
     else
@@ -800,6 +868,7 @@ void KickScreen::mouseDown (const MouseEvent& e)
         if (chipBounds (i).contains (e.getPosition())) { proc.setSelectedLayer (i); repaint(); return; }
         if (zoomBounds (i).contains (e.getPosition())) { proc.setZoomMs (zooms[i]); repaint(); return; }
     }
+    if (resetBounds().contains (e.getPosition())) { resetOffset(); return; }
     if (! plot.contains (e.position)) return;
 
     const int sel = proc.getSelectedLayer();
@@ -810,7 +879,7 @@ void KickScreen::mouseDown (const MouseEvent& e)
         editing = *env;
         if (e.mods.isPopupMenu())
         {
-            if (editing.points.size() > 2) { editing.points.erase (editing.points.begin() + n); proc.setEnvelope (sel, editing); }
+            if (n > 0 && editing.points.size() > 2) { editing.points.erase (editing.points.begin() + n); proc.setEnvelope (sel, editing); }
             hoverNode = -1; repaint();
             return;
         }
@@ -832,11 +901,19 @@ void KickScreen::mouseDrag (const MouseEvent& e)
     const int sel = proc.getSelectedLayer();
     if (dragNode >= 0 && dragNode < (int) editing.points.size())
     {
-        const float off = viewOf (sel).offsetMs;
-        const float lo = dragNode == 0 ? 0.f : editing.points[(size_t) dragNode - 1].ms;
-        const float hi = dragNode + 1 < (int) editing.points.size() ? editing.points[(size_t) dragNode + 1].ms : 10000.f;
-        auto& pt = editing.points[(size_t) dragNode];
-        pt.ms = jlimit (lo, hi, xToMs (e.position.x) - off);
+        // the first point is pinned in time; the others move only between their neighbours and inside the view,
+        // so dragging never reorders or pushes the other points
+        const float start = viewOf (sel).startMs();
+        auto& pts = editing.points;
+        auto& pt = pts[(size_t) dragNode];
+        if (dragNode > 0)
+        {
+            const float viewEnd = xToMs (plot.getRight() - 1.f) - start;
+            const float lo = pts[(size_t) dragNode - 1].ms;
+            float hi = dragNode + 1 < (int) pts.size() ? pts[(size_t) dragNode + 1].ms : 30000.f;
+            hi = jmax (lo, jmin (hi, viewEnd));
+            pt.ms = jlimit (lo, hi, xToMs (e.position.x) - start);
+        }
         pt.gain = yToGain (e.position.y);
         proc.setEnvelope (sel, editing);
         repaint();
@@ -847,7 +924,8 @@ void KickScreen::mouseDrag (const MouseEvent& e)
         {
             const float fine = e.mods.isShiftDown() ? 0.2f : 1.f;
             const float v = dragStartOffset + (xToMs (e.position.x) - dragStartMs) * fine;
-            p->setValueNotifyingHost (p->convertTo0to1 (jlimit (-150.f, 300.f, v)));
+            const auto range = p->getNormalisableRange();
+            p->setValueNotifyingHost (p->convertTo0to1 (jlimit (range.start, range.end, v)));
         }
     }
 }
@@ -866,20 +944,32 @@ void KickScreen::mouseDoubleClick (const MouseEvent& e)
     const int sel = proc.getSelectedLayer();
     auto env = proc.getEnvelope (sel);
     if (env == nullptr) return;
+    // the second click of a double-click started a sample drag - undo it, a double-click edits the envelope
+    if (draggingOffset)
+    {
+        if (auto* p = offsetParam (sel)) { p->setValueNotifyingHost (p->convertTo0to1 (dragStartOffset)); p->endChangeGesture(); }
+        draggingOffset = false;
+    }
     Envelope ed = *env;
     const int n = nodeAt (e.position);
+    dragNode = -1;
     if (n >= 0)
     {
-        if (ed.points.size() > 2) ed.points.erase (ed.points.begin() + n);
+        if (n > 0 && ed.points.size() > 2) ed.points.erase (ed.points.begin() + n);
+        proc.setEnvelope (sel, ed);
     }
     else
     {
-        const float ms = xToMs (e.position.x) - viewOf (sel).offsetMs;
-        if (ms < 0.f) return;
+        const float ms = xToMs (e.position.x) - viewOf (sel).startMs();
+        if (ms <= 0.f) return;
         ed.points.push_back ({ ms, yToGain (e.position.y) });
+        proc.setEnvelope (sel, ed);
+        // keep holding the mouse to slide the new point; its neighbours stay where they are
+        editing = *proc.getEnvelope (sel);
+        for (size_t i = 1; i < editing.points.size(); ++i)
+            if (std::abs (editing.points[i].ms - ms) < 0.01f) { dragNode = (int) i; break; }
     }
-    proc.setEnvelope (sel, ed);
-    hoverNode = -1;
+    hoverNode = dragNode;
     repaint();
 }
 
@@ -929,19 +1019,8 @@ Canvas::Canvas (AncientProcessor& p) : proc (p), screen (p)
     addAndMakeVisible (screen);
 
     forgePower = toggle (fOn, "", Switch::Power);
-    forgeCells = { knob (fDrive, "DRIVE"), knob (fFocus, "FOCUS"), knob (fGrit, "GRIT"),
-                   knob (fCrunch, "CRUNCH"), knob (fTone, "TONE", true), knob (fOtt, "OTT") };
-
-    subPower = toggle (subOn, "", Switch::Power);
-    auto wave = std::make_unique<Segmented> (p.apvts, subWave, StringArray { "SINE", "SAW", "SQR" });
-    subCells = { wave.get(), knob (subOct, "OCTAVE", true), knob (subLevel, "LEVEL"), knob (subLength, "LENGTH"),
-                 knob (subTone, "TONE"), knob (subDrive, "DRIVE") };
-    addAndMakeVisible (*wave);
-    owned.push_back (std::move (wave));
-
-    rumPower = toggle (rumOn, "", Switch::Power);
-    rumCells = { knob (rumLevel, "LEVEL"), knob (rumDelay, "DELAY"), knob (rumDecay, "DECAY"),
-                 knob (rumDrive, "DRIVE"), knob (rumLp, "LOW PASS"), knob (rumDuck, "DUCK") };
+    forgeCells = { knob (fDrive, "DRIVE"), knob (fFocus, "FOCUS"), knob (fGrit, "GRIT"), knob (fCrunch, "CRUNCH"),
+                   knob (fTone, "TONE", true), knob (fOtt, "OTT"), knob (fSmooth, "SMOOTH"), knob (fMix, "MIX") };
 
     masterCells = { knob (root, "ROOT"), knob (preGain, "PRE-GAIN"), toggle (clipOn, "CLIP", Switch::Chip),
                     knob (clipKnee, "SOFT"), toggle (limOn, "LIMIT", Switch::Chip), knob (volume, "VOLUME") };
@@ -1044,8 +1123,6 @@ void Canvas::timerCallback()
         for (auto* c : cells) if (std::abs (c->getAlpha() - a) > 0.001f) c->setAlpha (a);
     };
     dim (forgeCells, forgePower->isOn());
-    dim (subCells, subPower->isOn());
-    dim (rumCells, rumPower->isOn());
 
     const auto name = proc.getPresetName();
     if (name != lastPresetName)
@@ -1063,47 +1140,36 @@ void Canvas::resized()
 {
     panels.clear();
     const Rectangle<int> left (20, 124, 316, 440), scr (350, 124, 660, 440), right (1024, 124, 316, 440);
+    const Rectangle<int> forgeA (20, 578, 1320, 182);
     panels.push_back ({ "", left });
-    panels.push_back ({ "FORGE", right });
+    panels.push_back ({ "MASTER", right });
+    panels.push_back ({ "FORGE", forgeA });
     for (auto& lc : layerControls) lc->setBounds (left);
     screen.setBounds (scr);
 
-    // FORGE: 2 x 3 knobs
-    forgePower->setBounds (right.getRight() - 16 - 60, right.getY() + 12, 60, 24);
+    // MASTER: 2 x 3
     {
         auto a = right.reduced (16, 12);
-        a.removeFromTop (60);
-        a.removeFromBottom (10);
+        a.removeFromTop (44);
+        a.removeFromBottom (6);
         const int cw = a.getWidth() / 2, rh = a.getHeight() / 3;
         for (int i = 0; i < 6; ++i)
-            forgeCells[(size_t) i]->setBounds (a.getX() + (i % 2) * cw, a.getY() + (i / 2) * rh, cw, rh);
+        {
+            auto cell = Rectangle<int> (a.getX() + (i % 2) * cw, a.getY() + (i / 2) * rh, cw, rh);
+            if (dynamic_cast<Switch*> (masterCells[(size_t) i]) != nullptr) masterCells[(size_t) i]->setBounds (cell.withSizeKeepingCentre (cw - 34, 28));
+            else                                                            masterCells[(size_t) i]->setBounds (cell);
+        }
     }
 
-    // bottom row
-    const int by = 578, bh = 182;
-    const Rectangle<int> subA (20, by, 436, bh), rumA (470, by, 420, bh), masA (904, by, 436, bh);
-    panels.push_back ({ "SUB BASS", subA });
-    panels.push_back ({ "RUMBLE", rumA });
-    panels.push_back ({ "MASTER", masA });
-    subPower->setBounds (subA.getRight() - 16 - 60, subA.getY() + 10, 60, 24);
-    rumPower->setBounds (rumA.getRight() - 16 - 60, rumA.getY() + 10, 60, 24);
-
-    auto placeRow = [] (Rectangle<int> area, std::vector<Component*>& cells)
+    // FORGE: one row, in signal order
+    forgePower->setBounds (forgeA.getRight() - 16 - 60, forgeA.getY() + 10, 60, 24);
     {
-        area = area.reduced (14, 10);
-        area.removeFromTop (32);
-        const float cw = (float) area.getWidth() / (float) cells.size();
-        for (size_t i = 0; i < cells.size(); ++i)
-        {
-            auto cell = Rectangle<int> (area.getX() + (int) (cw * (float) i), area.getY(), (int) cw, area.getHeight());
-            if (dynamic_cast<Switch*> (cells[i]) != nullptr)         cells[i]->setBounds (cell.withSizeKeepingCentre (cell.getWidth() - 8, 28));
-            else if (dynamic_cast<Segmented*> (cells[i]) != nullptr) cells[i]->setBounds (cell.withSizeKeepingCentre (cell.getWidth() - 10, 84));
-            else                                                     cells[i]->setBounds (cell);
-        }
-    };
-    placeRow (subA, subCells);
-    placeRow (rumA, rumCells);
-    placeRow (masA, masterCells);
+        auto a = forgeA.reduced (14, 10);
+        a.removeFromTop (32);
+        const float cw = (float) a.getWidth() / (float) forgeCells.size();
+        for (size_t i = 0; i < forgeCells.size(); ++i)
+            forgeCells[i]->setBounds (a.getX() + (int) (cw * (float) i), a.getY(), (int) cw, a.getHeight());
+    }
 
     // header
     const int px = W - 20 - 290;
@@ -1214,12 +1280,12 @@ void Canvas::renderBackground()
     // header side text
     g.setFont (lnf.headFont (10.f, 0.25f));
     g.setColour (Palette::ink.withAlpha (0.8f));
-    g.drawText ("V2.0", 20, 28, 300, 14, Justification::left);
+    g.drawText ("V2.1", 20, 28, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (Palette::label);
     g.drawText ("PUNCH  /  CRUNCH  /  KICK", 20, 46, 320, 16, Justification::left);
     g.setColour (Palette::dim);
-    g.drawText ("FORGE  /  SUB  /  RUMBLE", 20, 62, 320, 16, Justification::left);
+    g.drawText ("FORGE  /  CLIP  /  LIMIT", 20, 62, 320, 16, Justification::left);
     g.setColour (Palette::goldDeep);
     g.drawText ("FORGED IN THE OLD WAYS", 20, 78, 320, 16, Justification::left);
 
@@ -1242,10 +1308,10 @@ void Canvas::renderBackground()
 
     for (auto& p : panels) drawPanel (g, p);
     {
-        auto r = panels[1].area.toFloat();
+        auto r = panels[2].area.toFloat();
         g.setFont (lnf.labelFont (11.f, 0.2f));
         g.setColour (Palette::dim);
-        g.drawText ("HARDSTYLE TAIL CHAIN", (int) r.getX() + 26, (int) r.getY() + 32, 260, 16, Justification::centredLeft);
+        g.drawText ("HARDSTYLE TAIL CHAIN  -  DRIVE > GRIT > CRUNCH > TONE > OTT > SMOOTH", (int) r.getX() + 96, (int) r.getY() + 12, 560, 18, Justification::centredLeft);
     }
 }
 

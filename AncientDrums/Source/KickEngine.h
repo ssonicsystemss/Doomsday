@@ -4,13 +4,13 @@
 //
 //  PUNCH / CRUNCH / KICK sample layers (offset, envelope, reverse, pitch, filters)
 //     layers with FORGE on  ->  FORGE  --+
-//     layers with FORGE off ------------+--> + SUB -> RUMBLE -> PRE-GAIN -> CLIP -> LIMIT -> VOLUME
+//     layers with FORGE off ------------+--> PRE-GAIN -> CLIP -> LIMIT -> VOLUME
 //
-//  FORGE (the hardstyle tail chain):
-//     FOCUS pre-EQ (mid boost) -> DRIVE (asym tube, 4x OS)
-//     -> GRIT (gated short reverb fed into the next stage)
-//     -> CRUNCH (presence boost + hard clip, 4x OS)
-//     -> TONE (tilt EQ) -> OTT (3-band up/down compression)
+//  FORGE (the hardstyle tail chain), v2.1 - tuned to stay musical:
+//     FOCUS pre-emphasis -> DRIVE (asym tube, 4x OS, fizz low-pass, de-emphasis)
+//     -> GRIT (gated, band-limited short reverb fed into the next stage)
+//     -> CRUNCH (mid presence + band-limited soft-knee clip, 4x OS)
+//     -> TONE (tilt EQ) -> OTT (3-band, gentle) -> SMOOTH (de-harsh) -> MIX (parallel)
 // =====================================================================
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
@@ -30,19 +30,13 @@ struct LayerParams
 struct ForgeParams
 {
     bool  on = true;
-    float driveDb = 18.f, focusHz = 450.f, grit = 0.35f, crunch = 0.45f, tone = 0.2f, ott = 0.4f;
+    float driveDb = 18.f, focusHz = 520.f, grit = 0.2f, crunch = 0.55f, tone = 0.25f, ott = 0.3f, smooth = 0.3f, mix = 1.f;
 };
 
 struct KickParams
 {
     std::array<LayerParams, NumSampleLayers> layer;
     ForgeParams forge;
-    // sub
-    bool  subOn = false; int subWave = 0; int subOct = 0;
-    float subGain = 0.5f, subAttackMs = 2.f, subLengthMs = 500.f, subToneHz = 400.f, subDrive = 0.f;
-    // rumble
-    bool  rumOn = false;
-    float rumGain = 0.5f, rumDelayMs = 60.f, rumDecay = 0.6f, rumDrive = 0.5f, rumLpHz = 120.f, rumDuck = 0.7f;
     // master
     int   root = 60;
     float preGain = 1.f; bool clipOn = true; float clipCeil = 0.95f, clipKnee = 0.2f;
@@ -56,12 +50,9 @@ public:
     {
         sr = sampleRate;
         maxBlockSize = juce::jmax (32, maxBlock);
-        for (auto* b : { &dryBuf, &forgeBuf, &busBuf, &rumBuf, &tmpBuf })
+        for (auto* b : { &dryBuf, &forgeBuf, &tmpBuf, &tmpIn })
             b->assign ((size_t) maxBlockSize, 0.f);
-
-        rumDelay.assign ((size_t) (sr * 0.5) + 8, 0.f);
-        rumWrite = 0;
-        rumReverb.setSampleRate (sr);
+        mixDelay.assign (64, 0.f);
         gritReverb.setSampleRate (sr);
 
         auto makeOS = [this] { auto o = std::make_unique<juce::dsp::Oversampling<float>> (
@@ -70,6 +61,7 @@ public:
         clipOS = makeOS();
         forgeOS1 = makeOS();
         forgeOS2 = makeOS();
+        osLatency = (int) std::round (forgeOS1->getLatencyInSamples());
 
         limiter.prepare ({ sr, (juce::uint32) maxBlockSize, 1 });
 
@@ -84,9 +76,9 @@ public:
     void reset()
     {
         for (auto& v : voices) v = {};
-        std::fill (rumDelay.begin(), rumDelay.end(), 0.f);
-        rumReverb.reset(); gritReverb.reset();
-        rumLp1 = {}; rumLp2 = {}; rumHp = 0.f; duckEnv = 0.f; rumWindow = 0.f; rumCountdown = 0;
+        gritReverb.reset();
+        std::fill (mixDelay.begin(), mixDelay.end(), 0.f);
+        mixWrite = 0;
         fz = {};
         for (auto* o : { clipOS.get(), forgeOS1.get(), forgeOS2.get() }) if (o) o->reset();
         limiter.reset();
@@ -115,23 +107,12 @@ public:
             lv.env = lp.env;
             lv.rate = lp.sample->sampleRate / sr * std::pow (2.0, semis / 12.0);
             lv.offset = lp.offsetMs * 0.001 * sr;
+            lv.audibleFrom = juce::jmax (0.0, -lv.offset);   // negative offset trims the start
             lv.reverse = lp.reverse;
             lv.forge = lp.forge;
             lv.active = true;
         }
 
-        if (p.subOn)
-        {
-            auto& s = v.sub;
-            const double hz = Library::tailHz * std::pow (2.0, (noteSemis + 12.f * (float) p.subOct) / 12.0);
-            s.inc = hz / sr;
-            s.len = juce::jmax (16, (int) (p.subLengthMs * 0.001 * sr));
-            s.att = juce::jlimit (1, s.len / 2, (int) (p.subAttackMs * 0.001 * sr));
-            s.fade = juce::jlimit (8, s.len, (int) (0.35 * s.len));
-            s.active = true;
-        }
-
-        rumCountdown = juce::jmax (1, (int) (p.rumDelayMs * 0.001 * sr));
         hitWrite = 0;
         hitLength.store (0);
         hitSerial.fetch_add (1);
@@ -201,40 +182,19 @@ private:
     {
         SamplePtr sample;
         EnvPtr env;
-        double rate = 1.0, offset = 0.0;
+        double rate = 1.0, offset = 0.0, audibleFrom = 0.0;
         int n = 0;
         size_t envSeg = 0;
         bool active = false, reverse = false, forge = true;
         Svf hp, lp;
-    };
-    struct SubVoice
-    {
-        double phase = 0.0, inc = 0.0;
-        int n = 0, len = 0, att = 1, fade = 1;
-        bool active = false;
-        Svf lp;
     };
     struct Voice
     {
         bool active = false;
         float steal = 1.f, stealStep = 0.f;
         std::array<LayerVoice, NumSampleLayers> layer;
-        SubVoice sub;
     };
 
-    static inline float polyBlep (double t, double dt)
-    {
-        if (t < dt)       { t /= dt; return (float) (t + t - t * t - 1.0); }
-        if (t > 1.0 - dt) { t = (t - 1.0) / dt; return (float) (t * t + t + t + 1.0); }
-        return 0.f;
-    }
-    static inline float fadeCurve (int n, int len, int fade)
-    {
-        if (n < len - fade) return 1.f;
-        if (n >= len) return 0.f;
-        const float x = (float) (n - (len - fade)) / (float) fade;
-        return 0.5f * (1.f + std::cos (juce::MathConstants<float>::pi * x));
-    }
     static inline float softClip (float x, float ceil, float knee)
     {
         const float a = std::abs (x);
@@ -254,14 +214,15 @@ private:
         const double pos = t * lv.rate;
         const double len = (double) d.size() - 1.0;
         if (pos >= len) return false;
-        const float ms = (float) (t * 1000.0 / sr);
+        const double a = t - lv.audibleFrom;                   // time since the layer became audible
+        const float ms = (float) (a * 1000.0 / sr);           // envelope time: 0 = where the layer starts sounding
         float g = 1.f;
         if (lv.env != nullptr)
         {
             if (lv.env->endsSilent() && ms >= lv.env->endMs()) return false;
             g = lv.env->eval (ms, lv.envSeg);
         }
-        if (t < 24.0) g *= (float) (t / 24.0);                 // 0.5 ms anti-click at the layer start
+        if (a < 24.0) g *= (float) (a / 24.0);                 // 0.5 ms anti-click where the layer starts
         out = hermite (d, lv.reverse ? len - pos : pos) * g;
         return true;
     }
@@ -269,23 +230,19 @@ private:
     // ------------------------------------------------------------ FORGE
     struct ForgeState
     {
-        Svf focus, presence, toneLo, toneHi;
+        Svf focus, deEmph, fizz1, fizz2;               // drive stage (oversampled)
+        Svf presence, preLp, post;                     // crunch stage (oversampled)
+        Svf toneLo, toneHi, smoothLp1, smoothLp2, smoothDip;
         float dc1x = 0.f, dc1y = 0.f, dc2x = 0.f, dc2y = 0.f;
-        float gate = 0.f;
+        float gate = 0.f, gritHp = 0.f, gritLp = 0.f;
+        float envIn = 0.f, envOut = 0.f, match = 1.f;
         float bandLo = 0.f, bandHiLp = 0.f;
         std::array<float, 3> bandEnv {};
-        Svf post;
     } fz;
 
     static inline float tube (float x)          // asymmetric: even + odd harmonics
     {
         return std::tanh (x + 0.25f) - 0.2449187f;
-    }
-    static inline float crunchShape (float x)   // hard knee with a little fold-back grit
-    {
-        const float h = juce::jlimit (-1.f, 1.f, x);
-        const float f = std::sin (juce::jlimit (-4.f, 4.f, x) * 0.9f);
-        return 0.75f * h + 0.25f * f;
     }
 
     void runForge (float* buf, int len)
@@ -293,55 +250,82 @@ private:
         const auto& f = p.forge;
         const double osr = sr * 4.0;
 
-        // ---- stage 1: FOCUS pre-EQ + DRIVE (oversampled)
+        // dry copy for the parallel MIX, delayed by the oversampling latency so the blend doesn't comb
+        const bool parallel = f.mix < 0.999f;
+        // level follower of the input: the FORGE output is matched back to it at the end (no loudness jump)
         {
-            float cF[4]; coeffs (cF, f.focusHz, 0.9f, osr);
-            const float focusG = juce::Decibels::decibelsToGain (10.f);
-            const float drive = juce::Decibels::decibelsToGain (f.driveDb + 4.f);
+            const float att = 1.f - std::exp (-1.f / (0.001f * (float) sr));
+            const float rel = 1.f - std::exp (-1.f / (0.12f * (float) sr));
+            for (int i = 0; i < len; ++i)
+            {
+                const float a = std::abs (buf[i]);
+                fz.envIn += (a > fz.envIn ? att : rel) * (a - fz.envIn);
+                tmpIn[(size_t) i] = fz.envIn;
+            }
+        }
+        mixLatency = osLatency * (f.crunch > 0.001f ? 2 : 1);
+        if (parallel) std::copy (buf, buf + len, dryBuf.begin());
+
+        // ---- stage 1: FOCUS pre-emphasis -> DRIVE -> fizz low-pass -> de-emphasis (oversampled)
+        {
+            float cF[4];  coeffs (cF, f.focusHz, 0.8f, osr);
+            float cZ[4];  coeffs (cZ, 12500.f, 0.6f, osr);
+            const float pre  = juce::Decibels::decibelsToGain (7.f);
+            const float post = juce::Decibels::decibelsToGain (-3.5f);
+            const float drive = juce::Decibels::decibelsToGain (f.driveDb + 2.f);
+            const float norm = 1.f / (0.55f + 0.45f * std::tanh (drive * 0.5f));
             float* chans[] = { buf };
             juce::dsp::AudioBlock<float> block (chans, 1, (size_t) len);
             auto os = forgeOS1->processSamplesUp (block);
             float* o = os.getChannelPointer (0);
-            const float norm = 1.f / (0.6f + 0.4f * std::tanh (drive * 0.5f));
             for (size_t i = 0; i < os.getNumSamples(); ++i)
-                o[i] = tube (fz.focus.peak (o[i], cF, focusG) * drive) * norm;
+            {
+                float y = tube (fz.focus.peak (o[i], cF, pre) * drive) * norm;
+                y = fz.fizz1.lp (y, cZ);                         // the drive's fizz never reaches the next stages
+                o[i] = fz.deEmph.peak (y, cF, post);
+            }
             forgeOS1->processSamplesDown (block);
         }
-        // DC blocker (asymmetric curve adds DC)
-        for (int i = 0; i < len; ++i)
+        for (int i = 0; i < len; ++i)       // DC blocker (asymmetric curve adds DC)
         {
             const float x = buf[i];
             fz.dc1y = x - fz.dc1x + 0.9995f * fz.dc1y; fz.dc1x = x;
             buf[i] = fz.dc1y;
         }
 
-        // ---- GRIT: short reverb, gated by the kick itself, pushed into the crunch stage
+        // ---- GRIT: short reverb, band-limited (150 Hz..3.5 kHz) and gated by the kick, pushed into CRUNCH
         if (f.grit > 0.001f)
         {
             juce::Reverb::Parameters rp;
-            rp.roomSize = 0.42f; rp.damping = 0.25f; rp.wetLevel = 1.f; rp.dryLevel = 0.f; rp.width = 0.f;
+            rp.roomSize = 0.38f; rp.damping = 0.55f; rp.wetLevel = 1.f; rp.dryLevel = 0.f; rp.width = 0.f;
             gritReverb.setParameters (rp);
             std::copy (buf, buf + len, tmpBuf.begin());
             gritReverb.processMono (tmpBuf.data(), len);
             const float att = 1.f - std::exp (-1.f / (0.0005f * (float) sr));
-            const float rel = 1.f - std::exp (-1.f / (0.045f * (float) sr));
+            const float rel = 1.f - std::exp (-1.f / (0.040f * (float) sr));
+            const float aHp = 1.f - std::exp (-juce::MathConstants<float>::twoPi * 150.f / (float) sr);
+            const float aLp = 1.f - std::exp (-juce::MathConstants<float>::twoPi * 3500.f / (float) sr);
             for (int i = 0; i < len; ++i)
             {
+                float r = tmpBuf[(size_t) i];
+                fz.gritHp += aHp * (r - fz.gritHp); r -= fz.gritHp;
+                fz.gritLp += aLp * (r - fz.gritLp); r = fz.gritLp;
                 const float a = std::abs (buf[i]);
                 fz.gate += (a > fz.gate ? att : rel) * (a - fz.gate);
-                const float g = juce::jlimit (0.f, 1.f, fz.gate * 3.f);
-                buf[i] += f.grit * 2.5f * tmpBuf[(size_t) i] * g;
+                buf[i] += f.grit * 1.3f * r * juce::jlimit (0.f, 1.f, fz.gate * 3.f);
             }
         }
 
-        // ---- stage 2: CRUNCH (presence boost into a hard clipper, oversampled)
+        // ---- stage 2: CRUNCH (mid presence, band-limited, soft-knee clip, oversampled)
         if (f.crunch > 0.001f)
         {
-            float cP[4]; coeffs (cP, 2200.f, 0.7f, osr);
-            float cL[4]; coeffs (cL, 13000.f, 0.6f, osr);
-            const float pres = juce::Decibels::decibelsToGain (9.f * f.crunch);
-            const float gain = juce::Decibels::decibelsToGain (26.f * f.crunch);
-            const float mix = juce::jlimit (0.f, 1.f, f.crunch * 1.6f);
+            float cP[4]; coeffs (cP, 2400.f, 0.6f, osr);
+            float cB[4]; coeffs (cB, 7000.f, 0.6f, osr);
+            float cL[4]; coeffs (cL, 11000.f, 0.6f, osr);
+            const float pres = juce::Decibels::decibelsToGain (12.f * f.crunch);
+            const float gain = juce::Decibels::decibelsToGain (24.f * f.crunch);
+            const float mix = juce::jlimit (0.f, 1.f, f.crunch * 1.5f);
+            const float makeup = 0.85f;
             float* chans[] = { buf };
             juce::dsp::AudioBlock<float> block (chans, 1, (size_t) len);
             auto os = forgeOS2->processSamplesUp (block);
@@ -349,7 +333,8 @@ private:
             for (size_t i = 0; i < os.getNumSamples(); ++i)
             {
                 const float x = o[i];
-                const float y = crunchShape (fz.presence.highShelf (x, cP, pres) * gain) * 0.8f;
+                const float in = fz.preLp.lp (fz.presence.peak (x, cP, pres), cB) * gain;
+                const float y = softClip (in, 1.f, 0.35f) * makeup;
                 o[i] = fz.post.lp (x + mix * (y - x), cL);
             }
             forgeOS2->processSamplesDown (block);
@@ -366,20 +351,20 @@ private:
         {
             float cLo[4]; coeffs (cLo, 280.f, 0.7f, sr);
             float cHi[4]; coeffs (cHi, 1800.f, 0.7f, sr);
-            const float gLo = juce::Decibels::decibelsToGain (-6.f * f.tone);
-            const float gHi = juce::Decibels::decibelsToGain (7.f * f.tone);
+            const float gLo = juce::Decibels::decibelsToGain (-4.f * f.tone);
+            const float gHi = juce::Decibels::decibelsToGain (4.5f * f.tone);
             for (int i = 0; i < len; ++i)
                 buf[i] = fz.toneHi.highShelf (fz.toneLo.lowShelf (buf[i], cLo, gLo), cHi, gHi);
         }
 
-        // ---- OTT: 3 bands pulled towards a target level (downward above, upward below)
+        // ---- OTT: 3 bands pulled towards a target level - gentle upward gain so tails don't turn to noise
         if (f.ott > 0.001f)
         {
             const float aLo = 1.f - std::exp (-juce::MathConstants<float>::twoPi * 120.f / (float) sr);
             const float aHi = 1.f - std::exp (-juce::MathConstants<float>::twoPi * 2500.f / (float) sr);
             const float att = 1.f - std::exp (-1.f / (0.002f * (float) sr));
-            const float rel = 1.f - std::exp (-1.f / (0.06f * (float) sr));
-            const float targets[3] = { 0.30f, 0.22f, 0.12f };
+            const float rel = 1.f - std::exp (-1.f / (0.08f * (float) sr));
+            const float targets[3] = { 0.30f, 0.20f, 0.12f };
             for (int i = 0; i < len; ++i)
             {
                 const float x = buf[i];
@@ -396,11 +381,60 @@ private:
                     const float a = std::abs (bands[b]);
                     auto& e = fz.bandEnv[(size_t) b];
                     e += (a > e ? att : rel) * (a - e);
-                    const float ratio = targets[b] / juce::jmax (e, 0.003f);
-                    const float g = juce::jlimit (0.25f, 8.f, std::pow (ratio, 0.75f));
+                    const float ratio = targets[b] / juce::jmax (e, 0.01f);
+                    const float g = juce::jlimit (0.3f, 4.f, std::pow (ratio, 0.6f));
                     y += bands[b] * g;
                 }
                 buf[i] = x + f.ott * (y - x);
+            }
+        }
+
+        // ---- SMOOTH: takes the edge off - 12 dB/oct low-pass sliding 20k -> 5k + a dip at the ear's harsh spot
+        if (f.smooth > 0.001f)
+        {
+            const float hz = 20000.f * std::pow (0.3f, f.smooth);
+            float cS[4]; coeffs (cS, hz, 0.6f, sr);
+            float cD[4]; coeffs (cD, 3300.f, 1.1f, sr);
+            const float dip = juce::Decibels::decibelsToGain (-4.f * f.smooth);
+            for (int i = 0; i < len; ++i)
+                buf[i] = fz.smoothDip.peak (fz.smoothLp2.lp (fz.smoothLp1.lp (buf[i], cS), cS), cD, dip);
+        }
+
+        // ---- LEVEL MATCH: FORGE changes the colour, not the loudness - the master clipper isn't slammed
+        {
+            const float att = 1.f - std::exp (-1.f / (0.001f * (float) sr));
+            const float rel = 1.f - std::exp (-1.f / (0.12f * (float) sr));
+            const float gs  = 1.f - std::exp (-1.f / (0.01f * (float) sr));
+            for (int i = 0; i < len; ++i)
+            {
+                const float a = std::abs (buf[i]);
+                fz.envOut += (a > fz.envOut ? att : rel) * (a - fz.envOut);
+                const float target = fz.envOut > 1.0e-5f ? juce::jlimit (0.2f, 2.f, 1.1f * tmpIn[(size_t) i] / fz.envOut) : 1.f;
+                fz.match += gs * (target - fz.match);
+                buf[i] *= fz.match;
+            }
+        }
+
+        // ---- MIX: parallel blend with the clean layers
+        if (parallel)
+        {
+            const int lat = juce::jlimit (0, (int) mixDelay.size() - 1, mixLatency);
+            const int sz = (int) mixDelay.size();
+            for (int i = 0; i < len; ++i)
+            {
+                mixDelay[(size_t) mixWrite] = dryBuf[(size_t) i];
+                int rp = mixWrite - lat; if (rp < 0) rp += sz;
+                const float d = mixDelay[(size_t) rp];
+                if (++mixWrite >= sz) mixWrite = 0;
+                buf[i] = d + f.mix * (buf[i] - d);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < len; ++i)             // keep the delay line warm for a click-free switch
+            {
+                mixDelay[(size_t) mixWrite] = 0.f;
+                if (++mixWrite >= (int) mixDelay.size()) mixWrite = 0;
             }
         }
     }
@@ -408,7 +442,7 @@ private:
     // ------------------------------------------------------------ render
     void renderSegment (float* outL, float* outR, int len)
     {
-        float hpC[NumSampleLayers][4], lpC[NumSampleLayers][4], subC[4];
+        float hpC[NumSampleLayers][4], lpC[NumSampleLayers][4];
         bool useHp[NumSampleLayers], useLp[NumSampleLayers];
         for (int l = 0; l < NumSampleLayers; ++l)
         {
@@ -417,19 +451,16 @@ private:
             coeffs (hpC[l], p.layer[(size_t) l].hpHz, 0.707f, sr);
             coeffs (lpC[l], p.layer[(size_t) l].lpHz, 0.707f, sr);
         }
-        coeffs (subC, p.subToneHz, 0.707f, sr);
-        const float subG = 1.f + p.subDrive * 12.f;
-        const float subNorm = 1.f / std::tanh (subG);
         bool anyForge = false;
 
-        // ---------------- layers -> dry / forge buses, sub -> sub bus (in busBuf)
+        // ---------------- layers -> dry / forge buses
         for (int i = 0; i < len; ++i)
         {
-            float dry = 0.f, frg = 0.f, sub = 0.f;
+            float dry = 0.f, frg = 0.f;
             for (auto& v : voices)
             {
                 if (! v.active) continue;
-                float vd = 0.f, vf = 0.f, vs = 0.f;
+                float vd = 0.f, vf = 0.f;
                 bool any = false;
 
                 for (int l = 0; l < NumSampleLayers; ++l)
@@ -446,32 +477,6 @@ private:
                     if (lv.forge && p.forge.on) vf += x; else vd += x;
                 }
 
-                auto& s = v.sub;
-                if (s.active)
-                {
-                    if (s.n >= s.len) s.active = false;
-                    else
-                    {
-                        any = true;
-                        float x;
-                        switch (p.subWave)
-                        {
-                            case 0:  x = std::sin ((float) (s.phase * juce::MathConstants<double>::twoPi)); break;
-                            case 1:  x = (float) (2.0 * s.phase - 1.0) - polyBlep (s.phase, s.inc); break;
-                            default:
-                                x = s.phase < 0.5 ? 1.f : -1.f;
-                                x += polyBlep (s.phase, s.inc) - polyBlep (std::fmod (s.phase + 0.5, 1.0), s.inc);
-                        }
-                        s.phase += s.inc; if (s.phase >= 1.0) s.phase -= 1.0;
-                        if (p.subWave != 0) x = s.lp.lp (x, subC);
-                        if (p.subDrive > 0.001f) x = std::tanh (x * subG) * subNorm;
-                        const float att = s.n < s.att ? (float) s.n / (float) s.att : 1.f;
-                        x *= att * fadeCurve (s.n, s.len, s.fade);
-                        ++s.n;
-                        vs += p.subOn ? x * p.subGain : 0.f;
-                    }
-                }
-
                 float st = 1.f;
                 if (v.stealStep > 0.f)
                 {
@@ -480,11 +485,10 @@ private:
                     st = v.steal;
                 }
                 if (! any) v.active = false;
-                dry += vd * st; frg += vf * st; sub += vs * st;
+                dry += vd * st; frg += vf * st;
             }
-            dryBuf[(size_t) i] = dry;
+            outL[i] = dry;
             forgeBuf[(size_t) i] = frg;
-            busBuf[(size_t) i] = sub;
             anyForge |= frg != 0.f;
         }
 
@@ -494,68 +498,15 @@ private:
             if (anyForge) forgeIdle = 0; else forgeIdle += len;
             if (forgeIdle < (int) sr)       // keep processing ~1 s after the last input for reverb/OTT tails
                 runForge (forgeBuf.data(), len);
+            else
+                std::fill (forgeBuf.begin(), forgeBuf.begin() + len, 0.f);
         }
-        for (int i = 0; i < len; ++i)
-            busBuf[(size_t) i] += dryBuf[(size_t) i] + forgeBuf[(size_t) i];
-
-        // ---------------- rumble
-        const bool rumble = p.rumOn;
-        if (rumble)
-        {
-            const int dSamp = juce::jlimit (1, (int) rumDelay.size() - 2, (int) (p.rumDelayMs * 0.001 * sr));
-            for (int i = 0; i < len; ++i)
-            {
-                int rp = rumWrite - dSamp; if (rp < 0) rp += (int) rumDelay.size();
-                rumBuf[(size_t) i] = rumDelay[(size_t) rp];
-                rumDelay[(size_t) rumWrite] = busBuf[(size_t) i];
-                if (++rumWrite >= (int) rumDelay.size()) rumWrite = 0;
-            }
-            juce::Reverb::Parameters rpm;
-            rpm.roomSize = 0.3f + 0.68f * p.rumDecay;
-            rpm.damping = 0.45f; rpm.wetLevel = 1.f; rpm.dryLevel = 0.f; rpm.width = 0.f;
-            rumReverb.setParameters (rpm);
-            rumReverb.processMono (rumBuf.data(), len);
-
-            float lpCo[4]; coeffs (lpCo, p.rumLpHz, 0.6f, sr);
-            const float g = 1.f + p.rumDrive * 20.f;
-            const float norm = 1.f / std::tanh (juce::jmin (g, 4.f));
-            const float hpC1 = 1.f - std::exp (-juce::MathConstants<float>::twoPi * 30.f / (float) sr);
-            const float duckRel = std::exp (-1.f / (0.09f * (float) sr));
-            const double winSec = 0.15 + 1.05 * p.rumDecay;
-            const float winCoef = (float) std::exp (std::log (0.001) / (winSec * sr));
-            for (int i = 0; i < len; ++i)
-            {
-                float x = rumBuf[(size_t) i];
-                rumHp += hpC1 * (x - rumHp); x -= rumHp;
-                x = std::tanh (x * g) * norm;
-                x = rumLp1.lp (x, lpCo);
-                x = rumLp2.lp (x, lpCo);
-                const float a = std::abs (busBuf[(size_t) i]);
-                duckEnv = a > duckEnv ? a : duckEnv * duckRel;
-                const float duck = 1.f - p.rumDuck * juce::jmin (1.f, duckEnv * 2.5f);
-                if (rumCountdown > 0 && --rumCountdown == 0) rumWindow = 1.f;
-                const float win = rumWindow;
-                rumWindow *= winCoef;
-                rumBuf[(size_t) i] = x * duck * p.rumGain * win;
-            }
-        }
-        else
-        {
-            rumWindow = 0.f; rumCountdown = 0;
-            if (rumWasOn) { rumReverb.reset(); rumLp1 = {}; rumLp2 = {}; rumHp = 0.f; }
-            for (int i = 0; i < len; ++i)
-            {
-                rumDelay[(size_t) rumWrite] = busBuf[(size_t) i];
-                if (++rumWrite >= (int) rumDelay.size()) rumWrite = 0;
-            }
-        }
-        rumWasOn = rumble;
 
         // ---------------- master
         sPre.setTargetValue (p.preGain);
         sVol.setTargetValue (p.volume);
         for (int i = 0; i < len; ++i)
-            outL[i] = (busBuf[(size_t) i] + (rumble ? rumBuf[(size_t) i] : 0.f)) * sPre.getNextValue();
+            outL[i] = (outL[i] + forgeBuf[(size_t) i]) * sPre.getNextValue();
 
         if (p.clipOn)
         {
@@ -591,14 +542,9 @@ private:
     std::array<Voice, 3> voices;
     int nextVoice = 0;
 
-    std::vector<float> dryBuf, forgeBuf, busBuf, rumBuf, tmpBuf;
-    std::vector<float> rumDelay;
-    int rumWrite = 0, forgeIdle = 1 << 30;
-    juce::Reverb rumReverb, gritReverb;
-    Svf rumLp1, rumLp2;
-    float rumHp = 0.f, duckEnv = 0.f, rumWindow = 0.f;
-    int rumCountdown = 0;
-    bool rumWasOn = false;
+    std::vector<float> dryBuf, forgeBuf, tmpBuf, tmpIn, mixDelay;
+    int forgeIdle = 1 << 30, mixWrite = 0, mixLatency = 0, osLatency = 0;
+    juce::Reverb gritReverb;
 
     std::unique_ptr<juce::dsp::Oversampling<float>> clipOS, forgeOS1, forgeOS2;
     juce::dsp::Limiter<float> limiter;

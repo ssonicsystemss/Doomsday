@@ -80,9 +80,7 @@ private:
     {
         using A = std::atomic<float>*;
         std::array<A, NumSampleLayers> on {}, src {}, level {}, pitch {}, offset {}, hp {}, lp {}, rev {}, forge {};
-        A punchKey {}, fOn {}, fDrive {}, fFocus {}, fGrit {}, fCrunch {}, fTone {}, fOtt {};
-        A subOn {}, subWave {}, subOct {}, subLevel {}, subAttack {}, subLength {}, subTone {}, subDrive {};
-        A rumOn {}, rumLevel {}, rumDelay {}, rumDecay {}, rumDrive {}, rumLp {}, rumDuck {};
+        A punchKey {}, fOn {}, fDrive {}, fFocus {}, fGrit {}, fCrunch {}, fTone {}, fOtt {}, fSmooth {}, fMix {};
         A root {}, preGain {}, clipOn {}, clipCeil {}, clipKnee {}, limOn {}, limCeil {}, limRel {}, volume {};
     } ptr;
 

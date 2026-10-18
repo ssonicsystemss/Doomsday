@@ -67,7 +67,8 @@ AudioProcessorValueTreeState::ParameterLayout AncientProcessor::createLayout()
         l.add (std::make_unique<AudioParameterChoice> (ParameterID { id (i, src), 1 }, n + " Sample", Library::choicesFor (i), 0));
         l.add (fparam (id (i, level),  n + " Level", { -36.f, 6.f }, d.level, fmtDb, parseNum));
         l.add (fparam (id (i, pitch),  n + " Pitch", { -24.f, 24.f, 0.01f }, 0.f, fmtSemi, parseNum));
-        l.add (fparam (id (i, offset), n + " Offset", { -150.f, 300.f, 0.1f }, 0.f, fmtOff, parseMs));
+        // wide range so the screen never blocks a drag; symmetric skew keeps the knob fine around 0
+        l.add (fparam (id (i, offset), n + " Offset", NormalisableRange<float> (-2000.f, 2000.f, 0.1f, 0.4f, true), 0.f, fmtOff, parseMs));
         l.add (fparam (id (i, hp),     n + " Low Cut", skewed (20.f, 2000.f, 250.f), d.hp, fmtHz, parseHz));
         l.add (fparam (id (i, lp),     n + " High Cut", skewed (200.f, 20000.f, 3000.f), d.lp, fmtHz, parseHz));
         l.add (bparam (id (i, rev),    n + " Reverse", false));
@@ -77,31 +78,14 @@ AudioProcessorValueTreeState::ParameterLayout AncientProcessor::createLayout()
 
     // FORGE
     l.add (bparam (fOn, "Forge On", true));
-    l.add (fparam (fDrive,  "Forge Drive", { 0.f, 36.f }, 24.f, fmtDb, parseNum));
-    l.add (fparam (fFocus,  "Forge Focus", skewed (150.f, 3000.f, 600.f), 580.f, fmtHz, parseHz));
-    l.add (fparam (fGrit,   "Forge Grit", { 0.f, 1.f }, 0.45f, fmtPct, parsePct));
-    l.add (fparam (fCrunch, "Forge Crunch", { 0.f, 1.f }, 0.62f, fmtPct, parsePct));
-    l.add (fparam (fTone,   "Forge Tone", { -1.f, 1.f }, 0.3f, fmtTilt, parseTilt));
-    l.add (fparam (fOtt,    "Forge OTT", { 0.f, 1.f }, 0.55f, fmtPct, parsePct));
-
-    // SUB
-    l.add (bparam (subOn, "Sub On", false));
-    l.add (std::make_unique<AudioParameterChoice> (ParameterID { subWave, 1 }, "Sub Wave", Choices::subWaves, 0));
-    l.add (std::make_unique<AudioParameterInt> (ParameterID { subOct, 1 }, "Sub Octave", -2, 1, 0));
-    l.add (fparam (subLevel,  "Sub Level", { -36.f, 6.f }, -6.f, fmtDb, parseNum));
-    l.add (fparam (subAttack, "Sub Attack", skewed (0.1f, 100.f, 10.f), 2.f, fmtMs, parseMs));
-    l.add (fparam (subLength, "Sub Length", skewed (20.f, 2500.f, 500.f), 450.f, fmtMs, parseMs));
-    l.add (fparam (subTone,   "Sub Tone", skewed (40.f, 5000.f, 400.f), 300.f, fmtHz, parseHz));
-    l.add (fparam (subDrive,  "Sub Drive", { 0.f, 1.f }, 0.f, fmtPct, parsePct));
-
-    // RUMBLE
-    l.add (bparam (rumOn, "Rumble On", true));
-    l.add (fparam (rumLevel, "Rumble Level", { -36.f, 6.f }, -9.f, fmtDb, parseNum));
-    l.add (fparam (rumDelay, "Rumble Delay", skewed (0.f, 250.f, 60.f), 60.f, fmtMs, parseMs));
-    l.add (fparam (rumDecay, "Rumble Decay", { 0.f, 1.f }, 0.55f, fmtPct, parsePct));
-    l.add (fparam (rumDrive, "Rumble Drive", { 0.f, 1.f }, 0.5f, fmtPct, parsePct));
-    l.add (fparam (rumLp,    "Rumble Low Pass", skewed (30.f, 500.f, 120.f), 110.f, fmtHz, parseHz));
-    l.add (fparam (rumDuck,  "Rumble Duck", { 0.f, 1.f }, 0.8f, fmtPct, parsePct));
+    l.add (fparam (fDrive,  "Forge Drive", { 0.f, 30.f }, 18.f, fmtDb, parseNum));
+    l.add (fparam (fFocus,  "Forge Focus", skewed (150.f, 3000.f, 600.f), 520.f, fmtHz, parseHz));
+    l.add (fparam (fGrit,   "Forge Grit", { 0.f, 1.f }, 0.2f, fmtPct, parsePct));
+    l.add (fparam (fCrunch, "Forge Crunch", { 0.f, 1.f }, 0.55f, fmtPct, parsePct));
+    l.add (fparam (fTone,   "Forge Tone", { -1.f, 1.f }, 0.25f, fmtTilt, parseTilt));
+    l.add (fparam (fOtt,    "Forge OTT", { 0.f, 1.f }, 0.3f, fmtPct, parsePct));
+    l.add (fparam (fSmooth, "Forge Smooth", { 0.f, 1.f }, 0.3f, fmtPct, parsePct));
+    l.add (fparam (fMix,    "Forge Mix", { 0.f, 1.f }, 1.f, fmtPct, parsePct));
 
     // MASTER
     l.add (std::make_unique<AudioParameterInt> (ParameterID { root, 1 }, "Root Note", 24, 96, 60, AudioParameterIntAttributes()
@@ -142,33 +126,31 @@ namespace
         static const std::vector<Preset> p {
             { "Ancient Raw", {}, { 0.f, 0.f, 0.f } },
             { "Temple Euphoric", { { id (Kick, src), 3 }, { id (Crunch, src), 3 }, { id (Crunch, level), -12 }, { id (Punch, src), 1 },
-                                   { fDrive, 16 }, { fFocus, 420 }, { fGrit, 0.2f }, { fCrunch, 0.35f }, { fTone, 0.1f }, { fOtt, 0.35f },
-                                   { rumOn, 0 }, { subOn, 1 }, { subLevel, -9 }, { subLength, 520 }, { clipKnee, 0.5f } },
+                                   { fDrive, 8 }, { fFocus, 420 }, { fGrit, 0.1f }, { fCrunch, 0.25f }, { fTone, 0.05f }, { fOtt, 0.25f },
+                                   { fSmooth, 0.6f }, { clipKnee, 0.5f } },
                                  { 0.f, 0.f, 650.f } },
             { "Pharaoh Uptempo", { { id (Kick, src), 0 }, { id (Kick, pitch), 5 }, { id (Crunch, src), 1 }, { id (Crunch, level), -3 },
-                                   { id (Punch, src), 5 }, { fDrive, 28 }, { fFocus, 700 }, { fGrit, 0.5f }, { fCrunch, 0.75f },
-                                   { fTone, 0.35f }, { fOtt, 0.6f }, { preGain, 6 }, { clipKnee, 0.05f }, { rumDelay, 40 }, { rumDecay, 0.35f } },
+                                   { id (Punch, src), 5 }, { fDrive, 18 }, { fFocus, 700 }, { fGrit, 0.25f }, { fCrunch, 0.6f },
+                                   { fTone, 0.25f }, { fOtt, 0.4f }, { fSmooth, 0.4f }, { preGain, 4 }, { clipKnee, 0.1f } },
                                  { 0.f, 0.f, 380.f } },
-            { "Babylon Hardcore", { { id (Kick, src), 2 }, { id (Crunch, src), 2 }, { fDrive, 24 }, { fFocus, 450 }, { fGrit, 0.55f },
-                                    { fCrunch, 0.6f }, { fTone, 0.15f }, { fOtt, 0.55f },
-                                    { rumLevel, -6 }, { rumDecay, 0.75f }, { rumDrive, 0.8f }, { rumLp, 90 }, { preGain, 4 } },
+            { "Babylon Hardcore", { { id (Kick, src), 2 }, { id (Crunch, src), 2 }, { fDrive, 15 }, { fFocus, 450 }, { fGrit, 0.3f },
+                                    { fCrunch, 0.5f }, { fTone, 0.1f }, { fOtt, 0.35f }, { fSmooth, 0.5f }, { preGain, 3 } },
                                   { 0.f, 0.f, 1100.f } },
             { "Colossus Frenchcore", { { id (Kick, src), 1 }, { id (Kick, pitch), 2 }, { id (Crunch, src), 5 }, { id (Crunch, level), -4 },
-                                       { id (Punch, src), 2 }, { fDrive, 30 }, { fFocus, 800 }, { fGrit, 0.45f }, { fCrunch, 0.8f },
-                                       { fTone, 0.4f }, { fOtt, 0.65f }, { rumOn, 0 }, { preGain, 8 }, { clipKnee, 0.f } },
+                                       { id (Punch, src), 2 }, { fDrive, 20 }, { fFocus, 800 }, { fGrit, 0.25f }, { fCrunch, 0.65f },
+                                       { fTone, 0.3f }, { fOtt, 0.45f }, { fSmooth, 0.45f }, { preGain, 5 }, { clipKnee, 0.f } },
                                      { 0.f, 0.f, 1400.f } },
             { "Monolith Rawstyle", { { id (Kick, src), 5 }, { id (Crunch, src), 4 }, { id (Crunch, pitch), 3 }, { id (Crunch, offset), 4 },
-                                     { id (Punch, src), 6 }, { fDrive, 26 }, { fFocus, 500 }, { fGrit, 0.6f }, { fCrunch, 0.65f },
-                                     { fTone, 0.25f }, { fOtt, 0.6f }, { rumLevel, -7 }, { rumDelay, 80 }, { preGain, 4 } },
+                                     { id (Punch, src), 6 }, { fDrive, 17 }, { fFocus, 500 }, { fGrit, 0.35f }, { fCrunch, 0.55f },
+                                     { fTone, 0.2f }, { fOtt, 0.4f }, { fSmooth, 0.45f }, { preGain, 3 } },
                                    { 0.f, 0.f, 900.f } },
             { "Reverse Ritual", { { id (Kick, src), 3 }, { id (Kick, rev), 1 }, { id (Punch, on), 0 }, { id (Crunch, on), 0 },
-                                  { fDrive, 20 }, { fFocus, 500 }, { fGrit, 0.5f }, { fCrunch, 0.5f }, { fTone, 0.2f }, { fOtt, 0.55f },
-                                  { rumOn, 0 } },
+                                  { fDrive, 12 }, { fFocus, 500 }, { fGrit, 0.3f }, { fCrunch, 0.4f }, { fTone, 0.15f }, { fOtt, 0.35f } },
                                 { 0.f, 0.f, 0.f } },
-            { "Punch Only", { { id (Crunch, on), 0 }, { id (Kick, on), 0 }, { rumOn, 0 }, { id (Punch, src), 0 } }, { 0.f, 0.f, 0.f } },
-            { "Sub & Rumble", { { id (Punch, on), 0 }, { id (Crunch, on), 0 }, { id (Kick, src), 3 }, { subOn, 1 },
-                                { subWave, 0 }, { subLevel, -4 }, { rumLevel, -5 }, { fCrunch, 0.3f }, { fGrit, 0.2f } },
-                              { 0.f, 0.f, 0.f } },
+            { "Clean Tail", { { id (Punch, src), 0 }, { id (Crunch, on), 0 }, { id (Kick, src), 3 }, { fDrive, 6 }, { fGrit, 0.f },
+                              { fCrunch, 0.2f }, { fOtt, 0.2f }, { fSmooth, 0.6f }, { fMix, 0.6f } },
+                            { 0.f, 0.f, 0.f } },
+            { "Punch Only", { { id (Crunch, on), 0 }, { id (Kick, on), 0 }, { id (Punch, src), 0 } }, { 0.f, 0.f, 0.f } },
         };
         return p;
     }
@@ -223,10 +205,7 @@ AncientProcessor::AncientProcessor()
     ptr.punchKey = g (punchKey);
     ptr.fOn = g (fOn); ptr.fDrive = g (fDrive); ptr.fFocus = g (fFocus); ptr.fGrit = g (fGrit);
     ptr.fCrunch = g (fCrunch); ptr.fTone = g (fTone); ptr.fOtt = g (fOtt);
-    ptr.subOn = g (subOn); ptr.subWave = g (subWave); ptr.subOct = g (subOct); ptr.subLevel = g (subLevel);
-    ptr.subAttack = g (subAttack); ptr.subLength = g (subLength); ptr.subTone = g (subTone); ptr.subDrive = g (subDrive);
-    ptr.rumOn = g (rumOn); ptr.rumLevel = g (rumLevel); ptr.rumDelay = g (rumDelay); ptr.rumDecay = g (rumDecay);
-    ptr.rumDrive = g (rumDrive); ptr.rumLp = g (rumLp); ptr.rumDuck = g (rumDuck);
+    ptr.fSmooth = g (fSmooth); ptr.fMix = g (fMix);
     ptr.root = g (root); ptr.preGain = g (preGain); ptr.clipOn = g (clipOn); ptr.clipCeil = g (clipCeil);
     ptr.clipKnee = g (clipKnee); ptr.limOn = g (limOn); ptr.limCeil = g (limCeil); ptr.limRel = g (limRel);
     ptr.volume = g (volume);
@@ -283,23 +262,9 @@ KickParams AncientProcessor::gatherParams()
     k.forge.crunch = ptr.fCrunch->load();
     k.forge.tone = ptr.fTone->load();
     k.forge.ott = ptr.fOtt->load();
+    k.forge.smooth = ptr.fSmooth->load();
+    k.forge.mix = ptr.fMix->load();
 
-    k.subOn = on (ptr.subOn);
-    k.subWave = jlimit (0, 2, (int) std::round (ptr.subWave->load()));
-    k.subOct = (int) std::round (ptr.subOct->load());
-    k.subGain = db (ptr.subLevel);
-    k.subAttackMs = ptr.subAttack->load();
-    k.subLengthMs = ptr.subLength->load();
-    k.subToneHz = ptr.subTone->load();
-    k.subDrive = ptr.subDrive->load();
-
-    k.rumOn = on (ptr.rumOn);
-    k.rumGain = db (ptr.rumLevel);
-    k.rumDelayMs = ptr.rumDelay->load();
-    k.rumDecay = ptr.rumDecay->load();
-    k.rumDrive = ptr.rumDrive->load();
-    k.rumLpHz = ptr.rumLp->load();
-    k.rumDuck = ptr.rumDuck->load();
 
     k.root = (int) std::round (ptr.root->load());
     k.preGain = Decibels::decibelsToGain (ptr.preGain->load());
@@ -556,29 +521,15 @@ void AncientProcessor::randomize()
     set (id (Kick, forge), 1.f);
 
     set (fOn, 1.f);
-    set (fDrive, between (16.f, 30.f));
+    set (fDrive, between (8.f, 20.f));
     set (fFocus, logBetween (350.f, 900.f));
-    set (fGrit, between (0.2f, 0.65f));
-    set (fCrunch, between (0.35f, 0.8f));
-    set (fTone, between (0.f, 0.45f));
-    set (fOtt, between (0.3f, 0.7f));
+    set (fGrit, between (0.05f, 0.4f));
+    set (fCrunch, between (0.25f, 0.65f));
+    set (fTone, between (-0.1f, 0.3f));
+    set (fOtt, between (0.2f, 0.5f));
+    set (fSmooth, between (0.3f, 0.7f));
+    set (fMix, chance (0.7f) > 0.f ? 1.f : between (0.6f, 0.9f));
 
-    set (subOn, chance (0.4f));
-    set (subWave, (float) r.nextInt (3));
-    set (subOct, chance (0.8f) > 0.f ? 0.f : -1.f);
-    set (subLevel, between (-14.f, -4.f));
-    set (subAttack, logBetween (0.5f, 20.f));
-    set (subLength, logBetween (250.f, 900.f));
-    set (subTone, logBetween (120.f, 900.f));
-    set (subDrive, between (0.f, 0.5f));
-
-    set (rumOn, chance (0.6f));
-    set (rumLevel, between (-14.f, -5.f));
-    set (rumDelay, between (30.f, 110.f));
-    set (rumDecay, between (0.3f, 0.85f));
-    set (rumDrive, between (0.2f, 0.9f));
-    set (rumLp, logBetween (70.f, 200.f));
-    set (rumDuck, between (0.5f, 1.f));
 
     set (preGain, between (0.f, 8.f));
     set (clipOn, 1.f);

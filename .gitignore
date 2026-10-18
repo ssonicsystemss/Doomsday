@@ -1,3 +1,5 @@
 build/
-JUCE/
+build-promo/
+JUCE
 out/
+Promo/out/

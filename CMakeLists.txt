@@ -80,3 +80,16 @@ if(PROPHECY_BUILD_TESTS)
         $<$<PLATFORM_ID:Linux>:JUCE_USE_XRANDR=0 JUCE_USE_XINERAMA=0 JUCE_USE_XCURSOR=0 JUCE_USE_XRENDER=0 JUCE_ALSA=0 JUCE_JACK=0>)
     target_link_libraries(RenderTest PRIVATE ProphecyData juce::juce_audio_utils juce::juce_dsp juce::juce_recommended_config_flags)
 endif()
+
+# ---------------------------------------------------------------- TikTok promo renderer (optional, Linux)
+# Renders the real plugin (audio + GUI) into raw frames; see Promo/README.md
+option(PROPHECY_BUILD_PROMO "Build the promo video renderer" OFF)
+if(PROPHECY_BUILD_PROMO)
+    juce_add_console_app(PromoRender PRODUCT_NAME "PromoRender")
+    target_sources(PromoRender PRIVATE Promo/promo.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp)
+    target_include_directories(PromoRender PRIVATE Source Promo)
+    target_compile_definitions(PromoRender PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0
+        $<$<PLATFORM_ID:Linux>:JUCE_USE_XRANDR=0 JUCE_USE_XINERAMA=0 JUCE_USE_XCURSOR=0 JUCE_USE_XRENDER=0 JUCE_ALSA=0 JUCE_JACK=0>)
+    target_link_libraries(PromoRender PRIVATE ProphecyData juce::juce_audio_utils juce::juce_dsp juce::juce_audio_formats
+        juce::juce_recommended_config_flags)
+endif()

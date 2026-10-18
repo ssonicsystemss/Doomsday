@@ -1,12 +1,18 @@
-name: Build Windows VST3
+name: Build Ancient Drums VST3
 
 on:
   push:
+    paths:
+      - 'AncientDrums/**'
+      - '.github/workflows/build-ancient-drums.yml'
   workflow_dispatch:
 
 jobs:
   windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: AncientDrums
     steps:
       - uses: actions/checkout@v5
 
@@ -24,4 +30,4 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: Ancient-Drums-VST3-Windows
-          path: build/AncientDrums_artefacts/Release/VST3/
+          path: AncientDrums/build/AncientDrums_artefacts/Release/VST3/

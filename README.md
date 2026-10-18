@@ -1,3 +1,14 @@
+# DOOMSDAY – pluginy hardstyle
+
+| Plugin | Folder | Build (zakładka Actions) |
+|---|---|---|
+| **Prophecy of Scream** – syntezator screechy | katalog główny | *Build Prophecy of Scream VST3* → `Prophecy-of-Scream-VST3-Windows` |
+| **Ancient Drums** – generator kicków | `AncientDrums/` | *Build Ancient Drums VST3* → `Ancient-Drums-VST3-Windows` |
+
+Każdy plugin buduje się osobno – zmiana w jednym nie odpala builda drugiego. Opis Ancient Drums: `AncientDrums/README.md`.
+
+---
+
 # PROPHECY OF SCREAM v2
 Syntezator screechy do hardstyle / rawstyle / uptempo / frenchcore. VST3 (instrument), działa w FL Studio.
 

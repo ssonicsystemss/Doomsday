@@ -1,7 +1,10 @@
-name: Build Windows VST3
+name: Build Prophecy of Scream VST3
 
 on:
   push:
+    paths-ignore:
+      - 'AncientDrums/**'
+      - '.github/workflows/build-ancient-drums.yml'
   workflow_dispatch:
 
 jobs:

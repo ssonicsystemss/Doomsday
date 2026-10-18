@@ -1,0 +1,27 @@
+name: Build Windows VST3
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure
+        run: cmake -B build -A x64
+
+      - name: Build VST3
+        run: cmake --build build --config Release --target AncientDrums_VST3 --parallel
+
+      - name: Remove build leftovers (.lib / .exp)
+        shell: pwsh
+        run: Get-ChildItem build/AncientDrums_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp | Remove-Item
+
+      - name: Upload VST3
+        uses: actions/upload-artifact@v5
+        with:
+          name: Ancient-Drums-VST3-Windows
+          path: build/AncientDrums_artefacts/Release/VST3/

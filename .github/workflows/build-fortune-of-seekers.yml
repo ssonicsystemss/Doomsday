@@ -1,0 +1,33 @@
+name: Build Fortune of Seekers VST3
+
+on:
+  push:
+    paths:
+      - 'FortuneOfSeekers/**'
+      - '.github/workflows/build-fortune-of-seekers.yml'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: FortuneOfSeekers
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure
+        run: cmake -B build -A x64
+
+      - name: Build VST3
+        run: cmake --build build --config Release --target FortuneOfSeekers_VST3 --parallel
+
+      - name: Remove build leftovers (.lib / .exp)
+        shell: pwsh
+        run: Get-ChildItem build/FortuneOfSeekers_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp | Remove-Item
+
+      - name: Upload VST3
+        uses: actions/upload-artifact@v5
+        with:
+          name: Fortune-of-Seekers-VST3-Windows
+          path: FortuneOfSeekers/build/FortuneOfSeekers_artefacts/Release/VST3/

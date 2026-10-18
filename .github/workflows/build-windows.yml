@@ -5,6 +5,8 @@ on:
     paths-ignore:
       - 'AncientDrums/**'
       - '.github/workflows/build-ancient-drums.yml'
+      - 'FortuneOfSeekers/**'
+      - '.github/workflows/build-fortune-of-seekers.yml'
   workflow_dispatch:
 
 jobs:

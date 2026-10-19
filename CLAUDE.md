@@ -9,3 +9,6 @@ Reusable pieces for all ssonicsystemss plugins live in **ssonicsystemss/sonic-to
 (https://github.com/ssonicsystemss/sonic-toolbox). Before building a screen, display, helper or DSP block, read its
 `CLAUDE.md` and reuse what is there (e.g. `screens/`: 20 plugin display screens + `ScreenKit.h`). Attach or clone
 it when needed. If you write something other plugins could use, suggest adding it to the toolbox.
+
+## Rules
+- Git: push changes straight to `main` (owner's choice); no feature branches or pull requests unless asked.

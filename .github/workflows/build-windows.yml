@@ -7,6 +7,9 @@ on:
       - '.github/workflows/build-ancient-drums.yml'
       - 'FortuneOfSeekers/**'
       - '.github/workflows/build-fortune-of-seekers.yml'
+      - 'DarkSerpent/**'
+      - 'Shared/**'
+      - '.github/workflows/build-dark-serpent.yml'
   workflow_dispatch:
 
 jobs:

@@ -1,0 +1,30 @@
+name: Build Dark Serpent VST3
+
+on:
+  push:
+    paths:
+      - 'DarkSerpent/**'
+      - 'Shared/**'
+      - '.github/workflows/build-dark-serpent.yml'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: DarkSerpent
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        run: cmake -B build -A x64
+      - name: Build VST3
+        run: cmake --build build --config Release --target DarkSerpent_VST3 --parallel
+      - name: Remove build leftovers (.lib / .exp)
+        shell: pwsh
+        run: Get-ChildItem build/DarkSerpent_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp | Remove-Item
+      - name: Upload VST3
+        uses: actions/upload-artifact@v5
+        with:
+          name: Dark-Serpent-VST3-Windows
+          path: DarkSerpent/build/DarkSerpent_artefacts/Release/VST3/

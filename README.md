@@ -5,8 +5,9 @@
 | **Prophecy of Scream** – syntezator screechy | katalog główny | *Build Prophecy of Scream VST3* → `Prophecy-of-Scream-VST3-Windows` |
 | **Ancient Drums** – generator kicków | `AncientDrums/` | *Build Ancient Drums VST3* → `Ancient-Drums-VST3-Windows` |
 | **Fortune of Seekers** – syntezator melodii | `FortuneOfSeekers/` | *Build Fortune of Seekers VST3* → `Fortune-of-Seekers-VST3-Windows` |
+| **Dark Serpent** – screamer / lead do dropów | `DarkSerpent/` | *Build Dark Serpent VST3* → `Dark-Serpent-VST3-Windows` |
 
-Każdy plugin buduje się osobno – zmiana w jednym nie odpala builda drugiego. Opisy: `AncientDrums/README.md`, `FortuneOfSeekers/README.md`.
+Każdy plugin buduje się osobno – zmiana w jednym nie odpala builda drugiego. Opisy: `AncientDrums/README.md`, `FortuneOfSeekers/README.md`, `DarkSerpent/README.md`. Wspólne klocki dla nowych pluginów: `Shared/README.md`.
 
 ---
 

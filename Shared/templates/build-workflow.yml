@@ -1,0 +1,32 @@
+# Copy to .github/workflows/build-<plugin>.yml and replace PLUGIN_DIR / TARGET / Pretty Name / ARTIFACT.
+# Also add 'PLUGIN_DIR/**' and this workflow file to paths-ignore in build-windows.yml (Prophecy of Scream).
+name: Build Pretty Name VST3
+
+on:
+  push:
+    paths:
+      - 'PLUGIN_DIR/**'
+      - 'Shared/**'
+      - '.github/workflows/build-PLUGIN_DIR.yml'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: PLUGIN_DIR
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        run: cmake -B build -A x64
+      - name: Build VST3
+        run: cmake --build build --config Release --target TARGET_VST3 --parallel
+      - name: Remove build leftovers (.lib / .exp)
+        shell: pwsh
+        run: Get-ChildItem build/TARGET_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp | Remove-Item
+      - name: Upload VST3
+        uses: actions/upload-artifact@v5
+        with:
+          name: ARTIFACT
+          path: PLUGIN_DIR/build/TARGET_artefacts/Release/VST3/

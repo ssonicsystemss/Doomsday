@@ -141,7 +141,7 @@ namespace doomsday::ui
     class PresetBar : public juce::Component
     {
     public:
-        PresetBar (PresetHost&, bool withPlay);
+        PresetBar (PresetHost&, bool withPlay, bool withRandom = true);
         ~PresetBar() override;
         void resized() override;
         void paint (juce::Graphics&) override;
@@ -151,7 +151,7 @@ namespace doomsday::ui
         void step (int);
         void showSave();
         PresetHost& host;
-        bool withPlay;
+        bool withPlay, withRandom;
         juce::ComboBox box;
         juce::TextButton prev { "<" }, next { ">" }, save { "SAVE" }, random { "RANDOMIZE" };
         struct Play : public juce::TextButton

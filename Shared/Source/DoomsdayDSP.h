@@ -16,6 +16,7 @@
 #include <array>
 #include <vector>
 #include <atomic>
+#include <complex>
 
 namespace doomsday::dsp
 {
@@ -477,5 +478,147 @@ namespace doomsday::dsp
         float choPh = 0.f, pumpG = 1.f;
         juce::SmoothedValue<float> sDly;
         juce::Reverb reverb;
+    };
+}
+
+// =====================================================================
+//  EQ + analyser blocks (from Mirror of Souls)
+//    dsp::Biquad / BiquadCoefs     TDF2 biquad, RBJ designs (bell, shelves, notch, band, HP, LP) + magnitude()
+//    dsp::AnalyzerTap              lock-free ring of mono samples (audio thread writes, GUI reads)
+//    dsp::Spectrum                 FFT 4096 -> smoothed dB per frequency (message thread)
+// =====================================================================
+namespace doomsday::dsp
+{
+    struct BiquadCoefs
+    {
+        double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
+        enum Type { Bell, LowShelf, HighShelf, Notch, BandPass, HighPass, LowPass };
+        static BiquadCoefs make (Type t, double fs, double hz, double q, double gainDb = 0.0)
+        {
+            hz = juce::jlimit (5.0, fs * 0.49, hz);
+            q = juce::jmax (0.05, q);
+            const double A = std::pow (10.0, gainDb / 40.0);
+            const double w = juce::MathConstants<double>::twoPi * hz / fs, cw = std::cos (w), sw = std::sin (w);
+            const double alpha = sw / (2.0 * q);
+            double b0 = 1, b1 = 0, b2 = 0, a0 = 1, a1 = 0, a2 = 0;
+            switch (t)
+            {
+                case Bell:      b0 = 1 + alpha * A; b1 = -2 * cw; b2 = 1 - alpha * A; a0 = 1 + alpha / A; a1 = -2 * cw; a2 = 1 - alpha / A; break;
+                case LowShelf:
+                {
+                    const double s = 2 * std::sqrt (A) * alpha;
+                    b0 = A * ((A + 1) - (A - 1) * cw + s); b1 = 2 * A * ((A - 1) - (A + 1) * cw); b2 = A * ((A + 1) - (A - 1) * cw - s);
+                    a0 = (A + 1) + (A - 1) * cw + s;       a1 = -2 * ((A - 1) + (A + 1) * cw);     a2 = (A + 1) + (A - 1) * cw - s;
+                    break;
+                }
+                case HighShelf:
+                {
+                    const double s = 2 * std::sqrt (A) * alpha;
+                    b0 = A * ((A + 1) + (A - 1) * cw + s); b1 = -2 * A * ((A - 1) + (A + 1) * cw); b2 = A * ((A + 1) + (A - 1) * cw - s);
+                    a0 = (A + 1) - (A - 1) * cw + s;       a1 = 2 * ((A - 1) - (A + 1) * cw);       a2 = (A + 1) - (A - 1) * cw - s;
+                    break;
+                }
+                case Notch:     b0 = 1; b1 = -2 * cw; b2 = 1; a0 = 1 + alpha; a1 = -2 * cw; a2 = 1 - alpha; break;
+                case BandPass:  b0 = alpha; b1 = 0; b2 = -alpha; a0 = 1 + alpha; a1 = -2 * cw; a2 = 1 - alpha; break;
+                case HighPass:  b0 = (1 + cw) / 2; b1 = -(1 + cw); b2 = (1 + cw) / 2; a0 = 1 + alpha; a1 = -2 * cw; a2 = 1 - alpha; break;
+                case LowPass:   b0 = (1 - cw) / 2; b1 = 1 - cw; b2 = (1 - cw) / 2; a0 = 1 + alpha; a1 = -2 * cw; a2 = 1 - alpha; break;
+            }
+            BiquadCoefs c; c.b0 = b0 / a0; c.b1 = b1 / a0; c.b2 = b2 / a0; c.a1 = a1 / a0; c.a2 = a2 / a0;
+            return c;
+        }
+        // |H| at hz (linear)
+        double magnitude (double hz, double fs) const
+        {
+            const double w = juce::MathConstants<double>::twoPi * hz / fs;
+            const std::complex<double> z1 = std::polar (1.0, -w), z2 = z1 * z1;
+            return std::abs ((b0 + b1 * z1 + b2 * z2) / (1.0 + a1 * z1 + a2 * z2));
+        }
+    };
+
+    struct Biquad
+    {
+        double z1 = 0, z2 = 0;
+        inline float process (float xf, const BiquadCoefs& c)
+        {
+            const double x = xf;
+            const double y = c.b0 * x + z1;
+            z1 = c.b1 * x - c.a1 * y + z2;
+            z2 = c.b2 * x - c.a2 * y;
+            return (float) y;
+        }
+        void reset() { z1 = z2 = 0; }
+    };
+
+    // Butterworth stage Qs for 2, 4 and 8 pole cuts (12 / 24 / 48 dB per octave)
+    inline std::vector<double> butterworthQs (int stages)
+    {
+        if (stages <= 1) return { 0.70710678 };
+        if (stages == 2) return { 0.54119610, 1.30656296 };
+        return { 0.50979558, 0.60134489, 0.89997622, 2.56291545 };
+    }
+
+    template <int Size = 8192>
+    struct AnalyzerTap
+    {
+        std::array<float, Size> buf {};
+        std::atomic<int> write { 0 };
+        void push (const float* L, const float* R, int n)
+        {
+            int w = write.load (std::memory_order_relaxed);
+            for (int i = 0; i < n; ++i) { buf[(size_t) w] = 0.5f * (L[i] + (R != nullptr ? R[i] : L[i])); w = (w + 1) & (Size - 1); }
+            write.store (w, std::memory_order_release);
+        }
+        // copies the newest n samples (oldest first)
+        void latest (float* dest, int n) const
+        {
+            const int w = write.load (std::memory_order_acquire);
+            for (int i = 0; i < n; ++i) dest[i] = buf[(size_t) ((w - n + i + 4 * Size) & (Size - 1))];
+        }
+    };
+
+    // message-thread FFT analyser: feed() the newest 4096 samples each frame, read dbAt(hz)
+    class Spectrum
+    {
+    public:
+        static constexpr int order = 12, size = 1 << order;
+        Spectrum() : fft (order), window ((size_t) size), data ((size_t) size * 2), smooth ((size_t) size / 2, -120.f)
+        {
+            for (int i = 0; i < size; ++i) window[(size_t) i] = 0.5f - 0.5f * std::cos (juce::MathConstants<float>::twoPi * (float) i / (float) (size - 1));
+        }
+        void setSampleRate (double s) { sr = s; }
+        // fall: dB per frame the display may drop (rise is instant)
+        void feed (const float* samples, float fallDb = 2.5f)
+        {
+            for (int i = 0; i < size; ++i) data[(size_t) i] = samples[i] * window[(size_t) i];
+            std::fill (data.begin() + size, data.end(), 0.f);
+            fft.performFrequencyOnlyForwardTransform (data.data());
+            const float norm = 4.f / (float) size;     // Hann gain compensation, peak = 0 dB for a full-scale sine
+            for (int k = 1; k < size / 2; ++k)
+            {
+                const float db = juce::Decibels::gainToDecibels (data[(size_t) k] * norm, -120.f);
+                auto& s = smooth[(size_t) k];
+                s = db > s ? db : juce::jmax (db, s - fallDb);
+            }
+        }
+        // smoothed level at hz: interpolated between bins at the low end, power-averaged over ~1/12 octave above
+        float dbAt (double hz) const
+        {
+            const double c = hz / (sr / size);
+            const double half = c * 0.03;
+            if (half < 1.0)
+            {
+                const int k = juce::jlimit (1, size / 2 - 2, (int) c);
+                const float t = (float) juce::jlimit (0.0, 1.0, c - k);
+                return smooth[(size_t) k] + t * (smooth[(size_t) k + 1] - smooth[(size_t) k]);
+            }
+            const int a = juce::jlimit (1, size / 2 - 1, (int) (c - half)), b = juce::jlimit (1, size / 2 - 1, (int) (c + half));
+            double pw = 0.0;
+            for (int k = a; k <= b; ++k) pw += std::pow (10.0, smooth[(size_t) k] / 10.0);
+            return (float) (10.0 * std::log10 (pw / (b - a + 1) + 1e-12));
+        }
+    private:
+        juce::dsp::FFT fft;
+        std::vector<float> window, data, smooth;
+        double sr = 48000.0;
     };
 }

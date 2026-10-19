@@ -7,6 +7,7 @@
 #    include(${CMAKE_CURRENT_SOURCE_DIR}/../Shared/cmake/Doomsday.cmake)
 #    doomsday_plugin(DarkSerpent
 #        NAME "Dark Serpent"  CODE DkSp  CATEGORIES Instrument Synth
+#        EFFECT                                        (optional: audio effect instead of an instrument)
 #        SOURCES Source/PluginProcessor.cpp Source/PluginEditor.cpp
 #        RESOURCES <extra binary data files>          (optional)
 #        TEST Tests/RenderTest.cpp)                    (optional, built with -DPROPHECY_BUILD_TESTS=ON)
@@ -30,8 +31,13 @@ if(NOT TARGET juce::juce_core)
 endif()
 
 function(doomsday_plugin TARGET)
-    cmake_parse_arguments(D "" "NAME;CODE;TEST" "SOURCES;RESOURCES;CATEGORIES" ${ARGN})
+    cmake_parse_arguments(D "EFFECT" "NAME;CODE;TEST" "SOURCES;RESOURCES;CATEGORIES" ${ARGN})
     set(data ${TARGET}Data)
+    if(D_EFFECT)
+        set(isSynth FALSE)
+    else()
+        set(isSynth TRUE)
+    endif()
     juce_add_binary_data(${data} SOURCES
         ${DOOMSDAY_SHARED}/Resources/Fonts/Michroma-Regular.ttf
         ${DOOMSDAY_SHARED}/Resources/Fonts/BarlowSemiCondensed-Medium.ttf
@@ -46,8 +52,8 @@ function(doomsday_plugin TARGET)
         PLUGIN_CODE ${D_CODE}
         FORMATS VST3 Standalone
         PRODUCT_NAME "${D_NAME}"
-        IS_SYNTH TRUE
-        NEEDS_MIDI_INPUT TRUE
+        IS_SYNTH ${isSynth}
+        NEEDS_MIDI_INPUT ${isSynth}
         NEEDS_MIDI_OUTPUT FALSE
         IS_MIDI_EFFECT FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE

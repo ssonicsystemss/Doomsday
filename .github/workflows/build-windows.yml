@@ -10,6 +10,8 @@ on:
       - 'DarkSerpent/**'
       - 'Shared/**'
       - '.github/workflows/build-dark-serpent.yml'
+      - 'MirrorOfSouls/**'
+      - '.github/workflows/build-mirror-of-souls.yml'
   workflow_dispatch:
 
 jobs:

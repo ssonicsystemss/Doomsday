@@ -410,7 +410,7 @@ void Meter::paint (Graphics& g)
 }
 
 // ======================================================================= PresetBar
-PresetBar::PresetBar (PresetHost& h, bool play_) : host (h), withPlay (play_)
+PresetBar::PresetBar (PresetHost& h, bool play_, bool random_) : host (h), withPlay (play_), withRandom (random_)
 {
     box.onChange = [this]
     {
@@ -428,8 +428,9 @@ PresetBar::PresetBar (PresetHost& h, bool play_) : host (h), withPlay (play_)
     save.setTooltip ("Save the current sound as a preset");
     random.setTooltip ("Random sound within musical ranges");
     play.setTooltip ("Hold to play");
-    for (auto* c : { (Component*) &box, (Component*) &prev, (Component*) &next, (Component*) &save, (Component*) &random })
+    for (auto* c : { (Component*) &box, (Component*) &prev, (Component*) &next, (Component*) &save })
         addAndMakeVisible (c);
+    if (withRandom) addAndMakeVisible (random);
     if (withPlay) addAndMakeVisible (play);
     refreshList();
 }
@@ -444,10 +445,12 @@ void PresetBar::resized()
     prev.setBounds (0, 18, 32, 32);
     box.setBounds (38, 18, w - 76, 32);
     next.setBounds (w - 32, 18, 32, 32);
-    const int bw = withPlay ? (w - 12) / 3 : (w - 6) / 2;
-    random.setBounds (0, 58, withPlay ? bw + 16 : bw, 28);
-    save.setBounds (random.getRight() + 6, 58, withPlay ? bw - 8 : bw, 28);
-    if (withPlay) play.setBounds (save.getRight() + 6, 58, w - save.getRight() - 6, 28);
+    const int n = 1 + (withRandom ? 1 : 0) + (withPlay ? 1 : 0);
+    const int bw = (w - 6 * (n - 1)) / n;
+    int x = 0;
+    if (withRandom) { random.setBounds (x, 58, n == 3 ? bw + 16 : bw, 28); x = random.getRight() + 6; }
+    save.setBounds (x, 58, n == 3 ? bw - 8 : (n == 1 ? w : bw), 28); x = save.getRight() + 6;
+    if (withPlay) play.setBounds (x, 58, w - x, 28);
 }
 void PresetBar::paint (Graphics& g)
 {

@@ -5,6 +5,7 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 ## Jak użyć w nowym pluginie
 - `CMakeLists.txt` pluginu: `include(../Shared/cmake/Doomsday.cmake)` + `doomsday_plugin(Target NAME "..." CODE Abcd CATEGORIES Instrument Synth SOURCES ... TEST Tests/RenderTest.cpp)`
   (JUCE 8.0.10, statyczny runtime MSVC, VST3 + Standalone, fonty w BinaryData, `Shared/Source` w include, `DoomsdayUI.cpp` dołączony).
+  Efekt zamiast instrumentu: dopisz `EFFECT` (wejście + wyjście stereo, bez MIDI), np. `CATEGORIES Fx EQ`.
 - Workflow: skopiuj `Shared/templates/build-workflow.yml` do `.github/workflows/`, podmień nazwy, dopisz folder pluginu do `paths-ignore` w `build-windows.yml` (PoS).
 - Lokalnie (Linux): symlink `JUCE` w folderze pluginu, `CXXFLAGS="-DJUCE_USE_XRANDR=0 -DJUCE_USE_XINERAMA=0 -DJUCE_USE_XCURSOR=0 -DJUCE_USE_XRENDER=0" cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DPROPHECY_BUILD_TESTS=ON`, test pod `xvfb-run`.
 
@@ -20,6 +21,8 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 | `shape(x, 0 SOFT /1 HARD /2 TUBE /3 SCREAM)`, `shapeMakeup(drive, type)`, `DcBlocker` | przestery z Fortune of Seekers (po TUBE daj DcBlocker) |
 | `Screamer` (`set(0..1)`, `process(x)`) | SCREAM na oscylator z Fortune of Seekers (drive + zawijanie) |
 | `NoteStack` | mono / legato: stos trzymanych nut (ostatnia wygrywa) |
+| `BiquadCoefs::make(Bell / LowShelf / HighShelf / Notch / BandPass / HighPass / LowPass, fs, hz, q, dB)`, `.magnitude(hz, fs)`, `Biquad`, `butterworthQs(stages)` | filtry EQ (z Mirror of Souls) – ta sama funkcja liczy dźwięk i krzywą na ekranie |
+| `AnalyzerTap<N>` (`push`, `latest`) + `Spectrum` (`feed`, `dbAt(hz)`) | analizator widma: audio wrzuca próbki, GUI liczy FFT 4096 z wygładzaniem |
 | `VoiceManager<Voice, N>` | polifonia z Fortune of Seekers: `noteOn(note, limit, fadeStep, sameNote)` (kradzież najstarszego z wyciszeniem), `noteOff`, `setPedal`, `allOff`. Voice musi mieć `active, held, sustained, note, age, kill, killStep` |
 
 ## Source/DoomsdayParams.h  (`doomsday`)
@@ -30,9 +33,9 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 ## Source/DoomsdayUI.h / .cpp  (`doomsday::ui`)
 - `Theme` (kolory, `accents`, `crown` dla dużego pokrętła) + `StageLookAndFeel(theme)` – fonty Michroma / Barlow.
 - `Knob(apvts, id, label, accent, bipolar, big)`, `Switch(apvts, id, text, Power|Chip, accent)`, `Choice(apvts, id, labels, accent, vertical)`, `Meter`.
-- `PresetBar(PresetHost&, withPlay)` – < preset > / RANDOMIZE / SAVE / PLAY; procesor implementuje `PresetHost`.
+- `PresetBar(PresetHost&, withPlay, withRandom = true)` – < preset > / RANDOMIZE / SAVE / PLAY; procesor implementuje `PresetHost`.
 - `paint::glassPanel(g, lnf, rect, title, accent, spot)`, `paint::beam(...)`, `scaleCanvas(editor, canvas, W, H)`.
 - `FxTabs(apvts, accent)` + `addTab(name, powerParamId, cells, side)` – zakładki efektów z ACTIVE (jak w Fortune of Seekers), `refresh()` z timera.
 - `FlowLane(levelFeed, accent, label)` – dźwięk płynący z góry na dół (THE PATH z Fortune of Seekers), `tick()` z timera.
 
-Pluginy używające Shared: **Dark Serpent**. Klocki z Fortune of Seekers (przestery, SCREAM, polifonia, zakładki FX, THE PATH) są tu skopiowane i sprawdzone testem Dark Serpent. Starsze (PoS, Ancient Drums, Fortune of Seekers) mają własny kod i nie są przerabiane.
+Pluginy używające Shared: **Dark Serpent**, **Mirror of Souls**. Klocki z Fortune of Seekers (przestery, SCREAM, polifonia, zakładki FX, THE PATH) są tu skopiowane i sprawdzone testem Dark Serpent. Starsze (PoS, Ancient Drums, Fortune of Seekers) mają własny kod i nie są przerabiane.

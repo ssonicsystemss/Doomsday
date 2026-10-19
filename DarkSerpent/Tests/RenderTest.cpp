@@ -214,6 +214,60 @@ int main (int argc, char** argv)
         auto f = out.getChildFile ("serpent_gui.png"); f.deleteFile();
         FileOutputStream os (f); PNGImageFormat().writeImageToStream (img, os);
     }
+    // ---- Shared blocks taken over from Fortune of Seekers
+    {
+        namespace sd = doomsday::dsp;
+        struct V { bool active = false, held = false, sustained = false; int note = -1; juce::uint64 age = 0; float kill = 1.f, killStep = 0.f; };
+        std::array<V, 6> vs;
+        sd::VoiceManager<V, 6> vm (vs);
+        auto start = [&] (int n) { bool same; auto& v = vm.noteOn (n, 4, 0.01f, same); v.active = true; v.held = true; v.note = n; return same; };
+        for (int n : { 60, 64, 67, 71 }) start (n);
+        start (74);                                      // over the limit: the oldest (60) gets a fade
+        int fading = 0; for (auto& v : vs) fading += v.killStep > 0.f ? 1 : 0;
+        const bool same = start (64);
+        auto rel = [] (V& v) { v.active = false; };
+        vm.setPedal (true, rel); vm.noteOff (67, rel);
+        bool sustained = false; for (auto& v : vs) sustained |= v.note == 67 && v.active && v.sustained;
+        vm.setPedal (false, rel);
+        bool released = true; for (auto& v : vs) released &= ! (v.note == 67 && v.active);
+        check (fading == 1 && same && sustained && released, "Shared VoiceManager: steal, same-note, pedal");
+
+        sd::NoteStack ns; ns.push (60); ns.push (64); ns.push (67); ns.remove (67);
+        check (ns.top() == 64 && ns.count == 2, "Shared NoteStack");
+
+        sd::Screamer sc; sc.set (0.7f);
+        double fund = 0, all = 0;
+        for (int i = 0; i < 48000; ++i)
+        {
+            const double ph = MathConstants<double>::twoPi * 220.0 * i / 48000.0;
+            const double y = sc.process (0.4f * (float) std::sin (ph));
+            fund += y * std::sin (ph); all += y * y;
+        }
+        const double harm = 1.0 - 2.0 * fund * fund / 48000.0 / all;
+        check (harm > 0.1, "Shared Screamer adds harmonics", String (harm * 100.0, 1) + "%");
+
+        // UI: FxTabs + FlowLane render
+        doomsday::ui::StageLookAndFeel lnf (SerpentTheme::make());
+        Component host; host.setLookAndFeel (&lnf); host.setSize (760, 260);
+        doomsday::ui::FxTabs tabs (proc.apvts, 0);
+        std::vector<std::unique_ptr<Component>> c1, c2;
+        c1.push_back (std::make_unique<doomsday::ui::Knob> (proc.apvts, ParamIDs::dlyFb, "FEEDBACK"));
+        c1.push_back (std::make_unique<doomsday::ui::Knob> (proc.apvts, ParamIDs::dlyMix, "MIX"));
+        c2.push_back (std::make_unique<doomsday::ui::Knob> (proc.apvts, ParamIDs::revSize, "SIZE"));
+        tabs.addTab ("DELAY", ParamIDs::dlyOn, std::move (c1), std::make_unique<doomsday::ui::Choice> (proc.apvts, ParamIDs::dlyDiv, Choices::delayDivs, 0, true));
+        tabs.addTab ("REVERB", ParamIDs::revOn, std::move (c2));
+        doomsday::ui::FlowLane lane (proc.getEngine().feed, 0, "OUT");
+        host.addAndMakeVisible (tabs); host.addAndMakeVisible (lane);
+        tabs.setBounds (0, 0, 560, 200); lane.setBounds (580, 0, 160, 250);
+        proc.setCurrentProgram (0); render (proc, { { 0.0, 2.0, 60 } }, 1.5);
+        tabs.refresh(); lane.tick();
+        auto img = host.createComponentSnapshot (host.getLocalBounds(), true, 1.f);
+        auto f = out.getChildFile ("shared_widgets.png"); f.deleteFile();
+        FileOutputStream os (f); PNGImageFormat().writeImageToStream (img, os);
+        check (img.isValid(), "Shared FxTabs + FlowLane render");
+        host.removeAllChildren(); host.setLookAndFeel (nullptr);
+    }
+
     printf (ok ? "ALL OK\n" : "SOME CHECKS FAILED\n");
     return ok ? 0 : 1;
 }

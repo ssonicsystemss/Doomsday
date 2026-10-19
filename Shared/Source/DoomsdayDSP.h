@@ -7,6 +7,8 @@
 //    dsp::UnisonBank     polyBLEP unison oscillator (up to 16 voices, detune / stereo / pan)
 //    dsp::FxChain        stereo CHORUS -> DELAY -> REVERB -> PUMP (tempo synced)
 //    dsp::LevelFeed      min/max-per-chunk feed for GUI visualisations
+//    dsp::shape / Screamer / DcBlocker      waveshapers (SOFT HARD TUBE SCREAM), per-osc SCREAM
+//    dsp::NoteStack / VoiceManager          mono legato note stack, polyphonic allocation + stealing + pedal
 // =====================================================================
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
@@ -194,6 +196,115 @@ namespace doomsday::dsp
                 r += s * T.gr[(size_t) u];
             }
         }
+    };
+
+    // ------------------------------------------------------------ waveshapers (from Fortune of Seekers)
+    // 0 SOFT, 1 HARD, 2 TUBE (asymmetric: follow with a DcBlocker), 3 SCREAM (tanh + fold-back)
+    inline float shape (float x, int type)
+    {
+        switch (type)
+        {
+            case 0:  return fastTanh (x);
+            case 1:  return juce::jlimit (-0.9f, 0.9f, x) * 1.1f;
+            case 2:  return (std::tanh (x + 0.3f) - 0.2913f) * 0.9f;
+            default: return juce::jlimit (-1.f, 1.f, (std::tanh (x * 1.3f) + 0.35f * std::sin (x * 2.3f)) * 0.8f);
+        }
+    }
+    // output gain that keeps the level roughly steady as the drive goes up
+    inline float shapeMakeup (float driveGain, int type) { return 0.5f / juce::jmax (0.5f, std::abs (shape (driveGain * 0.5f, type))); }
+
+    // per-oscillator SCREAM: hard drive + fold-back -> nasal, screechy harmonics (amount 0..1)
+    struct Screamer
+    {
+        float gain = 1.f, fold = 0.f, norm = 1.f;
+        void set (float amount)
+        {
+            const float a = juce::jlimit (0.f, 1.f, amount);
+            gain = 1.f + a * 7.f;
+            fold = a * 0.6f;
+            norm = a > 0.001f ? 0.85f / (std::tanh (gain * 0.7f) + fold * 0.5f + 0.2f) : 1.f;
+        }
+        bool active() const { return fold > 0.f; }
+        inline float process (float x) const { return (fastTanh (x * gain) + fold * std::sin (x * gain * 1.7f)) * norm; }
+    };
+
+    struct DcBlocker
+    {
+        float x1 = 0.f, y1 = 0.f, r = 0.9993f;
+        inline float process (float x) { y1 = x - x1 + r * y1; x1 = x; return y1; }
+    };
+
+    // ------------------------------------------------------------ note handling (from Fortune of Seekers)
+    // mono / legato: the held-note stack (last note priority)
+    struct NoteStack
+    {
+        std::array<int, 32> notes {};
+        int count = 0;
+        void clear() { count = 0; }
+        bool empty() const { return count == 0; }
+        int top() const { return count > 0 ? notes[(size_t) count - 1] : -1; }
+        void remove (int n)
+        {
+            int w = 0;
+            for (int i = 0; i < count; ++i) if (notes[(size_t) i] != n) notes[(size_t) w++] = notes[(size_t) i];
+            count = w;
+        }
+        void push (int n) { remove (n); if (count < (int) notes.size()) notes[(size_t) count++] = n; }
+    };
+
+    // polyphony: voice allocation with click-free stealing and the sustain pedal.
+    // Voice needs: bool active, held, sustained; int note; juce::uint64 age; float kill, killStep.
+    template <typename Voice, size_t Slots>
+    struct VoiceManager
+    {
+        std::array<Voice, Slots>& voices;
+        juce::uint64 ageCounter = 0;
+        bool pedal = false;
+        explicit VoiceManager (std::array<Voice, Slots>& v) : voices (v) {}
+
+        int playing() const { int c = 0; for (auto& v : voices) c += (v.active && v.killStep == 0.f) ? 1 : 0; return c; }
+
+        // returns the voice to (re)start for this note; sameNote = true when a ringing voice of that note is reused.
+        // Voices over the limit get killStep = fadeStep (fade them out in the render loop, then reset them).
+        Voice& noteOn (int note, int polyLimit, float fadeStep, bool& sameNote)
+        {
+            sameNote = false;
+            for (auto& v : voices)
+                if (v.active && v.note == note && v.killStep == 0.f) { sameNote = true; v.age = ++ageCounter; return v; }
+            if (playing() >= polyLimit)
+            {
+                Voice* victim = nullptr;      // oldest released voice first, else the oldest
+                for (auto& v : voices) if (v.active && v.killStep == 0.f && ! v.held && (victim == nullptr || v.age < victim->age)) victim = &v;
+                if (victim == nullptr)
+                    for (auto& v : voices) if (v.active && v.killStep == 0.f && (victim == nullptr || v.age < victim->age)) victim = &v;
+                if (victim != nullptr) victim->killStep = fadeStep;
+            }
+            Voice* slot = nullptr;
+            for (auto& v : voices) if (! v.active) { slot = &v; break; }
+            if (slot == nullptr) for (auto& v : voices) if (slot == nullptr || v.age < slot->age) slot = &v;
+            *slot = Voice {};
+            slot->age = ++ageCounter;
+            return *slot;
+        }
+        // release: callable that releases a voice's envelopes
+        template <typename Release>
+        void noteOff (int note, Release&& release)
+        {
+            for (auto& v : voices)
+                if (v.active && v.held && v.note == note)
+                {
+                    v.held = false;
+                    if (pedal) v.sustained = true; else release (v);
+                }
+        }
+        template <typename Release>
+        void setPedal (bool down, Release&& release)
+        {
+            pedal = down;
+            if (! down) for (auto& v : voices) if (v.active && v.sustained) { v.sustained = false; release (v); }
+        }
+        template <typename Release>
+        void allOff (Release&& release) { for (auto& v : voices) if (v.active) { v.held = false; v.sustained = false; release (v); } }
     };
 
     // ------------------------------------------------------------ visual feed

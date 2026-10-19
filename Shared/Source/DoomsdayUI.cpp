@@ -511,6 +511,187 @@ void PresetBar::showSave()
     }), false);
 }
 
+// ======================================================================= FxTabs
+void FxTabs::addTab (const String& name, const String& powerParamId, std::vector<std::unique_ptr<Component>> cells, std::unique_ptr<Component> side)
+{
+    auto pg = std::make_unique<Page>();
+    pg->cells = std::move (cells);
+    pg->side = std::move (side);
+    if (pg->side) pg->addAndMakeVisible (*pg->side);
+    for (auto& c : pg->cells) pg->addAndMakeVisible (*c);
+    addChildComponent (*pg);
+    auto pw = std::make_unique<Switch> (apvts, powerParamId, "ACTIVE", Switch::Power, accent);
+    addChildComponent (*pw);
+    onFlags.push_back (apvts.getRawParameterValue (powerParamId));
+    lastOn.push_back (false);
+    names.add (name);
+    if (pages.empty()) { pg->setVisible (true); pw->setVisible (true); }
+    pages.push_back (std::move (pg));
+    powers.push_back (std::move (pw));
+    resized();
+}
+
+void FxTabs::Page::resized()
+{
+    auto r = getLocalBounds();
+    if (side != nullptr)
+    {
+        auto left = r.removeFromLeft (96);
+        side->setBounds (left.withSizeKeepingCentre (left.getWidth(), jmin (left.getHeight(), 104)));
+        r.removeFromLeft (10);
+    }
+    const int n = (int) cells.size();
+    if (n == 0) return;
+    const float cw = (float) jmin (r.getWidth(), n * 96) / (float) n;
+    for (int i = 0; i < n; ++i)
+    {
+        auto cell = Rectangle<int> (r.getX() + (int) (cw * (float) i), r.getY(), (int) cw, r.getHeight());
+        auto* c = cells[(size_t) i].get();
+        if (dynamic_cast<Switch*> (c) != nullptr) c->setBounds (cell.withSizeKeepingCentre (jmin (cell.getWidth() - 6, 90), 28));
+        else                                      c->setBounds (cell.withSizeKeepingCentre (jmin (cell.getWidth() - 2, 86), cell.getHeight()));
+    }
+}
+
+Rectangle<int> FxTabs::tabBounds (int i) const { return { 12 + i * tabWidth, 8, tabWidth - 4, 32 }; }
+
+void FxTabs::resized()
+{
+    for (auto& s : powers) s->setBounds (getWidth() - 14 - 104, 12, 104, 24);
+    auto body = getLocalBounds().reduced (16, 0).withTrimmedTop (54).withTrimmedBottom (10);
+    for (auto& pg : pages) pg->setBounds (body);
+}
+
+void FxTabs::selectTab (int i)
+{
+    if (! isPositiveAndBelow (i, (int) pages.size()) || i == current) return;
+    pages[(size_t) current]->setVisible (false); powers[(size_t) current]->setVisible (false);
+    current = i;
+    pages[(size_t) current]->setVisible (true);  powers[(size_t) current]->setVisible (true);
+    repaint();
+}
+
+void FxTabs::mouseDown (const MouseEvent& e)
+{
+    for (int i = 0; i < (int) pages.size(); ++i) if (tabBounds (i).contains (e.getPosition())) selectTab (i);
+}
+
+void FxTabs::mouseMove (const MouseEvent& e)
+{
+    int h = -1;
+    for (int i = 0; i < (int) pages.size(); ++i) if (tabBounds (i).contains (e.getPosition())) h = i;
+    setMouseCursor (h >= 0 ? MouseCursor::PointingHandCursor : MouseCursor::NormalCursor);
+    if (h != hoverTab) { hoverTab = h; repaint(); }
+}
+
+void FxTabs::refresh()
+{
+    bool changed = false;
+    for (size_t i = 0; i < pages.size(); ++i)
+    {
+        const bool on = onFlags[i]->load() > 0.5f;
+        if (on != lastOn[i]) { lastOn[i] = on; changed = true; }
+        const float a = on ? 1.f : 0.32f;
+        if (std::abs (pages[i]->getAlpha() - a) > 0.001f) pages[i]->setAlpha (a);
+    }
+    if (changed) repaint (0, 0, getWidth(), 48);
+}
+
+void FxTabs::paint (Graphics& g)
+{
+    auto& lnf = lnfOf (*this);
+    const auto& acc = lnf.theme.accent (accent);
+    for (int i = 0; i < (int) pages.size(); ++i)
+    {
+        auto t = tabBounds (i).toFloat();
+        const bool sel = i == current, on = lastOn[(size_t) i];
+        if (sel)
+        {
+            g.setColour (Colours::white.withAlpha (0.045f)); g.fillRoundedRectangle (t, 6.f);
+            auto bar = Rectangle<float> (t.getX() + 10.f, t.getBottom() + 5.f, t.getWidth() - 20.f, 2.f);
+            g.setColour (acc.main.withAlpha (0.25f)); g.fillRoundedRectangle (bar.expanded (2.f, 2.f), 3.f);
+            g.setColour (acc.main); g.fillRoundedRectangle (bar, 1.f);
+        }
+        else if (i == hoverTab) { g.setColour (Colours::white.withAlpha (0.03f)); g.fillRoundedRectangle (t, 6.f); }
+        auto led = Rectangle<float> (5.f, 5.f).withCentre ({ t.getX() + 12.f, t.getCentreY() });
+        if (on) { g.setColour (acc.main.withAlpha (0.45f)); g.fillEllipse (led.expanded (3.f)); }
+        g.setColour (on ? acc.hot : Colour (0xff2e3233)); g.fillEllipse (led);
+        g.setFont (lnf.titleFont (9.5f, 0.12f));
+        g.setColour (sel ? lnf.theme.text : (i == hoverTab ? lnf.theme.value : lnf.theme.label.withAlpha (0.8f)));
+        g.drawText (names[i], t.withTrimmedLeft (19.f), Justification::centredLeft);
+    }
+    ColourGradient sep (Colours::white.withAlpha (0.f), 16.f, 0.f, Colours::white.withAlpha (0.f), (float) getWidth() - 16.f, 0.f, false);
+    sep.addColour (0.5, Colours::white.withAlpha (0.09f));
+    g.setGradientFill (sep);
+    g.fillRect (16.f, 47.f, (float) getWidth() - 32.f, 1.f);
+}
+
+// ======================================================================= FlowLane
+void FlowLane::tick()
+{
+    const int w = feed.write.load (std::memory_order_acquire);
+    if (w != lastWrite) { lastWrite = w; repaint(); }
+}
+
+void FlowLane::paint (Graphics& g)
+{
+    auto& lnf = lnfOf (*this);
+    const auto& acc = lnf.theme.accent (accent);
+    auto all = getLocalBounds().toFloat();
+    auto labelR = all.removeFromTop (text.isNotEmpty() ? 18.f : 0.f);
+    auto lane = all;
+    g.setColour (acc.main.withAlpha (0.04f)); g.fillRoundedRectangle (lane, 5.f);
+    g.setColour (Colours::white.withAlpha (0.05f));
+    for (float y = lane.getY() + 62.5f; y < lane.getBottom(); y += 62.5f) g.drawHorizontalLine ((int) y, lane.getX() + 4.f, lane.getRight() - 4.f);
+    g.setColour (acc.main.withAlpha (0.12f));
+    g.drawVerticalLine ((int) lane.getCentreX(), lane.getY(), lane.getBottom());
+
+    constexpr int N = 1024;
+    const int w = feed.write.load (std::memory_order_acquire);
+    const int rows = jmax (2, (int) lane.getHeight());
+    lo.resize ((size_t) rows); hi.resize ((size_t) rows);       // message thread: allocation is fine here
+    float e = 0.f;
+    for (int k = 0; k < rows; ++k)
+    {
+        const int idx = (w - 1 - k + 4 * N) & (N - 1);
+        lo[(size_t) k] = jlimit (-1.f, 1.f, feed.lo[(size_t) idx]);
+        hi[(size_t) k] = jlimit (-1.f, 1.f, feed.hi[(size_t) idx]);
+        if (k < 24) e = jmax (e, hi[(size_t) k] - lo[(size_t) k]);
+    }
+    energy = e > energy ? e : energy * 0.85f + e * 0.15f;
+
+    Path band, edgeL, edgeR;
+    const float cx = lane.getCentreX(), amp = lane.getWidth() * 0.46f;
+    for (int k = 0; k < rows; ++k)
+    {
+        const float y = lane.getY() + (float) k;
+        const float xl = cx + jmin (lo[(size_t) k], -0.004f) * amp, xr = cx + jmax (hi[(size_t) k], 0.004f) * amp;
+        if (k == 0) { band.startNewSubPath (xl, y); edgeL.startNewSubPath (xl, y); edgeR.startNewSubPath (xr, y); }
+        else        { band.lineTo (xl, y); edgeL.lineTo (xl, y); edgeR.lineTo (xr, y); }
+    }
+    for (int k = rows - 1; k >= 0; --k) band.lineTo (cx + jmax (hi[(size_t) k], 0.004f) * amp, lane.getY() + (float) k);
+    band.closeSubPath();
+
+    if (text.isNotEmpty())
+    {
+        g.setFont (lnf.titleFont (9.5f, 0.3f));
+        g.setColour (acc.main.withAlpha (0.9f));
+        g.drawText (text, labelR, Justification::centred);
+    }
+    Graphics::ScopedSaveState ss (g);
+    g.reduceClipRegion (lane.toNearestInt());
+    ColourGradient fill (acc.main.withAlpha (0.55f), 0.f, lane.getY(), acc.main.withAlpha (0.03f), 0.f, lane.getBottom(), false);
+    fill.addColour (0.15, acc.main.withAlpha (0.35f));
+    g.setGradientFill (fill); g.fillPath (band);
+    ColourGradient edge (acc.hot.withAlpha (0.95f), 0.f, lane.getY(), acc.main.withAlpha (0.1f), 0.f, lane.getBottom(), false);
+    g.setGradientFill (edge);
+    g.strokePath (edgeL, PathStrokeType (1.1f)); g.strokePath (edgeR, PathStrokeType (1.1f));
+    const float en = jlimit (0.f, 1.f, energy);
+    ColourGradient head (acc.hot.withAlpha (0.08f + 0.3f * en), cx, lane.getY(), acc.main.withAlpha (0.f), cx, lane.getY() + 22.f, false);
+    g.setGradientFill (head); g.fillRect (lane.withHeight (22.f));
+    g.setColour (acc.hot.withAlpha (0.4f + 0.6f * en));
+    g.fillRect (lane.getX() + 4.f, lane.getY(), lane.getWidth() - 8.f, 1.5f);
+}
+
 // ======================================================================= painting helpers
 void paint::glassPanel (Graphics& g, StageLookAndFeel& lnf, Rectangle<int> area, const String& title, int accent, bool spot)
 {

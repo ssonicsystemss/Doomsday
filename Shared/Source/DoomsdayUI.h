@@ -8,10 +8,13 @@
 //    Meter                  segmented output meter
 //    PresetBar              < preset > / RANDOMIZE / SAVE / PLAY, driven by a PresetHost
 //    paint::glassPanel / paint::beam   background helpers
+//    FxTabs                 tabbed effect pages with an ACTIVE switch per tab (from Fortune of Seekers)
+//    FlowLane               the sound flowing top -> bottom from a dsp::LevelFeed (Fortune's THE PATH lane)
 // =====================================================================
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <functional>
+#include "DoomsdayDSP.h"
 
 namespace doomsday::ui
 {
@@ -162,6 +165,54 @@ namespace doomsday::ui
         std::unique_ptr<juce::AlertWindow> dialog;
         juce::String lastName;
         static constexpr int userIdBase = 1000;
+    };
+
+    // tabbed FX section: DIST / CHORUS / ... each with its own ACTIVE switch; inactive pages dim
+    class FxTabs : public juce::Component
+    {
+    public:
+        FxTabs (juce::AudioProcessorValueTreeState& s, int accentIndex) : apvts (s), accent (accentIndex) {}
+        // cells: knobs / switches in one row; side: optional vertical Choice on the left (e.g. distortion type)
+        void addTab (const juce::String& name, const juce::String& powerParamId,
+                     std::vector<std::unique_ptr<juce::Component>> cells, std::unique_ptr<juce::Component> side = nullptr);
+        void paint (juce::Graphics&) override;
+        void resized() override;
+        void mouseDown (const juce::MouseEvent&) override;
+        void mouseMove (const juce::MouseEvent&) override;
+        void mouseExit (const juce::MouseEvent&) override { hoverTab = -1; repaint(); }
+        void refresh();                 // call from the editor timer
+        void selectTab (int);
+        int tabWidth = 82;
+    private:
+        struct Page : public juce::Component
+        {
+            std::unique_ptr<juce::Component> side;
+            std::vector<std::unique_ptr<juce::Component>> cells;
+            void resized() override;
+        };
+        juce::Rectangle<int> tabBounds (int) const;
+        juce::AudioProcessorValueTreeState& apvts;
+        int accent, current = 0, hoverTab = -1;
+        std::vector<std::unique_ptr<Page>> pages;
+        std::vector<std::unique_ptr<Switch>> powers;
+        std::vector<std::atomic<float>*> onFlags;
+        std::vector<bool> lastOn;
+        juce::StringArray names;
+    };
+
+    // one lane of sound flowing from top (now) to bottom (~1 s ago), drawn from a dsp::LevelFeed
+    class FlowLane : public juce::Component
+    {
+    public:
+        FlowLane (const doomsday::dsp::LevelFeed<1024>& f, int accentIndex, juce::String label) : feed (f), accent (accentIndex), text (std::move (label)) {}
+        void paint (juce::Graphics&) override;
+        void tick();                    // call from the editor timer; repaints only when new audio arrived
+    private:
+        const doomsday::dsp::LevelFeed<1024>& feed;
+        int accent, lastWrite = -1;
+        float energy = 0.f;
+        juce::String text;
+        std::vector<float> lo, hi;
     };
 
     namespace paint

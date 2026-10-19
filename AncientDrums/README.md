@@ -1,4 +1,4 @@
-# ANCIENT DRUMS v2.1
+# ANCIENT DRUMS v2.2
 Generator kicków do hardstyle / rawstyle / uptempo / frenchcore. VST3 (instrument), działa w FL Studio.
 
 ## Instalacja (Windows)
@@ -34,7 +34,7 @@ FORGE zmienia barwę, a nie głośność – wyjście jest automatycznie wyrówn
 ## Panele
 | Panel | Co tam jest |
 |---|---|
-| Warstwa (lewo) | włącznik, sample z biblioteki / USER + LOAD, **REVERSE**, **FORGE** (czy warstwa idzie przez FORGE), KEY (punch), LEVEL, PITCH, OFFSET, LOW CUT, HIGH CUT, RESET ENV |
+| Warstwa (lewo) | włącznik, sample z biblioteki / USER + LOAD, **REVERSE**, **FORGE** (czy warstwa idzie przez FORGE), KEY (punch), LEVEL, PITCH (od v2.2 zmienia tylko wysokość – długość sampla zostaje), OFFSET, LOW CUT, HIGH CUT, RESET ENV |
 | MASTER (prawo) | ROOT, PRE-GAIN, CLIP, SOFT, LIMIT, VOLUME |
 | FORGE (dół) | DRIVE, FOCUS, GRIT, CRUNCH, TONE, OTT, **SMOOTH**, **MIX** – w kolejności toru |
 

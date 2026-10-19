@@ -512,7 +512,7 @@ KickScreen::LayerView KickScreen::viewOf (int l) const
     v.offsetMs = raw (ParamIDs::offset);
     v.on = raw (ParamIDs::on) > 0.5f;
     v.reverse = raw (ParamIDs::rev) > 0.5f;
-    v.rate = std::pow (2.f, raw (ParamIDs::pitch) / 12.f);
+    v.rate = 1.f;                                    // v2.2: PITCH no longer changes the sample length
     return v;
 }
 
@@ -1280,7 +1280,7 @@ void Canvas::renderBackground()
     // header side text
     g.setFont (lnf.headFont (10.f, 0.25f));
     g.setColour (Palette::ink.withAlpha (0.8f));
-    g.drawText ("V2.1", 20, 28, 300, 14, Justification::left);
+    g.drawText ("V2.2", 20, 28, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (Palette::label);
     g.drawText ("PUNCH  /  CRUNCH  /  KICK", 20, 46, 320, 16, Justification::left);

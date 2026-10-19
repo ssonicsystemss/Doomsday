@@ -11,8 +11,7 @@ namespace SerpentTheme
     doomsday::ui::Theme make();
 }
 
-// the title: a glossy black scaled serpent - tail curled into an infinity sign, body framing "DARK SERPENT",
-// open jaws with fangs above the title (lime throat, dripping venom, flicking tongue), in flowing ribbons of smoke
+// the title "DARK SERPENT" with a lime glow, in slowly flowing ribbons of smoke (brighter with the sound)
 class SmokeLogo : public juce::Component
 {
 public:
@@ -25,14 +24,12 @@ private:
     {
         float baseY, a1, f1, w1, p1, a2, f2, w2, p2, drift, thick, tf, tw, tp, x0, x1, alpha;
         juce::Colour colour;
-        int layer;                      // 0 behind the serpent, 1 between its back and front coils, 2 in front
+        int layer;                      // 0, 1 behind the title, 2 in front
     };
     void drawSmoke (juce::Graphics&, int layer);
     std::vector<Ribbon> ribbons;
-    juce::Image bodyBack, bodyFront, title;
-    juce::Path mouth, fangNear, fangFar, fangLow;
-    juce::Point<float> eye, eyeDir, eyeUp, hinge, throat, tongueDir, fangTip, upperTip, lowerTip;
-    float eyeR = 4.f, time = 0.f, glow = 0.f;
+    juce::Image title;
+    float time = 0.f, glow = 0.f;
 };
 
 // vowel pad: X = vowel A..U, Y = talk amount

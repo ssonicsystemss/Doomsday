@@ -88,17 +88,17 @@ void SmokeLogo::build()
     auto& lnf = lnfOf (*this);
     const int w = getWidth(), h = getHeight();
     const String text ("DARK SERPENT");
-    constexpr float pi = MathConstants<float>::pi, twoPi = MathConstants<float>::twoPi;
+    constexpr float twoPi = MathConstants<float>::twoPi;
 
     // ---- title mask + rendered title (glow + letters)
     Font font = lnf.titleFont (60.f, 0.12f);
     {
         GlyphArrangement ga; ga.addLineOfText (font, text, 0.f, 0.f);
         const float tw = ga.getBoundingBox (0, -1, true).getWidth();
-        font = lnf.titleFont (60.f * (float) w * 0.57f / jmax (1.f, tw), 0.12f);
+        font = lnf.titleFont (60.f * (float) w * 0.70f / jmax (1.f, tw), 0.12f);
     }
     Image mask (Image::SingleChannel, w, h, true);
-    { Graphics g (mask); g.setFont (font); g.setColour (Colours::white); g.drawText (text, (int) (w * 0.215f), (int) (h * 0.30f), (int) (w * 0.60f), (int) (h * 0.68f), Justification::centred); }
+    { Graphics g (mask); g.setFont (font); g.setColour (Colours::white); g.drawText (text, 0, 0, w, h, Justification::centred); }
     Field T (w, h);
     for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) T.at (x, y) = mask.getPixelAt (x, y).getFloatAlpha();
     {
@@ -116,192 +116,6 @@ void SmokeLogo::build()
             }
     }
 
-    // ---- the serpent as a set of tubes: body (infinity tail -> under the title -> arch -> neck), upper jaw, lower jaw
-    struct Pt { Point<float> p; float r, z, tail; };
-    std::vector<std::vector<Pt>> tubes;
-    const float R = (float) h * 0.27f;          // depth scale
-    auto norm = [] (Point<float> v) { return v / jmax (1e-6f, v.getDistanceFromOrigin()); };
-    {
-        std::vector<Pt> body;
-        // tail: an infinity sign (lemniscate of Bernoulli); the two strands cross over / under in the middle
-        const Point<float> c ((float) w * 0.108f, (float) h * 0.60f);
-        const float a = (float) w * 0.088f, ys = 1.45f;
-        const int n = 2600;
-        for (int i = 0; i <= n; ++i)
-        {
-            const float u = (float) i / (float) n, t = 0.30f + (twoPi - 0.30f) * u;
-            const float sn = std::sin (t), co = std::cos (t), d = 1.f + sn * sn;
-            body.push_back ({ { c.x + a * co / d, c.y + ys * a * sn * co / d }, 1.0f + (float) h * 0.050f * std::pow (u, 0.55f),
-                              0.8f * sn, jlimit (0.f, 1.f, u / 0.05f) });
-        }
-        // body: Catmull-Rom through points under the title, up the right side, arching back over the top
-        std::vector<Point<float>> Q { body.back().p + Point<float> (0.f, -20.f), body.back().p };
-        for (auto f : { std::pair<float, float> { 0.222f, 0.86f }, { 0.37f, 0.92f }, { 0.53f, 0.88f }, { 0.69f, 0.93f }, { 0.835f, 0.88f },
-                        { 0.905f, 0.64f }, { 0.898f, 0.32f }, { 0.85f, 0.16f }, { 0.73f, 0.10f }, { 0.64f, 0.21f } })
-            Q.push_back ({ (float) w * f.first, (float) h * f.second });
-        Q.push_back (Q.back() + (Q.back() - Q[Q.size() - 2]));
-        const float r0 = body.back().r;
-        const int segs = (int) Q.size() - 3, per = 420;
-        for (int sgi = 0; sgi < segs; ++sgi)
-            for (int i = 1; i <= per; ++i)
-            {
-                const float t = (float) i / (float) per, t2 = t * t, t3 = t2 * t;
-                const auto &p0 = Q[(size_t) sgi], &p1 = Q[(size_t) sgi + 1], &p2 = Q[(size_t) sgi + 2], &p3 = Q[(size_t) sgi + 3];
-                const Point<float> p = (p1 * 2.f + (p2 - p0) * t + (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 + (p1 * 3.f - p0 - p2 * 3.f + p3) * t3) * 0.5f;
-                const float g = ((float) sgi + t) / (float) segs;
-                const float r = r0 + ((float) h * 0.068f - r0) * std::sin (pi * jmin (1.f, g * 1.6f) * 0.5f) - (float) h * 0.008f * jmax (0.f, g - 0.75f) * 4.f;
-                body.push_back ({ p, r, 0.35f + 0.3f * g, 1.f });
-            }
-        tubes.push_back (std::move (body));
-    }
-    // jaws
-    const auto& nb = tubes[0];
-    hinge = nb.back().p;
-    const float rNeck = nb.back().r;
-    const Point<float> d = norm (nb.back().p - nb[nb.size() - 40].p), up (-d.y, d.x);
-    const float thU = 0.42f, thL = 0.55f;
-    const Point<float> du = norm (d * std::cos (thU) + up * std::sin (thU)), dl = norm (d * std::cos (thL) - up * std::sin (thL));
-    const Point<float> upU (-du.y, du.x), upL (-dl.y, dl.x);
-    const float Lu = (float) h * 0.50f, Ll = (float) h * 0.42f;
-    auto upperAt = [&] (float t) { return hinge - d * ((float) h * 0.10f) + du * (Lu * t) - upU * ((float) h * 0.035f * t * t * t); };
-    auto upperR  = [&] (float t) { return rNeck * (1.35f + 0.75f * std::sin (pi * jmin (1.f, t * 1.7f))) * (1.f - 0.84f * std::pow (t, 1.4f)); };
-    auto lowerAt = [&] (float t) { return hinge - d * ((float) h * 0.03f) + dl * (Ll * t) + upL * ((float) h * 0.02f * t * t); };
-    auto lowerR  = [&] (float t) { return rNeck * 1.0f * (1.f - 0.74f * std::pow (t, 1.3f)); };
-    {
-        std::vector<Pt> U, Lo;
-        for (int i = 0; i <= 500; ++i) { const float t = (float) i / 500.f; U.push_back ({ upperAt (t), upperR (t), 1.25f, 1.f }); }
-        for (int i = 0; i <= 450; ++i) { const float t = (float) i / 450.f; Lo.push_back ({ lowerAt (t), lowerR (t), 1.05f, 1.f }); }
-        tubes.push_back (std::move (Lo));
-        tubes.push_back (std::move (U));
-    }
-    // mouth, fangs, eye (drawn live in paint)
-    {
-        mouth.clear();
-        for (int i = 0; i <= 40; ++i) { const float t = 0.08f + 0.86f * (float) i / 40.f; const auto p = upperAt (t) - upU * (upperR (t) * 0.55f);
-                                         if (i == 0) mouth.startNewSubPath (p); else mouth.lineTo (p); }
-        for (int i = 40; i >= 0; --i) { const float t = 0.08f + 0.86f * (float) i / 40.f; mouth.lineTo (lowerAt (t) + upL * (lowerR (t) * 0.55f)); }
-        mouth.closeSubPath();
-        throat = hinge + d * ((float) h * 0.03f);
-        upperTip = upperAt (1.f); lowerTip = lowerAt (1.f);
-        tongueDir = norm (du + dl);
-        auto fang = [&] (Point<float> base, Point<float> along, Point<float> down, float len, float wd)
-        {
-            Path f;
-            const Point<float> tip = base + down * len - along * (len * 0.28f);
-            f.startNewSubPath (base - along * wd);
-            f.quadraticTo (base - along * (wd * 0.6f) + down * (len * 0.6f), tip);
-            f.quadraticTo (base + along * (wd * 0.9f) + down * (len * 0.55f), base + along * wd);
-            f.closeSubPath();
-            return std::make_pair (f, tip);
-        };
-        const float tN = 0.80f, tF = 0.66f;
-        auto fn = fang (upperAt (tN) - upU * (upperR (tN) * 0.5f), du, norm (-upU - du * 0.15f), (float) h * 0.20f, 4.2f);
-        fangNear = fn.first; fangTip = fn.second;
-        fangFar = fang (upperAt (tF) - upU * (upperR (tF) * 0.45f), du, norm (-upU - du * 0.1f), (float) h * 0.15f, 3.4f).first;
-        fangLow = fang (lowerAt (0.80f) + upL * (lowerR (0.80f) * 0.5f), dl, norm (upL - dl * 0.15f), (float) h * 0.10f, 3.0f).first;
-        const float tE = 0.30f;
-        eyeDir = du; eyeUp = upU;
-        eyeR = upperR (tE) * 0.24f;
-        eye = upperAt (tE) + upU * (upperR (tE) * 0.38f);
-    }
-
-    // ---- render the tubes at 2x: z-buffered, glossy black scales, lime rim light
-    const int SS = 2, W2 = w * SS, H2 = h * SS;
-    struct Ref { int tube, i; };
-    std::vector<std::vector<Point<float>>> tang (tubes.size());
-    std::vector<std::vector<float>> q (tubes.size());
-    const float scale = 0.46f;                   // scale size relative to body radius
-    for (size_t tb = 0; tb < tubes.size(); ++tb)
-    {
-        const auto& P = tubes[tb];
-        const int N = (int) P.size();
-        tang[tb].resize ((size_t) N); q[tb].assign ((size_t) N, 0.f);
-        for (int i = 0; i < N; ++i)
-        {
-            tang[tb][(size_t) i] = norm (P[(size_t) jmin (N - 1, i + 3)].p - P[(size_t) jmax (0, i - 3)].p);
-            if (i > 0) q[tb][(size_t) i] = q[tb][(size_t) i - 1] + P[(size_t) i].p.getDistanceFrom (P[(size_t) i - 1].p) / (scale * jmax (1.5f, P[(size_t) i].r));
-        }
-    }
-    std::vector<float> zb ((size_t) (W2 * H2), -1e9f), cu ((size_t) (W2 * H2)), cv ((size_t) (W2 * H2)), cov ((size_t) (W2 * H2));
-    std::vector<Ref> id ((size_t) (W2 * H2), Ref { -1, -1 });
-    const float zScale = R * (float) SS;
-    for (size_t tb = 0; tb < tubes.size(); ++tb)
-        for (int i = 0; i < (int) tubes[tb].size(); ++i)
-        {
-            const auto& s = tubes[tb][(size_t) i];
-            const float cx = s.p.x * SS, cyy = s.p.y * SS, r = s.r * SS, zc = s.z * zScale;
-            const Point<float> Tn = tang[tb][(size_t) i], Pn (-Tn.y, Tn.x);
-            const int X0 = jmax (0, (int) (cx - r - 2)), X1 = jmin (W2 - 1, (int) (cx + r + 2));
-            const int Y0 = jmax (0, (int) (cyy - r - 2)), Y1 = jmin (H2 - 1, (int) (cyy + r + 2));
-            for (int y = Y0; y <= Y1; ++y)
-                for (int x = X0; x <= X1; ++x)
-                {
-                    const float dx = (float) x + 0.5f - cx, dy = (float) y + 0.5f - cyy, d2 = dx * dx + dy * dy;
-                    if (d2 > (r + 0.7f) * (r + 0.7f)) continue;
-                    const float sv = zc + std::sqrt (jmax (0.f, r * r - d2));
-                    const size_t k = (size_t) (y * W2 + x);
-                    if (sv <= zb[k]) continue;
-                    zb[k] = sv; id[k] = { (int) tb, i };
-                    cu[k] = (dx * Pn.x + dy * Pn.y) / r;
-                    cv[k] = (dx * Tn.x + dy * Tn.y) / r;
-                    cov[k] = jlimit (0.f, 1.f, r - std::sqrt (d2) + 0.6f);
-                }
-        }
-    Image back2 (Image::ARGB, W2, H2, true), front2 (Image::ARGB, W2, H2, true);
-    {
-        Image::BitmapData bb (back2, Image::BitmapData::writeOnly), fb (front2, Image::BitmapData::writeOnly);
-        const float lx = -0.30f, ly = -0.78f, lz = 0.55f, ll = std::sqrt (lx * lx + ly * ly + lz * lz);
-        const float Lx = lx / ll, Ly = ly / ll, Lz = lz / ll;
-        float hx = Lx, hy = Ly, hz = Lz + 1.f; { const float hl = std::sqrt (hx * hx + hy * hy + hz * hz); hx /= hl; hy /= hl; hz /= hl; }
-        const auto lime = SerpentTheme::lime;
-        auto hash = [] (int a, int b) { uint32 x = (uint32) (a * 73856093) ^ (uint32) (b * 19349663); x ^= x >> 13; x *= 0x5bd1e995; x ^= x >> 15; return (float) (x & 0xffff) / 65535.f; };
-        for (int y = 0; y < H2; ++y)
-            for (int x = 0; x < W2; ++x)
-            {
-                const size_t k = (size_t) (y * W2 + x);
-                const auto ref = id[k];
-                if (ref.tube < 0) continue;
-                const auto& s = tubes[(size_t) ref.tube][(size_t) ref.i];
-                const Point<float> Tn = tang[(size_t) ref.tube][(size_t) ref.i], Pn (-Tn.y, Tn.x);
-                const float u = jlimit (-0.999f, 0.999f, cu[k]);
-                // scales: diamond lattice in (along, around) coordinates
-                const float qa = q[(size_t) ref.tube][(size_t) ref.i] + cv[k] / scale, qb = std::asin (u) / scale;
-                const float m = qa + qb, n = qa - qb;
-                const float fm = m - std::floor (m), fn = n - std::floor (n);
-                const float groove = jmin (jmin (fm, 1.f - fm), jmin (fn, 1.f - fn));
-                const float edge = 1.f - jlimit (0.f, 1.f, groove / 0.10f);
-                const float var = hash ((int) std::floor (m) + ref.tube * 977, (int) std::floor (n));
-                // normal: tube + a dome per scale
-                const float nzT = std::sqrt (1.f - u * u);
-                const float tx = Pn.x * u, ty = Pn.y * u, tz = nzT;          // smooth tube normal
-                const float tdh = jmax (0.f, tx * hx + ty * hy + tz * hz);
-                float nx = tx + (Tn.x * (fm - 0.5f) + Pn.x * (fn - 0.5f)) * 0.24f * nzT;
-                float ny = ty + (Tn.y * (fm - 0.5f) + Pn.y * (fn - 0.5f)) * 0.24f * nzT;
-                float nz = nzT;
-                { const float nl = std::sqrt (nx * nx + ny * ny + nz * nz); nx /= nl; ny /= nl; nz /= nl; }
-                const float diff = jmax (0.f, nx * Lx + ny * Ly + nz * Lz);
-                const float ndh = jmax (0.f, nx * hx + ny * hy + nz * hz);
-                const float streak = std::pow (tdh, 18.f);                      // the long gloss line along the body
-                const float spec = (streak * (0.35f + 0.65f * std::pow (ndh, 6.f)) * 0.75f + std::pow (ndh, 60.f) * 0.35f * var)
-                                   * (1.f - 0.9f * edge);
-                const float sheen = std::pow (ndh, 4.f) * 0.05f;
-                const float depthDim = s.z < 0.f ? 1.f + 0.35f * s.z : 1.f;       // far side of the coils a bit darker
-                float v = (0.018f + 0.055f * diff + sheen) * (1.f - 0.6f * edge) + spec;
-                v *= depthDim;
-                const float rim = std::pow (1.f - nzT, 2.2f) * jmax (0.f, ny + 0.35f) * 0.55f;
-                const float r_ = jlimit (0.f, 1.f, v * 0.93f + rim * lime.getFloatRed());
-                const float g_ = jlimit (0.f, 1.f, v * 0.98f + rim * lime.getFloatGreen());
-                const float b_ = jlimit (0.f, 1.f, v * 0.92f + rim * lime.getFloatBlue());
-                const float a = cov[k] * s.tail;
-                // back layer holds everything behind the letters, the front layer fades in across z = 0
-                const float fz = jlimit (0.f, 1.f, (s.z + 0.35f) / 0.7f), fa = fz * fz * (3.f - 2.f * fz);
-                if (fa > 0.f)    fb.setPixelColour (x, y, Colour::fromFloatRGBA (r_, g_, b_, a * fa));
-                if (s.z < 0.35f) bb.setPixelColour (x, y, Colour::fromFloatRGBA (r_, g_, b_, a));
-            }
-    }
-    bodyBack = back2.rescaled (w, h, Graphics::highResamplingQuality);
-    bodyFront = front2.rescaled (w, h, Graphics::highResamplingQuality);
-
     // ---- smoke ribbons
     ribbons.clear();
     Random rng (31);
@@ -309,7 +123,7 @@ void SmokeLogo::build()
     {
         Ribbon r {};
         r.layer = k < 7 ? 0 : (k < 11 ? 1 : 2);
-        r.baseY = (float) h * 0.64f + (float) gauss (rng) * (float) h * 0.13f;
+        r.baseY = (float) h * 0.5f + (float) gauss (rng) * (float) h * 0.15f;
         r.a1 = (float) h * (0.05f + 0.10f * rng.nextFloat());
         r.f1 = twoPi / ((float) w * (0.25f + 0.40f * rng.nextFloat()));
         r.w1 = 0.20f + 0.30f * rng.nextFloat();
@@ -385,105 +199,9 @@ void SmokeLogo::tick (float level)
 void SmokeLogo::paint (Graphics& g)
 {
     if (! title.isValid()) return;
-    const auto lime = SerpentTheme::lime;
     drawSmoke (g, 0);
-    g.drawImageAt (bodyBack, 0, 0);
     drawSmoke (g, 1);
     g.drawImageAt (title, 0, 0);
-
-    // open mouth: dark inside, the throat glows lime with the sound
-    {
-        ColourGradient in (lime.withAlpha (0.55f + 0.4f * glow), throat.x, throat.y, Colour (0xff040604), (upperTip.x + lowerTip.x) * 0.5f, (upperTip.y + lowerTip.y) * 0.5f, true);
-        in.addColour (0.35, Colour (0xff1f3a08));
-        g.setGradientFill (in);
-        g.fillPath (mouth);
-    }
-    // tongue: flicks out between the jaws
-    {
-        const float period = 2.9f, ph = std::fmod (time, period);
-        const float ext = ph < 1.0f ? std::pow (std::sin (MathConstants<float>::pi * ph / 1.0f), 0.6f) * (0.8f + 0.2f * std::sin (ph * 24.f)) : 0.f;
-        if (ext > 0.02f)
-        {
-            const float len = (float) getHeight() * 0.42f * ext;
-            const Point<float> perp (-tongueDir.y, tongueDir.x);
-            const float wig = 0.16f * std::sin (time * 37.f);
-            const Point<float> mid = throat + (tongueDir + perp * wig) * len * 0.75f;
-            Path t;
-            t.startNewSubPath (throat);
-            t.quadraticTo (throat + tongueDir * len * 0.4f + perp * (wig * len * 0.35f), mid);
-            for (float side : { -1.f, 1.f })
-            {
-                t.startNewSubPath (mid);
-                t.lineTo (mid + (tongueDir + perp * (0.55f * side + wig)) * len * 0.27f);
-            }
-            g.setColour (lime.withAlpha (0.45f + 0.3f * glow));
-            g.strokePath (t, PathStrokeType (4.0f, PathStrokeType::curved, PathStrokeType::rounded));
-            g.setColour (Colour (0xff0b0d0a));
-            g.strokePath (t, PathStrokeType (2.2f, PathStrokeType::curved, PathStrokeType::rounded));
-        }
-    }
-    // fangs (roots hidden by the jaws drawn next)
-    auto fang = [&] (const Path& f, float bright)
-    {
-        const auto b = f.getBounds();
-        ColourGradient fg (Colour (0xfff4f8ec).withMultipliedBrightness (bright), b.getX(), b.getY(), Colour (0xff8d9a80).withMultipliedBrightness (bright), b.getRight(), b.getBottom(), false);
-        g.setGradientFill (fg); g.fillPath (f);
-        g.setColour (Colours::black.withAlpha (0.5f)); g.strokePath (f, PathStrokeType (0.6f));
-    };
-    fang (fangFar, 0.62f);
-    fang (fangLow, 0.85f);
-    fang (fangNear, 1.f);
-    g.drawImageAt (bodyFront, 0, 0);
-
-    // venom: a lime drop swells on the fang tip and falls
-    {
-        const float period = 2.3f, ph = std::fmod (time + 0.7f, period);
-        if (ph < 1.4f)
-        {
-            const float r = 0.6f + 1.9f * (ph / 1.4f);
-            g.setColour (lime.withAlpha (0.25f)); g.fillEllipse (Rectangle<float> (r * 4.f, r * 4.f).withCentre (fangTip.translated (0.f, r * 0.6f)));
-            g.setColour (SerpentTheme::limeHot); g.fillEllipse (Rectangle<float> (r * 1.6f, r * 2.1f).withCentre (fangTip.translated (0.f, r * 0.6f)));
-        }
-        else
-        {
-            const float f = (ph - 1.4f) / (period - 1.4f), fall = 70.f * f * f + 6.f * f;
-            const auto p = fangTip.translated (0.f, 1.5f + fall);
-            const float a = 1.f - f;
-            g.setColour (lime.withAlpha (0.5f * a));
-            if (f < 0.2f) g.drawLine (fangTip.x, fangTip.y, p.x, p.y - 2.f, 0.7f);
-            g.setColour (lime.withAlpha (0.3f * a)); g.fillEllipse (Rectangle<float> (9.f, 9.f).withCentre (p));
-            g.setColour (SerpentTheme::limeHot.withAlpha (a)); g.fillEllipse (Rectangle<float> (3.6f, 4.6f).withCentre (p));
-        }
-    }
-    // eye: narrowed and glowing under a heavy brow
-    {
-        const float r = eyeR * (1.f + 0.12f * glow);
-        ColourGradient halo (lime.withAlpha (0.35f + 0.4f * glow), eye.x, eye.y, lime.withAlpha (0.f), eye.x + r * 3.2f, eye.y, true);
-        g.setGradientFill (halo);
-        g.fillEllipse (Rectangle<float> (r * 6.4f, r * 6.4f).withCentre (eye));
-        const float ang = std::atan2 (eyeDir.y, eyeDir.x);
-        Path e; e.addEllipse (-r * 1.45f, -r * 0.62f, r * 2.9f, r * 1.24f);
-        e.applyTransform (AffineTransform::rotation (ang + 0.22f).translated (eye));
-        g.setColour (lime); g.fillPath (e);
-        Path core; core.addEllipse (-r * 0.8f, -r * 0.35f, r * 1.6f, r * 0.7f);
-        core.applyTransform (AffineTransform::rotation (ang + 0.22f).translated (eye));
-        g.setColour (SerpentTheme::limeHot); g.fillPath (core);
-        Path slit; slit.addEllipse (-r * 0.17f, -r * 0.62f, r * 0.34f, r * 1.24f);
-        slit.applyTransform (AffineTransform::rotation (ang).translated (eye));
-        g.setColour (Colour (0xff030403)); g.fillPath (slit);
-        // heavy upper lid slanting down towards the snout: the angry look
-        Path lid;
-        lid.startNewSubPath (eye - eyeDir * (r * 2.3f) + eyeUp * (r * 0.50f));
-        lid.quadraticTo (eye + eyeUp * (r * 0.35f), eye + eyeDir * (r * 2.1f) - eyeUp * (r * 0.25f));
-        lid.lineTo (eye + eyeDir * (r * 2.1f) + eyeUp * (r * 1.4f));
-        lid.lineTo (eye - eyeDir * (r * 2.3f) + eyeUp * (r * 1.7f));
-        lid.closeSubPath();
-        const auto lo = eye + eyeUp * (r * 0.3f), hi = eye + eyeUp * (r * 1.6f);
-        ColourGradient lg (Colour (0xff060706), lo.x, lo.y, Colour (0xff060706).withAlpha (0.f), hi.x, hi.y, false);
-        lg.addColour (0.55, Colour (0xff060706).withAlpha (0.9f));
-        g.setGradientFill (lg);
-        g.fillPath (lid);
-    }
     drawSmoke (g, 2);
 }
 

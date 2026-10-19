@@ -210,6 +210,82 @@ int main (int argc, char** argv)
     silence (proc);
     check (renderHits (proc, nullptr, 0, 1).peak < 0.001f, "all-zero envelope silences the layer");
 
+    // ---- v2.2: PITCH changes the pitch but not the length
+    {
+        auto oneHit = [&] (int note, std::vector<float>& out)
+        {
+            out.assign ((size_t) (sr * 1.6), 0.f);
+            for (int pos = 0; pos < (int) out.size(); pos += block)
+            {
+                AudioBuffer<float> buf (2, block); buf.clear(); MidiBuffer midi;
+                if (pos == 0) midi.addEvent (MidiMessage::noteOn (1, note, (uint8) 120), 0);
+                proc.processBlock (buf, midi);
+                for (int i = 0; i < block && pos + i < (int) out.size(); ++i) out[(size_t) (pos + i)] = buf.getSample (0, i);
+            }
+            silence (proc);
+        };
+        auto lengthOf = [] (const std::vector<float>& v)
+        {
+            float pk = 0.f; for (auto x : v) pk = jmax (pk, std::abs (x));
+            int last = 0; for (int i = 0; i < (int) v.size(); ++i) if (std::abs (v[(size_t) i]) > pk * 0.01f) last = i;
+            return last;
+        };
+        auto f0Of = [] (const std::vector<float>& v, double from)      // autocorrelation pitch, 40..400 Hz
+        {
+            const int a = (int) (from * sr), n = (int) (0.12 * sr);
+            double best = -1e9; int bestLag = 0;
+            for (int lag = (int) (sr / 400); lag < (int) (sr / 40); ++lag)
+            {
+                double c = 0.0, e = 1e-12;
+                for (int i = 0; i < n; ++i) { c += v[(size_t) (a + i)] * v[(size_t) (a + i + lag)]; e += v[(size_t) (a + i + lag)] * v[(size_t) (a + i + lag)]; }
+                c /= std::sqrt (e);
+                if (c > best) { best = c; bestLag = lag; }
+            }
+            return sr / bestLag;
+        };
+        soloKick (proc, false);
+        // give the kick an envelope that lets the whole sample through, so its own length shows
+        {
+            Envelope e; e.points = { { 0.f, 1.f }, { 1500.f, 1.f } };
+            proc.setEnvelope (Kick, e);
+        }
+        std::vector<float> h0, hUp, hDown, hKey;
+        oneHit (60, h0);
+        set (proc, ParamIDs::id (Kick, ParamIDs::pitch), 7.f);  oneHit (60, hUp);
+        set (proc, ParamIDs::id (Kick, ParamIDs::pitch), -7.f); oneHit (60, hDown);
+        set (proc, ParamIDs::id (Kick, ParamIDs::pitch), 0.f);  oneHit (72, hKey);      // key tracking +12
+        const int l0 = lengthOf (h0), lU = lengthOf (hUp), lD = lengthOf (hDown), lK = lengthOf (hKey);
+        auto near = [&] (int l) { return std::abs (l - l0) < (int) (0.05 * l0) + 480; };
+        check (near (lU) && near (lD) && near (lK), "PITCH keeps the sample length",
+               "(0: " + String (l0 / sr * 1000.0, 0) + " ms, +7: " + String (lU / sr * 1000.0, 0) + ", -7: " + String (lD / sr * 1000.0, 0)
+               + ", key +12: " + String (lK / sr * 1000.0, 0) + ")");
+        const double f0 = f0Of (h0, 0.15), fU = f0Of (hUp, 0.15), fD = f0Of (hDown, 0.15), fK = f0Of (hKey, 0.15);
+        auto semis = [&] (double f) { return 12.0 * std::log2 (f / f0); };
+        check (std::abs (semis (fU) - 7.0) < 0.35 && std::abs (semis (fD) + 7.0) < 0.35 && std::abs (semis (fK) - 12.0) < 0.35,
+               "PITCH still moves the tail pitch", "(" + String (f0, 1) + " Hz, +7: " + String (semis (fU), 2) + " st, -7: " + String (semis (fD), 2)
+               + " st, +12: " + String (semis (fK), 2) + " st)");
+        // smoothness: no grain flutter - the tail's envelope (10 ms RMS) must not wobble much more than the original
+        auto wobble = [] (const std::vector<float>& v)
+        {
+            const int w = (int) (0.010 * sr); std::vector<double> r;
+            for (int i = (int) (0.12 * sr); i + w < (int) (0.40 * sr); i += w / 2)
+            { double e = 0.0; for (int j = 0; j < w; ++j) e += v[(size_t) (i + j)] * v[(size_t) (i + j)]; r.push_back (std::sqrt (e / w)); }
+            double m = 0.0; for (size_t i = 1; i + 1 < r.size(); ++i) m = jmax (m, std::abs (r[i] - 0.5 * (r[i - 1] + r[i + 1])) / (r[i] + 1e-9));
+            return m;
+        };
+        check (wobble (hUp) < wobble (h0) + 0.08 && wobble (hDown) < wobble (h0) + 0.08, "PITCH tail stays smooth",
+               "(wobble 0: " + String (wobble (h0), 3) + ", +7: " + String (wobble (hUp), 3) + ", -7: " + String (wobble (hDown), 3) + ")");
+        if (argc > 1)
+        {
+            AudioBuffer<float> demo (1, (int) (sr * 1.6 * 4)); demo.clear();
+            int at = 0;
+            for (auto* v : { &h0, &hUp, &hDown, &hKey }) { for (size_t i = 0; i < v->size(); ++i) demo.setSample (0, at + (int) i, (*v)[i]); at += (int) v->size(); }
+            auto f = File (argv[1]).getChildFile ("pitch_keep_length.wav"); f.deleteFile();
+            if (auto w = std::unique_ptr<AudioFormatWriter> (WavAudioFormat().createWriterFor (new FileOutputStream (f), sr, 1, 24, {}, 0)))
+                w->writeFromAudioSampleBuffer (demo, 0, demo.getNumSamples());
+        }
+    }
+
     // ---- reverse: the loudest part moves to the end
     soloKick (proc, false);
     const int peakFwd = renderHits (proc, nullptr, 0, 1).peakAt;

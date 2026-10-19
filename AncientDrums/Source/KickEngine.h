@@ -3,6 +3,9 @@
 //  ANCIENT DRUMS v2 - kick engine
 //
 //  PUNCH / CRUNCH / KICK sample layers (offset, envelope, reverse, pitch, filters)
+//     v2.2: PITCH keeps the sample length - the sample is read in overlapping 42 ms grains,
+//     each grain is played at the new pitch and lined up with the waveform of the previous one
+//     (WSOLA), so the tail stays tonal; at 0 semitones the sample is played directly
 //     layers with FORGE on  ->  FORGE  --+
 //     layers with FORGE off ------------+--> PRE-GAIN -> CLIP -> LIMIT -> VOLUME
 //
@@ -105,7 +108,10 @@ public:
             const float semis = lp.pitch + (lp.keyTrack ? noteSemis : 0.f);
             lv.sample = lp.sample;
             lv.env = lp.env;
-            lv.rate = lp.sample->sampleRate / sr * std::pow (2.0, semis / 12.0);
+            lv.srcRatio = lp.sample->sampleRate / sr;
+            lv.ratio = std::pow (2.0, semis / 12.0);
+            lv.rate = lv.srcRatio * lv.ratio;
+            lv.stretch = std::abs (semis) > 0.001f;
             lv.offset = lp.offsetMs * 0.001 * sr;
             lv.audibleFrom = juce::jmax (0.0, -lv.offset);   // negative offset trims the start
             lv.reverse = lp.reverse;
@@ -182,8 +188,11 @@ private:
     {
         SamplePtr sample;
         EnvPtr env;
-        double rate = 1.0, offset = 0.0, audibleFrom = 0.0;
-        int n = 0;
+        double rate = 1.0, offset = 0.0, audibleFrom = 0.0, srcRatio = 1.0, ratio = 1.0;
+        int n = 0, age = 0;                      // age: output samples since the layer became audible
+        bool stretch = false;
+        struct Grain { double src = 0.0; int age = 0; bool active = false, first = false; };
+        std::array<Grain, 2> grains {};
         size_t envSeg = 0;
         bool active = false, reverse = false, forge = true;
         Svf hp, lp;
@@ -211,8 +220,8 @@ private:
         const double t = (double) lv.n++ - lv.offset;         // output samples since the layer's start
         if (t < 0.0) { out = 0.f; return true; }              // still waiting (positive offset)
         const auto& d = lv.sample->data;
-        const double pos = t * lv.rate;
         const double len = (double) d.size() - 1.0;
+        const double pos = t * (lv.stretch ? lv.srcRatio : lv.rate);   // with PITCH the length stays the same
         if (pos >= len) return false;
         const double a = t - lv.audibleFrom;                   // time since the layer became audible
         const float ms = (float) (a * 1000.0 / sr);           // envelope time: 0 = where the layer starts sounding
@@ -223,8 +232,80 @@ private:
             g = lv.env->eval (ms, lv.envSeg);
         }
         if (a < 24.0) g *= (float) (a / 24.0);                 // 0.5 ms anti-click where the layer starts
-        out = hermite (d, lv.reverse ? len - pos : pos) * g;
+        out = (lv.stretch ? grainSample (lv, pos) : hermite (d, lv.reverse ? len - pos : pos)) * g;
         return true;
+    }
+
+    // ------------------------------------------------------------ pitch without changing the length (WSOLA grains)
+    int grainLen() const { return 2 * juce::jmax (64, (int) (0.021 * sr)); }
+
+    static inline float readSrc (const LayerVoice& lv, double x)
+    {
+        const auto& d = lv.sample->data;
+        const double len = (double) d.size() - 1.0;
+        if (x < 0.0 || x >= len) return 0.f;
+        return hermite (d, lv.reverse ? len - x : x);
+    }
+    static inline float readNearest (const LayerVoice& lv, double x)
+    {
+        const auto& d = lv.sample->data;
+        const int sz = (int) d.size();
+        int i = (int) (x + 0.5);
+        if (i < 0 || i >= sz) return 0.f;
+        return d[(size_t) (lv.reverse ? sz - 1 - i : i)];
+    }
+
+    // where to start the next grain near 'target' so it continues the waveform the previous grain is playing at 'prev'
+    double alignGrain (const LayerVoice& lv, double prev, double target, double step) const
+    {
+        constexpr int M = 64;
+        const double stride = juce::jmax (1.0, std::round (0.016 * sr / M)) * step;   // ~16 ms of playback compared
+        std::array<float, M> ref {};
+        float refE = 0.f;
+        for (int j = 0; j < M; ++j) { ref[(size_t) j] = readNearest (lv, prev + j * stride); refE += ref[(size_t) j] * ref[(size_t) j]; }
+        if (refE < 1e-7f) return target;
+        const double range = 0.0125 * lv.sample->sampleRate, dStep = juce::jmax (1.0, range / 400.0);
+        double best = target; float bestScore = -1e9f;
+        for (double dd = -range; dd <= range; dd += dStep)
+        {
+            float xy = 0.f, yy = 1e-9f;
+            for (int j = 0; j < M; ++j)
+            {
+                const float y = readNearest (lv, target + dd + j * stride);
+                xy += ref[(size_t) j] * y; yy += y * y;
+            }
+            const float score = xy / std::sqrt (yy * refE) - 0.08f * (float) (std::abs (dd) / range);
+            if (score > bestScore) { bestScore = score; best = target + dd; }
+        }
+        return best;
+    }
+
+    // pos: where the sample is in time (moves at normal speed); every grain plays at the new pitch
+    float grainSample (LayerVoice& lv, double pos)
+    {
+        const int G = grainLen(), hop = G / 2;
+        const double step = lv.ratio * lv.srcRatio;
+        if (lv.age % hop == 0)
+        {
+            const int k = lv.age / hop;
+            auto& gnew = lv.grains[(size_t) (k & 1)];
+            const auto& gold = lv.grains[(size_t) ((k + 1) & 1)];
+            double start = pos;
+            if (k > 0 && gold.active) start = alignGrain (lv, gold.src + gold.age * step, pos, step);
+            gnew = { start, 0, true, k == 0 };
+        }
+        ++lv.age;
+        float y = 0.f;
+        for (auto& gr : lv.grains)
+        {
+            if (! gr.active) continue;
+            float w;
+            if (gr.first && gr.age < hop) w = 1.f;               // the attack is not faded in
+            else { const float sn = std::sin (juce::MathConstants<float>::pi * (float) gr.age / (float) G); w = sn * sn; }
+            y += w * readSrc (lv, gr.src + gr.age * step);
+            if (++gr.age >= G) gr.active = false;
+        }
+        return y;
     }
 
     // ------------------------------------------------------------ FORGE

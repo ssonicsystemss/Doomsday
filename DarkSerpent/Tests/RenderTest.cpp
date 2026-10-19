@@ -92,6 +92,28 @@ int main (int argc, char** argv)
     proc.prepareToPlay (sr, block);
     const double spb = sr * 60.0 / 150.0;
 
+    // logo animation frames: RenderTest <dir> logo <frames>
+    if (argc > 2 && String (argv[2]) == "logo")
+    {
+        std::unique_ptr<AudioProcessorEditor> ed (proc.createEditor());
+        ed->setSize (Canvas::W, Canvas::H);
+        const int frames = argc > 3 ? String (argv[3]).getIntValue() : 1;
+        std::function<SmokeLogo* (Component&)> find = [&] (Component& c) -> SmokeLogo*
+        {
+            if (auto* l = dynamic_cast<SmokeLogo*> (&c)) return l;
+            for (auto* ch : c.getChildren()) if (auto* l = find (*ch)) return l;
+            return nullptr;
+        };
+        auto* logo = find (*ed);
+        for (int i = 0; i < frames; ++i)
+        {
+            logo->tick (0.25f + 0.2f * (float) std::sin (i * 0.3));
+            auto img = ed->createComponentSnapshot ({ 0, 0, Canvas::W, 210 }, true, 1.0f);
+            auto f = out.getChildFile (String::formatted ("logo_%04d.png", i)); f.deleteFile();
+            FileOutputStream os (f); PNGImageFormat().writeImageToStream (img, os);
+        }
+        return 0;
+    }
     // reference-style render: held C (FL "C5" = MIDI 60), 1.7 s, default preset, no delay / reverb
     if (argc > 2 && String (argv[2]) == "ref")
     {

@@ -87,15 +87,15 @@ void SmokeLogo::build()
 {
     auto& lnf = lnfOf (*this);
     const int w = getWidth(), h = getHeight();
-    const float cy = (float) h * 0.5f;
     const String text ("DARK SERPENT");
+    constexpr float pi = MathConstants<float>::pi, twoPi = MathConstants<float>::twoPi;
 
     // ---- title mask + rendered title (glow + letters)
     Font font = lnf.titleFont (60.f, 0.12f);
     {
         GlyphArrangement ga; ga.addLineOfText (font, text, 0.f, 0.f);
         const float tw = ga.getBoundingBox (0, -1, true).getWidth();
-        font = lnf.titleFont (60.f * (float) w * 0.70f / jmax (1.f, tw), 0.12f);
+        font = lnf.titleFont (60.f * (float) w * 0.64f / jmax (1.f, tw), 0.12f);
     }
     Image mask (Image::SingleChannel, w, h, true);
     { Graphics g (mask); g.setFont (font); g.setColour (Colours::white); g.drawText (text, 0, 0, w, h, Justification::centred); }
@@ -116,132 +116,230 @@ void SmokeLogo::build()
             }
     }
 
-    // ---- serpent path: tail on the left, head on the right, weaving over / under the letters
-    const int N = 900;
-    std::vector<float> px (N), py (N), rad (N);
-    std::vector<bool> isFront (N);
-    const float amp = (float) h * 0.27f;
+    // ---- serpent centre line: coils (a helix seen from the side) -> rising neck -> head
+    struct Pt { Point<float> p; float r, z, tail, head; };     // head: 0 = body, 0..1 along the head
+    std::vector<Pt> pts;
+    const float cy = (float) h * 0.52f, R = (float) h * 0.27f;
+    // a helix seen from the side: two round coils whose front arcs cross the title line just before "D"
+    // and in the gap between the words; the tail dissolves into the smoke on the left
+    const float F0 = (float) w * 0.172f, F1 = (float) w * 0.418f;
+    const float A = (F1 - F0) / twoPi, loopW = (float) h * 0.46f, B = (loopW + A * pi) * 0.5f;
+    const float tA = -pi * 0.12f, tB = pi * 4.f;
+    const int NC = 6000;
+    for (int i = 0; i <= NC; ++i)
+    {
+        const float u = (float) i / (float) NC, t = tA + (tB - tA) * u;
+        const float grow = std::sin (jmin (1.f, u * 2.f) * pi * 0.5f);
+        const float x = F0 - B + A * (t - pi * 0.5f) + B * std::sin (t);
+        const float y = cy - R * (0.8f + 0.2f * grow) * std::cos (t) + (float) h * 0.02f * std::sin (0.6f * t);
+        const float z = std::sin (t);
+        const float r = (1.0f + (float) h * 0.064f * std::pow (u, 0.35f)) * (1.f + 0.1f * z);
+        pts.push_back ({ { x, y }, r, z, jlimit (0.f, 1.f, u / 0.16f), 0.f });
+    }
+    const float rNeck = pts.back().r;
+    headDir = Point<float> (0.90f, -0.43f);
+    {
+        // over the top of "SERPENT", diving behind the last letters, rising in front after the "T"
+        const Point<float> P0 = pts.back().p, P1 = P0 + Point<float> ((float) w * 0.20f, 0.f);
+        const Point<float> P3 ((float) w * 0.872f, (float) h * 0.34f), P2 ((float) w * 0.84f, (float) h * 1.02f);
+        for (int i = 1; i <= 1600; ++i)
+        {
+            const float t = (float) i / 1600.f, m = 1.f - t;
+            const Point<float> p = P0 * (m * m * m) + P1 * (3.f * m * m * t) + P2 * (3.f * m * t * t) + P3 * (t * t * t);
+            const float ramp = jlimit (0.f, 1.f, (t - 0.72f) / 0.25f);
+            const float zz = -0.9f * std::sin (pi * jmin (1.f, t / 0.8f)) + 1.5f * ramp * ramp * (3.f - 2.f * ramp);
+            pts.push_back ({ p, rNeck * (0.97f - 0.06f * std::sin (pi * t)), zz, 1.f, 0.f });
+        }
+        const float L = (float) h * 0.28f;
+        auto d0 = pts.back().p - pts[pts.size() - 20].p;
+        const Point<float> neckDir = d0 / jmax (1e-6f, d0.getDistanceFromOrigin());
+        for (int i = 1; i <= 500; ++i)
+        {
+            const float t = (float) i / 500.f;
+            const float bl = jmin (1.f, t * 2.5f);
+            auto dir = neckDir * (1.f - bl) + headDir * bl;
+            dir = dir / jmax (1e-6f, dir.getDistanceFromOrigin());
+            const float r = rNeck * 0.92f * (1.f + 0.62f * std::sin (pi * jmin (1.f, t * 1.15f))) * (1.f - 0.66f * std::pow (t, 2.0f));
+            pts.push_back ({ pts.back().p + dir * (L / 500.f), r, 1.5f, 1.f, t });
+        }
+    }
+    const int N = (int) pts.size();
+    std::vector<Point<float>> tang ((size_t) N);
+    std::vector<float> q ((size_t) N, 0.f);
+    const float scale = 0.46f;                   // scale size relative to body radius
     for (int i = 0; i < N; ++i)
     {
-        const float s = (float) i / (float) (N - 1);
-        const float ph = MathConstants<float>::twoPi * 1.55f * s + 0.6f;
-        px[(size_t) i] = (float) w * 0.05f + (float) w * 0.86f * s;
-        py[(size_t) i] = cy + amp * std::sin (ph) * (0.55f + 0.45f * s) + (float) h * 0.03f * std::sin (MathConstants<float>::twoPi * 6.f * s);
-        rad[(size_t) i] = 2.f + (float) h * 0.085f * std::pow (s, 0.6f);
-        isFront[(size_t) i] = std::cos (ph) > 0.f;
+        auto d = pts[(size_t) jmin (N - 1, i + 3)].p - pts[(size_t) jmax (0, i - 3)].p;
+        const float l = jmax (1e-6f, d.getDistanceFromOrigin());
+        tang[(size_t) i] = d / l;
+        if (i > 0) q[(size_t) i] = q[(size_t) i - 1] + pts[(size_t) i].p.getDistanceFrom (pts[(size_t) i - 1].p) / (scale * jmax (1.5f, pts[(size_t) i].r));
     }
-    const float dx = px[N - 1] - px[N - 30], dy = py[N - 1] - py[N - 30];
-    const float dl = std::sqrt (dx * dx + dy * dy);
-    const Point<float> dir (dx / dl, dy / dl), perp (-dir.y, dir.x);
-    const float headLen = (float) h * 0.20f;
-    eyes[0] = { px[N - 1] + dir.x * headLen * 0.58f + perp.x * h * 0.045f, py[N - 1] + dir.y * headLen * 0.58f + perp.y * h * 0.045f };
-    eyes[1] = { px[N - 1] + dir.x * headLen * 0.58f - perp.x * h * 0.045f, py[N - 1] + dir.y * headLen * 0.58f - perp.y * h * 0.045f };
-
-    for (int variant = 0; variant < 2; ++variant)
     {
-        Random rng (variant == 0 ? 7 : 1234);
-        Field B (w, h), F (w, h);
-        // flow field for the curling wisps
-        const int gw = w / 8 + 2, gh = h / 8 + 2;
-        Field U (gw, gh), V (gw, gh);
-        for (auto& x : U.v) x = rng.nextFloat() * 2.f - 1.f;
-        for (auto& x : V.v) x = rng.nextFloat() * 2.f - 1.f;
-        U = U.blurred (2.f); V = V.blurred (2.f);
-        float um = 1e-6f, vm = 1e-6f;
-        for (auto x : U.v) um = jmax (um, std::abs (x));
-        for (auto x : V.v) vm = jmax (vm, std::abs (x));
+        const int iEye = N - 500 + (int) (500 * 0.56f);
+        const auto P = Point<float> (-tang[(size_t) iEye].y, tang[(size_t) iEye].x);
+        eye = pts[(size_t) iEye].p - P * (pts[(size_t) iEye].r * 0.42f);
+        headR = pts[(size_t) (N - 500 + 200)].r;
+        snout = pts.back().p + tang.back() * pts.back().r * 0.6f;
+        headDir = tang.back();
+    }
 
-        for (int i = 0; i < N; i += 2)
-        {
-            Field& tgt = isFront[(size_t) i] ? F : B;
-            const float r = rad[(size_t) i];
-            for (int k = 0; k < 2; ++k)
-                tgt.splat (px[(size_t) i] + (float) gauss (rng) * r * 0.3f, py[(size_t) i] + (float) gauss (rng) * r * 0.3f,
-                           r * (0.7f + 0.4f * rng.nextFloat()), 0.06f);
-            if (rng.nextFloat() < 0.6f)
+    // ---- render the body at 2x: z-buffered tube, glossy black scales, lime rim light
+    const int SS = 2, W2 = w * SS, H2 = h * SS;
+    std::vector<float> zb ((size_t) (W2 * H2), -1e9f), cu ((size_t) (W2 * H2)), cv ((size_t) (W2 * H2)), cov ((size_t) (W2 * H2));
+    std::vector<int> id ((size_t) (W2 * H2), -1);
+    const float zScale = R * (float) SS;
+    for (int i = 0; i < N; ++i)
+    {
+        const auto& s = pts[(size_t) i];
+        const float cx = s.p.x * SS, cyy = s.p.y * SS, r = s.r * SS, zc = s.z * zScale;
+        const Point<float> Tn = tang[(size_t) i], Pn (-Tn.y, Tn.x);
+        const int X0 = jmax (0, (int) (cx - r - 2)), X1 = jmin (W2 - 1, (int) (cx + r + 2));
+        const int Y0 = jmax (0, (int) (cyy - r - 2)), Y1 = jmin (H2 - 1, (int) (cyy + r + 2));
+        for (int y = Y0; y <= Y1; ++y)
+            for (int x = X0; x <= X1; ++x)
             {
-                float x = px[(size_t) i] + (float) gauss (rng) * r * 0.4f, y = py[(size_t) i] + (float) gauss (rng) * r * 0.4f;
-                const int steps = 12 + rng.nextInt (34);
-                const float sp = 1.2f + rng.nextFloat() * 1.6f;
-                for (int t = 0; t < steps; ++t)
-                {
-                    const int gx = jlimit (0, gw - 1, (int) (x / 8.f)), gy = jlimit (0, gh - 1, (int) (y / 8.f));
-                    x += U.at (gx, gy) / um * sp * 2.2f;
-                    y += (V.at (gx, gy) / vm - 0.35f) * sp * 2.2f;
-                    const float a = 1.f - (float) t / (float) steps;
-                    tgt.splat (x, y, 1.f + r * 0.3f * a, 0.045f * a);
-                }
+                const float dx = (float) x + 0.5f - cx, dy = (float) y + 0.5f - cyy, d2 = dx * dx + dy * dy;
+                if (d2 > (r + 0.7f) * (r + 0.7f)) continue;
+                const float sv = zc + std::sqrt (jmax (0.f, r * r - d2));
+                const size_t k = (size_t) (y * W2 + x);
+                if (sv <= zb[k]) continue;
+                zb[k] = sv; id[k] = i;
+                cu[k] = (dx * Pn.x + dy * Pn.y) / r;
+                cv[k] = (dx * Tn.x + dy * Tn.y) / r;
+                cov[k] = jlimit (0.f, 1.f, r - std::sqrt (d2) + 0.6f);
             }
+    }
+    Image back2 (Image::ARGB, W2, H2, true), front2 (Image::ARGB, W2, H2, true);
+    {
+        Image::BitmapData bb (back2, Image::BitmapData::writeOnly), fb (front2, Image::BitmapData::writeOnly);
+        const float lx = -0.30f, ly = -0.78f, lz = 0.55f, ll = std::sqrt (lx * lx + ly * ly + lz * lz);
+        const float Lx = lx / ll, Ly = ly / ll, Lz = lz / ll;
+        float hx = Lx, hy = Ly, hz = Lz + 1.f; { const float hl = std::sqrt (hx * hx + hy * hy + hz * hz); hx /= hl; hy /= hl; hz /= hl; }
+        const auto lime = SerpentTheme::lime;
+        auto hash = [] (int a, int b) { uint32 x = (uint32) (a * 73856093) ^ (uint32) (b * 19349663); x ^= x >> 13; x *= 0x5bd1e995; x ^= x >> 15; return (float) (x & 0xffff) / 65535.f; };
+        for (int y = 0; y < H2; ++y)
+            for (int x = 0; x < W2; ++x)
+            {
+                const size_t k = (size_t) (y * W2 + x);
+                const int i = id[k];
+                if (i < 0) continue;
+                const auto& s = pts[(size_t) i];
+                const Point<float> Tn = tang[(size_t) i], Pn (-Tn.y, Tn.x);
+                const float u = jlimit (-0.999f, 0.999f, cu[k]);
+                // scales: diamond lattice in (along, around) coordinates
+                const float qa = q[(size_t) i] + cv[k] / scale, qb = std::asin (u) / scale;
+                const float m = qa + qb, n = qa - qb;
+                const float fm = m - std::floor (m), fn = n - std::floor (n);
+                const float groove = jmin (jmin (fm, 1.f - fm), jmin (fn, 1.f - fn));
+                const float edge = 1.f - jlimit (0.f, 1.f, groove / 0.10f);
+                const float var = hash ((int) std::floor (m), (int) std::floor (n));
+                // normal: tube + a dome per scale
+                const float nzT = std::sqrt (1.f - u * u);
+                const float tx = Pn.x * u, ty = Pn.y * u, tz = nzT;          // smooth tube normal
+                const float tdh = jmax (0.f, tx * hx + ty * hy + tz * hz);
+                float nx = tx + (Tn.x * (fm - 0.5f) + Pn.x * (fn - 0.5f)) * 0.24f * nzT;
+                float ny = ty + (Tn.y * (fm - 0.5f) + Pn.y * (fn - 0.5f)) * 0.24f * nzT;
+                float nz = nzT;
+                { const float nl = std::sqrt (nx * nx + ny * ny + nz * nz); nx /= nl; ny /= nl; nz /= nl; }
+                const float diff = jmax (0.f, nx * Lx + ny * Ly + nz * Lz);
+                const float ndh = jmax (0.f, nx * hx + ny * hy + nz * hz);
+                const float streak = std::pow (tdh, 18.f);                      // the long gloss line along the body
+                const float spec = (streak * (0.35f + 0.65f * std::pow (ndh, 6.f)) * 0.75f + std::pow (ndh, 60.f) * 0.35f * var)
+                                   * (1.f - 0.9f * edge);
+                const float sheen = std::pow (ndh, 4.f) * 0.05f;
+                const float depthDim = s.z < 0.f ? 1.f + 0.35f * s.z : 1.f;       // far side of the coils a bit darker
+                float v = (0.018f + 0.055f * diff + sheen) * (1.f - 0.6f * edge) + spec;
+                v *= depthDim;
+                if (s.head > 0.42f && std::abs (u - 0.30f) < 0.045f + 0.03f * s.head) v *= 0.15f;   // mouth line
+                const float rim = std::pow (1.f - nzT, 2.2f) * jmax (0.f, ny + 0.35f) * 0.55f;
+                const float r_ = jlimit (0.f, 1.f, v * 0.93f + rim * lime.getFloatRed());
+                const float g_ = jlimit (0.f, 1.f, v * 0.98f + rim * lime.getFloatGreen());
+                const float b_ = jlimit (0.f, 1.f, v * 0.92f + rim * lime.getFloatBlue());
+                const float a = cov[k] * s.tail;
+                // back layer holds everything behind the letters, the front layer fades in across z = 0
+                const float fz = jlimit (0.f, 1.f, (s.z + 0.35f) / 0.7f), fa = fz * fz * (3.f - 2.f * fz);
+                if (fa > 0.f)    fb.setPixelColour (x, y, Colour::fromFloatRGBA (r_, g_, b_, a * fa));
+                if (s.z < 0.35f) bb.setPixelColour (x, y, Colour::fromFloatRGBA (r_, g_, b_, a));
+            }
+    }
+    bodyBack = back2.rescaled (w, h, Graphics::highResamplingQuality);
+    bodyFront = front2.rescaled (w, h, Graphics::highResamplingQuality);
+
+    // ---- smoke ribbons
+    ribbons.clear();
+    Random rng (31);
+    for (int k = 0; k < 15; ++k)
+    {
+        Ribbon r {};
+        r.layer = k < 7 ? 0 : (k < 11 ? 1 : 2);
+        r.baseY = cy + (float) gauss (rng) * (float) h * 0.15f;
+        r.a1 = (float) h * (0.05f + 0.10f * rng.nextFloat());
+        r.f1 = twoPi / ((float) w * (0.25f + 0.40f * rng.nextFloat()));
+        r.w1 = 0.20f + 0.30f * rng.nextFloat();
+        r.p1 = twoPi * rng.nextFloat();
+        r.a2 = (float) h * (0.02f + 0.04f * rng.nextFloat());
+        r.f2 = twoPi / ((float) w * (0.07f + 0.12f * rng.nextFloat()));
+        r.w2 = 0.35f + 0.5f * rng.nextFloat();
+        r.p2 = twoPi * rng.nextFloat();
+        r.drift = 0.15f + 0.25f * rng.nextFloat();
+        r.thick = (float) h * (0.07f + 0.17f * rng.nextFloat());
+        r.tf = twoPi / ((float) w * (0.10f + 0.22f * rng.nextFloat()));
+        r.tw = 0.25f + 0.5f * rng.nextFloat();
+        r.tp = twoPi * rng.nextFloat();
+        r.x0 = (float) w * (-0.08f + 0.45f * rng.nextFloat());
+        r.x1 = jmin ((float) w * 0.93f, r.x0 + (float) w * (0.45f + 0.55f * rng.nextFloat()));
+        r.alpha = r.layer == 2 ? 0.45f : 0.7f + 0.3f * rng.nextFloat();
+        r.colour = Colour (0xffc4ccc0).interpolatedWith (SerpentTheme::lime, rng.nextFloat() * 0.55f);
+        ribbons.push_back (r);
+    }
+}
+
+void SmokeLogo::drawSmoke (Graphics& g, int layer)
+{
+    const float h = (float) getHeight(), w = (float) getWidth();
+    const float boost = 1.f + 0.8f * glow;
+    for (auto& r : ribbons)
+    {
+        if (r.layer != layer) continue;
+        const float xa = r.x0 + w * 0.05f * std::sin (0.11f * time + r.p1), xb = r.x1 + w * 0.05f * std::sin (0.09f * time + r.p2);
+        const int n = jmax (8, (int) ((xb - xa) / 7.f));
+        Path fill, e1, e2, f1, f2;
+        std::vector<Point<float>> lo ((size_t) n + 1);
+        for (int i = 0; i <= n; ++i)
+        {
+            const float t = (float) i / (float) n, x = xa + (xb - xa) * t;
+            const float y = r.baseY + r.a1 * (0.55f + 0.45f * std::sin (0.37f * r.f1 * x + 0.13f * time + r.tp)) * std::sin (r.f1 * x - r.w1 * time + r.p1)
+                          + r.a2 * std::sin (r.f2 * x + r.w2 * time + r.p2) + 0.4f * r.a2 * std::sin (2.3f * r.f2 * x - 1.7f * r.w2 * time + r.p1)
+                          + h * 0.035f * std::sin (r.drift * time + r.p2);
+            const float env = std::pow (std::sin (MathConstants<float>::pi * t), 0.7f);
+            const float tw = std::sin (r.tf * x - r.tw * time + r.tp);
+            const float half = 0.5f * r.thick * env * tw;
+            const Point<float> up (x, y - half), dn (x, y + half);
+            lo[(size_t) i] = dn;
+            if (i == 0) { fill.startNewSubPath (up); e1.startNewSubPath (up); e2.startNewSubPath (dn);
+                          f1.startNewSubPath (x, y - half * 0.45f); f2.startNewSubPath (x, y + half * 0.15f + 2.f * env); }
+            else        { fill.lineTo (up); e1.lineTo (up); e2.lineTo (dn); f1.lineTo (x, y - half * 0.45f); f2.lineTo (x, y + half * 0.15f + 2.f * env); }
         }
-        // head: a wedge a bit wider than the neck
+        for (int i = n; i >= 0; --i) fill.lineTo (lo[(size_t) i]);
+        fill.closeSubPath();
+        auto grad = [&] (float a)
         {
-            Field& tgt = isFront[N - 1] ? F : B;
-            for (int k = 0; k < 50; ++k)
-            {
-                const float t = (float) k / 49.f;
-                const float wd = (float) h * 0.13f * (1.f + 0.45f * std::sin (MathConstants<float>::pi * jmin (1.f, t * 1.4f))) * (1.f - 0.8f * std::pow (t, 1.6f));
-                for (int j = 0; j < 3; ++j)
-                {
-                    const float o = (float) gauss (rng) * 0.3f;
-                    tgt.splat (px[N - 1] + dir.x * headLen * t + perp.x * wd * o, py[N - 1] + dir.y * headLen * t + perp.y * wd * o, wd * 0.5f, 0.09f);
-                }
-            }
-        }
-
-        // smoke shading: noisy multi-scale blur -> black density + lime rim light
-        Field noise (w, h);
-        for (auto& x : noise.v) x = rng.nextFloat();
-        noise = noise.blurred (6.f);
-        float nmin = 1e9f, nmax = -1e9f;
-        for (auto x : noise.v) { nmin = jmin (nmin, x); nmax = jmax (nmax, x); }
-        auto shade = [&] (const Field& D)
-        {
-            auto b1 = D.blurred (1.5f), b2 = D.blurred (5.f), b3 = D.blurred (14.f);
-            Field S (w, h);
-            for (size_t k = 0; k < S.v.size(); ++k)
-            {
-                const float nz = (noise.v[k] - nmin) / jmax (1e-6f, nmax - nmin);
-                S.v[k] = (b1.v[k] * 0.6f + b2.v[k] * 0.8f + b3.v[k] * 0.6f) * (0.35f + 1.3f * std::pow (nz, 1.5f));
-            }
-            return S;
+            ColourGradient cg (r.colour.withAlpha (0.f), xa, 0.f, r.colour.withAlpha (0.f), xb, 0.f, false);
+            cg.addColour (0.25, r.colour.withAlpha (jmin (1.f, a)));
+            cg.addColour (0.75, r.colour.withAlpha (jmin (1.f, a)));
+            return cg;
         };
-        auto SB = shade (B), SF = shade (F);
-        std::vector<float> all (SB.v); all.insert (all.end(), SF.v.begin(), SF.v.end());
-        std::nth_element (all.begin(), all.begin() + (long) (all.size() * 0.995), all.end());
-        const float ref = jmax (1e-6f, all[(size_t) (all.size() * 0.995)]);
-
-        auto toLayer = [&] (const Field& S, bool frontLayer)
-        {
-            Field dens (w, h);
-            for (size_t k = 0; k < dens.v.size(); ++k)
-            {
-                float d = S.v[k] / ref;
-                if (frontLayer) d *= 1.f - 0.3f * T.v[k];
-                dens.v[k] = jlimit (0.f, 1.f, 1.f - std::exp (-d * 9.f));
-            }
-            auto spill = dens.blurred (6.f);
-            Layer L { Image (Image::ARGB, w, h, true), Image (Image::ARGB, w, h, true) };
-            Image::BitmapData dd (L.dark, Image::BitmapData::writeOnly), gd (L.glow, Image::BitmapData::writeOnly);
-            for (int y = 0; y < h; ++y)
-                for (int x = 0; x < w; ++x)
-                {
-                    const size_t k = (size_t) (y * w + x);
-                    const float de = dens.v[k];
-                    const float outer = jmax (0.f, spill.v[k] - de);
-                    const float rim = 1.f - std::exp (-(outer * 6.f + de * (1.f - de) * 4.f * 0.08f));
-                    dd.setPixelColour (x, y, Colour (0xff020302).withAlpha (de * 0.96f));
-                    gd.setPixelColour (x, y, SerpentTheme::lime.withAlpha (jlimit (0.f, 1.f, rim * 0.95f)));
-                }
-            return L;
-        };
-        back[(size_t) variant] = toLayer (SB, false);
-        front[(size_t) variant] = toLayer (SF, true);
+        g.setGradientFill (grad (0.10f * r.alpha * boost)); g.fillPath (fill);
+        g.setGradientFill (grad (0.22f * r.alpha * boost));
+        g.strokePath (e1, PathStrokeType (0.9f)); g.strokePath (e2, PathStrokeType (0.9f));
+        g.setGradientFill (grad (0.10f * r.alpha * boost));
+        g.strokePath (f1, PathStrokeType (0.7f)); g.strokePath (f2, PathStrokeType (0.7f));
     }
 }
 
 void SmokeLogo::tick (float level)
 {
-    phase += 0.011f;
+    time += 1.f / 30.f;
     const float target = jlimit (0.f, 1.f, level * 1.5f);
     glow = target > glow ? target : glow * 0.92f;
     repaint();
@@ -250,35 +348,50 @@ void SmokeLogo::tick (float level)
 void SmokeLogo::paint (Graphics& g)
 {
     if (! title.isValid()) return;
-    // the two smoke variants breathe into each other; the lime light swells with the sound
-    const float mix = 0.5f + 0.5f * std::sin (phase);
-    const float light = 0.75f + 0.35f * glow;
-    auto drawLayer = [&] (std::array<Layer, 2>& L)
-    {
-        g.setOpacity (1.f - mix); g.drawImageAt (L[0].dark, 0, 0);
-        g.setOpacity (mix);       g.drawImageAt (L[1].dark, 0, 0);
-        for (int rep = 0; rep < 2; ++rep)     // drawn twice: a stronger, saturated rim
-        {
-            const float k = rep == 0 ? 1.f : 0.45f;
-            g.setOpacity (jmin (1.f, (1.f - mix) * light * k)); g.drawImageAt (L[0].glow, 0, 0);
-            g.setOpacity (jmin (1.f, mix * light * k));         g.drawImageAt (L[1].glow, 0, 0);
-        }
-    };
-    drawLayer (back);
-    g.setOpacity (1.f);
+    drawSmoke (g, 0);
+    g.drawImageAt (bodyBack, 0, 0);
+    drawSmoke (g, 1);
     g.drawImageAt (title, 0, 0);
-    drawLayer (front);
-    g.setOpacity (1.f);
-    // eyes
-    for (auto& e : eyes)
+    g.drawImageAt (bodyFront, 0, 0);
+
+    // tongue: a quick double flick every few seconds
     {
-        const float r = 4.f + 1.5f * glow;
-        ColourGradient halo (SerpentTheme::lime.withAlpha (0.55f + 0.4f * glow), e.x, e.y, SerpentTheme::lime.withAlpha (0.f), e.x + r * 5.f, e.y, true);
-        g.setGradientFill (halo);
-        g.fillEllipse (Rectangle<float> (r * 10.f, r * 10.f).withCentre (e));
-        g.setColour (SerpentTheme::limeHot);
-        g.fillEllipse (Rectangle<float> (r * 2.f, r * 1.4f).withCentre (e));
+        const float period = 3.4f, ph = std::fmod (time, period);
+        const float ext = ph < 0.9f ? std::pow (std::sin (MathConstants<float>::pi * ph / 0.9f), 0.6f) * (0.75f + 0.25f * std::sin (ph * 22.f)) : 0.f;
+        if (ext > 0.02f)
+        {
+            const float len = headR * 3.4f * ext;
+            const Point<float> perp (-headDir.y, headDir.x);
+            const float wig = 0.18f * std::sin (time * 37.f);
+            const Point<float> mid = snout + (headDir + perp * wig) * len * 0.72f;
+            Path t;
+            t.startNewSubPath (snout);
+            t.quadraticTo (snout + headDir * len * 0.35f + perp * (wig * len * 0.3f), mid);
+            for (float side : { -1.f, 1.f })
+            {
+                t.startNewSubPath (mid);
+                t.lineTo (mid + (headDir + perp * (0.55f * side + wig)) * len * 0.30f);
+            }
+            g.setColour (SerpentTheme::lime.withAlpha (0.35f + 0.3f * glow));
+            g.strokePath (t, PathStrokeType (3.6f, PathStrokeType::curved, PathStrokeType::rounded));
+            g.setColour (Colour (0xff0b0d0a));
+            g.strokePath (t, PathStrokeType (1.8f, PathStrokeType::curved, PathStrokeType::rounded));
+        }
     }
+    // eye
+    {
+        const float r = headR * 0.30f * (1.f + 0.15f * glow);
+        ColourGradient halo (SerpentTheme::lime.withAlpha (0.45f + 0.45f * glow), eye.x, eye.y, SerpentTheme::lime.withAlpha (0.f), eye.x + r * 4.5f, eye.y, true);
+        g.setGradientFill (halo);
+        g.fillEllipse (Rectangle<float> (r * 9.f, r * 9.f).withCentre (eye));
+        g.setColour (SerpentTheme::lime);
+        g.fillEllipse (Rectangle<float> (r * 2.2f, r * 1.6f).withCentre (eye));
+        g.setColour (SerpentTheme::limeHot);
+        g.fillEllipse (Rectangle<float> (r * 1.2f, r * 0.8f).withCentre (eye.translated (-r * 0.2f, -r * 0.2f)));
+        g.setColour (Colour (0xff050605));
+        g.fillEllipse (Rectangle<float> (r * 0.42f, r * 1.45f).withCentre (eye));
+    }
+    drawSmoke (g, 2);
 }
 
 // ======================================================================= TalkPad

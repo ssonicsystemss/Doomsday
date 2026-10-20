@@ -262,6 +262,14 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Rozrzut między głosami** (Diva „slop”): tani sposób na analogowe życie.
 
 ---
+## Klocki już zbudowane w `Shared/` (gotowe do wpięcia, z testami)
+Przestery: ADAA, oversampling, bitcrusher, rysowany waveshaper, DYNAMICS (DynamicDrive), transient shaper, auto-gain, filtr `Ladder`.
+Modulacja: Shape z bend, LFO (sync, DRAWN, CHAOS), Performer, random-per-note, macierz, key & scale, arp ze step seq.
+Oscylatory: INTENSITY (SPECTRUM / BEND / FORMANT), oscylator modulujący (ring / PM / filter FM), FM operatory, unison ↔ akord, slop, MIX supersawa.
+Sidechain / czas: audio trigger, volume shaper z pasmami i 12 krzywymi, tape stop, stutter, reverser.
+Widmo: tłumik rezonansów (soothe) z DELTA. UI: przeglądarka presetów + UNDO, GainScope, pierścień modulacji na gałce.
+Do zrobienia przy wpinaniu: interfejsy tych funkcji w konkretnych wtyczkach (lista niżej).
+
 ## Lista pomysłów do zrobienia (z analiz, wg wtyczki)
 - **Forge of Wrath:** EXPORT WAV w tonacji; **PRE EQ przed STAGE 1** (cięcie dołu + podbicie 300–400 Hz); **BITCRUSH ogona**;
   transient shaper w pasmach; ducking ogona od punchu; DYNAMICS przesteru (Saturn); oś PITCH w nutach + przyciąganie; podgląd warstw

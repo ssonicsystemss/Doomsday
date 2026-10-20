@@ -91,6 +91,25 @@ void StageLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, int h
     g.setColour (Colours::white.withAlpha (0.075f));
     g.strokePath (track, PathStrokeType (ringW, PathStrokeType::curved, PathStrokeType::rounded));
 
+    // modulation ring (Serum / Vital style): range of the modulation outside the track + where it is right now
+    {
+        const float md = (float) (double) s.getProperties().getWithDefault ("modDepth", 0.0);
+        if (std::abs (md) > 0.001f)
+        {
+            const float mr = ringR + ringW * (big ? 1.6f : 1.5f);
+            const float a2 = jlimit (startAngle, endAngle, angle + md * (endAngle - startAngle));
+            Path mp; mp.addCentredArc (c.x, c.y, mr, mr, 0.f, jmin (angle, a2), jmax (angle, a2), true);
+            g.setColour (acc.hot.withAlpha (0.25f)); g.strokePath (mp, PathStrokeType (ringW * 1.8f, PathStrokeType::curved, PathStrokeType::rounded));
+            g.setColour (acc.hot.withAlpha (0.85f)); g.strokePath (mp, PathStrokeType (jmax (1.f, ringW * 0.55f), PathStrokeType::curved, PathStrokeType::rounded));
+            const float now = (float) (double) s.getProperties().getWithDefault ("modNow", -1.0);
+            if (now >= 0.f)
+            {
+                const auto p = c.getPointOnCircumference (mr, startAngle + jlimit (0.f, 1.f, now) * (endAngle - startAngle));
+                g.setColour (Colours::white); g.fillEllipse (Rectangle<float> (ringW * 1.3f, ringW * 1.3f).withCentre (p));
+            }
+        }
+    }
+
     const float from = bipolar ? (startAngle + endAngle) * 0.5f : startAngle;
     if (std::abs (angle - from) > 0.002f)
     {
@@ -686,6 +705,72 @@ void PresetBar::showSave()
             else AlertWindow::showMessageBoxAsync (MessageBoxIconType::WarningIcon, "SAVE PRESET", "Could not save the preset.");
         }
     }), false);
+}
+
+void Knob::setModulation (float depth, float nowPos01)
+{
+    auto& pr = slider.getProperties();
+    const double d = (double) depth, n = (double) nowPos01;
+    if (std::abs ((double) pr.getWithDefault ("modDepth", 0.0) - d) < 1.0e-4 && std::abs ((double) pr.getWithDefault ("modNow", -1.0) - n) < 1.0e-3) return;
+    pr.set ("modDepth", d); pr.set ("modNow", n);
+    slider.repaint();
+}
+
+// ======================================================================= GainScope
+void GainScope::push (float peakLin, float grDb)
+{
+    peak[(size_t) head] = jlimit (0.f, 2.f, peakLin);
+    gr[(size_t) head] = jmin (0.f, grDb);
+    head = (head + 1) % size;
+    if (filled < size) ++filled;
+    holdDb = jmin (holdDb, grDb);
+    repaint();
+}
+void GainScope::paint (Graphics& g)
+{
+    auto& lnf = lnfOf (*this);
+    auto b = getLocalBounds().toFloat();
+    g.setColour (Colour (0xff050506)); g.fillRoundedRectangle (b, 6.f);
+    auto plot = b.reduced (6.f, 6.f);
+    const auto& acc = lnf.theme.accent (accent);
+    auto yOfDb = [&] (float db) { return plot.getY() + plot.getHeight() * jlimit (0.f, 1.f, -db / rangeDb); };
+    // dB grid
+    g.setFont (lnf.valueFont (9.5f));
+    for (float d = -rangeDb / 4.f; d >= -rangeDb + 0.01f; d -= rangeDb / 4.f)
+    {
+        g.setColour (Colours::white.withAlpha (0.05f)); g.drawHorizontalLine ((int) yOfDb (d), plot.getX(), plot.getRight());
+        g.setColour (lnf.theme.dim); g.drawText (String ((int) d), (int) plot.getRight() - 30, (int) yOfDb (d) - 7, 28, 12, Justification::centredRight);
+    }
+    if (filled < 2) return;
+    const float dx = plot.getWidth() / (float) (size - 1);
+    // signal: mirrored peak envelope (oldest left, newest right)
+    Path wave; Path grLine;
+    const int start = (head - filled + size) % size;
+    const float cy = plot.getCentreY();
+    for (int i = 0; i < filled; ++i)
+    {
+        const int k = (start + i) % size;
+        const float x = plot.getRight() - (float) (filled - 1 - i) * dx;
+        const float a = jmin (1.f, peak[(size_t) k]) * plot.getHeight() * 0.5f;
+        if (i == 0) wave.startNewSubPath (x, cy - a); else wave.lineTo (x, cy - a);
+        const float y = yOfDb (gr[(size_t) k]);
+        if (i == 0) grLine.startNewSubPath (x, y); else grLine.lineTo (x, y);
+    }
+    for (int i = filled - 1; i >= 0; --i)
+    {
+        const int k = (start + i) % size;
+        const float x = plot.getRight() - (float) (filled - 1 - i) * dx;
+        wave.lineTo (x, cy + jmin (1.f, peak[(size_t) k]) * plot.getHeight() * 0.5f);
+    }
+    wave.closeSubPath();
+    g.setColour (Colours::white.withAlpha (0.14f)); g.fillPath (wave);
+    // gain reduction from the top (the louder it pushes, the deeper the line)
+    Path grFill (grLine); grFill.lineTo (plot.getRight(), plot.getY()); grFill.lineTo (plot.getRight() - (float) (filled - 1) * dx, plot.getY()); grFill.closeSubPath();
+    g.setColour (acc.main.withAlpha (0.18f)); g.fillPath (grFill);
+    g.setColour (acc.main.withAlpha (0.25f)); g.strokePath (grLine, PathStrokeType (4.f));
+    g.setColour (acc.hot); g.strokePath (grLine, PathStrokeType (1.4f));
+    g.setFont (lnf.labelFont (10.f, 0.2f)); g.setColour (acc.hot);
+    g.drawText ("MAX " + String (holdDb, 1) + " dB", plot.toNearestInt().removeFromTop (14), Justification::centredLeft);
 }
 
 // ======================================================================= FxTabs

@@ -40,6 +40,11 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 | `Adaa1::process (x, curve)` + `plain (x, curve)`; krzywe `Soft, Hard, Tube, Fold, Cubic` | przester z anty-aliasingiem (ADAA): o ~7 dB mniej „cyfrowego piasku” niż zwykły, z 2x oversamplingiem o ~20 dB mniej; ciche sygnały przechodzą 1:1 |
 | `OverSampler` (`prepare (ch, maxBlock)`, `setFactorIndex (0..3 = 1x..8x)`, `process (block, [] (ch, x) { ... })`, `latencySamples()`) | oversampling – wszystkie krotności przygotowane z góry, przełączanie bez alokacji |
 | `DcBlock`, `makeup (curve, driveLin)` | po asymetrycznych krzywych / wyrównanie głośności przy podkręcaniu drive |
+| `Bitcrusher` (`set (rateHz, bits, mix)`) | redukcja próbkowania + bitów („artefakt” na ogonie raw kicka) |
+| `DrawnShaper` (`setShape (mod::Shape, symmetric)`, `identity()`) | waveshaper rysowany krzywą (jak Trash 2), tablica 1024 |
+| `EnvFollower`, `DynamicDrive` (`process (x, amount -1..1)` → mnożnik drive) | przester zależny od transjentów (Saturn DYNAMICS): punch czysty, ogon brudny |
+| `TransientShaper` (`process (x, attackDb, sustainDb)`) | podbicie / ścięcie uderzenia i wybrzmienia, niezależne od poziomu |
+| `AutoGain` (`process (dry, wet)`) | wyjście tak głośne jak wejście – słychać charakter, nie „głośniej” |
 
 ## Source/DoomsdayFilter.h  (`doomsday::filter`) – filtr analogowy
 | Klocek | Do czego |
@@ -53,8 +58,35 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 | `Lfo` (`SINE, TRIANGLE, SAW UP, SAW DOWN, SQUARE, S&H, SMOOTH, DRAWN`), `setRateHz`, `setSynced (beats, bpm)`, `syncTo (ppq)`, `retrigger`, `setPhaseOffset`, `setShape` | LFO wolne lub zsynchronizowane z FL; DRAWN = narysowany kształt jako jeden cykl (sidechain / volume shaper) |
 | `syncDivisions() / syncBeats (i) / syncNames()` | wartości nut 1/64 .. 16 taktów (zwykłe, z kropką, triole) do parametru Choice |
 | `Smoother`, `Matrix<źródła, cele, sloty>` (`setSlot (i, src, dst, amount, via)`, `setSource`, `compute`, `dest`) | wygładzanie parametrów; macierz modulacji |
+| `Lfo` tryb `CHAOS` | atraktor Lorenza: płynny, nigdy się nie powtarza („żywe” screeche) |
+| `Performer` (`setStep (seq, i, curve, height)`, `setLength`, `setMorph`, `at (ppq, stepBeats)`) | sekwencer 16 kroków z krzywą na krok, morfing sekwencji A / B (Massive) |
+| `RandomPerNote` (`trigger()` na nutę, `next()` z glide) | losowa wartość na każde uderzenie (Massive Random Track) |
+| `KeyScale` (`root`, `scale`, `contains`, `quantize`) | tonacja i skala (dur, moll, harmoniczna, frygijska, dorycka, pentatonika) |
+| `Arp` (`noteOn / noteOff`, `setMode`, `setOctaves`, `setRateBeats`, `setStep`, `process (ppq, bpm, sr, n, emit)`) | arpeggiator ze step sequencerem (gate / velocity / transpozycja / on na krok) |
 
-Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, latencja, Shape, LFO, sync, macierz, ladder: cutoff / nachylenie / samooscylacja / stabilność / drive, unison SIDES).
+## Source/DoomsdayOsc.h  (`doomsday::osc`) – oscylatory
+| Klocek | Do czego |
+|---|---|
+| `IntensityOsc` (`setMode (SPECTRUM / BEND / FORMANT)`, `setIntensity`, `setShape`, `next (hz)`) | jedna gałka, trzy charaktery (Massive / Spire): harmoniczne, phase distortion, formant (samogłoska) stojący przy zmianie wysokości |
+| `ModOsc` (`next (hz, ratio)`, `ring`, `phaseOffset`, `cutoffMul`) | oscylator modulujący: RING, PM / FM, FILTER FM (growl) |
+| `FmOps<N>` (`setOp (i, ratio, level, feedback, heard)`, `setMod (from, to, amount)`, `next (hz, levelMul)`) | operatory FM z macierzą (Sytrus) – screeche FM |
+| `ChordStack::semitones / ratio (chord, voice, n, amount)` | unison ↔ akord (UNISON, OCTAVES, FIFTH, POWER, MINOR, MAJOR, SUS4, MINOR 7) |
+| `Slop` (`forVoice (v, amount)`, `advance (n)`) | analogowy rozrzut między głosami: strój, cutoff, czasy obwiedni + powolny dryf (Diva) |
+
+## Source/DoomsdayShaper.h  (`doomsday::shaper`) – sidechain i efekty czasowe
+| Klocek | Do czego |
+|---|---|
+| `OnsetDetector` (`setFocusHz`, `setThresholdDb`, `setMinGapMs`, `setSensitivity`, `process (x)` → true na uderzenie) | AUDIO TRIGGER od kicka (sidechain bez MIDI) |
+| `presetCurve (0..11)` + `presetNames()` | 10 krzywych duckingu + 2 ucinania (Kickstart) |
+| `VolumeShaper` (`setCurve`, `setDepth (low, mid, high)`, `setCrossovers`, `setSynced (on, beats)`, `trigger`, `process (L, R, n, ppq, bpm)`) | rysowany sidechain / volume shaper, z tempem albo od triggera, osobna głębokość na pasmo (np. tylko bas) |
+| `TapeStop` (`engage (ms, curve)`, `release`), `Stutter` (`engage (samples)`, `release`), `Reverser` (`setChunk`) | efekty build-upów (Gross Beat): zatrzymanie taśmy, powtarzanie kawałka, granie wstecz |
+
+## Source/DoomsdaySpectral.h  (`doomsday::spectral`) – widmo
+| Klocek | Do czego |
+|---|---|
+| `ResonanceSuppressor` (`setDepth`, `setSharpness`, `setSelectivity`, `setTimes`, `setFocus`, `setMix`, `setDelta`, `cutDb()`, `latencySamples()` = 2047) | tłumik rezonansów jak soothe2: wycina tylko to, co wystaje (piszczące screeche, hihaty), DELTA = słyszysz co zabiera |
+
+Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, latencja, Shape, LFO, sync, macierz, ladder, unison SIDES, bitcrusher, drawn shaper, transient shaper, dynamic drive, auto-gain, chaos LFO, performer, skala, arp, oscylatory INTENSITY / FM / akordy / slop, onset, volume shaper, tape stop, stutter, reverser, resonance suppressor).
 
 ## Source/DoomsdayParams.h  (`doomsday`)
 - `fmt::` formatery tekstu (hz, ms, db, pct, bip, oct, semi, cents, lfoHz, pan) + parsery (`num, hzIn, msIn, pctIn, panIn`).
@@ -71,6 +103,8 @@ Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, lat
 - `paint::glassPanel(g, lnf, rect, title, accent, spot)`, `paint::beam(...)`, `scaleCanvas(editor, canvas, W, H)`.
 - `FxTabs(apvts, accent)` + `addTab(name, powerParamId, cells, side)` – zakładki efektów z ACTIVE (jak w Fortune of Seekers), `refresh()` z timera.
 - `FlowLane(levelFeed, accent, label)` – dźwięk płynący z góry na dół (THE PATH z Fortune of Seekers), `tick()` z timera.
+- `GainScope(accent, rangeDb)` + `push (peak, grDb)` z timera – przewijana fala z linią redukcji (jak Pro-L 2 / Pro-C 2), MAX z pamięcią.
+- `Knob::setModulation (depth, nowPos01)` – pierścień modulacji wokół gałki (zakres + kropka „teraz”), jak w Serum / Vital.
 
 Pluginy używające Shared: **Dark Serpent**, **Mirror of Souls**, **Abyss of Echoes**, **Throne of Titans**, **Forge of Wrath**, **Prophecy of Scream** (od v3: NOISE / FORMANT / SWEEP / OTT / WIDTH, przez `../Shared/Source/DoomsdayDSP.h`). Klocki z Fortune of Seekers (przestery, SCREAM, polifonia, zakładki FX, THE PATH) są tu skopiowane i sprawdzone testem Dark Serpent. Starsze (Ancient Drums, Fortune of Seekers, stare części PoS) mają własny kod i nie są przerabiane.
 

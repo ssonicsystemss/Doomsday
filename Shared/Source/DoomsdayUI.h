@@ -10,6 +10,8 @@
 //    paint::glassPanel / paint::beam   background helpers
 //    FxTabs                 tabbed effect pages with an ACTIVE switch per tab (from Fortune of Seekers)
 //    FlowLane               the sound flowing top -> bottom from a dsp::LevelFeed (Fortune's THE PATH lane)
+//    GainScope              scrolling level + gain reduction (limiters / compressors / shapers)
+//    Knob::setModulation    modulation ring around a knob (range + live dot)
 // =====================================================================
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -68,6 +70,8 @@ namespace doomsday::ui
         void resized() override;
         juce::Slider slider;
         static constexpr int maxDiameter = 58;
+        // modulation ring: depth = fraction of the full travel (-1..1, 0 = hide), nowPos01 = live position (< 0 = no dot)
+        void setModulation (float depth, float nowPos01 = -1.f);
     private:
         juce::String label;
         bool big;
@@ -119,6 +123,21 @@ namespace doomsday::ui
     private:
         float level = 0.f, hold = 0.f;
         int holdCount = 0;
+    };
+
+    // scrolling level + gain-reduction view (Pro-L 2 / Pro-C 2 style): push () once per editor tick (newest on the right)
+    class GainScope : public juce::Component
+    {
+    public:
+        explicit GainScope (int accentIndex = 0, float range = 12.f) : accent (accentIndex), rangeDb (range) {}
+        void push (float peakLin, float grDb);       // grDb <= 0
+        void resetHold() { holdDb = 0.f; }
+        void paint (juce::Graphics&) override;
+        static constexpr int size = 240;              // ~8 s at 30 Hz
+    private:
+        std::array<float, size> peak {}, gr {};
+        int head = 0, filled = 0, accent;
+        float rangeDb, holdDb = 0.f;
     };
 
     // what the preset bar needs from a processor

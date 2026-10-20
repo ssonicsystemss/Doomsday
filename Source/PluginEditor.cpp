@@ -1093,15 +1093,15 @@ void Canvas::drawStage (Graphics& g)
     // header side text
     g.setFont (lnf.titleFont (10.f, 0.25f));
     g.setColour (Palette::text.withAlpha (0.75f));
-    g.drawText ("V2.1", 20, 34, 300, 14, Justification::left);
+    g.drawText ("V2.1", (int) doomsday::brand::headerTextX (1156.f / (float) W), 34, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (Palette::label);
-    g.drawText ("TWIN OSCILLATOR ENGINE", 20, 52, 320, 16, Justification::left);
+    g.drawText ("TWIN OSCILLATOR ENGINE", (int) doomsday::brand::headerTextX (1156.f / (float) W), 52, 320, 16, Justification::left);
     g.setColour (Palette::dim);
-    g.drawText ("4X OVERSAMPLED  /  MONO LEGATO", 20, 68, 320, 16, Justification::left);
+    g.drawText ("4X OVERSAMPLED  /  MONO LEGATO", (int) doomsday::brand::headerTextX (1156.f / (float) W), 68, 320, 16, Justification::left);
     g.setColour (Palette::red);
-    g.drawText ("ENTER THE PROPHECY", 20, 84, 320, 16, Justification::left);
-    doomsday::brand::drawBadge (g, { 270.f, 42.f, 100.f, 48.f }, 0.5f);
+    g.drawText ("ENTER THE PROPHECY", (int) doomsday::brand::headerTextX (1156.f / (float) W), 84, 320, 16, Justification::left);
+    doomsday::brand::drawHeaderBadge (g, (1156.f / (float) W), 0.55f);
 
     g.setFont (lnf.labelFont (11.f, 0.35f));
     g.setColour (Palette::dim);

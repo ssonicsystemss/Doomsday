@@ -42,7 +42,8 @@ Pluginy używające Shared: **Dark Serpent**, **Mirror of Souls**. Klocki z Fort
 
 ## Znak firmowy (sonicsystems / DOOMSDAY)
 `Source/DoomsdayBrand.h` – samodzielny nagłówek z wbudowanym logo (`Resources/sonicsystems_doomsday.png`).
-`doomsday::brand::drawBadge (g, obszar, krycie, placement, kolorBieli)` rysuje mały, przygaszony znaczek – w tle
-nagłówka (raz, w cache'owanym tle). Na jasnych wtyczkach (Ancient Drums) biel jest przemalowana na ciemny kolor.
+Standard: `doomsday::brand::drawHeaderBadge (g, domyślnaSzerokośćOkna / (float) W, krycie [, kolorBieli])` – zawsze lewy
+górny róg nagłówka, zawsze 70 x 36 px przy domyślnym rozmiarze okna (niezależnie od wielkości canvasu wtyczki);
+linie wersji / opisu zaczynają się od `headerTextX (ta sama skala)`. Rysować raz, w cache'owanym tle. Na jasnych wtyczkach (Ancient Drums) biel jest przemalowana na ciemny kolor.
 Używają go wszystkie wtyczki Doomsday (stare włączają go ścieżką względną `../../Shared/Source/DoomsdayBrand.h`).
 Przy zmianie logo: podmień PNG i wygeneruj nagłówek od nowa; Prophecy of Scream przebuduj ręcznie (jego workflow pomija Shared/).

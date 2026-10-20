@@ -1281,15 +1281,15 @@ void Canvas::renderBackground()
     // header side text
     g.setFont (lnf.headFont (10.f, 0.25f));
     g.setColour (Palette::ink.withAlpha (0.8f));
-    g.drawText ("V2.3", 20, 28, 300, 14, Justification::left);
+    g.drawText ("V2.3", (int) doomsday::brand::headerTextX (1156.f / (float) W), 28, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (Palette::label);
-    g.drawText ("PUNCH  /  CRUNCH  /  KICK", 20, 46, 320, 16, Justification::left);
+    g.drawText ("PUNCH  /  CRUNCH  /  KICK", (int) doomsday::brand::headerTextX (1156.f / (float) W), 46, 320, 16, Justification::left);
     g.setColour (Palette::dim);
-    g.drawText ("FORGE  /  CLIP  /  LIMIT", 20, 62, 320, 16, Justification::left);
+    g.drawText ("FORGE  /  CLIP  /  LIMIT", (int) doomsday::brand::headerTextX (1156.f / (float) W), 62, 320, 16, Justification::left);
     g.setColour (Palette::goldDeep);
-    g.drawText ("FORGED IN THE OLD WAYS", 20, 78, 320, 16, Justification::left);
-    doomsday::brand::drawBadge (g, { 240.f, 26.f, 120.f, 64.f }, 0.62f, RectanglePlacement::centred, Colour (0xff3a2a14));
+    g.drawText ("FORGED IN THE OLD WAYS", (int) doomsday::brand::headerTextX (1156.f / (float) W), 78, 320, 16, Justification::left);
+    doomsday::brand::drawHeaderBadge (g, (1156.f / (float) W), 0.62f, Colour (0xff3a2a14));
 
     // title
     const auto titleArea = Rectangle<float> (0.f, 14.f, (float) W, 64.f);

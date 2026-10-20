@@ -494,15 +494,15 @@ void Canvas::renderBackground()
     }
     g.setFont (lnf.titleFont (10.f, 0.25f));
     g.setColour (lnf.theme.text.withAlpha (0.75f));
-    g.drawText ("V1.1", 20, 40, 300, 14, Justification::left);
+    g.drawText ("V1.1", (int) doomsday::brand::headerTextX (1200.f / (float) W), 40, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (lnf.theme.label);
-    g.drawText ("HARDSTYLE SCREAMER", 20, 58, 320, 16, Justification::left);
+    g.drawText ("HARDSTYLE SCREAMER", (int) doomsday::brand::headerTextX (1200.f / (float) W), 58, 320, 16, Justification::left);
     g.setColour (lnf.theme.dim);
-    g.drawText ("CORE  /  EDGE  /  BODY", 20, 74, 320, 16, Justification::left);
+    g.drawText ("CORE  /  EDGE  /  BODY", (int) doomsday::brand::headerTextX (1200.f / (float) W), 74, 320, 16, Justification::left);
     g.setColour (lime);
-    g.drawText ("FEAR THE SERPENT", 20, 90, 320, 16, Justification::left);
-    doomsday::brand::drawBadge (g, { 196.f, 44.f, 86.f, 48.f }, 0.5f);
+    g.drawText ("FEAR THE SERPENT", (int) doomsday::brand::headerTextX (1200.f / (float) W), 90, 320, 16, Justification::left);
+    doomsday::brand::drawHeaderBadge (g, (1200.f / (float) W), 0.55f);
 
     for (auto& p : panels) paint::glassPanel (g, lnf, p.area, p.title, 0, p.spot);
 }

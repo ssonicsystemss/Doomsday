@@ -1055,15 +1055,15 @@ void Canvas::drawStage (Graphics& g)
     // header side text
     g.setFont (lnf.titleFont (10.f, 0.25f));
     g.setColour (Palette::text.withAlpha (0.75f));
-    g.drawText ("V1.1", 20, 30, 300, 14, Justification::left);
+    g.drawText ("V1.1", (int) doomsday::brand::headerTextX (1184.f / (float) W), 30, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (Palette::green.main.withAlpha (0.85f));
-    g.drawText ("PART A  /  2 OSCILLATORS", 20, 48, 320, 16, Justification::left);
+    g.drawText ("PART A  /  2 OSCILLATORS", (int) doomsday::brand::headerTextX (1184.f / (float) W), 48, 320, 16, Justification::left);
     g.setColour (Palette::purple.main.withAlpha (0.95f));
-    g.drawText ("PART B  /  2 OSCILLATORS", 20, 64, 320, 16, Justification::left);
+    g.drawText ("PART B  /  2 OSCILLATORS", (int) doomsday::brand::headerTextX (1184.f / (float) W), 64, 320, 16, Justification::left);
     g.setColour (Palette::gold.main);
-    g.drawText ("SEEK THE MELODY", 20, 80, 320, 16, Justification::left);
-    doomsday::brand::drawBadge (g, { 236.f, 28.f, 120.f, 64.f }, 0.5f);
+    g.drawText ("SEEK THE MELODY", (int) doomsday::brand::headerTextX (1184.f / (float) W), 80, 320, 16, Justification::left);
+    doomsday::brand::drawHeaderBadge (g, (1184.f / (float) W), 0.55f);
 
     g.setFont (lnf.labelFont (11.f, 0.35f));
     g.setColour (Palette::dim);

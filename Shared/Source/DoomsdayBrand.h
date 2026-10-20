@@ -2443,6 +2443,19 @@ namespace doomsday::brand
         return out;
     }
 
+    // ---- the standard spot: every Doomsday plugin shows the badge in the same place and at the same size on screen
+    // (70 x 36 px at the plugin's default window size), top-left of its header; the version / description lines
+    // start right of it at headerTextX. 'uiScale' = default editor width / canvas width (e.g. 1120 / 1400 = 0.8),
+    // so plugins with differently sized canvases still show an identical badge.
+    inline constexpr float badgePxW = 70.f, badgePxH = 36.f, badgePxX = 18.f, badgePxGap = 14.f;
+    inline float headerTextX (float uiScale) { return (badgePxX + badgePxW + badgePxGap) / uiScale; }
+    inline juce::Rectangle<float> headerBadgeArea (float uiScale, float centreY = 56.f)
+    {
+        const float w = badgePxW / uiScale, h = badgePxH / uiScale;
+        return { badgePxX / uiScale, centreY - h * 0.5f, w, h };
+    }
+    inline void drawHeaderBadge (juce::Graphics& g, float uiScale, float opacity = 0.5f, juce::Colour light = juce::Colours::white);
+
     // draws the badge fitted into 'area' (aspect kept, aligned by 'placement'); opacity 0.4..0.6 keeps it subtle.
     // Use it in a cached background - it is not meant to be repainted every frame.
     inline void drawBadge (juce::Graphics& g, juce::Rectangle<float> area, float opacity = 0.5f,
@@ -2455,5 +2468,10 @@ namespace doomsday::brand
         g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
         g.setOpacity (opacity);
         g.drawImage (img, area, juce::RectanglePlacement (placement | juce::RectanglePlacement::onlyReduceInSize));
+    }
+
+    inline void drawHeaderBadge (juce::Graphics& g, float uiScale, float opacity, juce::Colour light)
+    {
+        drawBadge (g, headerBadgeArea (uiScale), opacity, juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid, light);
     }
 }

@@ -488,7 +488,7 @@ void Canvas::renderBackground()
     g.drawText (title, area, Justification::centred);
     {
         Graphics::ScopedSaveState ss (g);
-        const float axis = area.getBottom() + 2.f;
+        const float axis = area.getBottom() - 9.f;         // the mirror line sits just under the letters
         g.addTransform (AffineTransform::verticalFlip (axis * 2.f));
         g.reduceClipRegion (Rectangle<int> (0, (int) area.getY() + 10, W, (int) area.getHeight()));
         ColourGradient rg (ice.withAlpha (0.0f), 0.f, area.getY() + 10.f, ice.withAlpha (0.28f), 0.f, area.getBottom(), false);
@@ -500,13 +500,13 @@ void Canvas::renderBackground()
     g.drawText ("HARDSTYLE  EQUALIZER", 0, 108, W, 18, Justification::centred);
     g.setFont (lnf.titleFont (10.f, 0.25f));
     g.setColour (lnf.theme.text.withAlpha (0.75f));
-    g.drawText ("V1.1", 20, 40, 300, 14, Justification::left);
+    g.drawText ("V1.1", (int) doomsday::brand::headerTextX (1120.f / (float) W), 40, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (lnf.theme.label);
-    g.drawText ("8 BANDS  /  DYNAMIC  /  MID-SIDE", 20, 58, 340, 16, Justification::left);
+    g.drawText ("8 BANDS  /  DYNAMIC  /  MID-SIDE", (int) doomsday::brand::headerTextX (1120.f / (float) W), 58, 340, 16, Justification::left);
     g.setColour (ice);
-    g.drawText ("SEE YOUR SOUND", 20, 76, 320, 16, Justification::left);
-    doomsday::brand::drawBadge (g, { 290.f, 36.f, 110.f, 56.f }, 0.5f);
+    g.drawText ("SEE YOUR SOUND", (int) doomsday::brand::headerTextX (1120.f / (float) W), 76, 320, 16, Justification::left);
+    doomsday::brand::drawHeaderBadge (g, (1120.f / (float) W), 0.55f);
     for (auto& [t, a] : panels) paint::glassPanel (g, lnf, a, t, 0);
     {
         auto a = panels[1].second;

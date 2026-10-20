@@ -1,5 +1,7 @@
 # Shared – wspólne klocki pluginów DOOMSDAY
 
+**Przed budową czegokolwiek przeczytaj też `LESSONS.md`** (co brzmiało źle i dlaczego).
+
 Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłówki.
 
 ## Jak użyć w nowym pluginie
@@ -21,15 +23,15 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 | `shape(x, 0 SOFT /1 HARD /2 TUBE /3 SCREAM)`, `shapeMakeup(drive, type)`, `DcBlocker` | przestery z Fortune of Seekers (po TUBE daj DcBlocker) |
 | `Screamer` (`set(0..1)`, `process(x)`) | SCREAM na oscylator z Fortune of Seekers (drive + zawijanie) |
 | `NoteStack` | mono / legato: stos trzymanych nut (ostatnia wygrywa) |
-| `BiquadCoefs::make(Bell / LowShelf / HighShelf / Notch / BandPass / HighPass / LowPass, fs, hz, q, dB)`, `.magnitude(hz, fs)`, `Biquad`, `butterworthQs(stages)` | filtry EQ (z Mirror of Souls) – ta sama funkcja liczy dźwięk i krzywą na ekranie |
+| `BiquadCoefs::make(Bell / LowShelf / HighShelf / Notch / BandPass / HighPass / LowPass, fs, hz, q, dB)`, `.magnitude(hz, fs)`, `Biquad`, `butterworthQs(stages)` (dowolny rząd) | filtry EQ (z Mirror of Souls) – ta sama funkcja liczy dźwięk i krzywą na ekranie |
 | `AnalyzerTap<N>` (`push`, `latest`) + `Spectrum` (`feed`, `dbAt(hz)`) | analizator widma: audio wrzuca próbki, GUI liczy FFT 4096 z wygładzaniem |
 | `XorNoise`, `PitchSweep` (`setTime`, `start`, `next (semis)`) | szum do „brudu” pod screechem; zjazd / podjazd wysokości po każdej nowej nucie (z Prophecy of Scream v3) |
 | `Formant` (`process (l, r, hz, q, gainLin, amount, rate)`) | rezonansowy „głos” screecha – szczyt, który rusza obwiednia / LFO (PoS v3) |
 | `Ott3` (`prepare`, `process (l, r, amount)`) | 3-pasmowy OTT: ciche pasma w górę, głośne w dół – gęsty hardstyle'owy dźwięk (PoS v3) |
 | `StereoSpread` (`prepare`, `process (l, r, amount)`) | szerokie stereo: więcej boków + zdekorelowany środek powyżej ~220 Hz, mono-kompatybilne (PoS v3) |
 | `DoomsdaySpace.h`: `space::EchoDelay` (STEREO / PING-PONG / WIDE, filtry w pętli, drive, wobble), `space::FdnReverb` (8 linii, pre-delay, size, decay RT60, damp, low cut, motion, SHIMMER, FREEZE, width), `space::Ducker`, `space::Shifter` (oktawa w górę), `space::MonoBass` (24 dB) | przestrzeń: delay + reverb + ducking (z Abyss of Echoes) |
-| `DoomsdayDynamics.h`: `dyn::Crossover3` (LR4, sumuje się płasko), `dyn::BandComp` (ratio w dół + UPWARD, knee, curve() do rysowania), `dyn::saturate`, `dyn::TruePeak` (8x), `dyn::Limiter` (lookahead, true peak, latencySamples()), `dyn::Loudness` (LUFS M / S / I wg BS.1770), `dyn::Tilt` | dynamika i mastering (z Throne of Titans) |
-| `DoomsdayKick.h`: `kick::KickVoice` (TAIL z opadaniem pitchu sine→tri→saw, 5 typów przesteru, TONE, LOW / HIGH CUT, BODY, SCREAM, CRUNCH, GRIT, PUNCH, CLICK), `kick::Shape` (rysowane obwiednie AMP / DRIVE w promilach długości), `kick::masterClip` | synteza kicków (z Forge of Wrath) |
+| `DoomsdayDynamics.h`: `dyn::Crossover3` (LR4, sumuje się płasko), `dyn::BandComp` (ratio w dół + UPWARD, knee, curve() do rysowania), `dyn::saturate` (1:1 dla cichych), `dyn::TruePeak` (8x), `dyn::Limiter` (`prepare (sr, lookaheadMs, holdMs)`, true peak, latencySamples()), `dyn::Loudness` (LUFS M / S / I wg BS.1770), `dyn::Tilt` | dynamika i mastering (z Throne of Titans) |
+| `DoomsdayKick.h` (v2): `kick::KickParams` (+ `cook(rate)` – współczynniki raz na blok), `kick::KickVoice` (TAIL: opadanie pitchu START / DROP / CURVE / HOLD albo rysowany PITCH, sine→tri→saw; CHAOS – szum w przester; ROOM przed / po przesterze; STAGE 1 (5 typów) → MID EQ → STAGE 2; LOW / HIGH CUT, BODY, SCREAM, CRUNCH, GRIT; PUNCH z DRIVE; CLICK), `kick::KickRoom` (mały pogłos mono), `kick::Shape` (rysowane obwiednie w promilach długości, max 24 kropki), `kick::masterClip` | synteza kicków (z Forge of Wrath) |
 | `VoiceManager<Voice, N>` | polifonia z Fortune of Seekers: `noteOn(note, limit, fadeStep, sameNote)` (kradzież najstarszego z wyciszeniem), `noteOff`, `setPedal`, `allOff`. Voice musi mieć `active, held, sustained, note, age, kill, killStep` |
 
 ## Source/DoomsdayParams.h  (`doomsday`)

@@ -138,7 +138,8 @@ namespace doomsday::dsp
             int n = 1, wave = 2;
             std::array<float, maxVoices> ratio {}, gl {}, gr {};
             // n voices spread over +-cents, stereo 0..1, pan -1..1, gain linear
-            void setup (int voices, int waveType, float cents, float stereo, float pan, float gain)
+            // sides 0..1: level of the detuned voices against the centre one (supersaw MIX; 1 = all equal, the old behaviour)
+            void setup (int voices, int waveType, float cents, float stereo, float pan, float gain, float sides = 1.f)
             {
                 n = juce::jlimit (1, maxVoices, voices);
                 wave = waveType;
@@ -155,8 +156,10 @@ namespace doomsday::dsp
                     // full STEREO makes left and right genuinely different, like a wide supersaw)
                     const float side = n == 1 ? 0.f : (u % 2 == 0 ? 1.f : -1.f) * (0.85f + 0.15f * std::abs (off));
                     const float sp = juce::jlimit (-1.f, 1.f, side * stereo);
-                    gl[(size_t) u] = std::sqrt (0.5f * (1.f - sp)) * panL * norm * gain;
-                    gr[(size_t) u] = std::sqrt (0.5f * (1.f + sp)) * panR * norm * gain;
+                    const bool centre = n == 1 || u == (n - 1) / 2 || (n % 2 == 0 && u == n / 2);
+                    const float lv = centre ? 1.f : juce::jlimit (0.f, 1.f, sides);
+                    gl[(size_t) u] = std::sqrt (0.5f * (1.f - sp)) * panL * norm * gain * lv;
+                    gr[(size_t) u] = std::sqrt (0.5f * (1.f + sp)) * panR * norm * gain * lv;
                 }
             }
         };

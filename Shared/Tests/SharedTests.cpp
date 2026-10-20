@@ -3,6 +3,8 @@
 #include <juce_dsp/juce_dsp.h>
 #include "DoomsdayDrive.h"
 #include "DoomsdayMod.h"
+#include "DoomsdayFilter.h"
+#include "DoomsdayDSP.h"
 #include <cstdio>
 #include <vector>
 
@@ -16,7 +18,7 @@ static double aliasDb (const std::vector<float>& x, double sr, double f0)
     const int order = 15, n = 1 << order;
     std::vector<float> w ((size_t) n * 2, 0.f);
     for (int i = 0; i < n; ++i) w[(size_t) i] = x[(size_t) (x.size() - n + i)] * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * i / n));
-    dsp::FFT fft (order); fft.performFrequencyOnlyForwardTransform (w.data());
+    juce::dsp::FFT fft (order); fft.performFrequencyOnlyForwardTransform (w.data());
     double harm = 0, other = 0;
     for (int k = 1; k < n / 2; ++k)
     {
@@ -49,7 +51,7 @@ int main()
             for (int pos = 0; pos < len; pos += 512)
             {
                 for (int i = 0; i < 512; ++i) buf.setSample (0, i, in[(size_t) (pos + i)]);
-                dsp::AudioBlock<float> blk (buf);
+                juce::dsp::AudioBlock<float> blk (buf);
                 os.process (blk, [&] (int, float x) { return a2.process (x * g, c); });
                 for (int i = 0; i < 512; ++i) os2[(size_t) (pos + i)] = buf.getSample (0, i);
             }
@@ -96,6 +98,78 @@ int main()
         m.setSlot (0, 0, 1, 0.5f); m.setSlot (1, 1, 1, -1.f, 2);
         m.setSource (0, 1.f); m.setSource (1, 0.8f); m.setSource (2, 0.25f); m.compute();
         check (std::abs (m.dest (1) - (0.5f - 0.2f)) < 1e-6f && m.dest (0) == 0.f, "Matrix sums slots per destination (with via)", "(" + String (m.dest (1), 3) + ")");
+    }
+    // ---------------------------------------------------------------- filter
+    {
+        using doomsday::filter::Ladder;
+        auto gainAt = [&] (Ladder f, double hz)
+        {
+            f.reset(); double e1 = 0, e2 = 0;
+            for (int i = 0; i < 24000; ++i)
+            {
+                const float x = 0.05f * (float) std::sin (2.0 * MathConstants<double>::pi * hz * i / sr);
+                const float y = f.process (x);
+                if (i > 12000) { e1 += x * x; e2 += y * y; }
+            }
+            return 10.0 * std::log10 (e2 / e1);
+        };
+        Ladder f; f.prepare (sr); f.setCutoff (1000.f); f.setResonance (0.f); f.setDrive (0.f); f.setBassComp (0.f);
+        const double g100 = gainAt (f, 100.0), g1k = gainAt (f, 1000.0), g4k = gainAt (f, 4000.0), g8k = gainAt (f, 8000.0);
+        check (std::abs (g100) < 0.5 && std::abs (g1k + 12.0) < 1.5 && g8k < g4k - 18.0, "ladder LP24: flat below, -12 dB at cutoff, 24 dB/oct",
+               "(100 Hz " + String (g100, 1) + ", 1k " + String (g1k, 1) + ", 4k " + String (g4k, 1) + ", 8k " + String (g8k, 1) + ")");
+        f.setMode (doomsday::filter::HP24);
+        const double h100 = gainAt (f, 100.0), h10k = gainAt (f, 10000.0);
+        check (h10k > -1.0 && h100 < -60.0, "ladder HP24: passes highs, removes lows", "(10k " + String (h10k, 1) + ", 100 Hz " + String (h100, 1) + ")");
+        f.setMode (doomsday::filter::LP12);
+        check (std::abs (gainAt (f, 1000.0) + 6.0) < 1.5, "ladder LP12: -6 dB at cutoff");
+        // self-oscillation: a kick of noise, then silence -> it keeps singing at the cutoff
+        {
+            Ladder o; o.prepare (sr); o.setCutoff (500.f); o.setResonance (1.05f); o.setDrive (0.f);
+            std::vector<float> y (48000);
+            for (int i = 0; i < 48000; ++i) y[(size_t) i] = o.process (i < 10 ? 0.5f : 0.f);
+            int zc = 0; float pk = 0.f;
+            for (int i = 24000; i < 48000; ++i) { if (y[(size_t) i - 1] < 0.f && y[(size_t) i] >= 0.f) ++zc; pk = jmax (pk, std::abs (y[(size_t) i])); }
+            const double hz = zc / 0.5;
+            check (pk > 0.05f && std::abs (hz - 500.0) < 50.0, "ladder self-oscillates at the cutoff", "(" + String (hz, 0) + " Hz, peak " + String (pk, 2) + ")");
+        }
+        // stability: wild cutoff modulation every sample + loud noise at max resonance
+        {
+            Ladder w; w.prepare (sr); w.setResonance (1.05f); w.setDrive (18.f);
+            Random rng (3); bool fine = true; float pk = 0.f;
+            for (int i = 0; i < 96000; ++i)
+            {
+                w.setCutoff (20.f * std::pow (1000.f, rng.nextFloat()));
+                const float y = w.process ((rng.nextFloat() * 2.f - 1.f) * 2.f);
+                fine &= std::isfinite (y); pk = jmax (pk, std::abs (y));
+            }
+            check (fine && pk < 4.f, "ladder stable under wild modulation", "(peak " + String (pk, 2) + ")");
+        }
+        // drive: more harmonics when pushed
+        {
+            auto thd = [&] (float driveDb)
+            {
+                Ladder d; d.prepare (sr); d.setCutoff (8000.f); d.setDrive (driveDb);
+                const int n = 1 << 14; std::vector<float> w ((size_t) n * 2, 0.f);
+                for (int i = 0; i < n + 4800; ++i)
+                {
+                    const float y = d.process (0.5f * (float) std::sin (2.0 * MathConstants<double>::pi * 187.5 * i / sr));
+                    if (i >= 4800) w[(size_t) (i - 4800)] = y * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * (i - 4800) / n));
+                }
+                juce::dsp::FFT fft (14); fft.performFrequencyOnlyForwardTransform (w.data());
+                const int b = (int) std::round (187.5 * n / sr);
+                double h = 0; for (int k = 2; k <= 8; ++k) h += (double) w[(size_t) (b * k)] * w[(size_t) (b * k)];
+                return 10.0 * std::log10 (h / ((double) w[(size_t) b] * w[(size_t) b]) + 1e-20);
+            };
+            const double t0 = thd (0.f), t24 = thd (24.f);
+            check (t24 > t0 + 15.0, "ladder DRIVE adds warmth (harmonics)", "(0 dB " + String (t0, 1) + " -> +24 dB " + String (t24, 1) + ")");
+        }
+    }
+    // ---------------------------------------------------------------- unison: side-voice level (supersaw MIX)
+    {
+        doomsday::dsp::UnisonBank::Table a, b;
+        a.setup (7, 2, 40.f, 1.f, 0.f, 1.f);
+        b.setup (7, 2, 40.f, 1.f, 0.f, 1.f, 0.3f);
+        check (std::abs ((b.gl[3] + b.gr[3]) - (a.gl[3] + a.gr[3])) < 1e-6f && (b.gl[0] + b.gr[0]) < (a.gl[0] + a.gr[0]) * 0.5f, "unison SIDES level: centre kept, detuned voices turned down");
     }
     printf ("%s\n", ok ? "ALL OK" : "SOME FAILED");
     return ok ? 0 : 1;

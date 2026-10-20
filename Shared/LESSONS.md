@@ -71,10 +71,10 @@ szeregowo, widać tylko 2 z 4 oscylatorów naraz.
 Wnioski dla Doomsday:
 1. **Mniej, ale świetnie brzmiące** – Sylenth wygrywa prostotą i dźwiękiem z pudełka, nie liczbą funkcji (przeciwieństwo Serum).
    Przy każdej wtyczce: domyślny dźwięk ma być już dobry, najważniejsze gałki duże i na wierzchu.
-2. **Filtr analogowy z nasyceniem w środku** (4 stopnie, zero-delay feedback, tanh w każdym stopniu, rezonans do samooscylacji,
-   12 / 24 dB, DRIVE) – brakuje go w `Shared/` (mamy czyste SVF). Największy zysk dla leadów i screechy (Dark Serpent, PoS, Fortune).
-3. **Unison jak w Sylenth**: nieliniowy rozkład detune (zewnętrzne głosy dalej), losowa faza startu, stereo rozłożone – sprawdzić
-   nasz `UnisonBank` na tle tego (supersaw to podstawa hardstyle'owych leadów).
+2. **Filtr analogowy z nasyceniem w środku** – ZROBIONE: `filter::Ladder` w `DoomsdayFilter.h` (testy: −12 dB na cutoff, 24 dB/okt,
+   samooscylacja dokładnie na cutoff, stabilny przy dzikiej modulacji, DRIVE dokłada harmoniczne). Do wpięcia w leady / screeche.
+3. **Unison jak w Sylenth** – SPRAWDZONE: nasz `UnisonBank` ma już nieliniowy rozkład detune, losową fazę i rozłożone stereo.
+   Brakowało MIX-u supersawa (głośność bocznych głosów wobec środka) – dodane jako `sides` (domyślnie 1 = stare brzmienie bez zmian).
 4. **CPU**: każdy moduł, który jest wyłączony / na 0, nic nie liczy (zasada dla wszystkich klocków) + przełącznik HQ (z Serum).
 5. **Arpeggiator ze step sequencerem** (pitch / velocity / hold na krok) – przyda się w syntezatorach melodii.
 6. **Kompaktowy panel efektów** w stylu wyświetlacza (tu pasują ekrany z toolboxa Damiana).

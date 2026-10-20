@@ -17,7 +17,7 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 | `polyBlep, wrap01, fastSin01, fastTanh, timeCoef(ms, rate), softClip(x, knee), onePoleCoef(hz, rate)` | pomocnicze |
 | `Env` + `Env::rates(a, d, s, r, rate)` | ADSR: `trigger(fromZero)`, `release()`, `next(rates)`, `idle()` |
 | `SvfCoefs svfCoefs(hz, k, rate)`, `Svf` (`lp/bp/hp/peak`), `MultiFilter::process(x, type 0 LP12 /1 LP24 /2 BAND /3 HIGH, coefs)` | filtry TPT |
-| `UnisonBank` + `UnisonBank::Table::setup(voices≤16, wave, cents, stereo, pan, gain)`; `render(table, hz, 1/rate, l, r)`; `resetPhases(rng, start<0 = losowo)` | oscylator unison; fale 0 SINE 1 TRI 2 SAW 3 SQUARE 4 PULSE 5 HYBRID |
+| `UnisonBank` + `UnisonBank::Table::setup(voices≤16, wave, cents, stereo, pan, gain, sides = 1)` (sides = głośność rozstrojonych głosów wobec środkowego, MIX supersawa); `render(table, hz, 1/rate, l, r)`; `resetPhases(rng, start<0 = losowo)` | oscylator unison; fale 0 SINE 1 TRI 2 SAW 3 SQUARE 4 PULSE 5 HYBRID |
 | `FxChain` + `FxParams` | CHORUS → DELAY (sync, ping-pong) → REVERB → PUMP (sync z hostem): `prepare`, `setup(params, bpm)`, `process(L, R, n, ppq, offset)` |
 | `LevelFeed<N>` | min/max co ~4 ms do wizualizacji (audio → GUI) |
 | `shape(x, 0 SOFT /1 HARD /2 TUBE /3 SCREAM)`, `shapeMakeup(drive, type)`, `DcBlocker` | przestery z Fortune of Seekers (po TUBE daj DcBlocker) |
@@ -41,6 +41,11 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 | `OverSampler` (`prepare (ch, maxBlock)`, `setFactorIndex (0..3 = 1x..8x)`, `process (block, [] (ch, x) { ... })`, `latencySamples()`) | oversampling – wszystkie krotności przygotowane z góry, przełączanie bez alokacji |
 | `DcBlock`, `makeup (curve, driveLin)` | po asymetrycznych krzywych / wyrównanie głośności przy podkręcaniu drive |
 
+## Source/DoomsdayFilter.h  (`doomsday::filter`) – filtr analogowy
+| Klocek | Do czego |
+|---|---|
+| `Ladder` (`prepare`, `setCutoff` / `setG (prewarp (hz, rate))`, `setResonance (0..1.05)`, `setDrive (dB)`, `setMode (LP24, LP12, BP12, HP12, HP24)`, `setBassComp`, `process (x)`) | 4-stopniowy ladder (jak w Sylenth / Diva): nasycenie w pętli, ciche czyste, głośne ciepłe, rezonans do samooscylacji, stabilny przy szybkiej modulacji; jeden kanał na instancję |
+
 ## Source/DoomsdayMod.h  (`doomsday::mod`) – modulacja
 | Klocek | Do czego |
 |---|---|
@@ -49,7 +54,7 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 | `syncDivisions() / syncBeats (i) / syncNames()` | wartości nut 1/64 .. 16 taktów (zwykłe, z kropką, triole) do parametru Choice |
 | `Smoother`, `Matrix<źródła, cele, sloty>` (`setSlot (i, src, dst, amount, via)`, `setSource`, `compute`, `dest`) | wygładzanie parametrów; macierz modulacji |
 
-Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, latencja, Shape, LFO, sync, macierz).
+Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, latencja, Shape, LFO, sync, macierz, ladder: cutoff / nachylenie / samooscylacja / stabilność / drive, unison SIDES).
 
 ## Source/DoomsdayParams.h  (`doomsday`)
 - `fmt::` formatery tekstu (hz, ms, db, pct, bip, oct, semi, cents, lfoHz, pan) + parsery (`num, hzIn, msIn, pctIn, panIn`).

@@ -7,6 +7,7 @@
 #include "DoomsdayDSP.h"
 #include "DoomsdayOsc.h"
 #include "DoomsdayShaper.h"
+#include "DoomsdaySpectral.h"
 #include <cstdio>
 #include <vector>
 #include <set>
@@ -330,6 +331,44 @@ int main()
         float rerr = 0.f;
         for (int p = 300; p < 4800 - 300; ++p) { const int i = 4800 * 5 + p; rerr = jmax (rerr, std::abs (out[(size_t) i] - in[(size_t) (4800 * 5 - 1 - p)])); }
         check (rerr < 1e-5f, "Reverser: the previous chunk, backwards");
+    }
+    // ---------------------------------------------------------------- spectral resonance suppressor
+    {
+        using doomsday::spectral::ResonanceSuppressor;
+        const int len = 96000;
+        std::vector<float> x ((size_t) len);
+        Random rng (21); float b0 = 0, b1 = 0;
+        for (int i = 0; i < len; ++i)
+        {
+            const float wn = rng.nextFloat() * 2.f - 1.f; b0 = 0.97f * b0 + wn * 0.1f; b1 = wn * 0.05f;   // noisy bed
+            x[(size_t) i] = b0 + b1 + 0.25f * std::sin (2.f * MathConstants<float>::pi * 3000.f * i / (float) sr);   // + a harsh 3 kHz resonance
+        }
+        auto bandDb = [&] (const std::vector<float>& v, float lo, float hi)
+        {
+            const int n = 1 << 15, a = len - n; std::vector<float> w ((size_t) n * 2, 0.f);
+            for (int i = 0; i < n; ++i) w[(size_t) i] = v[(size_t) (a + i)] * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * i / n));
+            juce::dsp::FFT fft (15); fft.performFrequencyOnlyForwardTransform (w.data());
+            double e = 0; for (int k = (int) (lo * n / sr); k <= (int) (hi * n / sr); ++k) e += (double) w[(size_t) k] * w[(size_t) k];
+            return 10.0 * std::log10 (e + 1e-20);
+        };
+        auto run = [&] (float depth, bool deltaOn)
+        {
+            ResonanceSuppressor rs; rs.prepare (sr); rs.setDepth (depth); rs.setSharpness (0.5f); rs.setSelectivity (0.4f); rs.setFocus (200.f, 16000.f); rs.setDelta (deltaOn);
+            std::vector<float> L = x, R = x;
+            for (int p = 0; p < len; p += 512) rs.process (L.data() + p, R.data() + p, jmin (512, len - p));
+            return L;
+        };
+        const auto pass = run (0.f, false);
+        float perr = 0.f; for (int i = 4096; i < len; ++i) perr = jmax (perr, std::abs (pass[(size_t) i] - x[(size_t) (i - 2047)]));
+        check (perr < 1e-3f, "ResonanceSuppressor at depth 0 = the input, 2047 samples late", "(max err " + String (perr, 5) + ")");
+        const auto wet = run (1.f, false);
+        const double peakBefore = bandDb (x, 2950.f, 3050.f), peakAfter = bandDb (wet, 2950.f, 3050.f);
+        const double bedBefore = bandDb (x, 600.f, 1500.f), bedAfter = bandDb (wet, 600.f, 1500.f);
+        check (peakAfter < peakBefore - 10.0 && std::abs (bedAfter - bedBefore) < 2.0, "ResonanceSuppressor: the 3 kHz resonance cut, the bed untouched",
+               "(peak " + String (peakAfter - peakBefore, 1) + " dB, bed " + String (bedAfter - bedBefore, 1) + " dB)");
+        const auto del = run (1.f, true);
+        float derr = 0.f; for (int i = 4096; i < len; ++i) derr = jmax (derr, std::abs (del[(size_t) i] + wet[(size_t) i] - x[(size_t) (i - 2047)]));
+        check (derr < 1e-3f, "ResonanceSuppressor DELTA = exactly what is removed");
     }
     printf ("%s\n", ok ? "ALL OK" : "SOME FAILED");
     return ok ? 0 : 1;

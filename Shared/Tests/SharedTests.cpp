@@ -208,6 +208,37 @@ int main()
         for (int i = 0; i < 96000; ++i) { const float x = 0.2f * std::sin (i * 0.03f); const float y = ag.process (x, std::tanh (x * 8.f)); if (i > 48000) { ein += x * x; eout += y * y; } }
         check (std::abs (10.0 * std::log10 (eout / ein)) < 1.0, "AutoGain keeps the loudness of the input", "(" + String (10.0 * std::log10 (eout / ein), 2) + " dB)");
     }
+    // ---------------------------------------------------------------- mod batch 2
+    {
+        using namespace doomsday::mod;
+        Lfo c; c.prepare (sr); c.setWave (Lfo::Chaos); c.setRateHz (2.0);
+        std::vector<float> a (48000); float mx = 0.f; bool fin = true;
+        for (auto& v : a) { v = c.next(); mx = jmax (mx, std::abs (v)); fin &= std::isfinite (v); }
+        double diff = 0; for (int i = 0; i < 12000; ++i) diff += std::abs (a[(size_t) i] - a[(size_t) i + 24000]);
+        check (fin && mx <= 1.f && mx > 0.3f && diff / 12000 > 0.05, "CHAOS LFO: bounded, moving, never repeats", "(max " + String (mx, 2) + ")");
+
+        Performer pf; pf.setLength (4);
+        pf.setStep (0, 0, Performer::RampUp, 1.f); pf.setStep (0, 1, Performer::Hold, 0.5f); pf.setStep (0, 2, Performer::Off, 1.f); pf.setStep (0, 3, Performer::ExpDown, 1.f);
+        pf.setStep (1, 0, Performer::RampDown, 1.f);
+        check (std::abs (pf.at (0.125, 0.25) - 0.5f) < 1e-4f && std::abs (pf.at (0.3, 0.25) - 0.5f) < 1e-4f && pf.at (0.6, 0.25) == 0.f && std::abs (pf.at (1.125, 0.25) - 0.5f) < 1e-4f,
+               "Performer: step curves, heights, loop of 4 steps");
+        pf.setMorph (1.f);
+        check (std::abs (pf.at (0.05, 0.25) - 0.8f) < 1e-3f, "Performer MORPH plays sequence B");
+
+        KeyScale ks; ks.root = 9; ks.scale = KeyScale::Minor;     // A minor
+        check (ks.quantize (61) == 60 && ks.quantize (69) == 69 && ks.quantize (70) == 69 && ks.contains (67) && ! ks.contains (68), "KeyScale A minor: C# -> C, A# -> A, G in, G# out");
+        ks.scale = KeyScale::HarmonicMinor;
+        check (ks.contains (68) && ! ks.contains (67), "KeyScale A harmonic minor has G#, not G");
+
+        Arp arp; arp.setMode (Arp::Up); arp.setOctaves (2); arp.setRateBeats (0.25); arp.setSteps (16);
+        arp.noteOn (64, 1.f); arp.noteOn (60, 0.8f); arp.noteOn (67, 1.f);
+        std::vector<int> notes; int ons = 0, offs = 0;
+        arp.process (0.0, 150.0, sr, (int) (sr * 60.0 / 150.0 * 1.5), [&] (int, int note, float, bool on) { if (on) { notes.push_back (note); ++ons; } else ++offs; });
+        const std::vector<int> expect { 60, 64, 67, 72, 76, 79 };
+        check (notes == expect && offs >= ons - 1, "Arp UP x2 octaves: 60 64 67 72 76 79 (1.5 beats of 1/16)");
+        RandomPerNote rp; rp.prepare (sr, 0.f); const float r1 = rp.trigger(), r2 = rp.trigger();
+        check (r1 != r2 && std::abs (r1) <= 1.f && std::abs (r2) <= 1.f, "RandomPerNote: new value per note");
+    }
     printf ("%s\n", ok ? "ALL OK" : "SOME FAILED");
     return ok ? 0 : 1;
 }

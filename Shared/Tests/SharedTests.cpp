@@ -7,6 +7,7 @@
 #include "DoomsdayDSP.h"
 #include <cstdio>
 #include <vector>
+#include <set>
 
 using namespace juce;
 static bool ok = true;
@@ -170,6 +171,42 @@ int main()
         a.setup (7, 2, 40.f, 1.f, 0.f, 1.f);
         b.setup (7, 2, 40.f, 1.f, 0.f, 1.f, 0.3f);
         check (std::abs ((b.gl[3] + b.gr[3]) - (a.gl[3] + a.gr[3])) < 1e-6f && (b.gl[0] + b.gr[0]) < (a.gl[0] + a.gr[0]) * 0.5f, "unison SIDES level: centre kept, detuned voices turned down");
+    }
+    // ---------------------------------------------------------------- drive batch 2
+    {
+        using namespace doomsday::drive;
+        Bitcrusher bc; bc.prepare (sr); bc.set (sr, 3.f, 1.f);
+        std::set<float> lv; for (int i = 0; i < 2000; ++i) lv.insert (bc.process (std::sin (i * 0.01f) * 0.99f));
+        check (lv.size() <= 9, "Bitcrusher 3 bits -> at most 9 levels", "(" + String ((int) lv.size()) + ")");
+        bc.set (4000.0f, 24.f, 1.f); int changes = 0; float prev = 0.f;
+        for (int i = 0; i < 4800; ++i) { const float y = bc.process (std::sin (i * 0.05f)); if (y != prev) ++changes; prev = y; }
+        check (std::abs (changes - 400) < 10, "Bitcrusher 4 kHz -> 400 new values per 0.1 s", "(" + String (changes) + ")");
+
+        DrawnShaper ds; ds.setShape (DrawnShaper::identity(), false);
+        float err = 0.f; for (float x = -1.f; x <= 1.f; x += 0.01f) err = jmax (err, std::abs (ds.process (x) - x));
+        check (err < 1e-3f, "DrawnShaper identity line passes the signal");
+        ds.setShape (doomsday::mod::Shape::make ({ { 0, 0.5f }, { 500, 0.5f }, { 600, 1.f }, { 1000, 1.f } }), true);
+        check (std::abs (ds.process (0.5f) - 1.f) < 1e-3f && std::abs (ds.process (-0.5f) + 1.f) < 1e-3f && std::abs (ds.process (0.05f)) < 0.6f,
+               "DrawnShaper symmetric hard curve");
+
+        // kick-like burst: silence, a hit, a ring-out
+        std::vector<float> kick (24000, 0.f);
+        for (int i = 4800; i < 24000; ++i) { const float t = (i - 4800) / (float) sr; kick[(size_t) i] = std::sin (2.f * MathConstants<float>::pi * 60.f * t) * std::exp (-t * 6.f) * 0.8f; }
+        auto peakIn = [&] (const std::vector<float>& v, int a, int b) { float m = 0; for (int i = a; i < b; ++i) m = jmax (m, std::abs (v[(size_t) i])); return m; };
+        TransientShaper ts; ts.prepare (sr);
+        std::vector<float> o (kick.size()); for (size_t i = 0; i < kick.size(); ++i) o[i] = ts.process (kick[i], 9.f, 0.f);
+        const float hitGain = peakIn (o, 4800, 5300) / peakIn (kick, 4800, 5300), tailGain = peakIn (o, 18000, 20000) / peakIn (kick, 18000, 20000);
+        check (hitGain > 1.4f && std::abs (tailGain - 1.f) < 0.15f, "TransientShaper ATTACK +9 dB lifts the hit, not the tail", "(hit x" + String (hitGain, 2) + ", tail x" + String (tailGain, 2) + ")");
+        ts.reset(); for (size_t i = 0; i < kick.size(); ++i) o[i] = ts.process (kick[i], 0.f, -12.f);
+        check (peakIn (o, 18000, 20000) < peakIn (kick, 18000, 20000) * 0.7f, "TransientShaper SUSTAIN -12 dB shortens the ring-out");
+
+        DynamicDrive dd; dd.prepare (sr); float onHit = 1.f, later = 0.f;
+        for (int i = 0; i < 24000; ++i) { const float m = dd.process (kick[(size_t) i], 1.f); if (i > 4800 && i < 5300) onHit = jmin (onHit, m); if (i == 15000) later = m; }
+        check (onHit < 0.5f && later > 0.9f, "DynamicDrive: less drive on the hit, full drive on the tail", "(" + String (onHit, 2) + " / " + String (later, 2) + ")");
+
+        AutoGain ag; ag.prepare (sr); double ein = 0, eout = 0;
+        for (int i = 0; i < 96000; ++i) { const float x = 0.2f * std::sin (i * 0.03f); const float y = ag.process (x, std::tanh (x * 8.f)); if (i > 48000) { ein += x * x; eout += y * y; } }
+        check (std::abs (10.0 * std::log10 (eout / ein)) < 1.0, "AutoGain keeps the loudness of the input", "(" + String (10.0 * std::log10 (eout / ein), 2) + " dB)");
     }
     printf ("%s\n", ok ? "ALL OK" : "SOME FAILED");
     return ok ? 0 : 1;

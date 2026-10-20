@@ -10,6 +10,14 @@
 //                (switch factor without allocating), latency in samples, a per-sample callback at the high rate.
 //   DcBlock      one-pole DC blocker (after asymmetric curves)
 //   makeup (c, driveLin)  rough level compensation so turning the drive up does not just make it louder
+//   Bitcrusher   sample-rate reduction (hold) + bit depth, with mix  (the "artefact" on raw kick tails)
+//   DrawnShaper  waveshaper drawn as a mod::Shape (x: input -1..1, y: output -1..1), table-based, optional symmetry
+//                (like Trash 2's drawn curve); use 2x+ oversampling for hard curves
+//   EnvFollower  attack / release follower (linear magnitude)
+//   DynamicDrive drive that reacts to transients (Saturn "DYNAMICS"): amount > 0 = less drive on hits (punch stays clean),
+//                < 0 = more drive on hits; returns a multiplier for the drive gain
+//   TransientShaper  ATTACK / SUSTAIN in dB (fast vs slow envelopes, level independent)
+//   AutoGain     keeps the output loudness equal to the input (slow RMS match): hear the character, not "louder"
 //
 //  Real-time safe: no allocation after prepare().  Tested in Shared/Tests (aliasing, level, latency).
 // =====================================================================
@@ -18,6 +26,7 @@
 #include <array>
 #include <cmath>
 #include <functional>
+#include "DoomsdayMod.h"
 
 namespace doomsday::drive
 {
@@ -153,5 +162,131 @@ namespace doomsday::drive
     private:
         int channels = 2, factor = 0;
         std::array<std::unique_ptr<juce::dsp::Oversampling<float>>, 4> os;
+    };
+
+    // ------------------------------------------------------------------ Bitcrusher
+    class Bitcrusher
+    {
+    public:
+        void prepare (double sampleRate) { sr = sampleRate; reset(); }
+        void reset() { phase = 1.f; held = 0.f; }
+        void set (float targetRateHz, float bits, float mix01)
+        {
+            step = (float) juce::jlimit (0.0, 1.0, targetRateHz / sr);
+            levels = std::pow (2.f, juce::jlimit (1.f, 24.f, bits) - 1.f);
+            mix = juce::jlimit (0.f, 1.f, mix01);
+        }
+        inline float process (float x)
+        {
+            phase += step;
+            if (phase >= 1.f) { phase -= 1.f; held = std::round (x * levels) / levels; }
+            return mix >= 0.999f ? held : x + mix * (held - x);
+        }
+    private:
+        double sr = 44100.0;
+        float step = 1.f, levels = 32768.f, mix = 1.f, phase = 1.f, held = 0.f;
+    };
+
+    // ------------------------------------------------------------------ DrawnShaper
+    class DrawnShaper
+    {
+    public:
+        static constexpr int tableSize = 1024;
+        // shape: x 0..1000 = input -1..+1, y 0..1 = output -1..+1. symmetric: only the right half (input >= 0) is used, mirrored
+        void setShape (const doomsday::mod::Shape& s, bool symmetric)
+        {
+            for (int i = 0; i <= tableSize; ++i)
+            {
+                const float in = -1.f + 2.f * (float) i / (float) tableSize;
+                float y;
+                if (symmetric) { const float a = std::abs (in); y = (s.at (500.f + a * 500.f) * 2.f - 1.f) * (in < 0.f ? -1.f : 1.f); }
+                else y = s.at ((in + 1.f) * 500.f) * 2.f - 1.f;
+                table[(size_t) i] = y;
+            }
+        }
+        // a straight line = no change
+        static doomsday::mod::Shape identity() { return doomsday::mod::Shape::make ({ { 0.f, 0.f }, { 1000.f, 1.f } }); }
+        inline float process (float x) const
+        {
+            const float pos = (juce::jlimit (-1.f, 1.f, x) + 1.f) * 0.5f * (float) tableSize;
+            const int i = juce::jmin (tableSize - 1, (int) pos);
+            const float f = pos - (float) i;
+            return table[(size_t) i] + f * (table[(size_t) i + 1] - table[(size_t) i]);
+        }
+    private:
+        std::array<float, tableSize + 1> table {};
+    };
+
+    // ------------------------------------------------------------------ EnvFollower
+    struct EnvFollower
+    {
+        float env = 0.f, a = 0.f, r = 0.f;
+        void prepare (double rate, float attackMs, float releaseMs)
+        {
+            a = 1.f - std::exp (-1.f / (juce::jmax (0.01f, attackMs) * 0.001f * (float) rate));
+            r = 1.f - std::exp (-1.f / (juce::jmax (0.01f, releaseMs) * 0.001f * (float) rate));
+        }
+        void reset() { env = 0.f; }
+        inline float process (float x) { const float m = std::abs (x); env += (m > env ? a : r) * (m - env); return env; }
+    };
+
+    // ------------------------------------------------------------------ DynamicDrive
+    class DynamicDrive
+    {
+    public:
+        void prepare (double rate) { fast.prepare (rate, 0.5f, 60.f); slow.prepare (rate, 25.f, 60.f); }
+        void reset() { fast.reset(); slow.reset(); }
+        // amount -1..1 ; returns the multiplier for the drive gain (1 = unchanged)
+        inline float process (float x, float amount)
+        {
+            const float f = fast.process (x), s = slow.process (x);
+            const float tr = juce::jlimit (0.f, 1.f, (f - s) / (f + 1.0e-6f) * 2.f);      // 0 steady .. 1 sharp hit
+            return amount >= 0.f ? 1.f - amount * 0.9f * tr : 1.f - amount * 2.f * tr;
+        }
+    private:
+        EnvFollower fast, slow;
+    };
+
+    // ------------------------------------------------------------------ TransientShaper
+    class TransientShaper
+    {
+    public:
+        void prepare (double rate)
+        {
+            fastA.prepare (rate, 0.3f, 120.f); slowA.prepare (rate, 20.f, 120.f);
+            fastR.prepare (rate, 0.3f, 15.f);
+            sm.prepare (rate, 1.f);
+        }
+        void reset() { fastA.reset(); slowA.reset(); fastR.reset(); sm.reset (0.f); }
+        // attackDb / sustainDb: -24..+24 (how much the hit / the ring-out is boosted or cut)
+        inline float process (float x, float attackDb, float sustainDb)
+        {
+            const float e1 = fastA.process (x) + 1.0e-6f, e2 = slowA.process (x) + 1.0e-6f, e3 = fastR.process (x) + 1.0e-6f;
+            const float atk = juce::jlimit (0.f, 1.f, std::log2 (e1 / e2) * 0.5f);     // > 0 while the hit rises
+            const float sus = juce::jlimit (0.f, 1.f, std::log2 (e1 / e3) * 0.5f);     // > 0 while it rings out
+            const float db = sm.next (attackDb * atk + sustainDb * sus);
+            return x * std::pow (10.f, juce::jlimit (-30.f, 30.f, db) / 20.f);
+        }
+    private:
+        EnvFollower fastA, slowA, fastR;
+        doomsday::mod::Smoother sm;
+    };
+
+    // ------------------------------------------------------------------ AutoGain
+    class AutoGain
+    {
+    public:
+        void prepare (double rate) { c = 1.f - std::exp (-1.f / (0.3f * (float) rate)); gs.prepare (rate, 50.f); gs.reset (1.f); }
+        void reset() { pin = pout = 1.0e-6f; gs.reset (1.f); }
+        // feed the dry input and the processed output; returns the corrected output
+        inline float process (float in, float out)
+        {
+            pin += c * (in * in - pin); pout += c * (out * out - pout);
+            const float g = pin > 1.0e-8f ? std::sqrt (pin / juce::jmax (1.0e-9f, pout)) : 1.f;
+            return out * gs.next (juce::jlimit (0.06f, 16.f, g));
+        }
+    private:
+        float c = 0.001f, pin = 1.0e-6f, pout = 1.0e-6f;
+        doomsday::mod::Smoother gs;
     };
 }

@@ -58,6 +58,27 @@ Wnioski dla Doomsday (kolejność = opłacalność):
 8. **Key & scale** w syntezatorach (Prophecy / Fortune / Forge): nuty dociągane do tonacji utworu.
 9. **Nie chować funkcji** w prawym przycisku – wszystko ważne widoczne, podpowiedzi na najechanie (tooltipy) zostają.
 
+## Z analizy Sylenth1 (LennarDigital) – czemu od lat rządzi w hardstyle (leady, supersaw)
+Źródła: lennardigital.com/sylenth1, recenzja MusicRadar, Splice blog, KVR.
+Budowa: 4 oscylatory bez aliasingu (part A / B, po 2), każdy do 8 głosów unison w stereo, 2 filtry analogowe 4-stopniowe
+z nieliniowym nasyceniem w środku (12 / 24 dB, LP / HP / BP, DRIVE + „Warm Drive”), 2 ADSR + 2 obwiednie AMP, 2 LFO,
+arpeggiator ze step sequencerem (pitch / velocity / hold na krok), efekty w małym panelu „LCD” (dist 4x OS, phaser, chorus,
+EQ, delay, reverb, kompresor), 16 głosów, wyłącza nieużywane części dla CPU.
+Co chwalą: **brzmi świetnie od razu** (ciepło, „analogowo”), **filtry z drive**, **unison**, **bardzo mało CPU**, prosty,
+czytelny interfejs – presety podkręca się w sekundy. Co krytykują: prosta modulacja, tylko LP / HP / BP, brak filtrów
+szeregowo, widać tylko 2 z 4 oscylatorów naraz.
+
+Wnioski dla Doomsday:
+1. **Mniej, ale świetnie brzmiące** – Sylenth wygrywa prostotą i dźwiękiem z pudełka, nie liczbą funkcji (przeciwieństwo Serum).
+   Przy każdej wtyczce: domyślny dźwięk ma być już dobry, najważniejsze gałki duże i na wierzchu.
+2. **Filtr analogowy z nasyceniem w środku** (4 stopnie, zero-delay feedback, tanh w każdym stopniu, rezonans do samooscylacji,
+   12 / 24 dB, DRIVE) – brakuje go w `Shared/` (mamy czyste SVF). Największy zysk dla leadów i screechy (Dark Serpent, PoS, Fortune).
+3. **Unison jak w Sylenth**: nieliniowy rozkład detune (zewnętrzne głosy dalej), losowa faza startu, stereo rozłożone – sprawdzić
+   nasz `UnisonBank` na tle tego (supersaw to podstawa hardstyle'owych leadów).
+4. **CPU**: każdy moduł, który jest wyłączony / na 0, nic nie liczy (zasada dla wszystkich klocków) + przełącznik HQ (z Serum).
+5. **Arpeggiator ze step sequencerem** (pitch / velocity / hold na krok) – przyda się w syntezatorach melodii.
+6. **Kompaktowy panel efektów** w stylu wyświetlacza (tu pasują ekrany z toolboxa Damiana).
+
 ## Technika (pułapki)
 - **Podział pasm przez odejmowanie** (`high = x - lowpass (x)`) daje garb przy częstotliwości podziału (przesunięcie fazy) –
   CLEAN SUB w Forge podbijał 3. harmoniczną o +6 dB. → Zawsze **Linkwitz-Riley 24 dB** (2x Butterworth LP / HP, `Svf lp / hp`).

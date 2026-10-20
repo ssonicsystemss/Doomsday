@@ -17,6 +17,7 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
 ## Start every task here
 1. `Shared/README.md` – catalogue of reusable DSP / UI / params blocks. Reuse before writing new code.
 2. `Shared/LESSONS.md` – what sounded bad and why. Add an entry after every owner complaint.
+   `Shared/RESEARCH.md` – analyses of other plugins (Kick 2, Pro-Q 4, Pro-L 2, Valhalla, Spire; Serum 2 / Sylenth1 in LESSONS) with ideas per Doomsday plugin.
 3. The plugin's `README.md` (features, presets) and its `Tests/RenderTest.cpp` (what is already checked).
 
 ## Build / test (Linux container)

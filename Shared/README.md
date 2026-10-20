@@ -106,6 +106,17 @@ Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, lat
 - `GainScope(accent, rangeDb)` + `push (peak, grDb)` z timera – przewijana fala z linią redukcji (jak Pro-L 2 / Pro-C 2), MAX z pamięcią.
 - `Knob::setModulation (depth, nowPos01)` – pierścień modulacji wokół gałki (zakres + kropka „teraz”), jak w Serum / Vital.
 
+## Source/DoomsdayFlat.h / .cpp  (`doomsday::flat`) – wygląd Minimal / flat (wybrany przez właściciela, `Shared/DESIGN.md`)
+- `tokens()` – kolory (tło, powierzchnia, kontrolki, tekst, jeden gorący `hot` + jeden zimny `cool` akcent).
+- `FlatLookAndFeel` – font Inter (Medium / SemiBold / Bold), cienkie łuki pokręteł, płaskie przyciski / listy / menu / okna / dymki.
+  `FlatLookAndFeel::makePrimary (button)` = przycisk wypełniony akcentem (np. SAVE).
+- `Knob(apvts, id, label, accentColour, bipolar, diameter = 44)` – łuk + wartość (klik = wpisz) + etykieta; `setModulation (depth, now)` = pierścień modulacji;
+  `Knob::heightFor (d)` = potrzebna wysokość.
+- `Toggle(apvts, id, text, Pill|Chip, accent)`, `Segmented(apvts, id, labels, accent)` (poziomy), `TabStrip(names, accent)` (zakładki z kropką ON),
+  `card(g, lnf, rect, title, dotColour)` – płaski panel z tytułem.
+- Wpięcie: `doomsday_plugin(... FLAT)` dodaje fonty Inter (`Shared/Resources/Fonts/Inter-*.ttf`, OFL) i `DoomsdayFlat.cpp`.
+  Prophecy of Scream (v3.1) ma własny CMake – dodane ręcznie. Pierwszy plugin w tym stylu: PoS (duży wykres z punktami do przeciągania – `ResponseGraph` w `Source/PluginEditor.cpp`, do skopiowania np. do Mirror of Souls).
+
 Pluginy używające Shared: **Dark Serpent**, **Mirror of Souls**, **Abyss of Echoes**, **Throne of Titans**, **Forge of Wrath**, **Prophecy of Scream** (od v3: NOISE / FORMANT / SWEEP / OTT / WIDTH, przez `../Shared/Source/DoomsdayDSP.h`). Klocki z Fortune of Seekers (przestery, SCREAM, polifonia, zakładki FX, THE PATH) są tu skopiowane i sprawdzone testem Dark Serpent. Starsze (Ancient Drums, Fortune of Seekers, stare części PoS) mają własny kod i nie są przerabiane.
 
 ## Znak firmowy (sonicsystems / DOOMSDAY)

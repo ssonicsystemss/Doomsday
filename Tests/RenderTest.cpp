@@ -269,10 +269,10 @@ int main (int argc, char** argv)
         FileOutputStream os (f);
         PNGImageFormat().writeImageToStream (img, os);
 
-        // second shot: FILTER tab on OSC 1, LFO tab on OSC 2
+        // second shot: FILTER tab on OSC 1, FORMANT tab on OSC 2
         std::function<void (Component&, int&)> walk = [&walk] (Component& c, int& n)
         {
-            if (auto* t = dynamic_cast<FxTabs*> (&c)) t->selectTab (n++ == 0 ? 1 : 2);
+            if (auto* t = dynamic_cast<OscCard*> (&c)) t->selectTab (n++ == 0 ? 2 : 4);
             for (auto* ch : c.getChildren()) walk (*ch, n);
         };
         int n = 0; walk (*ed, n);

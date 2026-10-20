@@ -105,3 +105,8 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - `KickVoice::prepare()` alokuje (bufory ROOM) → nigdy w wątku audio; w `trigger()` tylko reset.
 - Parametry DSP liczone raz na blok (`KickParams::cook`), nie co próbkę.
 - Zmiana zakresu parametru (np. GAIN −48..+24) nie psuje zapisanych projektów (stan trzyma wartości), ale automatyzacja hosta jest w 0..1.
+- `juce::String` z `"..."` traktuje bajty jak ASCII: „·”, „–”, polskie litery wychodzą jako krzaki („Â·”) → `String (CharPointer_UTF8 ("\xc2\xb7"))`
+  albo tekst bez znaków spoza ASCII.
+- Fonty Google / systemowe OTF (CFF) do BinaryData: przycięte do łaciny + polskich znaków i przerobione na TTF (fontTools: subset + cu2qu)
+  – 3 grubości Inter = ~170 KB zamiast ~1.9 MB, pewne renderowanie na Windows.
+- `TabStrip` / zakładki: przyciski włącznika wszystkich zakładek w tym samym miejscu → `removeFromRight` liczyć RAZ, nie w pętli (zjadało pasek zakładek).

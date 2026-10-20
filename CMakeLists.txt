@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(ProphecyOfScream VERSION 2.0.0)
+project(ProphecyOfScream VERSION 3.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,10 +19,9 @@ else()
 endif()
 
 juce_add_binary_data(ProphecyData SOURCES
-    Resources/Fonts/Michroma-Regular.ttf
-    Resources/Fonts/BarlowSemiCondensed-Medium.ttf
-    Resources/Fonts/BarlowSemiCondensed-SemiBold.ttf
-    Resources/Fonts/BarlowSemiCondensed-Bold.ttf
+    Shared/Resources/Fonts/Inter-Medium.ttf
+    Shared/Resources/Fonts/Inter-SemiBold.ttf
+    Shared/Resources/Fonts/Inter-Bold.ttf
     Resources/Presets/Blippy_Blippy.pos
     Resources/Presets/Brain_Fryer.pos
     Resources/Presets/Cardio.pos
@@ -51,7 +50,8 @@ juce_add_plugin(ProphecyOfScream
 
 target_sources(ProphecyOfScream PRIVATE
     Source/PluginProcessor.cpp
-    Source/PluginEditor.cpp)
+    Source/PluginEditor.cpp
+    Shared/Source/DoomsdayFlat.cpp)
 
 target_compile_definitions(ProphecyOfScream PUBLIC
     JUCE_WEB_BROWSER=0
@@ -75,7 +75,7 @@ target_link_libraries(ProphecyOfScream
 option(PROPHECY_BUILD_TESTS "Build offline render test" OFF)
 if(PROPHECY_BUILD_TESTS)
     juce_add_console_app(RenderTest PRODUCT_NAME "RenderTest")
-    target_sources(RenderTest PRIVATE Tests/RenderTest.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp)
+    target_sources(RenderTest PRIVATE Tests/RenderTest.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Shared/Source/DoomsdayFlat.cpp)
     target_compile_definitions(RenderTest PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0
         $<$<PLATFORM_ID:Linux>:JUCE_USE_XRANDR=0 JUCE_USE_XINERAMA=0 JUCE_USE_XCURSOR=0 JUCE_USE_XRENDER=0 JUCE_ALSA=0 JUCE_JACK=0>)
     target_link_libraries(RenderTest PRIVATE ProphecyData juce::juce_audio_utils juce::juce_dsp juce::juce_recommended_config_flags)

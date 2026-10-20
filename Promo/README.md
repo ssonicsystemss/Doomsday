@@ -1,5 +1,9 @@
 # Promo – film reklamowy na TikToka
 
+> **Uwaga (v3.1):** narzędzie jest zrobione pod stary wygląd v3.0 (StageLookAndFeel, fonty Michroma / Barlow, zakładki FxTabs).
+> Od v3.1 plugin ma wygląd minimal / flat, więc `PROPHECY_BUILD_PROMO` się nie zbuduje – do nowego filmiku trzeba przepiąć
+> kamerę / zakładki na `OscCard` i fonty na `doomsday::flat`. Stara wersja: historia gita (przed v3.1).
+
 Generator renderuje prawdziwy plugin klatka po klatce: dźwięk z Prophecy of Scream, obraz z jego interfejsu
 (scope, miernik i gałki ruszają się razem z muzyką). Kick pochodzi z Ancient Drums i leży gotowy w `assets/kick.flac`.
 

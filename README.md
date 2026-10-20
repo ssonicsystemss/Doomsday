@@ -17,8 +17,17 @@ Każdy plugin buduje się osobno – zmiana w jednym nie odpala builda drugiego.
 
 ---
 
-# PROPHECY OF SCREAM v3
+# PROPHECY OF SCREAM v3.1
 Syntezator screechy do hardstyle / rawstyle / uptempo / frenchcore. VST3 (instrument), działa w FL Studio.
+
+**Nowe w v3.1 – nowy wygląd (minimal / flat).** Brzmienie, presety i zapisane projekty są dokładnie takie same jak w v3.
+- Na górze **duży wykres**: krzywa filtra + formantu OSC 1 (pomarańczowa) i OSC 2 (niebieska) na tle widma tego, co gra.
+  **Kropki można łapać myszką**: CUTOFF (lewo / prawo = częstotliwość, góra / dół = rezonans) i FORMANT (lewo / prawo = częstotliwość,
+  góra / dół = głośność szczytu, kółko myszy = Q). Złapanie wyłączonej kropki włącza filtr / formant. Dwuklik na kropce = domyślne.
+  Przyciski OSC 1 / OSC 2 w rogu wybierają, którym oscylatorem sterujesz.
+- Każde pokrętło pokazuje **wartość liczbą** (klik w liczbę = wpisz wartość, dwuklik w pokrętło = domyślna).
+- OSC 1 i OSC 2 mają zakładki **OSC / DIST / FILTER / LFO / FORMANT**; kropka przy nazwie = efekt gra, przełącznik po prawej włącza aktywną zakładkę.
+- Pod spodem VOICE, AMP, DELAY, REVERB, OUTPUT (z miernikiem, który robi się pomarańczowy dopiero przy 0 dB).
 
 **Nowe w v3** (strojone pod prawdziwe screeche: gęsty „brud”, ruchomy szczyt, szerokie stereo, zjazdy):
 - **NOISE** (zakładka DIST) – szum przed przesterem: daje gęsty, szumiący dywan pod screechem.
@@ -46,9 +55,10 @@ Każdy oscylator ma własne obwiednie pitchu i filtra oraz własne LFO. Wszystko
 ## Panele
 | Panel | Co tam jest |
 |---|---|
+| Wykres (góra) | krzywe filtra + formantu obu oscylatorów, widmo dźwięku, kropki CUTOFF / FORMANT do przeciągania |
 | OSC 1 / OSC 2 | włącznik, WAVE (piła → kwadrat), UNISON, DETUNE, WIDTH, FM, RATIO, OCTAVE, SEMI, FINE, P.ENV, P.DECAY, LEVEL |
-| Zakładki pod oscylatorem | **DIST** (HARD / TUBE / FOLD / SCREAM, DRIVE, BITE, NOISE, MIX), **FILTER** (LP12 / LP24 / BAND / HIGH, CUTOFF, RESO, ENV, DECAY, KEY), **LFO** (kształt, SYNC, RATE, > CUTOFF, > PITCH, > AMP), **FORMANT** (FREQ, GAIN, Q, ENV, DECAY, KEY, LFO). Każda zakładka ma włącznik **ACTIVE**, a dioda przy nazwie pokazuje, czy efekt gra |
-| THE SCREAM | makro: dokłada FM, drive i rezonans obu oscylatorom naraz. Mod wheel też go podkręca. Pod nim podgląd fali |
+| Zakładki w panelu oscylatora | **OSC** (pokrętła powyżej), **DIST** (HARD / TUBE / FOLD / SCREAM, DRIVE, BITE, NOISE, MIX), **FILTER** (LP12 / LP24 / BAND / HIGH, CUTOFF, RESO, ENV, DECAY, KEY), **LFO** (kształt, SYNC, RATE, > CUTOFF, > PITCH, > AMP), **FORMANT** (FREQ, GAIN, Q, ENV, DECAY, KEY, LFO). Każda zakładka ma włącznik **Active** (na OSC: **On**), a kropka przy nazwie pokazuje, czy efekt gra |
+| SCREAM | makro: dokłada FM, drive i rezonans obu oscylatorom naraz. Mod wheel też go podkręca. Pod nim podgląd fali |
 | VOICE | GLIDE, BEND (zakres pitch-wheela), LEGATO, SWEEP, S.TIME |
 | AMP | ATTACK, DECAY, SUSTAIN, RELEASE (wspólne dla obu oscylatorów) |
 | DELAY | włącznik, TIME (zsynchronizowany z tempem), FEEDBACK, MIX, P.PONG |
@@ -73,4 +83,5 @@ Presety z `Resources/Presets` są wbudowane w plugin – żeby dodać nowy fabry
 - **RANDOMIZE** – losuje screecha w rozsądnych zakresach, czasem dokłada OSC 2 (głośność zostaje).
 
 ## Fonty
-Interfejs używa fontów Michroma i Barlow Semi Condensed (SIL Open Font License, pliki licencji w `Resources/Fonts`).
+Interfejs (od v3.1) używa fontu Inter (SIL Open Font License, `Shared/Resources/Fonts/OFL-Inter.txt`). Stary wygląd v3.0 używał Michroma i Barlow
+(`Resources/Fonts`, nadal używane przez narzędzie do filmików `Promo/`, które jest zrobione pod wygląd v3.0).

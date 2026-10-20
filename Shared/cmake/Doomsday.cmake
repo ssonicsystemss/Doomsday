@@ -8,6 +8,7 @@
 #    doomsday_plugin(DarkSerpent
 #        NAME "Dark Serpent"  CODE DkSp  CATEGORIES Instrument Synth
 #        EFFECT                                        (optional: audio effect instead of an instrument)
+#        FLAT                                          (optional: the Minimal / flat look - Inter fonts + DoomsdayFlat.cpp)
 #        SOURCES Source/PluginProcessor.cpp Source/PluginEditor.cpp
 #        RESOURCES <extra binary data files>          (optional)
 #        TEST Tests/RenderTest.cpp)                    (optional, built with -DPROPHECY_BUILD_TESTS=ON)
@@ -31,18 +32,27 @@ if(NOT TARGET juce::juce_core)
 endif()
 
 function(doomsday_plugin TARGET)
-    cmake_parse_arguments(D "EFFECT" "NAME;CODE;TEST" "SOURCES;RESOURCES;CATEGORIES" ${ARGN})
+    cmake_parse_arguments(D "EFFECT;FLAT" "NAME;CODE;TEST" "SOURCES;RESOURCES;CATEGORIES" ${ARGN})
     set(data ${TARGET}Data)
     if(D_EFFECT)
         set(isSynth FALSE)
     else()
         set(isSynth TRUE)
     endif()
+    set(flatFonts "")
+    set(flatSrc "")
+    if(D_FLAT)
+        set(flatFonts ${DOOMSDAY_SHARED}/Resources/Fonts/Inter-Medium.ttf
+                      ${DOOMSDAY_SHARED}/Resources/Fonts/Inter-SemiBold.ttf
+                      ${DOOMSDAY_SHARED}/Resources/Fonts/Inter-Bold.ttf)
+        set(flatSrc ${DOOMSDAY_SHARED}/Source/DoomsdayFlat.cpp)
+    endif()
     juce_add_binary_data(${data} SOURCES
         ${DOOMSDAY_SHARED}/Resources/Fonts/Michroma-Regular.ttf
         ${DOOMSDAY_SHARED}/Resources/Fonts/BarlowSemiCondensed-Medium.ttf
         ${DOOMSDAY_SHARED}/Resources/Fonts/BarlowSemiCondensed-SemiBold.ttf
         ${DOOMSDAY_SHARED}/Resources/Fonts/BarlowSemiCondensed-Bold.ttf
+        ${flatFonts}
         ${D_RESOURCES})
     set_target_properties(${data} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -62,7 +72,7 @@ function(doomsday_plugin TARGET)
 
     set(defs JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_DISPLAY_SPLASH_SCREEN=0
         $<$<PLATFORM_ID:Linux>:JUCE_USE_XRANDR=0 JUCE_USE_XINERAMA=0 JUCE_USE_XCURSOR=0 JUCE_USE_XRENDER=0 JUCE_ALSA=0 JUCE_JACK=0>)
-    target_sources(${TARGET} PRIVATE ${D_SOURCES} ${DOOMSDAY_SHARED}/Source/DoomsdayUI.cpp)
+    target_sources(${TARGET} PRIVATE ${D_SOURCES} ${DOOMSDAY_SHARED}/Source/DoomsdayUI.cpp ${flatSrc})
     target_include_directories(${TARGET} PRIVATE ${DOOMSDAY_SHARED}/Source)
     target_compile_definitions(${TARGET} PUBLIC ${defs})
     target_link_libraries(${TARGET}
@@ -72,7 +82,7 @@ function(doomsday_plugin TARGET)
     option(PROPHECY_BUILD_TESTS "Build offline render test" OFF)
     if(PROPHECY_BUILD_TESTS AND D_TEST)
         juce_add_console_app(RenderTest PRODUCT_NAME "RenderTest")
-        target_sources(RenderTest PRIVATE ${D_TEST} ${D_SOURCES} ${DOOMSDAY_SHARED}/Source/DoomsdayUI.cpp)
+        target_sources(RenderTest PRIVATE ${D_TEST} ${D_SOURCES} ${DOOMSDAY_SHARED}/Source/DoomsdayUI.cpp ${flatSrc})
         target_include_directories(RenderTest PRIVATE ${DOOMSDAY_SHARED}/Source)
         target_compile_definitions(RenderTest PRIVATE ${defs})
         target_link_libraries(RenderTest PRIVATE ${data} juce::juce_audio_utils juce::juce_dsp juce::juce_recommended_config_flags)

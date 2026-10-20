@@ -35,5 +35,6 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
 
 ## Rules
 - Git: push straight to `main` (owner's choice); no branches / PRs unless asked. Commit as `ssonicsystemss <tym222q@gmail.com>`.
-- **ssonicsystemss/sonic-toolbox belongs to Damian – read only, do not merge into it.** Our shared code lives in `Shared/`.
+- **ssonicsystemss/sonic-toolbox belongs to Damian: do not push / merge into it.** The owner allows using it to learn and to
+  borrow ideas or code into our `Shared/` (note the source). Our shared code lives in `Shared/`. Lessons taken from it: `Shared/LESSONS.md`.
 - Old repos (pepula-GSB/*) are backups only.

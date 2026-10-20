@@ -28,6 +28,16 @@ Dopisuj po każdej uwadze właściciela („brzmi źle”, „słabo działa”,
 - Interfejs po angielsku, krótkie podpowiedzi na ekranie (np. linia „TOO HOT – DISTORTION”); opisy w README po polsku, prosto.
 - „Bebechy” (DSP, UI) zawsze do `Shared/`, z opisem w `Shared/README.md` i testem w którejś wtyczce.
 
+## Z toolboxa Damiana (ssonicsystemss/sonic-toolbox, `screens/CLAUDE.md`) – do stosowania u nas
+- Ekrany / wyświetlacze: **trzy warstwy** – statyczne tło w cache'owanym obrazie (ramka, szkło, skale), warstwa „live”
+  (tylko to, co się rusza) i nakładka (odbicia, scanlines). U nas tak robi już tło canvasu; THE ANVIL / spektrum mogą też.
+- **Glow = szeroki półprzezroczysty obrys pod ostrym kształtem**, nigdy blur / DropShadow / GlowEffect (drogie, źle się skalują).
+- **Odświeżanie 30 Hz** wystarcza; `repaint()` tylko gdy obraz się zmienił (porównuj wartości / sformatowany tekst). 60 Hz tylko oscyloskopy.
+- Ścieżki (`juce::Path`) jako składowe, `clear()` i wypełnianie od nowa – bez alokacji po rozgrzaniu; jedno `fillPath` na kolor.
+- Wskazówki / mierniki z balistyką liczoną w czasie (`1 - exp(-dt / tau)`), dt ograniczone (ukryte okno nie „skacze”).
+- Dane audio → GUI przez lock-free bufor; GUI kopiuje do własnej tablicy w timerze (u nas: `AnalyzerTap`, `LevelFeed`, `hitBuf`).
+- Galeria 20 ekranów (`screens/gallery/screen-bench.html`) + `ScreenKit.h` – gotowe wzory na liczniki BPM / Hz / poziomu (VFD, nixie, VU, LED ladder, scope…).
+
 ## Technika (pułapki)
 - `juce::AudioBuffer` po utworzeniu ma śmieci → zawsze `clear()` (niestabilne testy).
 - W pluginach z `using namespace doomsday` niektóre `jmin / jmax<int64>` łapią przeciążenia z `juce::dsp::SIMDRegister` → użyj `std::min`.

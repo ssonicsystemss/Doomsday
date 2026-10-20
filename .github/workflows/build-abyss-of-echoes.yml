@@ -1,0 +1,30 @@
+name: Build Abyss of Echoes VST3
+
+on:
+  push:
+    paths:
+      - 'AbyssOfEchoes/**'
+      - 'Shared/**'
+      - '.github/workflows/build-abyss-of-echoes.yml'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: AbyssOfEchoes
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        run: cmake -B build -A x64
+      - name: Build VST3
+        run: cmake --build build --config Release --target AbyssOfEchoes_VST3 --parallel
+      - name: Remove build leftovers (.lib / .exp)
+        shell: pwsh
+        run: Get-ChildItem build/AbyssOfEchoes_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp | Remove-Item
+      - name: Upload VST3
+        uses: actions/upload-artifact@v5
+        with:
+          name: Abyss-of-Echoes-VST3-Windows
+          path: AbyssOfEchoes/build/AbyssOfEchoes_artefacts/Release/VST3/

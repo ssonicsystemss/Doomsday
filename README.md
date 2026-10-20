@@ -7,8 +7,9 @@
 | **Fortune of Seekers** – syntezator melodii | `FortuneOfSeekers/` | *Build Fortune of Seekers VST3* → `Fortune-of-Seekers-VST3-Windows` |
 | **Dark Serpent** – screamer / lead do dropów | `DarkSerpent/` | *Build Dark Serpent VST3* → `Dark-Serpent-VST3-Windows` |
 | **Mirror of Souls** – equalizer (efekt) | `MirrorOfSouls/` | *Build Mirror of Souls VST3* → `Mirror-of-Souls-VST3-Windows` |
+| **Abyss of Echoes** – reverb / delay / stereo (efekt) | `AbyssOfEchoes/` | *Build Abyss of Echoes VST3* → `Abyss-of-Echoes-VST3-Windows` |
 
-Każdy plugin buduje się osobno – zmiana w jednym nie odpala builda drugiego. Opisy: `AncientDrums/README.md`, `FortuneOfSeekers/README.md`, `DarkSerpent/README.md`, `MirrorOfSouls/README.md`. Wspólne klocki dla nowych pluginów: `Shared/README.md`.
+Każdy plugin buduje się osobno – zmiana w jednym nie odpala builda drugiego. Opisy: `AncientDrums/README.md`, `FortuneOfSeekers/README.md`, `DarkSerpent/README.md`, `MirrorOfSouls/README.md`, `AbyssOfEchoes/README.md`. Wspólne klocki dla nowych pluginów: `Shared/README.md`.
 
 ---
 

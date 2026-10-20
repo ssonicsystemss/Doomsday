@@ -11,6 +11,8 @@ on:
       - '.github/workflows/build-dark-serpent.yml'
       - 'MirrorOfSouls/**'
       - '.github/workflows/build-mirror-of-souls.yml'
+      - 'AbyssOfEchoes/**'
+      - '.github/workflows/build-abyss-of-echoes.yml'
   workflow_dispatch:
 
 jobs:

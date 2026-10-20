@@ -49,6 +49,7 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (f (crunchDec, "Crunch Decay", skew (5.f, 600.f, 120.f), 120.f, fm::ms, fm::msIn));
     l.add (f (body, "Body", { -12.f, 12.f }, 0.f, fm::db, fm::num));
     l.add (f (grit, "Grit", { 0.f, 1.f }, 0.f));
+    l.add (f (cleanSub, "Clean Sub", skew (0.f, 250.f, 80.f), 0.f, [] (float v, int) { return v < 20.f ? String ("OFF") : fm::hz (v, 0); }, fm::hzIn));
     l.add (b (punchOn, "Punch On", true));
     l.add (f (punchLevel, "Punch Level", { -36.f, 6.f }, -6.f, fm::db, fm::num));
     l.add (f (punchStart, "Punch Start", skew (50.f, 2000.f, 400.f), 400.f, fm::hz, fm::hzIn));
@@ -161,7 +162,7 @@ void ForgeProcessor::randomizeSound()
 
 ForgeProcessor::ForgeProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", AudioChannelSet::stereo(), true)),
-      apvts (*this, nullptr, "FORGE", createLayout())
+      apvts (*this, &undo, "FORGE", createLayout())
 {
     setCurrentProgram (0);
 }
@@ -180,7 +181,7 @@ ForgeParams ForgeProcessor::gather() const
     k.tailDb = get (tailLevel); k.startRatio = get (tailStart); k.dropMs = get (tailDrop); k.curve = get (tailCurve); k.holdMs = get (tailHold); k.wave = get (tailWave); k.tuneSemis = get (tune);
     k.distType = jlimit (0, 4, (int) std::round (get (distType))); k.driveDb = get (drive); k.tone = get (tone); k.lowCutHz = get (lowCut); k.highCutHz = get (highCut);
     k.scream = get (scream); k.screamHz = get (screamHz); k.crunch = get (crunch); k.crunchDecayMs = get (crunchDec);
-    k.bodyDb = get (body); k.grit = get (grit);
+    k.bodyDb = get (body); k.grit = get (grit); k.cleanSubHz = get (cleanSub);
     k.punchOn = get (punchOn) > 0.5f; k.punchDb = get (punchLevel); k.punchStartHz = get (punchStart); k.punchEndHz = get (punchEnd);
     k.punchDropMs = get (punchDrop); k.punchDecayMs = get (punchDecay);
     k.chaos = get (chaos); k.chaosMs = get (chaosDec); k.chaosHz = get (chaosHz);

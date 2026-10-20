@@ -133,7 +133,7 @@ bool TitanProcessor::saveUserPresetAs (const String& name)
 
 TitanProcessor::TitanProcessor()
     : AudioProcessor (BusesProperties().withInput ("Input", AudioChannelSet::stereo(), true).withOutput ("Output", AudioChannelSet::stereo(), true)),
-      apvts (*this, nullptr, "TITANS", createLayout())
+      apvts (*this, &undo, "TITANS", createLayout())
 {
     setCurrentProgram (0);
 }

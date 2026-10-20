@@ -117,7 +117,7 @@ bool MirrorProcessor::saveUserPresetAs (const String& name)
 
 MirrorProcessor::MirrorProcessor()
     : AudioProcessor (BusesProperties().withInput ("Input", AudioChannelSet::stereo(), true).withOutput ("Output", AudioChannelSet::stereo(), true)),
-      apvts (*this, nullptr, "MIRROR", createLayout())
+      apvts (*this, &undo, "MIRROR", createLayout())
 {
     setCurrentProgram (0);
 }

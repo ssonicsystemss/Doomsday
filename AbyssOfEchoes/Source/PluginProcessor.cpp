@@ -169,7 +169,7 @@ bool AbyssProcessor::saveUserPresetAs (const String& name)
 
 AbyssProcessor::AbyssProcessor()
     : AudioProcessor (BusesProperties().withInput ("Input", AudioChannelSet::stereo(), true).withOutput ("Output", AudioChannelSet::stereo(), true)),
-      apvts (*this, nullptr, "ABYSS", createLayout())
+      apvts (*this, &undo, "ABYSS", createLayout())
 {
     setCurrentProgram (0);
 }

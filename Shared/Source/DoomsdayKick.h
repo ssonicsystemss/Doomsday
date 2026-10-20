@@ -34,6 +34,7 @@ namespace doomsday::kick
         float drive2Db = 6.f;
         float screamHz = 900.f, scream = 0.f, crunch = 0.f, crunchDecayMs = 120.f;
         float bodyDb = 0.f, grit = 0.f;              // post low shelf (fundamental), noisy texture riding on the tail
+        float cleanSubHz = 0.f;                      // > 0: below this the distorted tail is swapped for the clean sine (tight, mono-safe sub)
         float chaos = 0.f, chaosMs = 60.f, chaosHz = 2500.f;   // noise burst INTO the distortion at the start: the dense, messy modern punch
         float room = 0.f, roomSize = 0.5f;  bool roomIntoDist = true;   // small room: before the distortion (dense raw tail) or after (space)
         // punch + click
@@ -50,7 +51,7 @@ namespace doomsday::kick
         struct Cooked
         {
             double rate = 0.0;
-            doomsday::dsp::SvfCoefs hc, body, scream, chaos, click;
+            doomsday::dsp::SvfCoefs hc, body, scream, chaos, click, sub;
             doomsday::dsp::BiquadCoefs mid;
             float preC = 0.f, lcC = 0.f, crC = 0.f, grC = 0.f, tailG = 1.f, bodyG = 0.f, punchG = 1.f, punchNorm = 1.f, clickG = 0.f, chaosNorm = 0.f, drive2G = 1.f;
         };
@@ -64,6 +65,7 @@ namespace doomsday::kick
             ck.scream = doomsday::dsp::svfCoefs (screamHz, 1.f / 5.f, rate);
             ck.chaos = doomsday::dsp::svfCoefs (chaosHz, 1.f / 0.8f, rate);
             ck.click = doomsday::dsp::svfCoefs (clickHz, 1.f / 1.2f, rate);
+            ck.sub = doomsday::dsp::svfCoefs (juce::jmax (20.f, cleanSubHz), 1.f / 0.707f, rate);
             ck.mid = doomsday::dsp::BiquadCoefs::make (doomsday::dsp::BiquadCoefs::Bell, rate, midHz, juce::jmax (0.2f, midQ), midDb);
             ck.preC = one (400.f); ck.lcC = one (lowCutHz); ck.crC = one (350.f); ck.grC = one (900.f);
             ck.tailG = std::pow (10.f, tailDb / 20.f); ck.bodyG = std::pow (10.f, bodyDb / 20.f) - 1.f;
@@ -153,7 +155,7 @@ namespace doomsday::kick
             ampSeg = driveSeg = pitchSeg = 0; fade = 1.f; fadeStep = 0.f;
             pre = {}; lc = {}; hc1 = {}; hc2 = {}; sc = {}; crHp = {}; dcx = dcy = 0.f; ck = {}; ck2 = {};
             noise = 0x12345678u; gnoise = 0x9e3779b9u; cnoise = 0x7f4a7c15u; grHp = {}; bodyLp = {}; ch1 = {}; ch2 = {};
-            midF.reset(); room.clear();
+            midF.reset(); room.clear(); subY1 = {}; subY2 = {}; subS1 = {}; subS2 = {};
         }
         void release (float ms) { fadeStep = 1.f / juce::jmax (1.f, ms * 0.001f * (float) rate); }
         bool isActive() const { return active; }
@@ -227,6 +229,14 @@ namespace doomsday::kick
                 y = lc.hp (y, c.lcC);
                 y = hc2.lp (hc1.lp (y, c.hc), c.hc);
                 if (std::abs (p.bodyDb) > 0.05f) y += c.bodyG * bodyLp.lp (y, c.body);
+                // --- CLEAN SUB: the lows of the distorted tail are replaced by the clean sine (the same pitch)
+                if (p.cleanSubHz > 20.f)
+                {
+                    // Linkwitz-Riley 24 dB split: highs of the distortion + lows of the clean sine (sums flat, no bump at the split)
+                    const float highY = subY2.hp (subY1.hp (y, c.sub), c.sub);
+                    const float lowS = subS2.lp (subS1.lp (inTail ? s : 0.f, c.sub), c.sub);
+                    y = highY + lowS * 1.1f;
+                }
                 // --- SCREAM: resonant mid peak (rawstyle 'voice')
                 if (p.scream > 0.001f) y = std::tanh (y + p.scream * dEnv * 3.f * sc.bp (y, c.scream));
                 // --- CRUNCH: decaying mid / high fizz on top
@@ -274,6 +284,7 @@ namespace doomsday::kick
         OnePole pre, lc, crHp, grHp;
         doomsday::dsp::Svf hc1, hc2, sc, ck, ck2, bodyLp, ch1, ch2;
         doomsday::dsp::Biquad midF;
+        doomsday::dsp::Svf subY1, subY2, subS1, subS2;
         KickRoom room;
         uint32_t noise = 0x12345678u, gnoise = 0x9e3779b9u, cnoise = 0x7f4a7c15u;
     };

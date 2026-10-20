@@ -135,25 +135,49 @@ namespace doomsday::ui
         virtual juce::String currentPresetName() = 0;
         virtual juce::String presetFolderText() = 0;
         virtual void audition (bool) {}
+        virtual juce::UndoManager* undoManager() { return nullptr; }   // give one to the APVTS -> Ctrl+Z / UNDO buttons
     };
 
-    // [<] [ preset combo ] [>]  /  [RANDOMIZE] [SAVE] [PLAY]   (300 x 72)
-    class PresetBar : public juce::Component
+    // [<] [ PRESET NAME  * ] [>]  /  [RANDOMIZE] [SAVE] [PLAY] [UNDO] [REDO]   (300 x 90)
+    //  click the name = browser (search, categories from "CAT - Name", favourites, user presets),
+    //  mouse wheel over the name = next / previous, * = favourite, Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y = undo / redo
+    class PresetBar : public juce::Component, private juce::KeyListener
     {
     public:
         PresetBar (PresetHost&, bool withPlay, bool withRandom = true);
         ~PresetBar() override;
         void resized() override;
         void paint (juce::Graphics&) override;
+        void parentHierarchyChanged() override;
         void refresh();                     // call from the editor timer
         void refreshList();
+
+        struct Entry { juce::String name, category; int factory = -1; juce::File file; };
+        const std::vector<Entry>& entries() const { return list; }
+        void load (int entryIndex);
+        int currentIndex() const;
+        bool isFavourite (const juce::String& name) const { return favourites.contains (name); }
+        void toggleFavourite (const juce::String& name);
     private:
+        bool keyPressed (const juce::KeyPress&, juce::Component*) override;
         void step (int);
         void showSave();
+        void openBrowser();
+        juce::File favouritesFile() const;
         PresetHost& host;
         bool withPlay, withRandom;
-        juce::ComboBox box;
-        juce::TextButton prev { "<" }, next { ">" }, save { "SAVE" }, random { "RANDOMIZE" };
+        struct Name : public juce::Component, public juce::SettableTooltipClient
+        {
+            PresetBar& bar; juce::String text; bool hover = false;
+            explicit Name (PresetBar& b) : bar (b) { setMouseCursor (juce::MouseCursor::PointingHandCursor); }
+            void paint (juce::Graphics&) override;
+            void mouseDown (const juce::MouseEvent& e) override;
+            void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& w) override { bar.step (w.deltaY < 0.f ? 1 : -1); }
+            void mouseEnter (const juce::MouseEvent&) override { hover = true; repaint(); }
+            void mouseExit (const juce::MouseEvent&) override  { hover = false; repaint(); }
+            juce::Rectangle<float> starArea() const { return getLocalBounds().toFloat().removeFromRight (28.f); }
+        } name { *this };
+        juce::TextButton prev { "<" }, next { ">" }, save { "SAVE" }, random { "RANDOMIZE" }, undoBtn { "UNDO" }, redoBtn { "REDO" };
         struct Play : public juce::TextButton
         {
             std::function<void (bool)> onPress;
@@ -161,10 +185,11 @@ namespace doomsday::ui
             void mouseDown (const juce::MouseEvent& e) override { juce::TextButton::mouseDown (e); if (onPress) onPress (true); }
             void mouseUp (const juce::MouseEvent& e) override   { juce::TextButton::mouseUp (e);   if (onPress) onPress (false); }
         } play;
-        juce::Array<juce::File> userFiles;
+        std::vector<Entry> list;
+        juce::StringArray favourites;
         std::unique_ptr<juce::AlertWindow> dialog;
+        juce::Component::SafePointer<juce::Component> keyTarget;
         juce::String lastName;
-        static constexpr int userIdBase = 1000;
     };
 
     // tabbed FX section: DIST / CHORUS / ... each with its own ACTIVE switch; inactive pages dim

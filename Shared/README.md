@@ -59,7 +59,10 @@ Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, lat
 ## Source/DoomsdayUI.h / .cpp  (`doomsday::ui`)
 - `Theme` (kolory, `accents`, `crown` dla dużego pokrętła) + `StageLookAndFeel(theme)` – fonty Michroma / Barlow.
 - `Knob(apvts, id, label, accent, bipolar, big)`, `Switch(apvts, id, text, Power|Chip, accent)`, `Choice(apvts, id, labels, accent, vertical)`, `Meter`.
-- `PresetBar(PresetHost&, withPlay, withRandom = true)` – < preset > / RANDOMIZE / SAVE / PLAY; procesor implementuje `PresetHost`.
+- `PresetBar(PresetHost&, withPlay, withRandom = true)` (v2) – < nazwa > / RANDOMIZE / SAVE / PLAY / UNDO / REDO; klik w nazwę = przeglądarka
+  (szukanie, kategorie z prefiksu „KAT - Nazwa”, ulubione *, presety użytkownika), kółko myszy nad nazwą = następny / poprzedni,
+  Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y. Procesor implementuje `PresetHost`; undo działa, gdy `undoManager()` zwraca `UndoManager`
+  podany do APVTS (`apvts (*this, &undo, ...)`, `undo` zadeklarowany przed `apvts`). Ulubione: `AppData/Doomsday/<folder presetów> favourites.txt`.
 - `paint::glassPanel(g, lnf, rect, title, accent, spot)`, `paint::beam(...)`, `scaleCanvas(editor, canvas, W, H)`.
 - `FxTabs(apvts, accent)` + `addTab(name, powerParamId, cells, side)` – zakładki efektów z ACTIVE (jak w Fortune of Seekers), `refresh()` z timera.
 - `FlowLane(levelFeed, accent, label)` – dźwięk płynący z góry na dół (THE PATH z Fortune of Seekers), `tick()` z timera.

@@ -11,6 +11,8 @@
 | **Throne of Titans** – mastering / limiter / LUFS (efekt) | `ThroneOfTitans/` | *Build Throne of Titans VST3* → `Throne-of-Titans-VST3-Windows` |
 | **Forge of Wrath** – syntezator kicków hardstyle (instrument) | `ForgeOfWrath/` | *Build Forge of Wrath VST3* → `Forge-of-Wrath-VST3-Windows` |
 
+Wtyczki na wspólnych klockach (Dark Serpent, Mirror of Souls, Abyss of Echoes, Throne of Titans, Forge of Wrath) mają **przeglądarkę presetów** (klik w nazwę: szukanie, kategorie, ulubione \*, kółko myszy = następny) i **UNDO / REDO** (Ctrl+Z).
+
 Każdy plugin buduje się osobno – zmiana w jednym nie odpala builda drugiego. Opisy: `AncientDrums/README.md`, `FortuneOfSeekers/README.md`, `DarkSerpent/README.md`, `MirrorOfSouls/README.md`, `AbyssOfEchoes/README.md`, `ThroneOfTitans/README.md`, `ForgeOfWrath/README.md`. Wspólne klocki dla nowych pluginów: `Shared/README.md`.
 
 ---

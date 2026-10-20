@@ -4,6 +4,7 @@
 #include "../Source/PluginProcessor.h"
 #include "../Source/PluginEditor.h"
 #include <juce_audio_formats/juce_audio_formats.h>
+#include <juce_dsp/juce_dsp.h>
 #include <chrono>
 
 using namespace juce;
@@ -97,6 +98,24 @@ int main (int argc, char** argv)
         check (finite, "no NaN / inf");
         const double f2 = pitchAt (hit (p, 34, 0.8), 0.25, 0.12);
         check (std::abs (f2 - 58.3) < 3.5, "note A#1 -> 58 Hz", String (f2, 1) + " Hz");
+    }
+    // 1b) CLEAN SUB: the lows of a hard-distorted tail become a clean sine (2nd / 3rd harmonic drop)
+    {
+        auto harmDb = [] (const AudioBuffer<float>& b)
+        {
+            const int n = 1 << 14, a = (int) (0.12 * sr);
+            std::vector<float> w ((size_t) n * 2, 0.f);
+            for (int i = 0; i < n && a + i < b.getNumSamples(); ++i) w[(size_t) i] = b.getSample (0, a + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * i / n));
+            dsp::FFT fft (14); fft.performFrequencyOnlyForwardTransform (w.data());
+            auto at = [&] (double hz) { const int k = (int) std::round (hz * n / sr); float m = 0; for (int j = k - 2; j <= k + 2; ++j) m = jmax (m, w[(size_t) j]); return (double) m; };
+            return 20.0 * std::log10 ((at (98.0) + at (147.0)) / at (49.0));
+        };
+        p.setCurrentProgram (0);
+        set (p, distType, 2.f); set (p, drive, 30.f); set (p, length, 600.f); set (p, clipDrive, 0.f);
+        const double off = harmDb (hit (p, 31, 0.6));
+        set (p, cleanSub, 250.f);
+        const double on = harmDb (hit (p, 31, 0.6));
+        check (on < off - 10.0, "CLEAN SUB: low harmonics of the distortion removed", "(" + String (off, 1) + " -> " + String (on, 1) + " dB)");
     }
     // 2) every preset: no NaN, peak <= 0 dBFS, not silent
     {

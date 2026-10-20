@@ -349,6 +349,7 @@ Canvas::Canvas (ForgeProcessor& p)
         add (s, lowCut, "LOW CUT", false, "Removes rumble under the tail");
         add (s, highCut, "HIGH CUT", false, "Darkens the distortion: low = round and warm, high = open and fizzy");
         add (s, body, "BODY", true, "More or less low end (the fundamental of the tail)");
+        add (s, cleanSub, "CLEAN SUB", false, "Below this frequency the distortion is replaced by a clean sine: tight, mono-safe sub that never mushes (OFF = all distorted)");
     }
     {
         auto& s = section ("TEXTURE", 2);
@@ -431,7 +432,7 @@ void Canvas::resized()
     presets.setBounds (W - m - 300, 34, 300, 90);
     anvil.setBounds (m, 150, W - 2 * m, 250);
     // widths per row (sum + gaps = W - 2m)
-    const std::vector<std::vector<int>> rows { { 560, 330, 270, 278 }, { 290, 456, 290, 220, 168 }, { 480, 300, 240, 418 } };
+    const std::vector<std::vector<int>> rows { { 560, 320, 262, 276 }, { 340, 392, 286, 220, 166 }, { 480, 300, 236, 402 } };
     size_t si = 0;
     int y = 414;
     for (auto& r : rows)

@@ -134,6 +134,7 @@ private:
         os->processSamplesDown (blk);
         const float g = std::pow (10.f, p.clipDriveDb / 20.f), outG = std::pow (10.f, p.outDb / 20.f);
         const float smpG = std::pow (10.f, p.sampleDb / 20.f) * vel;
+        const auto subC = doomsday::dsp::svfCoefs (juce::jmax (20.f, p.k.cleanSubHz), 1.f / 0.707f, sr);
         float* m = mono.getWritePointer (0);
         float pk = 0.f;
         for (int i = 0; i < n; ++i)
@@ -141,7 +142,17 @@ private:
             float x = m[i];
             if (smpPos >= 0.0) x += sampleTick() * smpG;
             if (p.ott > 0.001f) { float r = x; ott.process (x, r, p.ott); x = 0.5f * (x + r) * (1.f + 2.f * p.ott); }
-            const float y = doomsday::kick::masterClip (x, g, p.clipSoft) * outG;
+            float y;
+            if (p.k.cleanSubHz > 20.f)
+            {
+                // CLEAN SUB: the clipper only gets the highs, the clean sub passes around it (a soft knee near 0 dBFS keeps it safe)
+                const float low = subLp2.lp (subLp1.lp (x, subC), subC), high = subHp2.hp (subHp1.hp (x, subC), subC);   // LR4 split
+                y = doomsday::kick::masterClip (high, g, p.clipSoft) + low * g * 0.98f;
+                const float a = std::abs (y);
+                if (a > 0.9f) y = std::copysign (0.9f + 0.085f * std::tanh ((a - 0.9f) / 0.085f), y);
+                y *= outG;
+            }
+            else y = doomsday::kick::masterClip (x, g, p.clipSoft) * outG;
             for (int ch = 0; ch < buffer.getNumChannels(); ++ch) buffer.setSample (ch, start + i, y);
             pk = juce::jmax (pk, std::abs (y));
             if (hitWrite < (int) hitBuf.size()) hitBuf[(size_t) hitWrite++] = y;
@@ -158,6 +169,7 @@ private:
     std::unique_ptr<juce::dsp::Oversampling<float>> os;
     juce::AudioBuffer<float> mono;
     doomsday::dsp::Ott3 ott;
+    doomsday::dsp::Svf subLp1, subLp2, subHp1, subHp2;
     std::atomic<ForgeSample*> sample { nullptr };
     const ForgeSample* playing = nullptr;
     std::vector<std::unique_ptr<ForgeSample>> keep;

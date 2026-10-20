@@ -34,6 +34,7 @@ public:
     void setStateInformation (const void* data, int size) override { doomsday::PresetIO::setState (*this, apvts, data, size, currentProgram, presetName); }
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
+    juce::UndoManager undo { 300000, 50 };      // Ctrl+Z (declared before apvts)
     juce::AudioProcessorValueTreeState apvts;
 
     // PresetHost
@@ -46,6 +47,7 @@ public:
     void randomizeSound() override;
     juce::String currentPresetName() override { return presetName; }
     juce::String presetFolderText() override { return "Documents / Dark Serpent / Presets"; }
+    juce::UndoManager* undoManager() override { return &undo; }
     void audition (bool on) override { auditionCmd.store (on ? 1 : 2); }
 
     // visuals / tests

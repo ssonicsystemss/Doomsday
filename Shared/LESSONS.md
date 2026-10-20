@@ -59,6 +59,10 @@ Wnioski dla Doomsday (kolejność = opłacalność):
 9. **Nie chować funkcji** w prawym przycisku – wszystko ważne widoczne, podpowiedzi na najechanie (tooltipy) zostają.
 
 ## Technika (pułapki)
+- **Podział pasm przez odejmowanie** (`high = x - lowpass (x)`) daje garb przy częstotliwości podziału (przesunięcie fazy) –
+  CLEAN SUB w Forge podbijał 3. harmoniczną o +6 dB. → Zawsze **Linkwitz-Riley 24 dB** (2x Butterworth LP / HP, `Svf lp / hp`).
+- **Clipper za czystym subem zjada efekt** (sub znów robi się kwadratem). → Przy CLEAN SUB clipper dostaje tylko górę, sub idzie obok
+  (miękkie kolano tuż pod 0 dBFS jako zabezpieczenie).
 - `juce::AudioBuffer` po utworzeniu ma śmieci → zawsze `clear()` (niestabilne testy).
 - W pluginach z `using namespace doomsday` niektóre `jmin / jmax<int64>` łapią przeciążenia z `juce::dsp::SIMDRegister` → użyj `std::min`.
 - Nazwa składowej klasy = nazwa z `ParamIDs` (np. `band`, `distType`) przesłania ID → pisz `ParamIDs::...`.

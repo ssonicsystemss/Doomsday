@@ -410,47 +410,172 @@ void Meter::paint (Graphics& g)
 }
 
 // ======================================================================= PresetBar
+namespace
+{
+    String categoryOf (const String& n)
+    {
+        const int d = n.indexOf (" - ");
+        return d > 0 && d <= 14 ? n.substring (0, d).trim().toUpperCase() : String ("OTHER");
+    }
+
+    // preset browser shown in a CallOutBox: search, categories, favourites, list; click = load (stays open to audition)
+    class PresetBrowser : public Component, private ListBoxModel, private TextEditor::Listener
+    {
+    public:
+        explicit PresetBrowser (PresetBar& b) : bar (b)
+        {
+            search.setTextToShowWhenEmpty ("SEARCH...", Colours::grey);
+            search.addListener (this);
+            addAndMakeVisible (search);
+            cats.add ("ALL"); cats.add ("FAVOURITES");
+            for (auto& e : bar.entries()) if (! cats.contains (e.category)) cats.add (e.category);
+            catList.setModel (&catModel); presetList.setModel (this);
+            catList.setRowHeight (24); presetList.setRowHeight (24);
+            for (auto* l : { &catList, &presetList }) { l->setColour (ListBox::backgroundColourId, Colour (0xff0a0a0c)); addAndMakeVisible (*l); }
+            catModel.owner = this;
+            filter();
+            setSize (460, 420);
+            const int cur = bar.currentIndex();
+            const int row = shown.indexOf (cur);
+            if (row >= 0) { presetList.selectRow (row, false, true); presetList.scrollToEnsureRowIsOnscreen (row); }
+        }
+        void resized() override
+        {
+            auto r = getLocalBounds().reduced (8);
+            search.setBounds (r.removeFromTop (30));
+            r.removeFromTop (6);
+            catList.setBounds (r.removeFromLeft (130));
+            r.removeFromLeft (6);
+            presetList.setBounds (r);
+        }
+        void paint (Graphics& g) override { g.fillAll (Colour (0xff050506)); }
+    private:
+        struct CatModel : public ListBoxModel
+        {
+            PresetBrowser* owner = nullptr;
+            int getNumRows() override { return owner->cats.size(); }
+            void paintListBoxItem (int row, Graphics& g, int w, int h, bool sel) override
+            {
+                auto& lnf = lnfOf (owner->bar);
+                if (sel) { g.setColour (lnf.theme.accent (lnf.theme.uiAccent).main.withAlpha (0.25f)); g.fillRect (0, 0, w, h); }
+                g.setColour (sel ? lnf.theme.text : lnf.theme.label); g.setFont (lnf.labelFont (12.f, 0.15f));
+                g.drawText (owner->cats[row], 8, 0, w - 8, h, Justification::centredLeft);
+            }
+            void selectedRowsChanged (int row) override { if (row >= 0) { owner->cat = owner->cats[row]; owner->filter(); } }
+        } catModel;
+        int getNumRows() override { return shown.size(); }
+        void paintListBoxItem (int row, Graphics& g, int w, int h, bool sel) override
+        {
+            if (! isPositiveAndBelow (row, shown.size())) return;
+            auto& lnf = lnfOf (bar);
+            const auto& e = bar.entries()[(size_t) shown[row]];
+            const bool cur = shown[row] == bar.currentIndex();
+            if (sel || cur) { g.setColour (lnf.theme.accent (lnf.theme.uiAccent).main.withAlpha (sel ? 0.3f : 0.15f)); g.fillRect (0, 0, w, h); }
+            g.setColour (lnf.theme.text); g.setFont (lnf.valueFont (13.f));
+            g.drawText ((e.factory < 0 ? "USER  " : "") + e.name, 8, 0, w - 34, h, Justification::centredLeft, true);
+            g.setColour (bar.isFavourite (e.name) ? Colour (0xffffd34d) : Colours::white.withAlpha (0.15f));
+            g.setFont (lnf.boldFont (15.f));
+            g.drawText ("*", w - 26, 0, 20, h, Justification::centred);
+        }
+        void listBoxItemClicked (int row, const MouseEvent& e) override
+        {
+            if (! isPositiveAndBelow (row, shown.size())) return;
+            if (e.x > presetList.getWidth() - 34) { bar.toggleFavourite (bar.entries()[(size_t) shown[row]].name); presetList.repaint(); return; }
+            bar.load (shown[row]);
+            presetList.repaint();
+        }
+        void returnKeyPressed (int row) override { if (isPositiveAndBelow (row, shown.size())) bar.load (shown[row]); }
+        void textEditorTextChanged (TextEditor&) override { filter(); }
+        void filter()
+        {
+            shown.clear();
+            const auto q = search.getText().trim().toLowerCase();
+            for (int i = 0; i < (int) bar.entries().size(); ++i)
+            {
+                const auto& e = bar.entries()[(size_t) i];
+                if (cat == "FAVOURITES" && ! bar.isFavourite (e.name)) continue;
+                if (cat != "ALL" && cat != "FAVOURITES" && e.category != cat) continue;
+                if (q.isNotEmpty() && ! e.name.toLowerCase().contains (q)) continue;
+                shown.add (i);
+            }
+            presetList.updateContent(); presetList.repaint();
+        }
+        PresetBar& bar;
+        TextEditor search;
+        ListBox catList, presetList;
+        StringArray cats;
+        String cat { "ALL" };
+        Array<int> shown;
+    };
+}
+
 PresetBar::PresetBar (PresetHost& h, bool play_, bool random_) : host (h), withPlay (play_), withRandom (random_)
 {
-    box.onChange = [this]
-    {
-        const int id = box.getSelectedId();
-        if (id <= 0) return;
-        if (id < userIdBase) host.loadFactoryPreset (id - 1);
-        else if (isPositiveAndBelow (id - userIdBase, userFiles.size())) host.loadUserPresetFile (userFiles[id - userIdBase]);
-        lastName = host.currentPresetName();
-    };
     prev.onClick = [this] { step (-1); };
     next.onClick = [this] { step (1); };
     save.onClick = [this] { showSave(); };
     random.onClick = [this] { host.randomizeSound(); };
     play.onPress = [this] (bool d) { host.audition (d); };
+    undoBtn.onClick = [this] { if (auto* um = host.undoManager()) um->undo(); };
+    redoBtn.onClick = [this] { if (auto* um = host.undoManager()) um->redo(); };
     save.setTooltip ("Save the current sound as a preset");
     random.setTooltip ("Random sound within musical ranges");
     play.setTooltip ("Hold to play");
-    for (auto* c : { (Component*) &box, (Component*) &prev, (Component*) &next, (Component*) &save })
+    undoBtn.setTooltip ("Undo (Ctrl+Z)"); redoBtn.setTooltip ("Redo (Ctrl+Shift+Z / Ctrl+Y)");
+    name.setTooltip ("Click: preset browser (search, categories, favourites). Mouse wheel: next / previous. *: favourite");
+    for (auto* c : { (Component*) &name, (Component*) &prev, (Component*) &next, (Component*) &save })
         addAndMakeVisible (c);
     if (withRandom) addAndMakeVisible (random);
     if (withPlay) addAndMakeVisible (play);
+    if (host.undoManager() != nullptr) { addAndMakeVisible (undoBtn); addAndMakeVisible (redoBtn); }
+    favourites.addLines (favouritesFile().loadFileAsString());
+    favourites.removeEmptyStrings();
     refreshList();
 }
 PresetBar::~PresetBar()
 {
+    if (keyTarget != nullptr) keyTarget->removeKeyListener (this);
     if (dialog != nullptr) dialog->exitModalState (0);
     dialog.reset();
+}
+void PresetBar::parentHierarchyChanged()
+{
+    auto* top = getTopLevelComponent();
+    if (top == keyTarget.getComponent()) return;
+    if (keyTarget != nullptr) keyTarget->removeKeyListener (this);
+    keyTarget = top;
+    if (top != nullptr && top != this) top->addKeyListener (this);
+}
+bool PresetBar::keyPressed (const KeyPress& k, Component*)
+{
+    auto* um = host.undoManager();
+    if (um == nullptr || ! k.getModifiers().isCommandDown()) return false;
+    const int c = k.getKeyCode();
+    if ((c == 'Z' || c == 'z') && k.getModifiers().isShiftDown()) { um->redo(); return true; }
+    if (c == 'Z' || c == 'z') { um->undo(); return true; }
+    if (c == 'Y' || c == 'y') { um->redo(); return true; }
+    return false;
 }
 void PresetBar::resized()
 {
     const int w = getWidth();
     prev.setBounds (0, 18, 32, 32);
-    box.setBounds (38, 18, w - 76, 32);
+    name.setBounds (38, 18, w - 76, 32);
     next.setBounds (w - 32, 18, 32, 32);
+    const bool undo = host.undoManager() != nullptr;
+    int right = w;
+    if (undo)
+    {
+        redoBtn.setBounds (w - 44, 58, 44, 28);
+        undoBtn.setBounds (w - 94, 58, 46, 28);
+        right = w - 100;
+    }
     const int n = 1 + (withRandom ? 1 : 0) + (withPlay ? 1 : 0);
-    const int bw = (w - 6 * (n - 1)) / n;
+    const int bw = (right - 6 * (n - 1)) / n;
     int x = 0;
     if (withRandom) { random.setBounds (x, 58, n == 3 ? bw + 16 : bw, 28); x = random.getRight() + 6; }
-    save.setBounds (x, 58, n == 3 ? bw - 8 : (n == 1 ? w : bw), 28); x = save.getRight() + 6;
-    if (withPlay) play.setBounds (x, 58, w - x, 28);
+    save.setBounds (x, 58, n == 3 ? bw - 8 : (n == 1 ? right : bw), 28); x = save.getRight() + 6;
+    if (withPlay) play.setBounds (x, 58, right - x, 28);
 }
 void PresetBar::paint (Graphics& g)
 {
@@ -459,38 +584,87 @@ void PresetBar::paint (Graphics& g)
     g.setColour (lnf.theme.dim);
     g.drawText ("PRESET", 38, 0, getWidth() - 76, 14, Justification::centred);
 }
+void PresetBar::Name::paint (Graphics& g)
+{
+    auto& lnf = lnfOf (*this);
+    auto r = getLocalBounds().toFloat();
+    const auto& acc = lnf.theme.accent (lnf.theme.uiAccent);
+    g.setColour (Colour (0xff0b0b0d)); g.fillRoundedRectangle (r, 6.f);
+    g.setColour (acc.main.withAlpha (hover ? 0.7f : 0.35f)); g.drawRoundedRectangle (r.reduced (0.5f), 6.f, 1.f);
+    g.setColour (lnf.theme.text); g.setFont (lnf.boldFont (14.f));
+    g.drawText (text, r.withTrimmedLeft (10.f).withTrimmedRight (30.f).toNearestInt(), Justification::centred, true);
+    g.setColour (bar.isFavourite (text) ? Colour (0xffffd34d) : Colours::white.withAlpha (0.2f));
+    g.setFont (lnf.boldFont (17.f));
+    g.drawText ("*", starArea().toNearestInt(), Justification::centred);
+}
+void PresetBar::Name::mouseDown (const MouseEvent& e)
+{
+    if (starArea().contains (e.position)) { bar.toggleFavourite (text); repaint(); return; }
+    bar.openBrowser();
+}
+File PresetBar::favouritesFile() const
+{
+    return File::getSpecialLocation (File::userApplicationDataDirectory).getChildFile ("Doomsday")
+             .getChildFile (File::createLegalFileName (host.presetFolderText()) + " favourites.txt");
+}
+void PresetBar::toggleFavourite (const String& n)
+{
+    if (n.isEmpty()) return;
+    if (favourites.contains (n)) favourites.removeString (n); else favourites.add (n);
+    auto f = favouritesFile(); f.getParentDirectory().createDirectory();
+    f.replaceWithText (favourites.joinIntoString ("\n"));
+    name.repaint();
+}
 void PresetBar::refreshList()
 {
-    box.clear (dontSendNotification);
-    box.addSectionHeading ("FACTORY");
-    for (int i = 0; i < host.numFactoryPresets(); ++i) box.addItem (host.factoryPresetName (i), i + 1);
-    userFiles = host.userPresetFiles();
-    if (! userFiles.isEmpty())
+    list.clear();
+    for (int i = 0; i < host.numFactoryPresets(); ++i)
     {
-        box.addSeparator();
-        box.addSectionHeading ("USER");
-        for (int i = 0; i < userFiles.size(); ++i) box.addItem (userFiles[i].getFileNameWithoutExtension(), userIdBase + i);
+        const auto n = host.factoryPresetName (i);
+        list.push_back ({ n, categoryOf (n), i, {} });
     }
+    for (auto& f : host.userPresetFiles()) list.push_back ({ f.getFileNameWithoutExtension(), "USER", -1, f });
     lastName = {};
+}
+int PresetBar::currentIndex() const
+{
+    const auto n = host.currentPresetName();
+    for (int i = 0; i < (int) list.size(); ++i) if (list[(size_t) i].name == n) return i;
+    return -1;
+}
+void PresetBar::load (int i)
+{
+    if (! isPositiveAndBelow (i, (int) list.size())) return;
+    const auto& e = list[(size_t) i];
+    if (e.factory >= 0) host.loadFactoryPreset (e.factory);
+    else host.loadUserPresetFile (e.file);
+    if (auto* um = host.undoManager()) um->beginNewTransaction();
+    refresh();
 }
 void PresetBar::refresh()
 {
-    const auto name = host.currentPresetName();
-    if (name == lastName) return;
-    lastName = name;
-    int found = 0;
-    for (int i = 0; i < box.getNumItems(); ++i) if (box.getItemText (i) == name) { found = box.getItemId (i); break; }
-    if (found != 0) box.setSelectedId (found, dontSendNotification);
-    else box.setText (name, dontSendNotification);
+    // one undo step per gesture: start a new transaction whenever no mouse button is held
+    if (auto* um = host.undoManager())
+        if (! ModifierKeys::currentModifiers.isAnyMouseButtonDown()) um->beginNewTransaction();
+    const auto n = host.currentPresetName();
+    if (n == lastName) return;
+    lastName = n;
+    name.text = n; name.repaint();
 }
 void PresetBar::step (int d)
 {
-    Array<int> ids;
-    for (int i = 0; i < box.getNumItems(); ++i) ids.add (box.getItemId (i));
-    if (ids.isEmpty()) return;
-    int at = ids.indexOf (box.getSelectedId());
-    at = at < 0 ? 0 : (at + d + ids.size()) % ids.size();
-    box.setSelectedId (ids[at], sendNotificationSync);
+    if (list.empty()) return;
+    int at = currentIndex();
+    at = at < 0 ? 0 : (at + d + (int) list.size()) % (int) list.size();
+    load (at);
+}
+void PresetBar::openBrowser()
+{
+    refreshList();
+    auto content = std::make_unique<PresetBrowser> (*this);
+    auto* top = getTopLevelComponent();
+    const auto area = top->getLocalArea (this, name.getBounds());
+    CallOutBox::launchAsynchronously (std::move (content), area, top);
 }
 void PresetBar::showSave()
 {

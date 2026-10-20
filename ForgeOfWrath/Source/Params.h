@@ -39,6 +39,7 @@ namespace ParamIDs
     inline constexpr const char* crunchDec = "crunch_dec";
     inline constexpr const char* body      = "body";
     inline constexpr const char* grit      = "grit";
+    inline constexpr const char* cleanSub  = "clean_sub";
     // PUNCH
     inline constexpr const char* punchOn    = "punch_on";
     inline constexpr const char* punchLevel = "punch_level";

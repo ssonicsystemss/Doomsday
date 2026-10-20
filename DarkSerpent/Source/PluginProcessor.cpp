@@ -148,7 +148,7 @@ bool SerpentProcessor::saveUserPresetAs (const String& name)
 // ------------------------------------------------------------ engine
 SerpentProcessor::SerpentProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", AudioChannelSet::stereo(), true)),
-      apvts (*this, nullptr, "SERPENT", createLayout())
+      apvts (*this, &undo, "SERPENT", createLayout())
 {
     setCurrentProgram (0);
 }

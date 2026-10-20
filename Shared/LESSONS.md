@@ -38,6 +38,26 @@ Dopisuj po każdej uwadze właściciela („brzmi źle”, „słabo działa”,
 - Dane audio → GUI przez lock-free bufor; GUI kopiuje do własnej tablicy w timerze (u nas: `AnalyzerTap`, `LevelFeed`, `hitBuf`).
 - Galeria 20 ekranów (`screens/gallery/screen-bench.html`) + `ScreenKit.h` – gotowe wzory na liczniki BPM / Hz / poziomu (VFD, nixie, VU, LED ladder, scope…).
 
+## Z analizy Serum 2 (Xfer, 2025) – co robi go popularnym i co z tego bierzemy
+Źródła: Xfer „Serum 2 What's New” (PDF), recenzja MusicTech (8/10), MusicTech news, KVR.
+Co chwalą: **wszystko widać i da się złapać myszką** (krzywe, filtry, splittery, modulacje rysowane na gałkach),
+undo / redo, przeglądarka presetów (szukanie, kategorie, tagi, oceny, podgląd, przewijanie kółkiem nad nazwą), kopiuj / wklej
+modułów, makra, LFO rysowane z siatką i trybami chaos (Lorenz / Rossler), splittery FX (L/H, L/M/H, M/S), tryb „clean” drive, tryb HQ.
+Co krytykują: **ciężki dla CPU i RAM**, dużo funkcji ukrytych w menu pod prawym przyciskiem, cena.
+
+Wnioski dla Doomsday (kolejność = opłacalność):
+1. **Przeglądarka presetów** we wszystkich wtyczkach: kategorie z prefiksu nazwy (RAW / HARD …), szukanie, ulubione,
+   zmiana presetu kółkiem nad nazwą. Jeden klocek w `DoomsdayUI` (PresetBar v2) – zyskują wszystkie wtyczki naraz.
+2. **Undo / redo** (Ctrl+Z): `AudioProcessorValueTreeState` przyjmuje `UndoManager` – tani zysk; obwiednie (`Shape`) też przez undo.
+3. **Modulacja „przeciągnij na gałkę”** z pierścieniem zakresu na gałce: mamy `mod::Matrix` + `mod::Lfo`, brakuje klocka UI.
+4. **Splitter pasm w przesterach**: kick / bas – przester tylko powyżej ~100 Hz, sub zostaje czysty (mamy `dyn::Crossover3`).
+   W Forge: opcja „CLEAN SUB”. Ogólnie: każdy przester z wyborem pasma.
+5. **Makra** (4–8 gałek sterujących kilkoma parametrami) – wygodne pod automatykę w FL.
+6. **Tryb HQ** (ADAA + oversampling z `DoomsdayDrive.h`) jako przełącznik: jakość vs CPU. Domyślnie lekko – nie powtarzać błędu Serum z CPU.
+7. **Chaos LFO** (Lorenz) w `mod::Lfo` – „żywe”, nieregularne ruchy dla screechy.
+8. **Key & scale** w syntezatorach (Prophecy / Fortune / Forge): nuty dociągane do tonacji utworu.
+9. **Nie chować funkcji** w prawym przycisku – wszystko ważne widoczne, podpowiedzi na najechanie (tooltipy) zostają.
+
 ## Technika (pułapki)
 - `juce::AudioBuffer` po utworzeniu ma śmieci → zawsze `clear()` (niestabilne testy).
 - W pluginach z `using namespace doomsday` niektóre `jmin / jmax<int64>` łapią przeciążenia z `juce::dsp::SIMDRegister` → użyj `std::min`.

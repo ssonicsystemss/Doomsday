@@ -46,7 +46,14 @@ public:
     juce::String presetFolderText() override { return "Documents / Forge of Wrath / Presets"; }
     void audition (bool on) override { if (on) pendingAudition.store (true); }
 
-    // drawn envelopes (0 = AMP, 1 = DRIVE), shared with the audio thread
+    // SAMPLE layer (message thread)
+    bool loadSample (const juce::File&);
+    void clearSample();
+    juce::String sampleName() const;
+    int getSampleSerial() const { return sampleSerial.load(); }
+    static const char* shapeKey (int which);
+
+    // drawn envelopes (0 = AMP, 1 = DRIVE, 2 = PITCH), shared with the audio thread
     doomsday::kick::Shape getShape (int which) const;
     void setShape (int which, const doomsday::kick::Shape&);
     int getShapeSerial() const { return shapeSerial.load(); }
@@ -63,9 +70,9 @@ private:
     int currentProgram = 0;
     juce::String presetName { "Forge Default" };
     mutable juce::SpinLock shapeLock;
-    std::array<doomsday::kick::Shape, 2> shapes;
-    mutable doomsday::kick::Shape lastAmp, lastDrive;      // audio-thread copies when the lock is busy
-    std::atomic<int> shapeSerial { 0 };
+    std::array<doomsday::kick::Shape, 3> shapes;
+    mutable doomsday::kick::Shape lastAmp, lastDrive, lastPitch;      // audio-thread copies when the lock is busy
+    std::atomic<int> shapeSerial { 0 }, sampleSerial { 0 };
     std::atomic<bool> pendingAudition { false };
     juce::Random rng;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ForgeProcessor)

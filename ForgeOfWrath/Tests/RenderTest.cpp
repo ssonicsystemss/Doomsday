@@ -151,7 +151,7 @@ int main (int argc, char** argv)
         p.setCurrentProgram (jmin (3, p.getNumPrograms() - 1));
         sr = 48000.0; hit (p, 31, 0.15);
         std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
-        ed->setSize (1500, 900);
+        ed->setSize (1500, 990);
         auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
         PNGImageFormat png; FileOutputStream fo (outDir.getChildFile ("gui.png")); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
     }

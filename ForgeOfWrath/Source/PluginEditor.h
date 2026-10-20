@@ -27,7 +27,7 @@ public:
     void mouseDoubleClick (const juce::MouseEvent&) override;
     void mouseExit (const juce::MouseEvent&) override { hover = -1; repaint(); }
     void tick();
-    int editing = 0;                 // 0 = AMP, 1 = DRIVE
+    int editing = 0;                 // 0 = AMP, 1 = DRIVE, 2 = PITCH
 private:
     void parameterChanged (const juce::String&, float) override { dirty.store (true); }
     void renderPreview();
@@ -42,13 +42,17 @@ private:
     double hitStart = 0.0;
     float playMs = -1.f, previewMs = 410.f;
     std::vector<float> lo, hi, pitch;     // per column
-    doomsday::kick::Shape shape[2];
+    doomsday::kick::Shape shape[3];
+    void convertCurveToDrawn();
 };
 
-class Canvas : public juce::Component, private juce::Timer
+class Canvas : public juce::Component, public juce::FileDragAndDropTarget, private juce::Timer
 {
 public:
-    static constexpr int W = 1500, H = 900;
+    static constexpr int W = 1500, H = 990;
+    bool isInterestedInFileDrag (const juce::StringArray&) override;
+    void filesDropped (const juce::StringArray&, int, int) override;
+    void paintOverChildren (juce::Graphics&) override;
     explicit Canvas (ForgeProcessor&);
     ~Canvas() override;
     void paint (juce::Graphics&) override;
@@ -59,12 +63,20 @@ private:
     ForgeProcessor& proc;
     doomsday::ui::StageLookAndFeel lnf;
     juce::Image background;
-    std::vector<std::pair<juce::String, juce::Rectangle<int>>> panels;
     AnvilDisplay anvil;
     doomsday::ui::PresetBar presets;
-    std::vector<std::unique_ptr<doomsday::ui::Knob>> tailK, distK, punchK, clickK, masterK;
-    std::unique_ptr<doomsday::ui::Choice> distType;
-    std::unique_ptr<doomsday::ui::Switch> punchOn;
+    struct Section { juce::String title; std::vector<std::unique_ptr<doomsday::ui::Knob>> knobs; juce::Component* side = nullptr; int sideW = 0; int accent = 0; juce::Rectangle<int> area; };
+    std::vector<Section> sections;
+    Section& section (const juce::String& title, int accent);
+    std::unique_ptr<doomsday::ui::Choice> distType, dist2Type, pitchMode;
+    std::unique_ptr<doomsday::ui::Switch> punchOn, roomInto;
+    juce::TextButton loadBtn { "LOAD" }, clearBtn { "X" };
+    std::unique_ptr<juce::FileChooser> chooser;
+    juce::Rectangle<int> sampleNameArea;
+    int lastSampleSerial = -1;
+    bool dragHover = false;
+    void fileDragEnter (const juce::StringArray&, int, int) override { dragHover = true; repaint(); }
+    void fileDragExit (const juce::StringArray&) override { dragHover = false; repaint(); }
     doomsday::ui::Meter meter;
     juce::TooltipWindow tips { this, 600 };
 };

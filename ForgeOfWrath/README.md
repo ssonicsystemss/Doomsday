@@ -1,4 +1,6 @@
-# FORGE OF WRATH v1.0
+# FORGE OF WRATH v2.0
+
+**v2:** łańcuch STAGE 1 → MID EQ → STAGE 2, ROOM (INTO DIST), OTT, rysowany PITCH, PUNCH DRIVE, CHAOS, HOLD, własny SAMPLE (LOAD / przeciągnij WAV).
 Syntezator kicków hardstyle (instrument VST3, FL Studio). Kick wychodzi gotowy prosto z wtyczki – bez dokładania
 przesterów, EQ i clipperów w mikserze. Czarny + magma.
 

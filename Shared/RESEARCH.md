@@ -164,6 +164,54 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Dla nas:** idealny wzór **prostego trybu**: gotowe krzywe + jedna gałka + audio trigger + „tylko dół”; a nasza przewaga: **rysowanie
   krzywej** (czego Kickstartowi brakuje) i osobna siła na pasmo.
 
+## u-he Diva → syntezatory (brzmienie analogowe)
+Źródła: MusicRadar / Computer Music, Sound On Sound, KVR.
+- **Budowa:** wybierane **modele** oscylatorów (Triple VCO – Minimoog, DCO – Alpha Juno z sub-oscylatorem, Dual VCO z sync / cross-mod)
+  i **filtrów** (ladder Mooga, czysta kaskada, multimode, agresywny „Bite”) liczone symulacją obwodów (zero-delay feedback);
+  3 typy obwiedni (ADS Mooga, analogowy ADSR, cyfrowy „schodkowy”), **TRIMMERY**: rozstrojenie i rozrzut cutoffu / obwiedni między głosami
+  („slop” – każdy głos trochę inny jak w analogu). **Tryby dokładności** (Draft … Divine) – Divine bardzo ciężki dla CPU.
+  Przeglądarka: ulubione / „śmieci”.
+- **Chwalą:** brzmienie jak prawdziwy Minimoog, prosty interfejs w zakładkach. **Krytykują:** CPU.
+- **Dla nas:** **„slop” / rozrzut między głosami** (cutoff, obwiednie, strój – tanie, a daje analogowe życie), modele filtrów jako
+  tryby (`filter::Ladder` = „ladder”, SVF = „cascade / clean”), tryby dokładności = nasz przełącznik HQ (lżej grając, HQ przy renderze).
+
+## Soundtoys Decapitator → saturacja (Forge / Dark Serpent / osobna wtyczka)
+Źródło: instrukcja Decapitator (Soundtoys).
+- **Budowa:** 5 **stylów** (A – preamp taśmy Ampex 350, gładki; E – Chandler / EMI TG, gruby dół i powietrze; N – Neve 1057, skupiony środek;
+  T – trioda Culture Vulture, parzyste harmoniczne, ciepło; P – pentoda, nieparzyste, agresywnie), DRIVE, **AUTO (auto-gain: ściszanie
+  przy podkręcaniu)**, **PUNISH (+20 dB na ostro)**, LOW CUT przed przesterem, TONE (tilt przed), HIGH CUT po + **STEEP** (6 → 30 dB/okt,
+  przy ~4–5 kHz brzmi jak kolumna gitarowa), **THUMP** (garb basowy przy low cut jak „head bump” taśmy), MIX (równolegle), OUTPUT.
+- **Dla nas:** **AUTO-GAIN** przy każdej gałce drive (koniec z „głośniej = lepiej”), przycisk **PUNISH**, low cut + THUMP przed przesterem,
+  STEEP high cut (szybka „kolumna”), style nazwane charakterem (ciepło / parzyste vs agresja / nieparzyste) zamiast samych nazw krzywych.
+
+## FabFilter Pro-C 2 → Throne (pasma) / przyszły kompresor
+Źródło: MusicTech (recenzja).
+- **Budowa:** 8 **stylów** (Clean, Classic, Opto, Vocal – auto knee / ratio, **Mastering**, Bus, **Punch**, **Pumping** – pod sidechain EDM),
+  własny knee, **HOLD** (do 500 ms), lookahead, auto-gain, **sidechain EQ** (HP / LP + środkowe pasmo), wykres: **przewijana fala z krzywą
+  redukcji** (widać attack / release) + wykres knee / ratio.
+- **Dla nas:** styl „PUMPING” w Throne / sidechain, HOLD w kompresorach pasm, **przewijana fala z redukcją** (ten sam pomysł co w Pro-L 2 –
+  pora go zrobić jako klocek UI w `Shared/`).
+
+## Sytrus (FL) → screeche FM (PoS / Dark Serpent)
+Źródło: Sound On Sound (recenzja), samouczek Sytrus (Image-Line).
+- **Budowa:** **6 operatorów**, każdy jak mały syntezator (obwiednia, LFO, pan, pitch, faza), **macierz FM / RM** (każdy moduluje każdego,
+  także siebie), kształt fali przez harmoniczne + suwaki Shape / Tension / Skew / Sine Shaper, szum, 3 filtry (12 / 24 / 36 dB, łańcuchowo),
+  obwiednie wielopunktowe rysowane, chorus + 3 delaye. Brzmi jasno i cyfrowo.
+- **Dla nas:** macierz FM 3–4 operatorów jako tryb oscylatora screecha (FM / RM z rysowanymi obwiedniami operatorów = klasyczny
+  „FL-owy” screech), „Sine Shaper” jako prosty waveshaper sinusa.
+
+## Technika: jak robi się hardstyle'owy kick (Native Instruments – „hardstyle music”)
+Źródło: Native Instruments blog (krok po kroku, 150–160 BPM).
+1. **EQ PRZED przesterem: wytnij dół, podbij środek** (−13 dB @ 50 Hz, −11,5 dB @ 170 Hz, +12 dB @ 383 Hz) → przester (Dirt).
+2. Drugi przester (Bite), potem **EQ przed kolejnym przesterem** (+4,6 dB @ 50 Hz, +5,8 dB @ ~1 kHz szeroko, +10,5 dB @ 1,86 kHz).
+3. **Resampling** do audio → sampler z obwiednią (ogon), na ogon **bitcrusher** (≈10 kHz, 6 bit, crunch) – wysoki „artefakt” na końcu kicka.
+4. **Transient shaper w pasmach** (podział 200 Hz / 6 kHz: mniej sustainu w środku, więcej w górze), końcowy EQ (−8 dB @ 861 Hz).
+5. **Warstwa PUNCH** (909) strojona do ogona, z własnym przesterem; **ogon ściszany sidechainem od punchu** (pompowanie).
+6. Screech i lead dostają tę samą rytmikę co kick, strojone do tonacji; wszystko inne sidechain od kicka.
+- **Dla Forge (konkretnie):** **PRE EQ przed STAGE 1** (cięcie dołu + podbicie ~300–400 Hz – dziś mamy tylko TONE / tilt) – z CLEAN SUB dół
+  wraca czysty; **BITCRUSH na ogonie** (rate + bity); **transient shaper w pasmach**; **ducking ogona od punchu** (sidechain wewnątrz kicka);
+  **EXPORT WAV** (resampling to standard pracy).
+
 ---
 ## Wspólne wzorce (wszystkie analizy)
 - **Słuchanie różnicy**: delta / audition / unity gain (Pro-L 2, nasze MATCH) – producent od razu słyszy, co robi efekt.
@@ -177,11 +225,15 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Wielopasmowość jako standard** (Saturn, Trash, Maximus, ShaperBox, Kickstart): przester / ducking / kompresja osobno na pasma.
 - **Przester zależny od dynamiki** (Saturn DYNAMICS): punch zostaje, ogon się brudzi.
 - **Dwa tryby obsługi**: prosty (gotowe krzywe + jedna gałka – Kickstart) i pełny (rysowanie – ShaperBox / Maximus).
+- **Auto-gain przy drive** (Decapitator, Pro-C 2, OTT out gain): słuchamy charakteru, nie głośności.
+- **Przewijana fala z krzywą redukcji** (Pro-L 2, Pro-C 2): najczytelniejszy podgląd dynamiki – do zrobienia jako klocek UI.
+- **Rozrzut między głosami** (Diva „slop”): tani sposób na analogowe życie.
 
 ---
 ## Lista pomysłów do zrobienia (z analiz, wg wtyczki)
-- **Forge of Wrath:** EXPORT WAV w tonacji; oś PITCH w nutach + przyciąganie; podgląd warstw osobno + zoom; 2–3 warstwy sampla;
-  preset zapisuje swój sample; presety dopasowane do 38 kicków referencyjnych na silniku v2.
+- **Forge of Wrath:** EXPORT WAV w tonacji; **PRE EQ przed STAGE 1** (cięcie dołu + podbicie 300–400 Hz); **BITCRUSH ogona**;
+  transient shaper w pasmach; ducking ogona od punchu; DYNAMICS przesteru (Saturn); oś PITCH w nutach + przyciąganie; podgląd warstw
+  osobno + zoom; 2–3 warstwy sampla; preset zapisuje swój sample; presety dopasowane do 38 kicków referencyjnych na silniku v2.
 - **Mirror of Souls:** dynamic z auto-progiem; tryb RESONANCE (soothe); EQ MATCH; rysowanie krzywej; kanały L / R; płynne nachylenie; DELTA.
 - **Throne of Titans:** AUDITION / DELTA; style limitera; wykres redukcji w czasie; asystent gatunek + cel; OTT-owe UPWARD / DOWNWARD osobno.
 - **Abyss of Echoes:** tryby reverbu o różnym charakterze; ATTACK; losowa modulacja bez falowania wysokości; kolor epoki.
@@ -192,4 +244,6 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Nowa wtyczka – BUILD-UP / FX (jak Gross Beat):** tape stop, stutter, half-speed, reverse, trance gate; sloty z klawiatury MIDI, sync z taktem.
 - **Przestery wszędzie:** wielopasmowość, DYNAMICS (Saturn), rysowany waveshaper (Trash), filtr samogłoskowy, FEEDBACK, HQ.
 - **Throne:** rysowana krzywa kompresji „po maximusowemu”, REL + REL2, PEAK / RMS, wewnętrzny sidechain pasma, heatmapa spektrum.
-- **Wszystkie:** przeglądarka presetów i UNDO (zrobione), przełącznik HQ, modulacja przeciągnij-na-gałkę z animowanym wskaźnikiem, makra.
+- **Wszystkie:** przeglądarka presetów i UNDO (zrobione), przełącznik HQ, modulacja przeciągnij-na-gałkę z animowanym wskaźnikiem, makra,
+  AUTO-GAIN przy drive, klocek UI „przewijana fala + redukcja”.
+- **Syntezatory:** „slop” między głosami (Diva), tryb FM 3–4 operatorów (Sytrus), style saturacji nazwane charakterem (Decapitator).

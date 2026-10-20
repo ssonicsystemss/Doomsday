@@ -88,7 +88,10 @@ Vital → warpy harmonicznych, animowane wskaźniki modulacji, randomizery Perli
 od kicka i podziałem na pasma. soothe2 → tryb RESONANCE w Mirror + DELTA. OTT → domyślnie nisko (~20 %), reverb / delay po OTT.
 Ozone 12 → asystent „gatunek + cel” w Throne. Saturn 2 / Trash 2 → przestery wielopasmowe, DYNAMICS, rysowany waveshaper,
 filtr samogłoskowy. Gross Beat → wtyczka build-up / FX (tape stop, stutter). Maximus → Throne z rysowaną krzywą kompresji, REL + REL2.
-Kickstart 2 → prosty tryb sidechaina (gotowe krzywe + jedna gałka + audio trigger + tylko dół). **Pełna lista pomysłów: koniec `RESEARCH.md`.**
+Kickstart 2 → prosty tryb sidechaina (gotowe krzywe + jedna gałka + audio trigger + tylko dół). Diva → „slop” między głosami, tryby
+dokładności. Decapitator → AUTO-GAIN, PUNISH, THUMP, STEEP. Pro-C 2 → styl PUMPING, HOLD, przewijana fala z redukcją. Sytrus → FM
+operatorów na screeche. **Technika kicka (NI): EQ przed przesterem tnie dół i podbija 300–400 Hz, między przesterami kolejny EQ,
+bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełna lista pomysłów: koniec `RESEARCH.md`.**
 
 ## Technika (pułapki)
 - **Podział pasm przez odejmowanie** (`high = x - lowpass (x)`) daje garb przy częstotliwości podziału (przesunięcie fazy) –

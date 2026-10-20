@@ -115,6 +115,55 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Dla nas (Throne):** nasz LEARN to mały „asystent” – rozbudować: **gatunek + cel → ustawia pasma, clip i limit** (np. HARDSTYLE / RAW / UPTEMPO),
   „BASS CONTROL” prostą wersją: stały poziom dołu względem reszty (mamy pasmo LOW i MONO BASS); separacja stemów – za trudne, pomijamy.
 
+## FabFilter Saturn 2 → przestery we wszystkich (Forge STAGE 1 / 2, Dark Serpent, PoS), może osobna wtyczka saturacji
+Źródło: fabfilter.com (strona produktu), KVR, Plugin Boutique.
+- **Budowa:** 28 stylów (od lampy przez wzmacniacze gitarowe po bitcrush) + 5 kreatywnych; **do 6 pasm** (zbocza 6 / 12 / 24 / 48 dB,
+  opcjonalnie linear phase); na pasmo: DRIVE, MIX, **FEEDBACK**, **DYNAMICS** (przester zależny od głośności – zachowuje transjenty
+  albo je podkręca), TONE, LEVEL, solo / mute. Modulacja: 16-krokowe XLFO, obwiednie, envelope follower z wykrywaniem transjentów,
+  MIDI, XY, macierz 50 slotów (przeciągnij-upuść), widać modulację na żywo. Jakość: Good (8x) / Superb (32x).
+- **Dla nas:** przester **wielopasmowy** jako standard (mamy `Crossover3` + `drive::Adaa1`), gałka **DYNAMICS** (przester słabszy
+  na transjentach = punch zostaje, albo odwrotnie), FEEDBACK, oversampling do wyboru. W Forge: STAGE 1 / 2 z podziałem na pasma.
+
+## iZotope Trash 2 → przestery, Forge / Dark Serpent
+Źródła: MusicRadar, MusicTech, Ask.Audio.
+- **Budowa:** 6 modułów w dowolnej kolejności (Graph): TRASH (2 stopnie przesteru, do 4 pasm, 69 algorytmów w 7 kategoriach:
+  Distort, Drive, Faulty, Fuzz, Heavy, Retro, Saturate; część ze suwakiem STYLE), 2 filtry 6-pasmowe (20+ typów, w tym **samogłoski**),
+  CONVOLVE (impulsy kolumn / mikrofonów + własne IR), DYNAMICS (upward / gate, węzły na wykresie), DELAY (6 typów, „trash” degraduje echa).
+  **Rysowany waveshaper**: krzywa bazowa (czerwona) + Twoja poprawka (żółta) = wynik (niebieska).
+- **Chwalą:** wszechstronność, brzmienie, modulacja, waveshaper. **Krytykują:** brak routingu L / R, mało presetów filtrów.
+- **Dla nas:** **rysowany waveshaper** (mamy `mod::Shape` → krzywa przesteru), **filtr samogłoskowy** (mamy `Formant` w PoS),
+  CONVOLVE z własnym IR (kolumny / „pudło” – ciekawe na screeche), kolejność modułów przeciąganiem.
+
+## Gross Beat (FL Studio) → przyszła wtyczka „czasowa” / efekty build-upów
+Źródło: instrukcja FL Studio (Image-Line).
+- **Jak działa:** bufor 2 taktów, **36 obwiedni CZASU** (przesunięcie odtwarzania: pozioma linia = normalnie, nachylona = szybciej /
+  wolniej / wstecz → stutter, tape stop, scratch, half-speed) i **36 obwiedni GŁOŚNOŚCI** (gate / trance gate / sidechain).
+  Sloty przełączane z klawiatury MIDI na żywo (głośność od C1/C2, czas od C4/C5), Trig Sync (start od 1/4 do 4 bitów), Pos Sync,
+  Key-held / One-shot, HOLD (powtarzanie taktu), skreczowanie myszą, wygładzanie ATT / REL / TENSION, redukcja trzasków przy skokach,
+  HQ resampling (sinc).
+- **Dla nas:** pomysł na wtyczkę **„build-up / FX”**: tape stop, stutter, half-speed, reverse, gate – sloty grane z klawiatury, sync z taktem.
+  Klocki: `mod::Shape` (obwiednie), `mod::syncBeats` (sync), bufor + interpolacja. Ważne: wygładzanie skoków (bez trzasków).
+
+## Maximus (FL Studio) → Throne of Titans (to jego „pierwowzór”)
+Źródło: instrukcja FL Studio (Image-Line) – Maximus Controls.
+- **Budowa:** high-pass na wejściu → 3 pasma LOW / MID / HIGH + MASTER; **kompresja rysowaną krzywą (brak gałki threshold –
+  próg i ratio to punkty na krzywej)**, typy krzywych (single, double, hold, stairs…), narzędzia (flip, normalize, smooth, „analyze audio”),
+  PRE / POST, saturacja (THRES: typ A w lewo / B w prawo, CEIL – twardość), ATT, **REL i REL2** (przyspieszający i zwalniający release,
+  da się mieszać), SUSTAIN (RMS), PEAK / RMS, zbocza 12 / 24 dB, linear phase, LMH MIX (równoległa), look-ahead, separacja stereo,
+  **Master Mid** (pasmo MID steruje kompresją całości – wewnętrzny sidechain / de-esser), spektrogram / heatmapa w tle, oversampling.
+- **Dla nas (Throne):** **rysowana krzywa kompresji** zamiast THRESH / RATIO / KNEE (mamy `mod::Shape` + krzywą transferu na ekranie),
+  dwa release'y, PEAK / RMS, wewnętrzny sidechain pasma (np. wokal / lead ścisza dół), heatmapa spektrum. Producent FL zna Maximusa –
+  Throne powinien dać się obsłużyć „po maximusowemu”, ale prościej (LEARN, podpowiedzi).
+
+## Kickstart 2 (Nicky Romero / Cableguys) → wtyczka sidechain (Sidechain Prophecy v2)
+Źródła: MusicTech (recenzja), MusicRadar, instrukcja Kickstart 2 (Cableguys).
+- **Budowa:** 16 gotowych krzywych (10 ducking, 6 ucinanie ogona), **jedna duża gałka MIX**, sync z DAW, x2 / ½ prędkości, przesuwanie
+  krzywej w przód / tył (nudge), MIDI i **audio trigger** (sidechain od kicka), podgląd: fala kicka nałożona na fale basu,
+  przesuwane zbocze, **tryb multiband** (ducking tylko dołu).
+- **Chwalą:** bajecznie prosty i szybki, audio trigger, cena (14 €). **Krytykują:** nie da się rysować krzywych, brak osobnej siły na pasmo.
+- **Dla nas:** idealny wzór **prostego trybu**: gotowe krzywe + jedna gałka + audio trigger + „tylko dół”; a nasza przewaga: **rysowanie
+  krzywej** (czego Kickstartowi brakuje) i osobna siła na pasmo.
+
 ---
 ## Wspólne wzorce (wszystkie analizy)
 - **Słuchanie różnicy**: delta / audition / unity gain (Pro-L 2, nasze MATCH) – producent od razu słyszy, co robi efekt.
@@ -125,6 +174,9 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Krzywa / próg zamiast liczb**: soothe (krzywa czułości), ShaperBox (rysowana krzywa), OTT (DEPTH jako jedna gałka).
 - **Domyślne ustawienia ostrożne** (OTT na 100 % to typowy błąd) – nasze nowe efekty startują łagodnie.
 - **Osobna jakość na eksport** (soothe): w czasie grania lżej, przy renderze HQ.
+- **Wielopasmowość jako standard** (Saturn, Trash, Maximus, ShaperBox, Kickstart): przester / ducking / kompresja osobno na pasma.
+- **Przester zależny od dynamiki** (Saturn DYNAMICS): punch zostaje, ogon się brudzi.
+- **Dwa tryby obsługi**: prosty (gotowe krzywe + jedna gałka – Kickstart) i pełny (rysowanie – ShaperBox / Maximus).
 
 ---
 ## Lista pomysłów do zrobienia (z analiz, wg wtyczki)
@@ -135,5 +187,9 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Abyss of Echoes:** tryby reverbu o różnym charakterze; ATTACK; losowa modulacja bez falowania wysokości; kolor epoki.
 - **Syntezatory (PoS / Dark Serpent / Fortune):** filtr `Ladder` jako tryb ANALOG; MIX supersawa (`sides`); tryby oscylatora z CTRL A / B
   (FM, HardFM, sync, warp harmonicznych); unison z akordami; 2 filtry szereg / równolegle; randomizery Perlin / Lorenz; key & scale; arp ze step seq.
-- **Nowa wtyczka – SHAPER / sidechain:** rysowana krzywa (mamy), sync z tempem (mamy), audio trigger od kicka, 3 pasma, master volume.
+- **Nowa wtyczka – SHAPER / sidechain (Sidechain Prophecy v2):** tryb prosty jak Kickstart (gotowe krzywe + MIX), tryb pełny jak ShaperBox
+  (rysowanie, mamy `mod::Shape`), sync z tempem (mamy), audio trigger od kicka, „tylko dół” / 3 pasma z osobną siłą, master volume.
+- **Nowa wtyczka – BUILD-UP / FX (jak Gross Beat):** tape stop, stutter, half-speed, reverse, trance gate; sloty z klawiatury MIDI, sync z taktem.
+- **Przestery wszędzie:** wielopasmowość, DYNAMICS (Saturn), rysowany waveshaper (Trash), filtr samogłoskowy, FEEDBACK, HQ.
+- **Throne:** rysowana krzywa kompresji „po maximusowemu”, REL + REL2, PEAK / RMS, wewnętrzny sidechain pasma, heatmapa spektrum.
 - **Wszystkie:** przeglądarka presetów i UNDO (zrobione), przełącznik HQ, modulacja przeciągnij-na-gałkę z animowanym wskaźnikiem, makra.

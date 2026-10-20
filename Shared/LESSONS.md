@@ -86,7 +86,9 @@ style limitera, wykres redukcji w czasie. Valhalla → Abyss: tryby o wyraźnym 
 wysokości. Spire → syntezatory: wzór „TRYB + CTRL A / CTRL B”, unison z akordami, dwa filtry szeregowo / równolegle.
 Vital → warpy harmonicznych, animowane wskaźniki modulacji, randomizery Perlin / Lorenz. ShaperBox → wtyczka shaper z AUDIO TRIGGER
 od kicka i podziałem na pasma. soothe2 → tryb RESONANCE w Mirror + DELTA. OTT → domyślnie nisko (~20 %), reverb / delay po OTT.
-Ozone 12 → asystent „gatunek + cel” w Throne. **Pełna lista pomysłów: koniec `RESEARCH.md`.**
+Ozone 12 → asystent „gatunek + cel” w Throne. Saturn 2 / Trash 2 → przestery wielopasmowe, DYNAMICS, rysowany waveshaper,
+filtr samogłoskowy. Gross Beat → wtyczka build-up / FX (tape stop, stutter). Maximus → Throne z rysowaną krzywą kompresji, REL + REL2.
+Kickstart 2 → prosty tryb sidechaina (gotowe krzywe + jedna gałka + audio trigger + tylko dół). **Pełna lista pomysłów: koniec `RESEARCH.md`.**
 
 ## Technika (pułapki)
 - **Podział pasm przez odejmowanie** (`high = x - lowpass (x)`) daje garb przy częstotliwości podziału (przesunięcie fazy) –

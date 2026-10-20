@@ -1,4 +1,4 @@
-# MIRROR OF SOULS v1.0
+# MIRROR OF SOULS v1.2
 8-pasmowy equalizer do hardstyle (efekt VST3, FL Studio). Czarny + lodowy błękit.
 
 ## Instalacja (Windows)
@@ -15,7 +15,8 @@ To efekt: wstaw go w slot miksera (Mixer → slot → Mirror of Souls).
 - Pasma DYNAMIC pokazują kółkiem, gdzie jest ich wzmocnienie w tej chwili.
 
 ## Pasmo (dół, po wybraniu numeru 1–8)
-LOW CUT / LOW SHELF / BELL / NOTCH / HIGH SHELF / HIGH CUT, nachylenie cięć 12 / 24 / 48 dB, FREQ, GAIN, Q,
+LOW CUT / LOW SHELF / BELL / NOTCH / HIGH SHELF / HIGH CUT, nachylenie cięć 12 / 24 / 48 / **96 dB**, FREQ,
+**GAIN** (wycięcie do **−48 dB**, podbicie do +24 dB; na ekranie dół skali to −24 i −48), Q, **NOTCH** = częstotliwość znika całkiem,
 STEREO / MID / SIDE (działa na całość, sam środek albo same boki), **DYNAMIC** + THRESH (pasmo działa dopiero,
 gdy dźwięk w jego zakresie przekroczy próg – np. zbija piszczące rezonanse tylko wtedy, gdy się pojawiają).
 

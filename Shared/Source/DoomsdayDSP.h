@@ -556,7 +556,11 @@ namespace doomsday::dsp
     {
         if (stages <= 1) return { 0.70710678 };
         if (stages == 2) return { 0.54119610, 1.30656296 };
-        return { 0.50979558, 0.60134489, 0.89997622, 2.56291545 };
+        if (stages == 4) return { 0.50979558, 0.60134489, 0.89997622, 2.56291545 };
+        std::vector<double> q;               // any order: Q of each 2nd-order section of a 2*stages Butterworth
+        for (int k = 1; k <= stages; ++k) q.push_back (1.0 / (2.0 * std::sin ((2.0 * k - 1.0) * juce::MathConstants<double>::pi / (4.0 * stages))));
+        std::sort (q.begin(), q.end());
+        return q;
     }
 
     template <int Size = 8192>

@@ -78,6 +78,19 @@ int main (int argc, char** argv)
         set (p, band (0, slope), 2);
         const double lo48 = sineGainDb (p, 30.0);
         check (lo48 < lo - 15.0, "48 dB slope cuts harder", "(" + String (lo48, 1) + " dB)");
+        set (p, band (0, slope), 3);
+        const double lo96 = sineGainDb (p, 60.0), at96 = sineGainDb (p, 100.0);
+        check (lo96 < -40.0 && std::abs (at96 + 3.0) < 0.6, "96 dB slope: 60 Hz gone, -3 dB at the corner", "(60 Hz " + String (lo96, 1) + ", 100 Hz " + String (at96, 1) + ")");
+    }
+    // ---- deep cuts: bell -40 dB, full notch
+    {
+        flat (p);
+        set (p, band (3, on), 1); set (p, band (3, type), Choices::Bell); set (p, band (3, freq), 1000); set (p, band (3, gain), -40.f); set (p, band (3, q), 2.f);
+        const double cut = sineGainDb (p, 1000.0);
+        check (std::abs (cut + 40.0) < 0.5, "bell cuts -40 dB", "(" + String (cut, 1) + " dB)");
+        set (p, band (3, type), Choices::Notch); set (p, band (3, q), 4.f);
+        const double nt = sineGainDb (p, 1000.0), side = sineGainDb (p, 2000.0);
+        check (nt < -50.0 && side > -1.5, "notch removes the frequency", "(" + String (nt, 1) + " dB, 2 kHz " + String (side, 1) + ")");
     }
     // ---- MID band leaves the sides alone
     {

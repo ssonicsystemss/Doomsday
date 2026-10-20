@@ -24,7 +24,7 @@ struct EqParams
 struct BandDesign
 {
     int stages = 0;
-    std::array<doomsday::dsp::BiquadCoefs, 4> c;
+    std::array<doomsday::dsp::BiquadCoefs, 8> c;
     double magnitude (double hz, double fs) const { double m = 1.0; for (int i = 0; i < stages; ++i) m *= c[(size_t) i].magnitude (hz, fs); return m; }
 };
 
@@ -49,7 +49,7 @@ public:
                 const float k = juce::jmin (1.f, amt);
                 const double hz = b.type == Choices::LowCut ? 10.0 * std::pow ((double) b.freq / 10.0, (double) k)
                                                             : 22000.0 * std::pow ((double) b.freq / 22000.0, (double) k);
-                const int stages = b.slope == 0 ? 1 : b.slope == 1 ? 2 : 4;
+                const int stages = b.slope == 0 ? 1 : b.slope == 1 ? 2 : b.slope == 2 ? 4 : 8;
                 const auto qs = doomsday::dsp::butterworthQs (stages);
                 d.stages = stages;
                 for (int i = 0; i < stages; ++i)
@@ -61,7 +61,8 @@ public:
             }
             case Choices::LowShelf:  d.stages = 1; d.c[0] = BQ::make (BQ::LowShelf, fs, b.freq, juce::jlimit (0.3, 2.0, (double) b.q), g); break;
             case Choices::HighShelf: d.stages = 1; d.c[0] = BQ::make (BQ::HighShelf, fs, b.freq, juce::jlimit (0.3, 2.0, (double) b.q), g); break;
-            case Choices::Notch:     d.stages = 1; d.c[0] = BQ::make (BQ::Bell, fs, b.freq, juce::jmax (2.0, (double) b.q), -36.0 * juce::jmin (1.f, amt)); break;
+            case Choices::Notch:     d.stages = 1; d.c[0] = amt >= 0.999f ? BQ::make (BQ::Notch, fs, b.freq, juce::jmax (2.0, (double) b.q))      // full notch: the frequency is gone
+                                                          : BQ::make (BQ::Bell, fs, b.freq, juce::jmax (2.0, (double) b.q), -48.0 * amt); break;
             default:                 d.stages = 1; d.c[0] = BQ::make (BQ::Bell, fs, b.freq, b.q, g); break;
         }
         return d;
@@ -177,7 +178,7 @@ public:
 private:
     struct BandState
     {
-        std::array<std::array<doomsday::dsp::Biquad, 4>, 2> f;
+        std::array<std::array<doomsday::dsp::Biquad, 8>, 2> f;
         doomsday::dsp::Biquad det;
         float env = 0.f;
         int mode = -1, type = -1, slope = -1; bool on = false;

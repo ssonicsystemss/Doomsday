@@ -39,8 +39,20 @@ void EqDisplay::resized() { plot = getLocalBounds().toFloat().reduced (46.f, 18.
 
 float EqDisplay::xOf (double hz) const { return plot.getX() + plot.getWidth() * (float) (std::log (hz / fMin) / std::log (fMax / fMin)); }
 double EqDisplay::hzOf (float x) const { return fMin * std::pow (fMax / fMin, (double) jlimit (0.f, 1.f, (x - plot.getX()) / plot.getWidth())); }
-float EqDisplay::eqY (float db) const { return plot.getCentreY() - db / 18.f * plot.getHeight() * 0.5f; }
-float EqDisplay::dbOfY (float y) const { return jlimit (-24.f, 24.f, (plot.getCentreY() - y) / (plot.getHeight() * 0.5f) * 18.f); }
+// vertical scale: +24 at the top, 0 in the middle, -24 at 3/4 down, -48 at the bottom (deep cuts reachable with the mouse)
+float EqDisplay::eqY (float db) const
+{
+    const float h = plot.getHeight() * 0.5f;
+    if (db >= 0.f) return plot.getCentreY() - jmin (db, 26.f) / 24.f * h;
+    return db >= -24.f ? plot.getCentreY() - db / 24.f * h * 0.5f
+                       : plot.getCentreY() + h * 0.5f + jmin (1.1f, (-db - 24.f) / 24.f) * h * 0.5f;
+}
+float EqDisplay::dbOfY (float y) const
+{
+    const float h = plot.getHeight() * 0.5f, d = (plot.getCentreY() - y) / h;      // +1 top .. -1 bottom
+    if (d >= 0.f) return jmin (24.f, d * 24.f);
+    return d >= -0.5f ? d * 48.f : jmax (-48.f, -24.f + (d + 0.5f) * 48.f);
+}
 float EqDisplay::anY (float dbfs) const { return plot.getBottom() - jlimit (0.f, 1.f, (dbfs + 90.f) / 90.f) * plot.getHeight(); }
 
 RangedAudioParameter* EqDisplay::prm (int b, const char* key) const { return proc.apvts.getParameter (ParamIDs::band (b, key)); }
@@ -101,7 +113,7 @@ void EqDisplay::paint (Graphics& g)
             g.drawText (f >= 1000.0 ? String ((int) (f / 1000.0)) + "k" : String ((int) f), Rectangle<float> (x - 20.f, plot.getBottom() + 2.f, 40.f, 14.f), Justification::centred);
         }
     }
-    for (int db = -18; db <= 18; db += 6)
+    for (int db : { -48, -36, -24, -12, -6, 0, 6, 12, 18, 24 })
     {
         const float y = eqY ((float) db);
         g.setColour (Colours::white.withAlpha (db == 0 ? 0.12f : 0.04f));
@@ -360,7 +372,7 @@ void BandControls::resized()
     top.removeFromRight (12);
     mode->setBounds (top.removeFromRight (210));
     top.removeFromRight (12);
-    slope->setBounds (top.removeFromRight (170));
+    slope->setBounds (top.removeFromRight (220));
     top.removeFromRight (12);
     type->setBounds (top);
     r.removeFromTop (8);
@@ -500,7 +512,7 @@ void Canvas::renderBackground()
     g.drawText ("HARDSTYLE  EQUALIZER", 0, 108, W, 18, Justification::centred);
     g.setFont (lnf.titleFont (10.f, 0.25f));
     g.setColour (lnf.theme.text.withAlpha (0.75f));
-    g.drawText ("V1.1", (int) doomsday::brand::headerTextX (1120.f / (float) W), 40, 300, 14, Justification::left);
+    g.drawText ("V1.2", (int) doomsday::brand::headerTextX (1120.f / (float) W), 40, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (lnf.theme.label);
     g.drawText ("8 BANDS  /  DYNAMIC  /  MID-SIDE", (int) doomsday::brand::headerTextX (1120.f / (float) W), 58, 340, 16, Justification::left);

@@ -17,7 +17,7 @@ AudioProcessorValueTreeState::ParameterLayout MirrorProcessor::createLayout()
         l.add (c (band (i, type), n + "Type", Choices::types, Choices::defaultType[i]));
         l.add (c (band (i, slope), n + "Slope", Choices::slopes, 1));
         l.add (f (band (i, freq), n + "Freq", skew (20.f, 20000.f, 640.f), Choices::defaultFreq[i], fm::hz, fm::hzIn));
-        l.add (f (band (i, gain), n + "Gain", { -24.f, 24.f }, 0.f, fm::db, fm::num));
+        l.add (f (band (i, gain), n + "Gain", gainRange(), 0.f, fm::db, fm::num));
         l.add (f (band (i, q), n + "Q", skew (0.1f, 18.f, 1.f), 0.9f, [] (float v, int) { return String (v, 2); }, fm::num));
         l.add (c (band (i, mode), n + "Mode", Choices::modes, 0));
         l.add (b (band (i, dyn), n + "Dynamic", false));
@@ -137,7 +137,7 @@ EqParams MirrorProcessor::gather() const
         auto& B = e.band[(size_t) i];
         B.on = get (band (i, on)) > 0.5f;
         B.type = jlimit (0, 5, (int) std::round (get (band (i, type))));
-        B.slope = jlimit (0, 2, (int) std::round (get (band (i, slope))));
+        B.slope = jlimit (0, 3, (int) std::round (get (band (i, slope))));
         B.freq = get (band (i, freq)); B.gainDb = get (band (i, gain)); B.q = get (band (i, q));
         B.mode = jlimit (0, 2, (int) std::round (get (band (i, mode))));
         B.dyn = get (band (i, dyn)) > 0.5f; B.threshDb = get (band (i, thresh));

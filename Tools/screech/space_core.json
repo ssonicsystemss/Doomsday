@@ -1,0 +1,2 @@
+{"wave":[0,1,"lin"],"detune":[5,100,"lin"],"fm":[0,1,"lin"],"fmratio":[0,7,"int"],"dtype":[0,3,"int"],"drive":[6,48,"lin"],"bite":[40,1500,"log"],
+ "cutoff":[1500,20000,"log"],"reso":[0,0.9,"lin"],"o1_noise":[0,1,"lin"],"ott":[0,1,"lin"],"spread":[0,1,"lin"],"o1_form_gain":[0,26,"lin"],"o1_form_q":[0.7,12,"log"],"scream":[0,1,"lin"],"unison":[1,7,"int"]}

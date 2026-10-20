@@ -17,6 +17,53 @@ int main (int argc, char** argv)
     proc.setPlayConfigDetails (0, 2, sr, block);
     proc.prepareToPlay (sr, block);
 
+    // held-note renders for sound matching:
+    //   RenderTest <dir> held <note> [prog=N] [name=file] [paramId=value ...]
+    //   no prog -> every factory preset to held_<index>.wav; 1.6 s note + 0.4 s tail
+    if (argc > 3 && String (argv[2]) == "held")
+    {
+        const int note = String (argv[3]).getIntValue();
+        int only = -2; String name;
+        StringPairArray sets;
+        for (int i = 4; i < argc; ++i)
+        {
+            auto kv = StringArray::fromTokens (argv[i], "=", "");
+            if (kv.size() != 2) continue;
+            if (kv[0] == "prog") only = kv[1].getIntValue();
+            else if (kv[0] == "name") name = kv[1];
+            else sets.set (kv[0], kv[1]);
+        }
+        auto renderOne = [&] (int prog, const File& f)
+        {
+            if (prog >= 0) proc.setCurrentProgram (prog);
+            else for (auto* prm : proc.getParameters())          // prog=-1: plain defaults
+                if (auto* rp = dynamic_cast<RangedAudioParameter*> (prm)) rp->setValueNotifyingHost (rp->getDefaultValue());
+            for (auto& k : sets.getAllKeys())
+                if (auto* prm = proc.apvts.getParameter (k)) prm->setValueNotifyingHost (prm->convertTo0to1 (sets[k].getFloatValue()));
+            { AudioBuffer<float> b (2, block); MidiBuffer m; m.addEvent (MidiMessage::allNotesOff (1), 0);
+              for (int i = 0; i < 200; ++i) { b.clear(); proc.processBlock (b, m); m.clear(); } }
+            const double holdS = sets.containsKey ("hold") ? sets["hold"].getDoubleValue() : 1.6;
+            const int total = (int) (sr * (holdS + 0.4)), offAt = (int) (sr * holdS);
+            AudioBuffer<float> out (2, total); out.clear();
+            for (int pos = 0; pos < total; pos += block)
+            {
+                AudioBuffer<float> buf (2, block); buf.clear(); MidiBuffer midi;
+                if (pos == 0) midi.addEvent (MidiMessage::noteOn (1, note, (uint8) 110), 0);
+                if (offAt >= pos && offAt < pos + block) midi.addEvent (MidiMessage::noteOff (1, note), offAt - pos);
+                proc.processBlock (buf, midi);
+                for (int ch = 0; ch < 2; ++ch) out.copyFrom (ch, pos, buf, ch, 0, jmin (block, total - pos));
+            }
+            f.deleteFile();
+            WavAudioFormat wav;
+            std::unique_ptr<AudioFormatWriter> w (wav.createWriterFor (new FileOutputStream (f), sr, 2, 24, {}, 0));
+            if (w) w->writeFromAudioSampleBuffer (out, 0, total);
+        };
+        if (only >= -1) renderOne (only, outDir.getChildFile ((name.isEmpty() ? "held_" + String (only) : name) + ".wav"));
+        else for (int prog = 0; prog < proc.getNumPrograms(); ++prog)
+            renderOne (prog, outDir.getChildFile (String::formatted ("held_%02d_", prog) + proc.getProgramName (prog).replaceCharacters (" '", "__") + ".wav"));
+        return 0;
+    }
+
     // riff @150 BPM: 1/8 notes, legato slides (beat = 19200 samples)
     const int beat = (int) (sr * 60.0 / 150.0);
     struct N { int startEighth, lenEighth, note; };

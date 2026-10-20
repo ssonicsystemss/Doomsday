@@ -1,16 +1,19 @@
 #pragma once
 // =====================================================================
-//  PROPHECY OF SCREAM v2  -  hardstyle screech engine
+//  PROPHECY OF SCREAM v3  -  hardstyle screech engine
 //
-//  mono / legato voice (glide, bend, amp env shared by both layers)
+//  mono / legato voice (glide, bend, SWEEP, amp env shared by both layers)
 //
-//   OSC 1: unison saw<->square + FM -> bite HP -> DIST -> FILTER --+
-//                                                                  +-> AMP
-//   OSC 2: unison saw<->square + FM -> bite HP -> DIST -> FILTER --+
-//          (each layer has its own pitch env, filter env and LFO)
+//   OSC 1: unison saw<->square + FM (+ NOISE) -> bite HP -> DIST -> FILTER -> FORMANT --+
+//                                                                                      +-> AMP
+//   OSC 2: unison saw<->square + FM (+ NOISE) -> bite HP -> DIST -> FILTER -> FORMANT --+
+//          (each layer has its own pitch env, filter env, formant env and LFO; LFO > AMP gates the layer)
 //
 //   everything above runs 4x oversampled
-//   -> DELAY -> REVERB -> VOLUME -> soft clip
+//   -> OTT (3-band up/down compression) -> WIDTH (stereo spread) -> DELAY -> REVERB -> VOLUME -> soft clip
+//
+//   v3 additions (NOISE, FORMANT, LFO > AMP, SWEEP, OTT, WIDTH) are all neutral at their defaults,
+//   so v2 presets and projects sound exactly the same.
 // =====================================================================
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
@@ -18,6 +21,7 @@
 #include <vector>
 #include <array>
 #include <memory>
+#include "../Shared/Source/DoomsdayDSP.h"      // v3 blocks: XorNoise, PitchSweep, Formant, Ott3, StereoSpread
 
 struct OscParams
 {
@@ -40,6 +44,12 @@ struct OscParams
     bool  lfoOn = true;
     int   lshape = 0;
     float lfoHz = 4.f, lcutOct = 0.f, lpitchSemis = 0.f;
+    float lampDepth = 0.f;                       // v3: LFO > AMP (gate / tremolo)
+    // v3: noise mixed in before the distortion (the dense "dirt" under a screech)
+    float noise = 0.f;
+    // v3: formant - a resonant peak after the filter, with its own envelope
+    bool  formOn = false;
+    float formHz = 900.f, formGainDb = 12.f, formQ = 4.f, formEnvOct = 0.f, formDecayMs = 300.f, formKey = 0.f, formLfoOct = 0.f;
 };
 
 struct EngineParams
@@ -50,6 +60,7 @@ struct EngineParams
     int   bendRange = 12;
     bool  legato = true;
     float scream = 0.3f;
+    float sweepSemis = 0.f, sweepMs = 600.f;     // v3: pitch sweep after every new note (dives / risers)
     // amp
     float attackMs = 2.f, decayMs = 400.f, sustain = 1.f, releaseMs = 150.f;
     // fx
@@ -59,6 +70,7 @@ struct EngineParams
     bool  reverbOn = true;
     float revSize = 0.75f, revDamp = 0.4f, revMix = 0.2f;
     // master
+    float ott = 0.f, spread = 0.f;               // v3
     float volumeDb = -6.f;
     double bpm = 150.0;
 };
@@ -93,6 +105,9 @@ public:
         delayR.assign ((size_t) delaySize, 0.f);
         delayWrite = 0;
 
+        ott.prepare (sr);
+        spread.prepare (sr);
+
         revScratchL.assign ((size_t) maxBlockSize, 0.f);
         revScratchR.assign ((size_t) maxBlockSize, 0.f);
         reverb.setSampleRate (sr);
@@ -110,6 +125,9 @@ public:
         for (auto& v : fbLp) v = 0.f;
         for (auto& v : fbHp) v = 0.f;
         for (auto& v : revHp) v = 0.f;
+        ott.reset();
+        spread.reset();
+        sweep.reset();
         std::fill (delayL.begin(), delayL.end(), 0.f);
         std::fill (delayR.begin(), delayR.end(), 0.f);
         reverb.reset();
@@ -221,12 +239,15 @@ private:
         float uniNorm = 1.f;
         float pEnv = 0.f, pEnvCoef = 0.f, fEnv = 0.f, fEnvCoef = 0.f;
         float lfoPhase = 0.f, shValue = 0.f;
+        float formEnv = 0.f, formEnvCoef = 0.f;
+        doomsday::dsp::XorNoise noiseGen;
         std::array<float, 2> biteState {};
         std::array<ChannelFilter, 2> filt {};
+        doomsday::dsp::Formant formant;
         juce::Random rng;
 
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> sCutoff, sBite;
-        juce::SmoothedValue<float> sReso, sDrive, sDMix, sFm, sWave, sGain, sDistAmt, sFiltAmt, sLfoAmt;
+        juce::SmoothedValue<float> sReso, sDrive, sDMix, sFm, sWave, sGain, sDistAmt, sFiltAmt, sLfoAmt, sNoise, sFormAmt, sFormGain;
 
         void prepare (double osr, const OscParams& op)
         {
@@ -242,12 +263,16 @@ private:
             sDistAmt.reset (osr, 0.02); sDistAmt.setCurrentAndTargetValue (op.distOn ? 1.f : 0.f);
             sFiltAmt.reset (osr, 0.02); sFiltAmt.setCurrentAndTargetValue (op.filtOn ? 1.f : 0.f);
             sLfoAmt.reset (osr, 0.02);  sLfoAmt.setCurrentAndTargetValue (op.lfoOn ? 1.f : 0.f);
+            sNoise.reset (osr, t);      sNoise.setCurrentAndTargetValue (op.noise);
+            sFormAmt.reset (osr, 0.02); sFormAmt.setCurrentAndTargetValue (op.formOn ? 1.f : 0.f);
+            sFormGain.reset (osr, t);   sFormGain.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (op.formGainDb));
         }
 
         void resetState()
         {
-            pEnv = 0.f; fEnv = 0.f;
+            pEnv = 0.f; fEnv = 0.f; formEnv = 0.f;
             for (auto& c : filt) c = {};
+            formant.reset();
             for (auto& h : biteState) h = 0.f;
         }
 
@@ -255,6 +280,7 @@ private:
         {
             fEnv = 1.f;
             pEnv = 1.f;
+            formEnv = 1.f;
             lfoPhase = 0.f;
             shValue = rng.nextFloat() * 2.f - 1.f;
         }
@@ -301,6 +327,7 @@ private:
         {
             amp.trigger (! sounding);
             for (auto& l : layers) l.noteStart();
+            sweep.start();
         }
         gate = true;
     }
@@ -325,6 +352,9 @@ private:
             L.sDistAmt.setTargetValue (op.distOn ? 1.f : 0.f);
             L.sFiltAmt.setTargetValue (op.filtOn ? 1.f : 0.f);
             L.sLfoAmt.setTargetValue (op.lfoOn ? 1.f : 0.f);
+            L.sNoise.setTargetValue (op.noise);
+            L.sFormAmt.setTargetValue (op.formOn ? 1.f : 0.f);
+            L.sFormGain.setTargetValue (juce::Decibels::decibelsToGain (op.formGainDb));
             if (amp.stage == Env::Idle)
             {
                 // nothing is sounding: switch instantly, no ramp to leak into the next note
@@ -332,10 +362,12 @@ private:
                 L.sDistAmt.setCurrentAndTargetValue (L.sDistAmt.getTargetValue());
                 L.sFiltAmt.setCurrentAndTargetValue (L.sFiltAmt.getTargetValue());
                 L.sLfoAmt.setCurrentAndTargetValue (L.sLfoAmt.getTargetValue());
+                L.sFormAmt.setCurrentAndTargetValue (L.sFormAmt.getTargetValue());
             }
 
             L.fEnvCoef = timeCoef (op.fdecayMs, osr);
             L.pEnvCoef = timeCoef (op.pdecayMs, osr);
+            L.formEnvCoef = timeCoef (op.formDecayMs, osr);
 
             const int n = juce::jlimit (1, maxUnison, op.unison);
             for (int v = 0; v < n; ++v)
@@ -362,6 +394,8 @@ private:
         amp.relCoef   = timeCoef (p.releaseMs, osr);
         amp.sustain   = p.sustain;
 
+        sweep.setTime (p.sweepMs, osr);
+
         glideCoef = p.glideMs < 1.f ? 0.f : (float) std::exp (-1.0 / ((p.glideMs * 0.001 / 3.0) * osr));
 
         juce::Reverb::Parameters rp;
@@ -386,6 +420,7 @@ private:
         // modulators
         L.pEnv *= L.pEnvCoef;
         L.fEnv *= L.fEnvCoef;
+        L.formEnv *= L.formEnvCoef;
 
         const float lfoInc = op.lfoHz * invOsr;
         L.lfoPhase += lfoInc;
@@ -414,7 +449,7 @@ private:
 
         const float tune = 12.f * (float) op.octave + op.semi + op.fineCents * 0.01f;
         const float semiNow = curSemi + tune + pitchWheel * (float) p.bendRange
-                            + op.penvSemis * L.pEnv + op.lpitchSemis * lfo;
+                            + op.penvSemis * L.pEnv + op.lpitchSemis * lfo + sweepNow;
         const float baseHz = 440.f * std::pow (2.f, (semiNow - 69.f) / 12.f);
 
         // unison oscillators
@@ -442,6 +477,14 @@ private:
         }
         l *= L.uniNorm * 0.5f;
         r *= L.uniNorm * 0.5f;
+
+        // noise (independent per side -> wide, dense dirt once it hits the distortion)
+        const float nz = L.sNoise.getNextValue();
+        if (nz > 0.f)
+        {
+            l += nz * 1.3f * L.noiseGen.next();
+            r += nz * 1.3f * L.noiseGen.next();
+        }
 
         // bite (pre-distortion high-pass) + distortion
         if (distAmt > 0.f)
@@ -474,8 +517,22 @@ private:
             r += filtAmt * (fr - r);
         }
 
-        outL += l * gain;
-        outR += r * gain;
+        // formant: a resonant bell after the filter (envelope + LFO + key tracking move it)
+        const float formAmt = L.sFormAmt.getNextValue();
+        const float formGain = L.sFormGain.getNextValue();
+        if (formAmt > 0.f)
+        {
+            // KEY follows the pitch you actually hear (note + octave + pitch env + LFO + sweep + bend)
+            const float modOct = op.formEnvOct * L.formEnv + op.formLfoOct * lfo + op.formKey * (semiNow - 60.f) / 12.f;
+            const float fc = juce::jlimit (30.f, nyq * 0.9f, op.formHz * std::pow (2.f, modOct));
+            L.formant.process (l, r, fc, op.formQ, formGain, formAmt, osr);
+        }
+
+        // LFO > AMP: gate / tremolo (square LFO = rhythmic chop)
+        const float ampMod = 1.f - op.lampDepth * 0.5f * (1.f - lfo);
+
+        outL += l * gain * ampMod;
+        outR += r * gain * ampMod;
     }
 
     static inline float filterSample (ChannelFilter& f, int ftype, float x, float a1, float a2, float a3, float k)
@@ -508,6 +565,7 @@ private:
         for (int i = 0; i < osLen; ++i)
         {
             curSemi = targetSemi + (curSemi - targetSemi) * glideCoef;
+            sweepNow = sweep.next (p.sweepSemis);          // SWEEP: eases out from the note to note + sweep semitones
             const float ampV = amp.next();
 
             if (ampV <= 0.f && amp.stage == Env::Idle)
@@ -543,6 +601,9 @@ private:
         for (int i = 0; i < len; ++i)
         {
             float l = L[i], r = R[i];
+
+            ott.process (l, r, p.ott);          // OTT: 3 bands, each pulled towards the same level
+            spread.process (l, r, p.spread);    // WIDTH: more side + decorrelated mid above 220 Hz
 
             const float dTime = sDelayTime.getNextValue();
             const float dMix = sDelayMix.getNextValue();
@@ -612,6 +673,10 @@ private:
     std::vector<float> delayL, delayR;
     int delaySize = 1, delayWrite = 0;
     std::array<float, 2> fbLp {}, fbHp {}, revHp {};
+    float sweepNow = 0.f;
+    doomsday::dsp::PitchSweep sweep;
+    doomsday::dsp::Ott3 ott;
+    doomsday::dsp::StereoSpread spread;
     juce::Reverb reverb;
     std::vector<float> revScratchL, revScratchR;
 };

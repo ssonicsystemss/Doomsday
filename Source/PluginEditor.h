@@ -145,13 +145,14 @@ private:
     ProphecyProcessor& proc;
     const int osc;
     int current = 0, hoverTab = -1;
-    std::array<Page, 3> pages;
-    std::array<std::unique_ptr<Switch>, 3> powers;
-    std::array<std::atomic<float>*, 3> onFlags {};
+    static constexpr int numTabs = 4;
+    std::array<Page, numTabs> pages;
+    std::array<std::unique_ptr<Switch>, numTabs> powers;
+    std::array<std::atomic<float>*, numTabs> onFlags {};
     std::atomic<float>* syncFlag = nullptr;
     juce::Component* rateKnob = nullptr;
     juce::Component* divKnob = nullptr;
-    std::array<bool, 3> lastOn { false, false, false };
+    std::array<bool, numTabs> lastOn { false, false, false, false };
 };
 
 // ------------------------------------------------------------------ oscilloscope
@@ -211,6 +212,7 @@ private:
     Switch* delayPower = nullptr;
     Switch* reverbPower = nullptr;
     Knob* volumeKnob = nullptr;
+    std::vector<juce::Component*> outCells;
     Scope scope;
     Meter meter;
 

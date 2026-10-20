@@ -23,6 +23,10 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 | `NoteStack` | mono / legato: stos trzymanych nut (ostatnia wygrywa) |
 | `BiquadCoefs::make(Bell / LowShelf / HighShelf / Notch / BandPass / HighPass / LowPass, fs, hz, q, dB)`, `.magnitude(hz, fs)`, `Biquad`, `butterworthQs(stages)` | filtry EQ (z Mirror of Souls) – ta sama funkcja liczy dźwięk i krzywą na ekranie |
 | `AnalyzerTap<N>` (`push`, `latest`) + `Spectrum` (`feed`, `dbAt(hz)`) | analizator widma: audio wrzuca próbki, GUI liczy FFT 4096 z wygładzaniem |
+| `XorNoise`, `PitchSweep` (`setTime`, `start`, `next (semis)`) | szum do „brudu” pod screechem; zjazd / podjazd wysokości po każdej nowej nucie (z Prophecy of Scream v3) |
+| `Formant` (`process (l, r, hz, q, gainLin, amount, rate)`) | rezonansowy „głos” screecha – szczyt, który rusza obwiednia / LFO (PoS v3) |
+| `Ott3` (`prepare`, `process (l, r, amount)`) | 3-pasmowy OTT: ciche pasma w górę, głośne w dół – gęsty hardstyle'owy dźwięk (PoS v3) |
+| `StereoSpread` (`prepare`, `process (l, r, amount)`) | szerokie stereo: więcej boków + zdekorelowany środek powyżej ~220 Hz, mono-kompatybilne (PoS v3) |
 | `VoiceManager<Voice, N>` | polifonia z Fortune of Seekers: `noteOn(note, limit, fadeStep, sameNote)` (kradzież najstarszego z wyciszeniem), `noteOff`, `setPedal`, `allOff`. Voice musi mieć `active, held, sustained, note, age, kill, killStep` |
 
 ## Source/DoomsdayParams.h  (`doomsday`)
@@ -38,7 +42,7 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 - `FxTabs(apvts, accent)` + `addTab(name, powerParamId, cells, side)` – zakładki efektów z ACTIVE (jak w Fortune of Seekers), `refresh()` z timera.
 - `FlowLane(levelFeed, accent, label)` – dźwięk płynący z góry na dół (THE PATH z Fortune of Seekers), `tick()` z timera.
 
-Pluginy używające Shared: **Dark Serpent**, **Mirror of Souls**. Klocki z Fortune of Seekers (przestery, SCREAM, polifonia, zakładki FX, THE PATH) są tu skopiowane i sprawdzone testem Dark Serpent. Starsze (PoS, Ancient Drums, Fortune of Seekers) mają własny kod i nie są przerabiane.
+Pluginy używające Shared: **Dark Serpent**, **Mirror of Souls**, **Prophecy of Scream** (od v3: NOISE / FORMANT / SWEEP / OTT / WIDTH, przez `../Shared/Source/DoomsdayDSP.h`). Klocki z Fortune of Seekers (przestery, SCREAM, polifonia, zakładki FX, THE PATH) są tu skopiowane i sprawdzone testem Dark Serpent. Starsze (Ancient Drums, Fortune of Seekers, stare części PoS) mają własny kod i nie są przerabiane.
 
 ## Znak firmowy (sonicsystems / DOOMSDAY)
 `Source/DoomsdayBrand.h` – samodzielny nagłówek z wbudowanym logo (`Resources/sonicsystems_doomsday.png`).
@@ -46,4 +50,4 @@ Standard: `doomsday::brand::drawHeaderBadge (g, domyślnaSzerokośćOkna / (floa
 górny róg nagłówka, zawsze 70 x 36 px przy domyślnym rozmiarze okna (niezależnie od wielkości canvasu wtyczki);
 linie wersji / opisu zaczynają się od `headerTextX (ta sama skala)`. Rysować raz, w cache'owanym tle. Na jasnych wtyczkach (Ancient Drums) biel jest przemalowana na ciemny kolor.
 Używają go wszystkie wtyczki Doomsday (stare włączają go ścieżką względną `../../Shared/Source/DoomsdayBrand.h`).
-Przy zmianie logo: podmień PNG i wygeneruj nagłówek od nowa; Prophecy of Scream przebuduj ręcznie (jego workflow pomija Shared/).
+Przy zmianie logo: podmień PNG i wygeneruj nagłówek od nowa; Prophecy of Scream przebudowuje się sam (od v3 jego workflow obserwuje też Shared/).

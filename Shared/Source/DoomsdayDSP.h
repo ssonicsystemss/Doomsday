@@ -9,6 +9,8 @@
 //    dsp::LevelFeed      min/max-per-chunk feed for GUI visualisations
 //    dsp::shape / Screamer / DcBlocker      waveshapers (SOFT HARD TUBE SCREAM), per-osc SCREAM
 //    dsp::NoteStack / VoiceManager          mono legato note stack, polyphonic allocation + stealing + pedal
+//    (from Mirror of Souls)  BiquadCoefs / Biquad / butterworthQs, AnalyzerTap, Spectrum
+//    (from Prophecy of Scream v3)  XorNoise, PitchSweep, Formant, Ott3, StereoSpread
 // =====================================================================
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
@@ -620,5 +622,149 @@ namespace doomsday::dsp
         juce::dsp::FFT fft;
         std::vector<float> window, data, smooth;
         double sr = 48000.0;
+    };
+}
+
+
+// =====================================================================
+//  Screech tools (from Prophecy of Scream v3)
+//    XorNoise      cheap white noise (-1..1), one per channel for wide, dense "dirt"
+//    PitchSweep    dive / riser after a note start: 0 -> semis, eased out over a time
+//    Formant       resonant bell on a stereo signal - the moving "voice" peak of a screech
+//    Ott3          3-band up/down compressor (quiet bands up, loud bands down) - the dense hardstyle top
+//    StereoSpread  wider stereo: more side + a decorrelated copy of the mid above ~220 Hz
+//  All of them are neutral at amount 0. No allocation after prepare().
+// =====================================================================
+namespace doomsday::dsp
+{
+    struct XorNoise
+    {
+        uint32_t state = 0x9e3779b9u;
+        inline float next()
+        {
+            state ^= state << 13; state ^= state >> 17; state ^= state << 5;
+            return (float) (int32_t) state * (1.f / 2147483648.f);
+        }
+    };
+
+    struct PitchSweep
+    {
+        float pos = 1.0e9f, step = 0.f, now = 0.f;
+        void setTime (float ms, double rate) { step = (float) (1.0 / (juce::jmax (1.0, (double) ms) * 0.001 * rate)); }
+        void start() { pos = 0.f; }
+        void reset() { pos = 1.0e9f; }
+        // call once per sample; returns the pitch offset in semitones
+        inline float next (float semis)
+        {
+            const float x = juce::jmin (1.f, pos);
+            now = semis * (1.f - (1.f - x) * (1.f - x));
+            if (pos < 1.f) pos += step;
+            return now;
+        }
+    };
+
+    struct Formant
+    {
+        std::array<Svf, 2> f {};
+        void reset() { f = {}; }
+        // hz must already be limited to a safe range; gain is linear (1 = flat); amt 0..1 fades the stage in
+        inline void process (float& l, float& r, float hz, float q, float gain, float amt, double rate)
+        {
+            const float g = std::tan (juce::MathConstants<float>::pi * hz * (float) (1.0 / rate));
+            const float k = 1.f / juce::jmax (0.3f, q);
+            SvfCoefs c; c.k = k;
+            c.a1 = 1.f / (1.f + g * (g + k)); c.a2 = g * c.a1; c.a3 = g * c.a2;
+            float lp, bp;
+            f[0].tick (l, c, lp, bp); const float yl = l + (gain - 1.f) * k * bp;
+            f[1].tick (r, c, lp, bp); const float yr = r + (gain - 1.f) * k * bp;
+            const float makeup = 1.f / (1.f + (gain - 1.f) * 0.18f);
+            l += amt * (yl * makeup - l);
+            r += amt * (yr * makeup - r);
+        }
+    };
+
+    class Ott3
+    {
+    public:
+        void prepare (double sampleRate)
+        {
+            const float sr = (float) sampleRate;
+            loC = 2.f * std::sin (juce::MathConstants<float>::pi * 180.f / sr);
+            hiC = 2.f * std::sin (juce::MathConstants<float>::pi * 2200.f / sr);
+            att = 1.f - std::exp (-1.f / (0.002f * sr));
+            rel = 1.f - std::exp (-1.f / (0.09f * sr));
+            reset();
+        }
+        void reset() { st = {}; }
+        // amount 0..1 (0 = bypass, exact)
+        inline void process (float& l, float& r, float amount)
+        {
+            if (amount <= 0.001f) return;
+            auto& o = st;
+            float bl[3], br[3];
+            // Chamberlin state-variable low-pass (s1 = low, s2 = band), Q ~ 0.7
+            auto lp2 = [] (float x, float c, float& s1, float& s2) { s1 += c * s2; const float hp = x - s1 - 1.414f * s2; s2 += c * hp; return s1; };
+            const float loL = lp2 (l, loC, o.lo[0][0], o.lo[0][1]), loR = lp2 (r, loC, o.lo[1][0], o.lo[1][1]);
+            const float hiL = l - lp2 (l, hiC, o.hi[0][0], o.hi[0][1]), hiR = r - lp2 (r, hiC, o.hi[1][0], o.hi[1][1]);
+            bl[0] = loL; br[0] = loR; bl[2] = hiL; br[2] = hiR;
+            bl[1] = l - loL - hiL; br[1] = r - loR - hiR;
+            const float amt = amount * 0.75f;
+            const float target[3] = { 0.10f, 0.16f, 0.09f };
+            l = 0.f; r = 0.f;
+            for (int b = 0; b < 3; ++b)
+            {
+                const float pk = juce::jmax (std::abs (bl[b]), std::abs (br[b]));
+                o.env[b] += (pk > o.env[b] ? att : rel) * (pk - o.env[b]);
+                const float gn = juce::jlimit (0.2f, 6.f, std::pow (target[b] / (o.env[b] + 1.0e-4f), amt));
+                l += bl[b] * gn; r += br[b] * gn;
+            }
+        }
+    private:
+        struct State { float lo[2][2] {}, hi[2][2] {}, env[3] {}; } st;
+        float loC = 0.f, hiC = 0.f, att = 0.f, rel = 0.f;
+    };
+
+    class StereoSpread
+    {
+    public:
+        void prepare (double sampleRate)
+        {
+            for (size_t i = 0; i < ap.size(); ++i)
+            {
+                ap[i].buf.assign ((size_t) (sampleRate * 0.012) + 4, 0.f);
+                ap[i].len = juce::jmax (8, (int) (sampleRate * (i == 0 ? 0.0041 : 0.0067)));
+                ap[i].pos = 0;
+            }
+            hpC = 1.f - std::exp (-juce::MathConstants<float>::twoPi * 220.f / (float) sampleRate);
+            reset();
+        }
+        void reset() { for (auto& a : ap) { std::fill (a.buf.begin(), a.buf.end(), 0.f); a.pos = 0; } hp = 0.f; }
+        // amount 0..1 (0 = bypass, exact); mono-compatible: L + R is unchanged
+        inline void process (float& l, float& r, float amount)
+        {
+            if (amount <= 0.001f) return;
+            const float mid = 0.5f * (l + r);
+            float side = 0.5f * (l - r);
+            float y2[2];
+            for (size_t a = 0; a < ap.size(); ++a)
+            {
+                auto& A = ap[a];
+                int rp = A.pos - A.len; if (rp < 0) rp += (int) A.buf.size();
+                const float d = A.buf[(size_t) rp];
+                const float y = -0.55f * mid + d;
+                A.buf[(size_t) A.pos] = mid + 0.55f * y;
+                if (++A.pos >= (int) A.buf.size()) A.pos = 0;
+                y2[a] = y;
+            }
+            float extra = 0.5f * (y2[0] - y2[1]);
+            hp += hpC * (extra - hp);
+            extra -= hp;
+            side = side * (1.f + 0.6f * amount) + extra * 1.4f * amount;
+            l = mid + side; r = mid - side;
+        }
+    private:
+        struct Allpass { std::vector<float> buf; int len = 8, pos = 0; };
+        std::array<Allpass, 2> ap;
+        float hpC = 0.f, hp = 0.f;
     };
 }

@@ -62,12 +62,14 @@ private:
         A distOn {}, dtype {}, drive {}, bite {}, dmix {};
         A filtOn {}, ftype {}, cutoff {}, reso {}, fenv {}, fdecay {}, keytrack {};
         A lfoOn {}, lshape {}, lsync {}, lrate {}, lfoDiv {}, lcut {}, lpitch {};
+        A noise {}, lamp {}, formOn {}, formHz {}, formGain {}, formQ {}, formEnv {}, formDec {}, formKey {}, formLfo {};
     };
     struct Ptrs
     {
         std::array<OscPtrs, ParamIDs::numOscs> osc;
         A glide {}, bend {}, legato {}, scream {}, attack {}, decay {}, sustain {}, release {};
         A dlyOn {}, dtime {}, dfb {}, dfx {}, pingpong {}, revOn {}, rsize {}, rdamp {}, rmix {}, volume {};
+        A sweep {}, sweepTime {}, ott {}, spread {};
     } ptr;
 
     ScreechEngine engine;

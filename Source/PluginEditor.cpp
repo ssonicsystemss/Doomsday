@@ -507,6 +507,7 @@ FxTabs::FxTabs (ProphecyProcessor& p, int o) : proc (p), osc (o)
     pages[0].seg = std::make_unique<Segmented> (p.apvts, id (dtype), ParamChoices::distTypes);
     pages[0].cells.push_back (knob (drive, "DRIVE"));
     pages[0].cells.push_back (knob (bite, "BITE"));
+    pages[0].cells.push_back (knob (noise, "NOISE"));
     pages[0].cells.push_back (knob (dmix, "MIX"));
 
     // FILTER
@@ -523,6 +524,16 @@ FxTabs::FxTabs (ProphecyProcessor& p, int o) : proc (p), osc (o)
     pages[2].cells.push_back (knob (lfoDiv, "RATE"));
     pages[2].cells.push_back (knob (lcut, "> CUTOFF", true));
     pages[2].cells.push_back (knob (lpitch, "> PITCH", true));
+    pages[2].cells.push_back (knob (lamp, "> AMP"));
+
+    // FORMANT (v3): a resonant peak with its own envelope - the "voice" of a screech
+    pages[3].cells.push_back (knob (formHz, "FREQ"));
+    pages[3].cells.push_back (knob (formGain, "GAIN"));
+    pages[3].cells.push_back (knob (formQ, "Q"));
+    pages[3].cells.push_back (knob (formEnv, "ENV", true));
+    pages[3].cells.push_back (knob (formDec, "DECAY"));
+    pages[3].cells.push_back (knob (formKey, "KEY"));
+    pages[3].cells.push_back (knob (formLfo, "LFO", true));
     auto rate = knob (lrate, "RATE");
     rateKnob = rate.get();
     divKnob = pages[2].cells[1].get();
@@ -531,8 +542,8 @@ FxTabs::FxTabs (ProphecyProcessor& p, int o) : proc (p), osc (o)
     pages[2].overlayOwner = std::move (rate);
     pages[2].addChildComponent (*pages[2].overlayOwner);
 
-    const char* onIds[] = { distOn, filtOn, lfoOn };
-    for (int i = 0; i < 3; ++i)
+    const char* onIds[] = { distOn, filtOn, lfoOn, formOn };
+    for (int i = 0; i < numTabs; ++i)
     {
         auto& pg = pages[(size_t) i];
         if (pg.seg) pg.addAndMakeVisible (*pg.seg);
@@ -550,7 +561,10 @@ FxTabs::FxTabs (ProphecyProcessor& p, int o) : proc (p), osc (o)
 
 Rectangle<int> FxTabs::tabBounds (int i) const
 {
-    return { 14 + i * 100, 8, 96, 32 };
+    static const int w[] = { 80, 94, 72, 112 };
+    int x = 14;
+    for (int k = 0; k < i; ++k) x += w[k] + 4;
+    return { x, 8, w[i], 32 };
 }
 
 void FxTabs::resized()
@@ -562,7 +576,7 @@ void FxTabs::resized()
 
 void FxTabs::selectTab (int i)
 {
-    if (! isPositiveAndBelow (i, 3) || i == current) return;
+    if (! isPositiveAndBelow (i, numTabs) || i == current) return;
     pages[(size_t) current].setVisible (false);
     powers[(size_t) current]->setVisible (false);
     current = i;
@@ -573,14 +587,14 @@ void FxTabs::selectTab (int i)
 
 void FxTabs::mouseDown (const MouseEvent& e)
 {
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < numTabs; ++i)
         if (tabBounds (i).contains (e.getPosition())) selectTab (i);
 }
 
 void FxTabs::mouseMove (const MouseEvent& e)
 {
     int h = -1;
-    for (int i = 0; i < 3; ++i) if (tabBounds (i).contains (e.getPosition())) h = i;
+    for (int i = 0; i < numTabs; ++i) if (tabBounds (i).contains (e.getPosition())) h = i;
     setMouseCursor (h >= 0 ? MouseCursor::PointingHandCursor : MouseCursor::NormalCursor);
     if (h != hoverTab) { hoverTab = h; repaint(); }
 }
@@ -588,7 +602,7 @@ void FxTabs::mouseMove (const MouseEvent& e)
 void FxTabs::refresh()
 {
     bool changed = false;
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < numTabs; ++i)
     {
         const bool on = onFlags[(size_t) i]->load() > 0.5f;
         if (on != lastOn[(size_t) i]) { lastOn[(size_t) i] = on; changed = true; }
@@ -605,8 +619,8 @@ void FxTabs::refresh()
 void FxTabs::paint (Graphics& g)
 {
     auto& lnf = stageLnf (*this);
-    static const char* names[] = { "DIST", "FILTER", "LFO" };
-    for (int i = 0; i < 3; ++i)
+    static const char* names[] = { "DIST", "FILTER", "LFO", "FORMANT" };
+    for (int i = 0; i < numTabs; ++i)
     {
         auto t = tabBounds (i).toFloat();
         const bool sel = i == current;
@@ -758,13 +772,15 @@ Canvas::Canvas (ProphecyProcessor& p) : proc (p), scope (p)
         addAndMakeVisible (c);
 
     screamKnob = knob (scream, "", false, true);
-    voiceCells = { knob (glide, "GLIDE"), knob (bend, "BEND"), toggle (legato, "LEGATO", Switch::Chip) };
+    voiceCells = { knob (glide, "GLIDE"), knob (bend, "BEND"), toggle (legato, "LEGATO", Switch::Chip),
+                   knob (sweep, "SWEEP", true), knob (sweepTime, "S.TIME") };
     ampCells = { knob (attack, "ATTACK"), knob (decay, "DECAY"), knob (sustain, "SUSTAIN"), knob (release, "RELEASE") };
     delayPower = toggle (dlyOn, "", Switch::Power);
     delayCells = { knob (dtime, "TIME"), knob (dfb, "FEEDBACK"), knob (dfx, "MIX"), toggle (pingpong, "P.PONG", Switch::Chip) };
     reverbPower = toggle (revOn, "", Switch::Power);
     reverbCells = { knob (rsize, "SIZE"), knob (rdamp, "DAMP"), knob (rmix, "MIX") };
     volumeKnob = knob (volume, "VOLUME");
+    outCells = { knob (ott, "OTT"), knob (spread, "WIDTH"), volumeKnob };
     addAndMakeVisible (scope);
     addAndMakeVisible (meter);
 
@@ -911,8 +927,8 @@ void Canvas::resized()
     panels.push_back ({ "", { xMid, 132, midW, 254 }, true });
     panels.push_back ({ "OSC 2", { x2, 132, colW, 254 } });
     panels.push_back ({ "", { x1, 398, colW, 204 } });
-    panels.push_back ({ "VOICE", { xMid, 398, midW, 132 } });
-    panels.push_back ({ "SCOPE", { xMid, 542, midW, 60 } });
+    panels.push_back ({ "VOICE", { xMid, 398, midW, 204 } });
+    panels.push_back ({ "", { 0, 0, 0, 0 } });             // (v2 scope slot - the scope now sits in the SCREAM panel)
     panels.push_back ({ "", { x2, 398, colW, 204 } });
 
     osc1->setBounds (panels[0].area);
@@ -920,27 +936,27 @@ void Canvas::resized()
     fx1->setBounds (panels[3].area);
     fx2->setBounds (panels[6].area);
 
-    // SCREAM
+    // SCREAM (+ the scope along its bottom edge)
     {
         auto a = panels[1].area.reduced (14, 10);
         a.removeFromTop (22);
+        scope.setBounds (a.removeFromBottom (34).reduced (4, 2));
+        a.removeFromBottom (4);
         screamKnob->setBounds (a);
     }
-    // VOICE
+    // VOICE: GLIDE BEND LEGATO / SWEEP S.TIME
     {
         auto a = panels[4].area.reduced (12, 6);
         a.removeFromTop (28);
-        auto chip = a.removeFromRight (94);
+        auto row1 = a.removeFromTop (a.getHeight() / 2);
+        auto chip = row1.removeFromRight (94);
         voiceCells[2]->setBounds (chip.withSizeKeepingCentre (chip.getWidth() - 4, 28));
-        const int cw = a.getWidth() / 2;
-        voiceCells[0]->setBounds (a.removeFromLeft (cw));
-        voiceCells[1]->setBounds (a);
-    }
-    // SCOPE
-    {
-        auto a = panels[5].area.reduced (10, 8);
-        a.removeFromTop (22);
-        scope.setBounds (a);
+        const int cw = row1.getWidth() / 2;
+        voiceCells[0]->setBounds (row1.removeFromLeft (cw));
+        voiceCells[1]->setBounds (row1);
+        const int cw2 = a.getWidth() / 2;
+        voiceCells[3]->setBounds (a.removeFromLeft (cw2).reduced (8, 0));
+        voiceCells[4]->setBounds (a.reduced (8, 0));
     }
 
     // bottom row
@@ -975,8 +991,10 @@ void Canvas::resized()
         auto a = outA.reduced (14, 10);
         a.removeFromTop (30);
         meter.setBounds (a.removeFromRight (16).reduced (0, 4));
-        a.removeFromRight (10);
-        volumeKnob->setBounds (a.withSizeKeepingCentre (jmin (a.getWidth(), 100), a.getHeight()));
+        a.removeFromRight (8);
+        const float cw = (float) a.getWidth() / (float) outCells.size();
+        for (size_t i = 0; i < outCells.size(); ++i)
+            outCells[i]->setBounds (Rectangle<int> (a.getX() + (int) (cw * (float) i), a.getY(), (int) cw, a.getHeight()).reduced (1, 0));
     }
 
     // header
@@ -1093,7 +1111,7 @@ void Canvas::drawStage (Graphics& g)
     // header side text
     g.setFont (lnf.titleFont (10.f, 0.25f));
     g.setColour (Palette::text.withAlpha (0.75f));
-    g.drawText ("V2.1", (int) doomsday::brand::headerTextX (1156.f / (float) W), 34, 300, 14, Justification::left);
+    g.drawText ("V3.0", (int) doomsday::brand::headerTextX (1156.f / (float) W), 34, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (Palette::label);
     g.drawText ("TWIN OSCILLATOR ENGINE", (int) doomsday::brand::headerTextX (1156.f / (float) W), 52, 320, 16, Justification::left);
@@ -1111,7 +1129,7 @@ void Canvas::drawStage (Graphics& g)
     g.setColour (Palette::red);
     g.drawText ("HARDSTYLE  SCREECH  SYNTHESIZER", 0, 84, W, 18, Justification::centred);
 
-    for (auto& p : panels) drawGlassPanel (g, p);
+    for (auto& p : panels) if (! p.area.isEmpty()) drawGlassPanel (g, p);
 
     // the SCREAM panel title sits centred
     {

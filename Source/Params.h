@@ -48,10 +48,27 @@ namespace ParamIDs
     inline constexpr const char* lcut     = "lcut";
     inline constexpr const char* lpitch   = "lpitch";
 
+    // v3 (all neutral by default, so older projects sound the same)
+    inline constexpr const char* noise    = "noise";     // DIST tab: noise before the distortion
+    inline constexpr const char* lamp     = "lamp";      // LFO tab: LFO > AMP
+    inline constexpr const char* formOn   = "form_on";   // FORMANT tab
+    inline constexpr const char* formHz   = "form_hz";
+    inline constexpr const char* formGain = "form_gain";
+    inline constexpr const char* formQ    = "form_q";
+    inline constexpr const char* formEnv  = "form_env";
+    inline constexpr const char* formDec  = "form_dec";
+    inline constexpr const char* formKey  = "form_key";
+    inline constexpr const char* formLfo  = "form_lfo";
+
+    inline bool isNewInV3 (const juce::String& base)
+    {
+        return base == noise || base == lamp || base.startsWith ("form_");
+    }
+
     inline bool isNewInV2 (const juce::String& base)
     {
         return base == on || base == level || base == oct || base == semi || base == fine
-            || base == distOn || base == filtOn || base == lfoOn;
+            || base == distOn || base == filtOn || base == lfoOn || isNewInV3 (base);
     }
 
     // Full ID of a per-oscillator parameter (osc = 0 or 1)
@@ -80,6 +97,11 @@ namespace ParamIDs
     inline constexpr const char* rdamp    = "rdamp";
     inline constexpr const char* rmix     = "rmix";
     inline constexpr const char* volume   = "volume";
+    // v3 globals
+    inline constexpr const char* sweep    = "sweep";
+    inline constexpr const char* sweepTime= "sweep_time";
+    inline constexpr const char* ott      = "ott";
+    inline constexpr const char* spread   = "spread";
 }
 
 namespace ParamChoices

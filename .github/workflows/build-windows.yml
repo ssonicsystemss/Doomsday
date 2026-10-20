@@ -8,7 +8,6 @@ on:
       - 'FortuneOfSeekers/**'
       - '.github/workflows/build-fortune-of-seekers.yml'
       - 'DarkSerpent/**'
-      - 'Shared/**'
       - '.github/workflows/build-dark-serpent.yml'
       - 'MirrorOfSouls/**'
       - '.github/workflows/build-mirror-of-souls.yml'

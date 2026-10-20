@@ -12,8 +12,17 @@ Każdy plugin buduje się osobno – zmiana w jednym nie odpala builda drugiego.
 
 ---
 
-# PROPHECY OF SCREAM v2
+# PROPHECY OF SCREAM v3
 Syntezator screechy do hardstyle / rawstyle / uptempo / frenchcore. VST3 (instrument), działa w FL Studio.
+
+**Nowe w v3** (strojone pod prawdziwe screeche: gęsty „brud”, ruchomy szczyt, szerokie stereo, zjazdy):
+- **NOISE** (zakładka DIST) – szum przed przesterem: daje gęsty, szumiący dywan pod screechem.
+- **FORMANT** (nowa zakładka) – rezonansowy szczyt, czyli „głos” screecha: FREQ, GAIN, Q, ENV + DECAY (szczyt zjeżdża / podjeżdża
+  po każdej nucie), KEY (100% + FREQ 262 Hz = szczyt idzie za grana nutą), LFO (gadanie / wah).
+- **> AMP** (zakładka LFO) – LFO bramkuje dźwięk: kwadrat = rytmiczne cięcie / stutter.
+- **SWEEP + S.TIME** (VOICE) – po każdej nowej nucie wysokość zjeżdża lub podjeżdża o zadane półtony w zadanym czasie (do 10 s – FX-y).
+- **OTT** i **WIDTH** (OUTPUT) – zagęszczenie jak OTT i szerokie stereo (bas zostaje w środku).
+- Nowe presety strojone pod referencje (sekcja Presety). Stare presety i projekty brzmią tak samo – nowe rzeczy domyślnie są wyłączone.
 
 ## Jak zdobyć plik .vst3 (Windows)
 Build robi się sam na GitHubie: zakładka **Actions** → ostatni build → **Artifacts** → `Prophecy-of-Scream-VST3-Windows`.
@@ -23,9 +32,9 @@ Projekty zrobione na v1.0 otwierają się z tym samym brzmieniem (OSC 2 wyłącz
 
 ## Tor sygnału
 ```
-OSC 1 (unison + FM) -> DIST -> FILTER  --+
-                                         +-> AMP -> DELAY -> REVERB -> OUTPUT
-OSC 2 (unison + FM) -> DIST -> FILTER  --+
+OSC 1 (unison + FM + NOISE) -> DIST -> FILTER -> FORMANT --+
+                                                           +-> AMP -> OTT -> WIDTH -> DELAY -> REVERB -> OUTPUT
+OSC 2 (unison + FM + NOISE) -> DIST -> FILTER -> FORMANT --+
 ```
 Każdy oscylator ma własne obwiednie pitchu i filtra oraz własne LFO. Wszystko przed DELAY liczone jest z 4× oversamplingiem.
 
@@ -33,18 +42,24 @@ Każdy oscylator ma własne obwiednie pitchu i filtra oraz własne LFO. Wszystko
 | Panel | Co tam jest |
 |---|---|
 | OSC 1 / OSC 2 | włącznik, WAVE (piła → kwadrat), UNISON, DETUNE, WIDTH, FM, RATIO, OCTAVE, SEMI, FINE, P.ENV, P.DECAY, LEVEL |
-| Zakładki pod oscylatorem | **DIST** (HARD / TUBE / FOLD / SCREAM, DRIVE, BITE, MIX), **FILTER** (LP12 / LP24 / BAND / HIGH, CUTOFF, RESO, ENV, DECAY, KEY), **LFO** (kształt, SYNC, RATE, > CUTOFF, > PITCH). Każda zakładka ma włącznik **ACTIVE**, a dioda przy nazwie pokazuje, czy efekt gra |
-| THE SCREAM | makro: dokłada FM, drive i rezonans obu oscylatorom naraz. Mod wheel też go podkręca |
-| VOICE | GLIDE, BEND (zakres pitch-wheela), LEGATO |
+| Zakładki pod oscylatorem | **DIST** (HARD / TUBE / FOLD / SCREAM, DRIVE, BITE, NOISE, MIX), **FILTER** (LP12 / LP24 / BAND / HIGH, CUTOFF, RESO, ENV, DECAY, KEY), **LFO** (kształt, SYNC, RATE, > CUTOFF, > PITCH, > AMP), **FORMANT** (FREQ, GAIN, Q, ENV, DECAY, KEY, LFO). Każda zakładka ma włącznik **ACTIVE**, a dioda przy nazwie pokazuje, czy efekt gra |
+| THE SCREAM | makro: dokłada FM, drive i rezonans obu oscylatorom naraz. Mod wheel też go podkręca. Pod nim podgląd fali |
+| VOICE | GLIDE, BEND (zakres pitch-wheela), LEGATO, SWEEP, S.TIME |
 | AMP | ATTACK, DECAY, SUSTAIN, RELEASE (wspólne dla obu oscylatorów) |
 | DELAY | włącznik, TIME (zsynchronizowany z tempem), FEEDBACK, MIX, P.PONG |
 | REVERB | włącznik, SIZE, DAMP, MIX |
-| OUTPUT | VOLUME + miernik |
+| OUTPUT | OTT, WIDTH, VOLUME + miernik |
 
 Dwuklik na pokrętle = wartość domyślna. Okno można skalować za róg.
 
 ## Presety
 Fabryczne: **Dutchie** (domyślny), Zaagtand '04, Oldskool Gekte '05, Twin Prophecy, Blippy Blippy, Brain Fryer, Cardio, Devil's Scream, Farting Grandpa, Horn of Fallen, Mad Machine, Sexy Nightmare, Sonar, Zephyr.
+
+Nowe w v3 (strojone pomiarami pod referencyjne screeche, grane najlepiej w okolicy C5–C6 w FL):
+**Wail of Souls** (szeroki wyjący screech z podciągnięciem), **Howling Prophet** (zjazd na starcie + powolne opadanie),
+**Ascension** (jasny, powoli podjeżdża), **Talking Dead** (gadający formant), **Diving Blade** (krótki strzał ze zjeżdżającym szczytem),
+**Comb of Doom** (gęsty grzebień FM ze zjazdem), **Rising Scream**, **Wah of the Damned** (rytmiczne wah), **Stutter Ritual**
+(bramkowany podjazd o oktawę), **Raw Burst** (krótki, brudny), **Tritone Fall FX** (7-sekundowy zjazd z szumem – przytrzymaj nutę).
 
 Presety z `Resources/Presets` są wbudowane w plugin – żeby dodać nowy fabryczny preset, wrzuć tam plik `.pos`, dopisz go w `CMakeLists.txt` i w `embeddedPresets` w `PluginProcessor.cpp`.
 

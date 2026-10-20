@@ -6,6 +6,7 @@
 #include "DoomsdayFilter.h"
 #include "DoomsdayDSP.h"
 #include "DoomsdayOsc.h"
+#include "DoomsdayShaper.h"
 #include <cstdio>
 #include <vector>
 #include <set>
@@ -278,6 +279,57 @@ int main()
                && ChordStack::semitones (ChordStack::Minor, 3, 4, 0.f) == 0.f, "ChordStack: major third / half way / unison at 0");
         Slop sl; sl.prepare (sr); auto v3 = sl.forVoice (3, 1.f), v3b = sl.forVoice (3, 1.f), v4 = sl.forVoice (4, 1.f), z = sl.forVoice (3, 0.f);
         check (v3.pitchCents == v3b.pitchCents && v3.pitchCents != v4.pitchCents && std::abs (v3.pitchCents) <= 12.f && z.pitchCents == 0.f && z.cutoffMul == 1.f, "Slop: fixed per voice, bounded, off at 0");
+    }
+    // ---------------------------------------------------------------- shaper / time FX
+    {
+        using namespace doomsday::shaper;
+        // kick every 0.4 s (150 BPM), with a tail
+        const int beat = (int) (sr * 0.4); std::vector<float> kick ((size_t) beat * 4, 0.f);
+        for (int b = 0; b < 4; ++b) for (int i = 0; i < beat; ++i) { const float t = i / (float) sr; kick[(size_t) (b * beat + i)] = std::sin (2.f * MathConstants<float>::pi * (55.f + 200.f * std::exp (-t * 40.f)) * t) * std::exp (-t * 5.f) * 0.9f; }
+        OnsetDetector od; od.prepare (sr); od.setThresholdDb (-30.f); od.setMinGapMs (60.f); od.setSensitivity (0.5f);
+        std::vector<int> hits; for (int i = 0; i < (int) kick.size(); ++i) if (od.process (kick[(size_t) i])) hits.push_back (i);
+        bool aligned = hits.size() == 4; for (size_t k = 0; aligned && k < hits.size(); ++k) aligned = std::abs (hits[k] - (int) k * beat) < (int) (0.01 * sr);
+        check (aligned, "OnsetDetector: 4 kicks -> 4 hits, on time, no false hits in the tails", "(" + String ((int) hits.size()) + ")");
+
+        VolumeShaper vs; vs.prepare (sr); vs.setCurve (presetCurve (0)); vs.setDepth (1.f, 0.f, 0.f); vs.setCrossovers (150.f, 3500.f); vs.setSynced (true, 1.0);
+        std::vector<float> L (24000), R (24000);
+        for (int i = 0; i < 24000; ++i) L[(size_t) i] = R[(size_t) i] = 0.5f * std::sin (2.f * MathConstants<float>::pi * 50.f * i / (float) sr) + 0.3f * std::sin (2.f * MathConstants<float>::pi * 6000.f * i / (float) sr);
+        auto Lin = L;
+        vs.process (L.data(), R.data(), 24000, 0.0, 150.0);
+        // at the start of each beat (curve = 0): the 50 Hz is gone, 6 kHz stays
+        auto bandPeak = [&] (const std::vector<float>& v, int a, int n, float hz)
+        { double re = 0, im = 0; for (int i = a; i < a + n; ++i) { re += v[(size_t) i] * std::cos (2.0 * MathConstants<double>::pi * hz * i / sr); im += v[(size_t) i] * std::sin (2.0 * MathConstants<double>::pi * hz * i / sr); } return std::sqrt (re * re + im * im) / n * 2.0; };
+        const double lowAt = bandPeak (L, 19200, 480, 50.f), hiAt = bandPeak (L, 19200, 480, 6000.f), lowLater = bandPeak (L, 19200 + 9600, 1920, 50.f);
+        (void) Lin;
+        check (lowAt < 0.2 && std::abs (hiAt - 0.3) < 0.06 && lowLater > 0.4, "VolumeShaper LOW only: bass ducked on the beat, highs untouched", "(low " + String (lowAt, 2) + " -> " + String (lowLater, 2) + ", high " + String (hiAt, 2) + ")");
+
+        TapeStop tsp; tsp.prepare (sr);
+        std::vector<float> y (48000); int zcEarly = 0, zcLate = 0; float pkEnd = 0.f;
+        for (int i = 0; i < 48000; ++i)
+        {
+            if (i == 4800) tsp.engage (500.f, 0.f);
+            float l = std::sin (2.f * MathConstants<float>::pi * 440.f * i / (float) sr), r = l;
+            tsp.process (l, r); y[(size_t) i] = l;
+            if (i > 0 && y[(size_t) i - 1] < 0.f && l >= 0.f) { if (i > 4800 && i < 9600) ++zcEarly; if (i > 21600 && i < 26400) ++zcLate; }
+            if (i > 36000) pkEnd = jmax (pkEnd, std::abs (l));
+        }
+        check (zcLate < zcEarly / 2 && pkEnd < 0.01f, "TapeStop: pitch falls, then silence", "(" + String (zcEarly) + " -> " + String (zcLate) + " cycles / 0.1 s)");
+
+        Stutter st; st.prepare (sr);
+        std::vector<float> in (48000), out (48000);
+        Random rng (9); for (auto& v : in) v = rng.nextFloat() * 2.f - 1.f;
+        const int slice = 2400;
+        for (int i = 0; i < 48000; ++i) { if (i == 24000) st.engage (slice); float l = in[(size_t) i], r = l; st.process (l, r); out[(size_t) i] = l; }
+        float err = 0.f;
+        for (int i = 24000 + 200; i < 24000 + slice - 200; ++i) err = jmax (err, std::abs (out[(size_t) i] - in[(size_t) (i - slice)]));
+        float rep = 0.f; for (int i = 24000 + 200; i < 24000 + slice - 200; ++i) rep = jmax (rep, std::abs (out[(size_t) i] - out[(size_t) (i + slice)]));
+        check (err < 1e-5f && rep < 1e-5f, "Stutter: repeats exactly the last slice");
+
+        Reverser rv; rv.prepare (sr); rv.setChunk (4800);
+        for (int i = 0; i < 48000; ++i) { float l = in[(size_t) i], r = l; rv.process (l, r); out[(size_t) i] = l; }
+        float rerr = 0.f;
+        for (int p = 300; p < 4800 - 300; ++p) { const int i = 4800 * 5 + p; rerr = jmax (rerr, std::abs (out[(size_t) i] - in[(size_t) (4800 * 5 - 1 - p)])); }
+        check (rerr < 1e-5f, "Reverser: the previous chunk, backwards");
     }
     printf ("%s\n", ok ? "ALL OK" : "SOME FAILED");
     return ok ? 0 : 1;

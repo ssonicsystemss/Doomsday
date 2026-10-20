@@ -13,70 +13,13 @@
 // =====================================================================
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "DoomsdayDSP.h"
+#include "DoomsdayMod.h"
 #include <array>
 #include <cmath>
 
 namespace doomsday::kick
 {
-    struct Shape
-    {
-        static constexpr int maxPoints = 24;
-        struct Pt { float ms = 0.f, v = 1.f; };
-        std::array<Pt, maxPoints> pts {};
-        int n = 0;
-
-        static Shape make (std::initializer_list<Pt> list)
-        {
-            Shape s; for (auto& p : list) if (s.n < maxPoints) s.pts[(size_t) s.n++] = p;
-            s.tidy(); return s;
-        }
-        float endMs() const { return n > 0 ? pts[(size_t) n - 1].ms : 0.f; }
-        // cursor makes forward evaluation O(1)
-        inline float eval (float ms, int& seg) const
-        {
-            if (n == 0) return 1.f;
-            if (ms <= pts[0].ms) return pts[0].v;
-            while (seg + 1 < n && ms > pts[(size_t) seg + 1].ms) ++seg;
-            if (seg + 1 >= n) return pts[(size_t) n - 1].v;
-            const auto& a = pts[(size_t) seg]; const auto& b = pts[(size_t) seg + 1];
-            const float span = b.ms - a.ms;
-            return span <= 0.f ? b.v : a.v + (b.v - a.v) * (ms - a.ms) / span;
-        }
-        float at (float ms) const { int s = 0; return eval (ms, s); }
-        void tidy()
-        {
-            for (int i = 0; i < n; ++i) { pts[(size_t) i].ms = juce::jmax (0.f, pts[(size_t) i].ms); pts[(size_t) i].v = juce::jlimit (0.f, 1.f, pts[(size_t) i].v); }
-            std::stable_sort (pts.begin(), pts.begin() + n, [] (const Pt& a, const Pt& b) { return a.ms < b.ms; });
-            if (n > 0) pts[0].ms = 0.f;          // the first point is pinned to the hit
-        }
-        bool insert (float ms, float v)
-        {
-            if (n >= maxPoints) return false;
-            pts[(size_t) n++] = { ms, v }; tidy(); return true;
-        }
-        void remove (int i) { if (i <= 0 || i >= n || n <= 2) return; for (int k = i; k < n - 1; ++k) pts[(size_t) k] = pts[(size_t) k + 1]; --n; }
-        juce::String toString() const
-        {
-            juce::StringArray s;
-            for (int i = 0; i < n; ++i) s.add (juce::String (pts[(size_t) i].ms, 2) + ":" + juce::String (pts[(size_t) i].v, 4));
-            return s.joinIntoString (";");
-        }
-        static bool fromString (const juce::String& text, Shape& out)
-        {
-            Shape s;
-            for (auto& tok : juce::StringArray::fromTokens (text, ";", ""))
-                if (tok.containsChar (':') && s.n < maxPoints)
-                    s.pts[(size_t) s.n++] = { tok.upToFirstOccurrenceOf (":", false, false).getFloatValue(), tok.fromFirstOccurrenceOf (":", false, false).getFloatValue() };
-            if (s.n < 2) return false;
-            s.tidy(); out = s; return true;
-        }
-        bool operator== (const Shape& o) const
-        {
-            if (n != o.n) return false;
-            for (int i = 0; i < n; ++i) if (pts[(size_t) i].ms != o.pts[(size_t) i].ms || pts[(size_t) i].v != o.pts[(size_t) i].v) return false;
-            return true;
-        }
-    };
+    using Shape = doomsday::mod::Shape;      // drawn envelopes (see DoomsdayMod.h)
 
     struct KickParams
     {

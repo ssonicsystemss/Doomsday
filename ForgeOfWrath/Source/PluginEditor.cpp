@@ -100,7 +100,7 @@ void AnvilDisplay::mouseDrag (const MouseEvent& e)
     // the first dot stays on the hit; a dot never passes its neighbours (they do not move)
     const float lo = drag == 0 ? 0.f : sh.pts[(size_t) drag - 1].ms + 0.5f;
     const float hi = drag == 0 ? 0.f : (drag + 1 < sh.n ? sh.pts[(size_t) drag + 1].ms - 0.5f : 1000.f);
-    sh.pts[(size_t) drag] = { jlimit (lo, jmax (lo, hi), pt.ms), pt.v };
+    sh.pts[(size_t) drag] = { jlimit (lo, jmax (lo, hi), pt.ms), pt.v, sh.pts[(size_t) drag].bend };
     shape[editing] = sh;
     proc.setShape (editing, sh);
     repaint();

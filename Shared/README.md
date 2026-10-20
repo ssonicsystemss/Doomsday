@@ -34,6 +34,23 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 | `DoomsdayKick.h` (v2): `kick::KickParams` (+ `cook(rate)` – współczynniki raz na blok), `kick::KickVoice` (TAIL: opadanie pitchu START / DROP / CURVE / HOLD albo rysowany PITCH, sine→tri→saw; CHAOS – szum w przester; ROOM przed / po przesterze; STAGE 1 (5 typów) → MID EQ → STAGE 2; LOW / HIGH CUT, BODY, SCREAM, CRUNCH, GRIT; PUNCH z DRIVE; CLICK), `kick::KickRoom` (mały pogłos mono), `kick::Shape` (rysowane obwiednie w promilach długości, max 24 kropki), `kick::masterClip` | synteza kicków (z Forge of Wrath) |
 | `VoiceManager<Voice, N>` | polifonia z Fortune of Seekers: `noteOn(note, limit, fadeStep, sameNote)` (kradzież najstarszego z wyciszeniem), `noteOff`, `setPedal`, `allOff`. Voice musi mieć `active, held, sustained, note, age, kill, killStep` |
 
+## Source/DoomsdayDrive.h  (`doomsday::drive`) – czyste przestery
+| Klocek | Do czego |
+|---|---|
+| `Adaa1::process (x, curve)` + `plain (x, curve)`; krzywe `Soft, Hard, Tube, Fold, Cubic` | przester z anty-aliasingiem (ADAA): o ~7 dB mniej „cyfrowego piasku” niż zwykły, z 2x oversamplingiem o ~20 dB mniej; ciche sygnały przechodzą 1:1 |
+| `OverSampler` (`prepare (ch, maxBlock)`, `setFactorIndex (0..3 = 1x..8x)`, `process (block, [] (ch, x) { ... })`, `latencySamples()`) | oversampling – wszystkie krotności przygotowane z góry, przełączanie bez alokacji |
+| `DcBlock`, `makeup (curve, driveLin)` | po asymetrycznych krzywych / wyrównanie głośności przy podkręcaniu drive |
+
+## Source/DoomsdayMod.h  (`doomsday::mod`) – modulacja
+| Klocek | Do czego |
+|---|---|
+| `Shape` (do 32 kropek `{czas, wartość 0..1, bend}`, `eval / at`, `insert / remove`, `toString / fromString`) | rysowane obwiednie i krzywe; `bend` wygina odcinek za kropką; `kick::Shape` to ten sam typ |
+| `Lfo` (`SINE, TRIANGLE, SAW UP, SAW DOWN, SQUARE, S&H, SMOOTH, DRAWN`), `setRateHz`, `setSynced (beats, bpm)`, `syncTo (ppq)`, `retrigger`, `setPhaseOffset`, `setShape` | LFO wolne lub zsynchronizowane z FL; DRAWN = narysowany kształt jako jeden cykl (sidechain / volume shaper) |
+| `syncDivisions() / syncBeats (i) / syncNames()` | wartości nut 1/64 .. 16 taktów (zwykłe, z kropką, triole) do parametru Choice |
+| `Smoother`, `Matrix<źródła, cele, sloty>` (`setSlot (i, src, dst, amount, via)`, `setSource`, `compute`, `dest`) | wygładzanie parametrów; macierz modulacji |
+
+Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, latencja, Shape, LFO, sync, macierz).
+
 ## Source/DoomsdayParams.h  (`doomsday`)
 - `fmt::` formatery tekstu (hz, ms, db, pct, bip, oct, semi, cents, lfoHz, pan) + parsery (`num, hzIn, msIn, pctIn, panIn`).
 - `make::f / b / c / i / skew` – fabryki parametrów APVTS z formatami.

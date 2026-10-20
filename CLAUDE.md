@@ -23,6 +23,7 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
 - JUCE: `ln -sfn /home/claude/AncientDrums/JUCE <Plugin>/JUCE` (or clone JUCE 8.0.10); **remove the symlink before committing**.
 - `cd <Plugin> && CXXFLAGS="-DJUCE_USE_XRANDR=0 -DJUCE_USE_XINERAMA=0 -DJUCE_USE_XCURSOR=0 -DJUCE_USE_XRENDER=0" cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPROPHECY_BUILD_TESTS=ON`
 - `ninja -C build RenderTest && xvfb-run -a build/RenderTest_artefacts/Release/RenderTest <outdir>` → checks + GUI snapshot PNG (look at it).
+- Shared blocks have their own tests: `cd Shared/Tests` (same JUCE symlink + cmake flags) → `ninja -C build && build/SharedTests_artefacts/Release/SharedTests`.
 - CI: every plugin has `.github/workflows/build-<name>.yml` (template `Shared/templates/build-workflow.yml`); new plugin folders
   go into `paths-ignore` of `build-windows.yml`. Status: `gh run list -R ssonicsystemss/Doomsday`. Download = run page → Artifacts.
 

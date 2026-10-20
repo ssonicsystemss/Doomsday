@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "DoomsdayBrand.h"
 
 using namespace juce;
 using namespace doomsday::ui;
@@ -493,7 +494,7 @@ void Canvas::renderBackground()
     }
     g.setFont (lnf.titleFont (10.f, 0.25f));
     g.setColour (lnf.theme.text.withAlpha (0.75f));
-    g.drawText ("V1.0", 20, 40, 300, 14, Justification::left);
+    g.drawText ("V1.1", 20, 40, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (lnf.theme.label);
     g.drawText ("HARDSTYLE SCREAMER", 20, 58, 320, 16, Justification::left);
@@ -501,6 +502,7 @@ void Canvas::renderBackground()
     g.drawText ("CORE  /  EDGE  /  BODY", 20, 74, 320, 16, Justification::left);
     g.setColour (lime);
     g.drawText ("FEAR THE SERPENT", 20, 90, 320, 16, Justification::left);
+    doomsday::brand::drawBadge (g, { 196.f, 44.f, 86.f, 48.f }, 0.5f);
 
     for (auto& p : panels) paint::glassPanel (g, lnf, p.area, p.title, 0, p.spot);
 }

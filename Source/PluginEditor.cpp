@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "../Shared/Source/DoomsdayBrand.h"
 #include "BinaryData.h"
 
 using namespace juce;
@@ -1092,7 +1093,7 @@ void Canvas::drawStage (Graphics& g)
     // header side text
     g.setFont (lnf.titleFont (10.f, 0.25f));
     g.setColour (Palette::text.withAlpha (0.75f));
-    g.drawText ("V2.0", 20, 34, 300, 14, Justification::left);
+    g.drawText ("V2.1", 20, 34, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f));
     g.setColour (Palette::label);
     g.drawText ("TWIN OSCILLATOR ENGINE", 20, 52, 320, 16, Justification::left);
@@ -1100,6 +1101,7 @@ void Canvas::drawStage (Graphics& g)
     g.drawText ("4X OVERSAMPLED  /  MONO LEGATO", 20, 68, 320, 16, Justification::left);
     g.setColour (Palette::red);
     g.drawText ("ENTER THE PROPHECY", 20, 84, 320, 16, Justification::left);
+    doomsday::brand::drawBadge (g, { 270.f, 42.f, 100.f, 48.f }, 0.5f);
 
     g.setFont (lnf.labelFont (11.f, 0.35f));
     g.setColour (Palette::dim);

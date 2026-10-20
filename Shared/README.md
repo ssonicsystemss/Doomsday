@@ -39,3 +39,10 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 - `FlowLane(levelFeed, accent, label)` – dźwięk płynący z góry na dół (THE PATH z Fortune of Seekers), `tick()` z timera.
 
 Pluginy używające Shared: **Dark Serpent**, **Mirror of Souls**. Klocki z Fortune of Seekers (przestery, SCREAM, polifonia, zakładki FX, THE PATH) są tu skopiowane i sprawdzone testem Dark Serpent. Starsze (PoS, Ancient Drums, Fortune of Seekers) mają własny kod i nie są przerabiane.
+
+## Znak firmowy (sonicsystems / DOOMSDAY)
+`Source/DoomsdayBrand.h` – samodzielny nagłówek z wbudowanym logo (`Resources/sonicsystems_doomsday.png`).
+`doomsday::brand::drawBadge (g, obszar, krycie, placement, kolorBieli)` rysuje mały, przygaszony znaczek – w tle
+nagłówka (raz, w cache'owanym tle). Na jasnych wtyczkach (Ancient Drums) biel jest przemalowana na ciemny kolor.
+Używają go wszystkie wtyczki Doomsday (stare włączają go ścieżką względną `../../Shared/Source/DoomsdayBrand.h`).
+Przy zmianie logo: podmień PNG i wygeneruj nagłówek od nowa; Prophecy of Scream przebuduj ręcznie (jego workflow pomija Shared/).

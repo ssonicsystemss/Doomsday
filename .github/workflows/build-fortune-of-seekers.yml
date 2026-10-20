@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'FortuneOfSeekers/**'
+      - 'Shared/Source/DoomsdayBrand.h'
       - '.github/workflows/build-fortune-of-seekers.yml'
   workflow_dispatch:
 

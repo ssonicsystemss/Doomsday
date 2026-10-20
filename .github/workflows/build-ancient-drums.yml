@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'AncientDrums/**'
+      - 'Shared/Source/DoomsdayBrand.h'
       - '.github/workflows/build-ancient-drums.yml'
   workflow_dispatch:
 

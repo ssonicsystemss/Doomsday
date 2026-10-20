@@ -47,7 +47,7 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (f (clipDrive, "Clip Drive", { 0.f, 24.f }, 6.f, fm::db, fm::num));
     l.add (f (clipSoft, "Clip Softness", { 0.f, 1.f }, 0.3f));
     l.add (f (velocity, "Velocity Sensitivity", { 0.f, 1.f }, 0.f));
-    l.add (f (output, "Output", { -24.f, 6.f }, 0.f, fm::db, fm::num));
+    l.add (f (output, "Output", { -24.f, 24.f }, 0.f, fm::db, fm::num));
     return l;
 }
 

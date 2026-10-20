@@ -200,6 +200,38 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Dla nas:** macierz FM 3–4 operatorów jako tryb oscylatora screecha (FM / RM z rysowanymi obwiedniami operatorów = klasyczny
   „FL-owy” screech), „Sine Shaper” jako prosty waveshaper sinusa.
 
+## NI Massive (2007) i Massive X → syntezatory screechy / leadów (PoS, Dark Serpent, Fortune)
+Źródła: instrukcja Massive (NI – Oscillator Section), Sound On Sound (Massive), MusicRadar (Massive X), Wikipedia.
+- **Massive – oscylatory:** 3 wavetable (80+ tablic), **POSITION** (przesuwanie po tablicy) + gałka **INTENSITY, której sens zależy od trybu**:
+  SPECTRUM (mniej / więcej harmonicznych – wbudowany „filtr”), BEND (zmienia prędkość odczytu fali – PWM / FM-owy charakter),
+  **FORMANT (przesuwa formanty bez zmiany wysokości = samogłoski)**. Jeden sinusowy **oscylator modulujący** z trybami RING (metal),
+  **PHASE (FM – klasyczny bas / screech)**, POSITION (szorstka faktura), **FILTER FM** (moduluje cutoff filtra z częstotliwością audio –
+  warkot, „growl”). Szum z tablic sampli (COLOR).
+- **Massive – filtry i routing:** 2 filtry (LP / HP 2- i 4-polowe, BP, notch, comb, **SCREAM**, **DAFT**), każdy oscylator ma suwak wysyłki
+  F1 ↔ F2, **suwak szeregowo ↔ równolegle** (modulowany = routing „oddycha”), **pętla FEEDBACK** z powrotem do filtrów (od ciepła po
+  mocny przester – filtry reagują na poziom jak analog, „headroom”), 2 sloty INSERT wstawiane w dowolne miejsce (przed / między / za
+  filtrami: bitcrusher, sine / parabolic shaper, S&H, frequency shifter), BYPASS (oscylator / sub omija filtry), 2 master FX + EQ.
+- **Massive – modulacja:** 4 obwiednie z pętlą i morfingiem kształtu, 4 LFO (dwa kształty z płynnym przejściem) zamienialne na
+  **PERFORMER** (16 kroków, każdy krok to krzywa, morfing między dwiema sekwencjami) albo **STEPPER** (16 kroków na głos);
+  8 makr, **Random Track** (losowa wartość na każde naciśnięcie klawisza), przeciągnij-upuść na gałki, źródło może skalować inną modulację.
+  Unison rozrzuca pitch, panoramę i pozycję w tablicy.
+- **Massive X:** 2 wavetable z **10 trybami** (m.in. **GORILLA** – ekstremalne formanty, ART – „filtrowanie”), 2 oscylatory PM, 2 szumy,
+  **unison ↔ akord płynnie (6 głosów)**, routing jak moduł z kablami (pętle feedbacku!), 9 typów filtrów, Performery do 8 taktów
+  i 12 sekwencji, EXCITER (jednorazowe obwiednie), Trackery, randomizer głosów, 16 makr.
+- **Chwalą:** brzmienie z „zapasem” (gęstnieje, nie rozpada się), skanowanie tablic, routing / feedback / morfing, czytelna modulacja.
+  **Krytykują:** CPU (tryb Eco gorzej brzmi), brak arpeggiatora i kompresora, zaśmiecone presety; w X: brak importu własnych fal,
+  słaby podgląd modulacji (statyczne grafiki), mało slotów FX.
+- **Dla nas:**
+  1. **Gałka INTENSITY z trybami SPECTRUM / BEND / FORMANT** na oscylator – trzy charaktery jedną gałką (jak Spire CTRL A / B).
+     FORMANT (samogłoski bez zmiany wysokości) to wprost „mówiący” screech.
+  2. **Jeden oscylator modulujący z trybami RING / PHASE (FM) / FILTER FM** – tani, a daje cały arsenał screechy i growli.
+  3. Filtry: tryb **SCREAM** (mamy SCREAM w Forge / Fortune), suwak **szeregowo ↔ równolegle** modulowany, **pętla FEEDBACK** przez filtr
+     (nasz `filter::Ladder` z nasyceniem znosi to dobrze), BYPASS dla dołu.
+  4. **PERFORMER**: 16 kroków z krzywą na krok + morfing dwóch sekwencji – rytmiczne ruchy screecha zsynchronizowane z tempem
+     (budujemy na `mod::Shape` + `mod::syncBeats`). **Random Track** na każdą nutę (żywe screeche).
+  5. **Unison ↔ akord płynnie** (Massive X), INSERT w dowolnym miejscu łańcucha.
+  6. Nie powtarzać: ciężkiego CPU, statycznych grafik modulacji, zaśmieconych presetów.
+
 ## Technika: jak robi się hardstyle'owy kick (Native Instruments – „hardstyle music”)
 Źródło: Native Instruments blog (krok po kroku, 150–160 BPM).
 1. **EQ PRZED przesterem: wytnij dół, podbij środek** (−13 dB @ 50 Hz, −11,5 dB @ 170 Hz, +12 dB @ 383 Hz) → przester (Dirt).
@@ -246,4 +278,6 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Throne:** rysowana krzywa kompresji „po maximusowemu”, REL + REL2, PEAK / RMS, wewnętrzny sidechain pasma, heatmapa spektrum.
 - **Wszystkie:** przeglądarka presetów i UNDO (zrobione), przełącznik HQ, modulacja przeciągnij-na-gałkę z animowanym wskaźnikiem, makra,
   AUTO-GAIN przy drive, klocek UI „przewijana fala + redukcja”.
-- **Syntezatory:** „slop” między głosami (Diva), tryb FM 3–4 operatorów (Sytrus), style saturacji nazwane charakterem (Decapitator).
+- **Syntezatory:** „slop” między głosami (Diva), tryb FM 3–4 operatorów (Sytrus), style saturacji nazwane charakterem (Decapitator);
+  z Massive: INTENSITY z trybami SPECTRUM / BEND / FORMANT, oscylator modulujący RING / PHASE / FILTER FM, filtry szeregowo ↔ równolegle
+  (modulowane), pętla FEEDBACK przez filtr, PERFORMER (16 kroków z krzywymi, morfing sekwencji), Random Track, unison ↔ akord.

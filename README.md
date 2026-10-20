@@ -9,8 +9,9 @@
 | **Mirror of Souls** – equalizer (efekt) | `MirrorOfSouls/` | *Build Mirror of Souls VST3* → `Mirror-of-Souls-VST3-Windows` |
 | **Abyss of Echoes** – reverb / delay / stereo (efekt) | `AbyssOfEchoes/` | *Build Abyss of Echoes VST3* → `Abyss-of-Echoes-VST3-Windows` |
 | **Throne of Titans** – mastering / limiter / LUFS (efekt) | `ThroneOfTitans/` | *Build Throne of Titans VST3* → `Throne-of-Titans-VST3-Windows` |
+| **Forge of Wrath** – syntezator kicków hardstyle (instrument) | `ForgeOfWrath/` | *Build Forge of Wrath VST3* → `Forge-of-Wrath-VST3-Windows` |
 
-Każdy plugin buduje się osobno – zmiana w jednym nie odpala builda drugiego. Opisy: `AncientDrums/README.md`, `FortuneOfSeekers/README.md`, `DarkSerpent/README.md`, `MirrorOfSouls/README.md`, `AbyssOfEchoes/README.md`, `ThroneOfTitans/README.md`. Wspólne klocki dla nowych pluginów: `Shared/README.md`.
+Każdy plugin buduje się osobno – zmiana w jednym nie odpala builda drugiego. Opisy: `AncientDrums/README.md`, `FortuneOfSeekers/README.md`, `DarkSerpent/README.md`, `MirrorOfSouls/README.md`, `AbyssOfEchoes/README.md`, `ThroneOfTitans/README.md`, `ForgeOfWrath/README.md`. Wspólne klocki dla nowych pluginów: `Shared/README.md`.
 
 ---
 

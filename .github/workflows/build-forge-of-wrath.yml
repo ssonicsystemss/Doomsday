@@ -1,0 +1,30 @@
+name: Build Forge of Wrath VST3
+
+on:
+  push:
+    paths:
+      - 'ForgeOfWrath/**'
+      - 'Shared/**'
+      - '.github/workflows/build-forge-of-wrath.yml'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: ForgeOfWrath
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        run: cmake -B build -A x64
+      - name: Build VST3
+        run: cmake --build build --config Release --target ForgeOfWrath_VST3 --parallel
+      - name: Remove build leftovers (.lib / .exp)
+        shell: pwsh
+        run: Get-ChildItem build/ForgeOfWrath_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp | Remove-Item
+      - name: Upload VST3
+        uses: actions/upload-artifact@v5
+        with:
+          name: Forge-of-Wrath-VST3-Windows
+          path: ForgeOfWrath/build/ForgeOfWrath_artefacts/Release/VST3/

@@ -213,7 +213,45 @@ LoudnessPanel::LoudnessPanel (TitanProcessor& p) : proc (p)
     targetChoice = std::make_unique<Choice> (p.apvts, ParamIDs::target, Choices::targets);
     resetBtn.onClick = [this] { proc.getEngine().resetRequest.store (true); };
     resetBtn.setTooltip ("Restart the integrated loudness and the true peak hold");
-    addAndMakeVisible (*matchSw); addAndMakeVisible (*targetChoice); addAndMakeVisible (resetBtn);
+    learnBtn.onClick = [this]
+    {
+        if (learnPhase >= 0) { learnPhase = -1; learnMsg = "LEARN STOPPED"; learnMsgTicks = 90; return; }
+        learnPhase = 0; learnTicks = 0; learnSum = 0.0; learnCount = 0;
+    };
+    learnBtn.setTooltip ("LEARN - play the loudest part (the drop) and click: LIMIT is set by itself so the track reaches the TARGET loudness");
+    addAndMakeVisible (*matchSw); addAndMakeVisible (*targetChoice); addAndMakeVisible (resetBtn); addAndMakeVisible (learnBtn);
+}
+float LoudnessPanel::currentTarget() const
+{
+    const int tIdx = jlimit (0, 4, (int) std::round (raw (proc, ParamIDs::target)));
+    return tIdx > 0 ? Choices::targetLufs[tIdx] : -7.f;
+}
+// LEARN: 3 rounds of  wait for the short-term meter to settle -> measure -> move LIMIT by the difference
+void LoudnessPanel::learnTick()
+{
+    if (learnPhase < 0) return;
+    const bool playing = inS > -45.f;
+    if (! playing) { learnBtn.setButtonText ("PLAY THE DROP"); return; }
+    ++learnTicks;
+    const int settle = 100, measure = 45;           // ~3.3 s settle (short-term is a 3 s window), ~1.5 s measure
+    learnBtn.setButtonText ("LEARNING " + String (learnPhase + 1) + "/3");
+    if (learnTicks <= settle) return;
+    learnSum += s; ++learnCount;
+    if (learnTicks < settle + measure) return;
+    const float measured = (float) (learnSum / jmax (1, learnCount));
+    const float diff = currentTarget() - measured;
+    auto* lp = proc.apvts.getParameter (ParamIDs::limit);
+    const float now = proc.apvts.getRawParameterValue (ParamIDs::limit)->load();
+    const float next = jlimit (0.f, 18.f, now + diff * 0.85f);
+    lp->beginChangeGesture(); lp->setValueNotifyingHost (lp->convertTo0to1 (next)); lp->endChangeGesture();
+    ++learnPhase; learnTicks = 0; learnSum = 0.0; learnCount = 0;
+    const bool done = std::abs (diff) < 0.4f || learnPhase >= 3 || next >= 17.9f || next <= 0.01f;
+    if (done)
+    {
+        learnPhase = -1;
+        learnMsg = next >= 17.9f ? "LIMIT AT MAX - THE MIX IS TOO QUIET" : "LEARNED: LIMIT " + String (next, 1) + " dB";
+        learnMsgTicks = 150;
+    }
 }
 void LoudnessPanel::resized()
 {
@@ -223,7 +261,9 @@ void LoudnessPanel::resized()
     auto t = b.removeFromBottom (28);
     t.removeFromLeft (64);
     targetChoice->setBounds (t);
-    matchSw->setBounds (bottom.removeFromLeft (bottom.getWidth() / 2).reduced (4, 1));
+    const int w3 = bottom.getWidth() / 3;
+    matchSw->setBounds (bottom.removeFromLeft (w3).reduced (4, 1));
+    learnBtn.setBounds (bottom.removeFromLeft (w3 + 20).reduced (4, 1));
     resetBtn.setBounds (bottom.reduced (4, 1));
 }
 void LoudnessPanel::tick()
@@ -235,6 +275,11 @@ void LoudnessPanel::tick()
     const float c = e.clipDb.exchange (0.f); clip = c > clip ? c : clip * 0.85f;
     inPk = jmax (e.inPeak.exchange (0.f), inPk * 0.9f); outPk = jmax (e.outPeak.exchange (0.f), outPk * 0.9f);
     matchDb = e.matchGainDb.load();
+    // slow averages for the advice line
+    limAvg += 0.03f * (lim - limAvg); clipAvg += 0.03f * (clip - clipAvg);
+    learnTick();
+    if (learnPhase < 0 && learnBtn.getButtonText() != "LEARN") learnBtn.setButtonText ("LEARN");
+    if (learnMsgTicks > 0) --learnMsgTicks;
     repaint();
 }
 void LoudnessPanel::paint (Graphics& g)
@@ -281,10 +326,20 @@ void LoudnessPanel::paint (Graphics& g)
     bar ("CLIP", clip / 6.f, Colour (0xffff5a3c), String (clip, 1) + " dB");      // how much the clipper shaves off the peaks
     bar ("TRUE PEAK", jlimit (0.f, 1.f, (tpMax + 12.f) / 12.f), tpMax > raw (proc, ParamIDs::ceiling) + 0.05f ? Colour (0xffff5a3c) : TitanTheme::band[2],
          tpMax < -100.f ? String ("-inf") : String (tpMax, 1) + " dBTP");
-    if (raw (proc, ParamIDs::match) > 0.5f)
+    // one line of advice: what to do now
     {
-        g.setFont (lnf.labelFont (10.5f, 0.2f)); g.setColour (Colour (0xff7dffb0));
-        g.drawText ("MATCH: " + String (matchDb, 1) + " dB to equal the input", b.removeFromTop (14.f).toNearestInt(), Justification::centredLeft);
+        String adv; Colour col = lnf.theme.label;
+        const bool playing = inS > -45.f;
+        if (learnPhase >= 0)                          { adv = "LEARN: KEEP THE DROP PLAYING..."; col = Colour (0xffffc04d); }
+        else if (learnMsgTicks > 0)                   { adv = learnMsg; col = Colour (0xff7dffb0); }
+        else if (raw (proc, ParamIDs::match) > 0.5f)  { adv = "MATCH: " + String (matchDb, 1) + " dB to equal the input"; col = Colour (0xff7dffb0); }
+        else if (! playing)                           adv = "PLAY THE DROP, THEN PRESS LEARN";
+        else if (limAvg < -6.f || clipAvg > 3.f)      { adv = "TOO HOT - DISTORTION! TURN LIMIT DOWN"; col = Colour (0xffff5a3c); }
+        else if (tIdx > 0 && s < target - 1.5f)       adv = "QUIET - TURN LIMIT UP OR PRESS LEARN";
+        else if (tIdx > 0 && s > target + 1.5f)       { adv = "LOUDER THAN THE TARGET - TURN LIMIT DOWN"; col = Colour (0xffffc04d); }
+        else                                          { adv = "SOUNDS GOOD"; col = Colour (0xff7dffb0); }
+        g.setFont (lnf.labelFont (10.5f, 0.2f)); g.setColour (col);
+        g.drawText (adv, b.removeFromTop (14.f).toNearestInt(), Justification::centredLeft);
     }
 }
 
@@ -467,7 +522,7 @@ void Canvas::renderBackground()
     }
     const int tx = (int) doomsday::brand::headerTextX (ui);
     g.setFont (lnf.titleFont (10.f, 0.25f)); g.setColour (lnf.theme.text.withAlpha (0.75f));
-    g.drawText ("V1.0", tx, 40, 300, 14, Justification::left);
+    g.drawText ("V1.1", tx, 40, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f)); g.setColour (lnf.theme.label);
     g.drawText ("3 BANDS  /  UP + DOWN  /  TRUE PEAK", tx, 58, 320, 16, Justification::left);
     g.setColour (plat);

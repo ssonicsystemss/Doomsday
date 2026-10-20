@@ -106,9 +106,9 @@ namespace doomsday::dyn
     inline float saturate (float x, float amount)
     {
         if (amount <= 0.001f) return x;
-        const float k = 1.f + amount * 5.f;
-        const float y = std::tanh (x * k) / std::tanh (k) ;
-        // keep small signals at about the same level, mix in by amount
+        // unity gain for quiet signals (no level jump), rounds off the loud peaks; mixed in by amount
+        const float k = 1.f + amount * 3.f;
+        const float y = std::tanh (x * k) / k;
         return x + amount * (y - x);
     }
 
@@ -165,15 +165,17 @@ namespace doomsday::dyn
     class Limiter
     {
     public:
-        void prepare (double sampleRate, float lookaheadMs = 1.5f)
+        // holdMs: the gain stays down this long after a peak before it releases (no gain ripple inside one bass cycle = less distortion)
+        void prepare (double sampleRate, float lookaheadMs = 1.5f, float holdMs = 0.f)
         {
             sr = sampleRate;
             look = juce::jmax (8, (int) std::round (lookaheadMs * 0.001 * sr));
+            hold = juce::jmax (0, (int) std::round (holdMs * 0.001 * sr));
             const int tp = TruePeak::taps / 2;
             latency = look + tp + 1;     // +1: a peak between two samples gets the full reduction on both of them
             for (auto& d : delay) d.assign ((size_t) (latency + 4), 0.f);
             gainBuf.assign ((size_t) (look + 1), 1.f);
-            qIdx.assign ((size_t) (look + 4), 0); qVal.assign ((size_t) (look + 4), 1.f);
+            qIdx.assign ((size_t) (look + hold + 4), 0); qVal.assign ((size_t) (look + hold + 4), 1.f);
             reset();
         }
         void reset()
@@ -199,7 +201,7 @@ namespace doomsday::dyn
             const int cap = (int) qIdx.size();
             while (qHead != qTail && qVal[(size_t) ((qTail - 1 + cap) % cap)] >= need) qTail = (qTail - 1 + cap) % cap;
             qIdx[(size_t) qTail] = n; qVal[(size_t) qTail] = need; qTail = (qTail + 1) % cap;
-            while (qIdx[(size_t) qHead] <= n - (look + 1)) qHead = (qHead + 1) % cap;
+            while (qIdx[(size_t) qHead] <= n - (look + 1 + hold)) qHead = (qHead + 1) % cap;
             const float m = qVal[(size_t) qHead];
             // boxcar average over the window -> smooth attack that reaches the minimum exactly at the peak
             boxSum += (double) m - (double) gainBuf[(size_t) gpos];
@@ -223,7 +225,7 @@ namespace doomsday::dyn
         float gainReductionDb() const { return grDb; }
     private:
         double sr = 44100.0;
-        int look = 64, latency = 70, dpos = 0, gpos = 0;
+        int look = 64, hold = 0, latency = 70, dpos = 0, gpos = 0;
         long long n = 0;
         std::array<std::vector<float>, 2> delay;
         std::vector<float> gainBuf;

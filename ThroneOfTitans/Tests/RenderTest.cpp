@@ -79,6 +79,16 @@ static double lufsOf (const AudioBuffer<float>& b, double from = 0.0)
     for (int i = (int) (from * sr); i < b.getNumSamples(); ++i) L.push (b.getSample (0, i), b.getSample (1, i));
     return L.integratedLufs();
 }
+static AudioBuffer<float> run (TitanProcessor& p, const AudioBuffer<float>& in);
+static double sineGainDbAt (TitanProcessor& p, double hz, float levelDb)
+{
+    AudioBuffer<float> b (2, (int) (sr * 1.0));
+    const float a = std::pow (10.f, levelDb / 20.f);
+    for (int i = 0; i < b.getNumSamples(); ++i) { const float v = a * (float) std::sin (2.0 * MathConstants<double>::pi * hz * i / sr); b.setSample (0, i, v); b.setSample (1, i, v); }
+    p.getEngine().reset();
+    auto o = run (p, b);
+    return 20.0 * std::log10 (o.getRMSLevel (0, (int) (sr * 0.5), (int) (sr * 0.4)) / (a / std::sqrt (2.0)));
+}
 static double truePeakDb (const AudioBuffer<float>& b)
 {
     dsp::Oversampling<float> os (2, 3, dsp::Oversampling<float>::filterHalfBandFIREquiripple, true);
@@ -160,6 +170,29 @@ int main (int argc, char** argv)
         auto o = run (proc, mix);
         const double tp = truePeakDb (o), l = lufsOf (o, 0.5);
         check (tp < -1.f + 0.05, "limiter +14 dB, ceiling -1 dBTP: true peak held", "(TP " + String (tp, 2) + " dB, " + String (l, 1) + " LUFS)");
+    }
+    // ---- bass stays clean under limiting: 55 Hz sine pushed 8 dB into the limiter -> low distortion
+    {
+        neutral (proc); set (proc, limit, 8.f); set (proc, ceiling, -0.3f);
+        AudioBuffer<float> sine (2, (int) (sr * 3.0));
+        for (int i = 0; i < sine.getNumSamples(); ++i) { const float v = 0.5f * (float) std::sin (2.0 * MathConstants<double>::pi * 55.0 * i / sr); sine.setSample (0, i, v); sine.setSample (1, i, v); }
+        auto o = run (proc, sine);
+        const int n = 65536, a = (int) (sr * 1.5);
+        std::vector<float> w ((size_t) n * 2, 0.f);
+        for (int i = 0; i < n && a + i < o.getNumSamples(); ++i) w[(size_t) i] = o.getSample (0, a + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * i / n));
+        juce::dsp::FFT fft (16); fft.performFrequencyOnlyForwardTransform (w.data());
+        auto bin = [&] (double hz) { const int k = (int) std::round (hz * n / sr); float m = 0; for (int j = k - 3; j <= k + 3; ++j) m = jmax (m, w[(size_t) j]); return (double) m; };
+        double h = 0; for (int k = 2; k <= 10; ++k) h += bin (55.0 * k) * bin (55.0 * k);
+        const double thd = 10.0 * std::log10 (h / (bin (55.0) * bin (55.0)) + 1e-20);
+        check (thd < -35.0, "55 Hz pushed 8 dB into the limiter: distortion low", "(THD " + String (thd, 1) + " dB)");
+    }
+    // ---- saturation keeps the level of quiet material
+    {
+        neutral (proc);
+        const double before = sineGainDbAt (proc, 1000.0, -30.f);
+        for (int b = 0; b < 3; ++b) set (proc, band (b, sat), 1.f);
+        const double after = sineGainDbAt (proc, 1000.0, -30.f);
+        check (std::abs (after - before) < 0.5, "SATURATE does not jump the level of quiet sound", "(" + String (after - before, 2) + " dB)");
     }
     // ---- downward compression lowers loud, upward lifts quiet
     {

@@ -37,7 +37,7 @@ public:
     void prepare (double sampleRate, int)
     {
         sr = sampleRate;
-        xo.prepare (sr); tilt.prepare (sr); limiter.prepare (sr, 1.5f);
+        xo.prepare (sr); tilt.prepare (sr); limiter.prepare (sr, 3.f, 22.f);      // 3 ms lookahead + 22 ms hold: the bass is not torn apart by the gain moving inside its cycle
         for (auto& b : comps) b.prepare (sr);
         inMeter.prepare (sr); outMeter.prepare (sr); matchIn.prepare (sr); matchOut.prepare (sr);
         for (auto* s : { &sIn, &sLimit, &sMatch }) s->reset (sr, 0.05);

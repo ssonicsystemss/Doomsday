@@ -62,7 +62,13 @@ private:
     TitanProcessor& proc;
     std::unique_ptr<doomsday::ui::Switch> matchSw;
     std::unique_ptr<doomsday::ui::Choice> targetChoice;
-    juce::TextButton resetBtn { "RESET" };
+    juce::TextButton resetBtn { "RESET" }, learnBtn { "LEARN" };
+    void learnTick();
+    float currentTarget() const;
+    int learnPhase = -1, learnTicks = 0;          // -1 = idle
+    double learnSum = 0.0; int learnCount = 0;
+    juce::String learnMsg; int learnMsgTicks = 0;
+    float limAvg = 0.f, clipAvg = 0.f;
     float m = -70.f, s = -70.f, i = -70.f, tp = -120.f, tpMax = -120.f, lim = 0.f, inPk = 0.f, outPk = 0.f, clip = 0.f, matchDb = 0.f, inS = -70.f;
 };
 

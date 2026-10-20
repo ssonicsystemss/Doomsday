@@ -1,4 +1,4 @@
-# THRONE OF TITANS v1.0
+# THRONE OF TITANS v1.1
 Wielopasmowy mastering + limiter + pomiar głośności (efekt VST3, FL Studio). Jak Maximus, tylko z dodatkami. Czarny + platyna.
 
 ## Instalacja (Windows)
@@ -8,8 +8,13 @@ Wstaw go jako **ostatni** efekt na kanale **Master** w mikserze FL.
 
 ## Jak zacząć (3 kroki)
 1. Wybierz preset pod gatunek (np. **HARDSTYLE – Club Loud**) i ustaw **TARGET** (−7 dla hardstyle).
-2. Kręć **LIMIT**, aż SHORT-TERM LUFS zbliży się do celu (liczba zrobi się zielona). Pasek LIMITER nie powinien stale stać na -8 dB i więcej.
+2. Puść **dropa** (najgłośniejszy fragment) i kliknij **LEARN** – przez ok. 10 s wtyczka sama ustawi **LIMIT** tak, żeby trafić
+   w cel. Linijka pod paskami mówi, co dalej: *SOUNDS GOOD*, *QUIET* (za cicho) albo na czerwono *TOO HOT – DISTORTION*
+   (za mocno, słychać przester – kręć LIMIT w lewo).
 3. Włącz **MATCH** i porównaj: wtyczka ścisza się do głośności oryginału – słyszysz, czy brzmi lepiej, a nie tylko głośniej.
+
+**v1.1:** czystszy limiter (dłuższy lookahead + hold, bas się nie rwie), SATURATE już nie podbija głośności,
+spokojniejsze presety (mniej LIMIT / CLIP), przycisk LEARN i podpowiedź na ekranie.
 
 ## Ekran THE THRONE
 Widmo po masteringu (wypełnione) i przed (pomarańczowa linia), trzy pasma LOW / MID / HIGH, **przeciągnij pionowe linie**,

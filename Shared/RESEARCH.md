@@ -68,6 +68,53 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
   2. **Unison z akordami / oktawami** (stack) – grube leady jednym palcem.
   3. Dwa filtry szeregowo / równolegle z LINK (mamy SVF + nowy `filter::Ladder`), DRIFT, step sequencer jako źródło modulacji.
 
+## Vital (Matt Tytel, darmowy) → syntezatory (PoS, Dark Serpent, Fortune)
+Źródła: Synth Anatomy, KVR, RouteNote, Bedroom Producers Blog.
+- **Budowa:** 3 oscylatory wavetable + slot sampla, każdy z **warpami częstotliwości i waveshaperami** (harmonic / inharmonic stretch,
+  Shepard, spectral time, „screw”, FM, RM, sync) – Vital **wygina harmoniczne fali** (nie tylko przesuwa po tablicy jak Serum).
+  Edytor wavetable, **tekst → wavetable**, preset → wavetable. 2 filtry (32 typy, drive), routing 4 sygnałów do 1 / 2 filtrów.
+  3 obwiednie, 4 LFO do pasma audio, 2 randomizery (Perlin, Lorenz, S&H, sinus) w stereo. **Modulacja przeciągnij-upuść
+  z animowanymi wskaźnikami na gałkach**, macierz. 8 efektów (multiband kompresor = OTT, delay, phaser, reverb…). MPE, mikrotonalność.
+  Wersja darmowa ma wszystkie funkcje.
+- **Dla nas:** warpy harmonicznych jako tryby oscylatora screecha (stretch / FM / sync), animowane wskaźniki modulacji na gałkach,
+  randomizery Perlin / Lorenz jako źródła (żywe, „oddychające” screeche), multiband kompresor jako efekt wbudowany (mamy `Ott3`).
+
+## ShaperBox 3 (Cableguys) → przyszła wtyczka sidechain / volume shaper (np. odświeżony Sidechain Prophecy)
+Źródła: MusicTech (10/10), MusicRadar, Bonedo, Magnetic Mag.
+- **Budowa:** „shapery” sterowane narysowaną krzywą: VOLUME, FILTER, PAN, WIDTH, TIME, DRIVE, CRUSH, NOISE, LIQUID (flanger / phaser).
+  Każdy shaper **dzielony na 3 pasma**, envelope follower, **AUDIO TRIGGER** (sygnał z sidechaina przekracza próg → odpala krzywą;
+  algorytmy Drums / General / Complex, filtr wejścia, czułość; może wysyłać MIDI), MIDI trigger. Edytor: punkt jednym kliknięciem,
+  przełączanie krzywa / punkt, zaznaczanie bez zmiany narzędzia, randomize. Presety: tagi, ulubione, chmura.
+- **Chwalą:** audio trigger („rewolucja”), płynność edycji. **Krytykują:** brak master volume, brak delay / reverb shapera, słaby randomize.
+- **Dla nas:** `mod::Lfo` DRAWN + `mod::Shape` z bend już są → wtyczka „shaper” to głównie UI. Koniecznie: **audio trigger od kicka**
+  (sidechain bez MIDI), podział na pasma (sidechain tylko dołu – bas pod kickiem), master volume (ich brak to częsty zarzut).
+
+## soothe2 (oeksound) → Mirror of Souls (tryb RESONANCE) / Throne
+Źródła: instrukcja soothe2 (oeksound.com), recenzje Whipped Cream Sounds, MusicRadar.
+- **Jak działa:** dynamiczny tłumik rezonansów – analizuje widmo i na bieżąco wycina wystające szczyty. Gałki: **DEPTH** (ile – jak próg,
+  nie dB; do −60 dB), **SHARPNESS** (jak wąskie wycięcia), **SELECTIVITY** (tylko najwyższe szczyty ↔ prawie wszystko), ATTACK / RELEASE,
+  tryb SOFT (przezroczysty) / HARD (mocniejszy), krzywa czułości (EQ mówiący, gdzie działać mocniej / słabiej, pasma 6 typów + low / high cut),
+  **DELTA** (słyszysz tylko to, co zabiera), MIX, TRIM, sidechain, oversampling, rozdzielczość (eco / high / ultra), osobna jakość dla renderu.
+- **Dla nas:** w Mirror tryb **„RESONANCE”** (jak soothe) – szczególnie na piszczące screeche i hihaty; DELTA wszędzie, gdzie coś zabieramy;
+  „osobna jakość dla renderu offline” jako zasada dla ciężkich algorytmów (HQ przy eksporcie, lżej przy graniu).
+
+## OTT (Xfer, darmowy) → wszystkie (już mamy `Ott3`)
+Źródła: MixElite, MusicRadar, Bedroom Producers Blog.
+- **Budowa:** 3 pasma, kompresja w dół i **w górę (do +36 dB)**, gałki DEPTH (= mix, domyślnie 100 % – za dużo), TIME, IN / OUT GAIN,
+  UPWARD / DOWNWARD globalnie, poziomy pasm H / M / L po kompresji.
+- **Typowo:** wokal 7–20 %, leady 15–25 % (EQ wycina dół przed OTT), reverb / delay **po** OTT; na master zwykle nie (jeśli już: ~15 %, upward 0).
+  **Pułapki:** wyciąga szum i ogony pogłosu, robi się ostro (ściszyć H), nie mieszać równolegle (fazowe efekty pasm) – używać DEPTH.
+- **Dla nas:** nasz `Ott3` – dodać osobno UPWARD / DOWNWARD i poziomy pasm; domyślne DEPTH niskie (~20 %), nie 100 %;
+  w łańcuchach: reverb / delay po OTT.
+
+## Ozone 12 (iZotope) → Throne of Titans
+Źródła: Attack Magazine, Gearnews.
+- **Nowości:** **Master Assistant** (AI: wybierasz moduły, cel głośności, gatunek → ustawia łańcuch), **Stem EQ** (EQ osobno na wokal / bębny /
+  bas / resztę w gotowym miksie – separacja AI), **Bass Control** (wyrównanie dołu), **Unlimiter** (przywraca dynamikę przeciśniętym miksom),
+  Maximizer **IRC 5** (głośno bez pompowania i przesteru).
+- **Dla nas (Throne):** nasz LEARN to mały „asystent” – rozbudować: **gatunek + cel → ustawia pasma, clip i limit** (np. HARDSTYLE / RAW / UPTEMPO),
+  „BASS CONTROL” prostą wersją: stały poziom dołu względem reszty (mamy pasmo LOW i MONO BASS); separacja stemów – za trudne, pomijamy.
+
 ---
 ## Wspólne wzorce (wszystkie analizy)
 - **Słuchanie różnicy**: delta / audition / unity gain (Pro-L 2, nasze MATCH) – producent od razu słyszy, co robi efekt.
@@ -75,3 +122,18 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Tryb jako główny wybór charakteru** (Valhalla MODE, Spire tryby oscylatora, style Pro-L 2) + kilka gałek.
 - **Eksport / przenośność**: render WAV (Kick 2), presety z samplami w środku.
 - **Efekty wbudowane albo świetne, albo żadne** (zarzut do Kick 2).
+- **Krzywa / próg zamiast liczb**: soothe (krzywa czułości), ShaperBox (rysowana krzywa), OTT (DEPTH jako jedna gałka).
+- **Domyślne ustawienia ostrożne** (OTT na 100 % to typowy błąd) – nasze nowe efekty startują łagodnie.
+- **Osobna jakość na eksport** (soothe): w czasie grania lżej, przy renderze HQ.
+
+---
+## Lista pomysłów do zrobienia (z analiz, wg wtyczki)
+- **Forge of Wrath:** EXPORT WAV w tonacji; oś PITCH w nutach + przyciąganie; podgląd warstw osobno + zoom; 2–3 warstwy sampla;
+  preset zapisuje swój sample; presety dopasowane do 38 kicków referencyjnych na silniku v2.
+- **Mirror of Souls:** dynamic z auto-progiem; tryb RESONANCE (soothe); EQ MATCH; rysowanie krzywej; kanały L / R; płynne nachylenie; DELTA.
+- **Throne of Titans:** AUDITION / DELTA; style limitera; wykres redukcji w czasie; asystent gatunek + cel; OTT-owe UPWARD / DOWNWARD osobno.
+- **Abyss of Echoes:** tryby reverbu o różnym charakterze; ATTACK; losowa modulacja bez falowania wysokości; kolor epoki.
+- **Syntezatory (PoS / Dark Serpent / Fortune):** filtr `Ladder` jako tryb ANALOG; MIX supersawa (`sides`); tryby oscylatora z CTRL A / B
+  (FM, HardFM, sync, warp harmonicznych); unison z akordami; 2 filtry szereg / równolegle; randomizery Perlin / Lorenz; key & scale; arp ze step seq.
+- **Nowa wtyczka – SHAPER / sidechain:** rysowana krzywa (mamy), sync z tempem (mamy), audio trigger od kicka, 3 pasma, master volume.
+- **Wszystkie:** przeglądarka presetów i UNDO (zrobione), przełącznik HQ, modulacja przeciągnij-na-gałkę z animowanym wskaźnikiem, makra.

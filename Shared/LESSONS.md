@@ -84,6 +84,9 @@ Kick 2 → Forge: EXPORT WAV w tonacji, pitch w nazwach nut, warstwy osobno na p
 Pro-Q 4 → Mirror: dynamic z auto-progiem, EQ MATCH do referencji, rysowanie krzywej. Pro-L 2 → Throne: AUDITION / DELTA,
 style limitera, wykres redukcji w czasie. Valhalla → Abyss: tryby o wyraźnym charakterze, ATTACK, losowa modulacja bez falowania
 wysokości. Spire → syntezatory: wzór „TRYB + CTRL A / CTRL B”, unison z akordami, dwa filtry szeregowo / równolegle.
+Vital → warpy harmonicznych, animowane wskaźniki modulacji, randomizery Perlin / Lorenz. ShaperBox → wtyczka shaper z AUDIO TRIGGER
+od kicka i podziałem na pasma. soothe2 → tryb RESONANCE w Mirror + DELTA. OTT → domyślnie nisko (~20 %), reverb / delay po OTT.
+Ozone 12 → asystent „gatunek + cel” w Throne. **Pełna lista pomysłów: koniec `RESEARCH.md`.**
 
 ## Technika (pułapki)
 - **Podział pasm przez odejmowanie** (`high = x - lowpass (x)`) daje garb przy częstotliwości podziału (przesunięcie fazy) –

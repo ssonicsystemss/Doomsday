@@ -13,6 +13,8 @@ on:
       - '.github/workflows/build-mirror-of-souls.yml'
       - 'AbyssOfEchoes/**'
       - '.github/workflows/build-abyss-of-echoes.yml'
+      - 'ThroneOfTitans/**'
+      - '.github/workflows/build-throne-of-titans.yml'
   workflow_dispatch:
 
 jobs:

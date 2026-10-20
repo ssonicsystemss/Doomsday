@@ -128,7 +128,7 @@ int main (int argc, char** argv)
         clean (proc); set (proc, revOn, 0); set (proc, dlyOn, 1); set (proc, dlyMode, 1); set (proc, dlySync, 1); set (proc, dlyDiv, 8);
         set (proc, dlyFb, 0.5f); set (proc, dlyMix, 1.f); set (proc, dlyDuck, 0.f); set (proc, dlyMod, 0.f); set (proc, dlyLo, 20.f); set (proc, dlyHi, 20000.f);
         set (proc, dry, 0);
-        proc.getEngine().reset(); run (proc, AudioBuffer<float> (2, 4800)); proc.getEngine().reset();
+        proc.getEngine().reset(); { AudioBuffer<float> z (2, 4800); z.clear(); run (proc, z); } proc.getEngine().reset();
         auto o = run (proc, impulse (1.0));
         auto peakAt = [&] (int ch, int from, int to) { int at = from; float pk = 0; for (int i = from; i < to; ++i) if (std::abs (o.getSample (ch, i)) > pk) { pk = std::abs (o.getSample (ch, i)); at = i; } return std::make_pair (at, pk); };
         auto l1 = peakAt (0, 1000, 25000), r1 = peakAt (1, 1000, 25000), r2 = peakAt (1, 25000, 45000);

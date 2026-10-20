@@ -28,6 +28,7 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 | `Ott3` (`prepare`, `process (l, r, amount)`) | 3-pasmowy OTT: ciche pasma w górę, głośne w dół – gęsty hardstyle'owy dźwięk (PoS v3) |
 | `StereoSpread` (`prepare`, `process (l, r, amount)`) | szerokie stereo: więcej boków + zdekorelowany środek powyżej ~220 Hz, mono-kompatybilne (PoS v3) |
 | `DoomsdaySpace.h`: `space::EchoDelay` (STEREO / PING-PONG / WIDE, filtry w pętli, drive, wobble), `space::FdnReverb` (8 linii, pre-delay, size, decay RT60, damp, low cut, motion, SHIMMER, FREEZE, width), `space::Ducker`, `space::Shifter` (oktawa w górę), `space::MonoBass` (24 dB) | przestrzeń: delay + reverb + ducking (z Abyss of Echoes) |
+| `DoomsdayDynamics.h`: `dyn::Crossover3` (LR4, sumuje się płasko), `dyn::BandComp` (ratio w dół + UPWARD, knee, curve() do rysowania), `dyn::saturate`, `dyn::TruePeak` (8x), `dyn::Limiter` (lookahead, true peak, latencySamples()), `dyn::Loudness` (LUFS M / S / I wg BS.1770), `dyn::Tilt` | dynamika i mastering (z Throne of Titans) |
 | `VoiceManager<Voice, N>` | polifonia z Fortune of Seekers: `noteOn(note, limit, fadeStep, sameNote)` (kradzież najstarszego z wyciszeniem), `noteOff`, `setPedal`, `allOff`. Voice musi mieć `active, held, sustained, note, age, kill, killStep` |
 
 ## Source/DoomsdayParams.h  (`doomsday`)
@@ -43,7 +44,7 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 - `FxTabs(apvts, accent)` + `addTab(name, powerParamId, cells, side)` – zakładki efektów z ACTIVE (jak w Fortune of Seekers), `refresh()` z timera.
 - `FlowLane(levelFeed, accent, label)` – dźwięk płynący z góry na dół (THE PATH z Fortune of Seekers), `tick()` z timera.
 
-Pluginy używające Shared: **Dark Serpent**, **Mirror of Souls**, **Abyss of Echoes**, **Prophecy of Scream** (od v3: NOISE / FORMANT / SWEEP / OTT / WIDTH, przez `../Shared/Source/DoomsdayDSP.h`). Klocki z Fortune of Seekers (przestery, SCREAM, polifonia, zakładki FX, THE PATH) są tu skopiowane i sprawdzone testem Dark Serpent. Starsze (Ancient Drums, Fortune of Seekers, stare części PoS) mają własny kod i nie są przerabiane.
+Pluginy używające Shared: **Dark Serpent**, **Mirror of Souls**, **Abyss of Echoes**, **Throne of Titans**, **Prophecy of Scream** (od v3: NOISE / FORMANT / SWEEP / OTT / WIDTH, przez `../Shared/Source/DoomsdayDSP.h`). Klocki z Fortune of Seekers (przestery, SCREAM, polifonia, zakładki FX, THE PATH) są tu skopiowane i sprawdzone testem Dark Serpent. Starsze (Ancient Drums, Fortune of Seekers, stare części PoS) mają własny kod i nie są przerabiane.
 
 ## Znak firmowy (sonicsystems / DOOMSDAY)
 `Source/DoomsdayBrand.h` – samodzielny nagłówek z wbudowanym logo (`Resources/sonicsystems_doomsday.png`).

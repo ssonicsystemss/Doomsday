@@ -1,0 +1,30 @@
+name: Build Throne of Titans VST3
+
+on:
+  push:
+    paths:
+      - 'ThroneOfTitans/**'
+      - 'Shared/**'
+      - '.github/workflows/build-throne-of-titans.yml'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: ThroneOfTitans
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        run: cmake -B build -A x64
+      - name: Build VST3
+        run: cmake --build build --config Release --target ThroneOfTitans_VST3 --parallel
+      - name: Remove build leftovers (.lib / .exp)
+        shell: pwsh
+        run: Get-ChildItem build/ThroneOfTitans_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp | Remove-Item
+      - name: Upload VST3
+        uses: actions/upload-artifact@v5
+        with:
+          name: Throne-of-Titans-VST3-Windows
+          path: ThroneOfTitans/build/ThroneOfTitans_artefacts/Release/VST3/

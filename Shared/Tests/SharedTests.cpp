@@ -5,6 +5,7 @@
 #include "DoomsdayMod.h"
 #include "DoomsdayFilter.h"
 #include "DoomsdayDSP.h"
+#include "DoomsdayOsc.h"
 #include <cstdio>
 #include <vector>
 #include <set>
@@ -238,6 +239,45 @@ int main()
         check (notes == expect && offs >= ons - 1, "Arp UP x2 octaves: 60 64 67 72 76 79 (1.5 beats of 1/16)");
         RandomPerNote rp; rp.prepare (sr, 0.f); const float r1 = rp.trigger(), r2 = rp.trigger();
         check (r1 != r2 && std::abs (r1) <= 1.f && std::abs (r2) <= 1.f, "RandomPerNote: new value per note");
+    }
+    // ---------------------------------------------------------------- oscillators
+    {
+        using namespace doomsday::osc;
+        auto spectrumOf = [&] (auto&& gen, std::vector<float>& mag, std::vector<float>& fr)
+        {
+            const int n = 1 << 14; std::vector<float> w ((size_t) n * 2, 0.f);
+            for (int i = 0; i < 2000; ++i) gen();
+            for (int i = 0; i < n; ++i) w[(size_t) i] = gen() * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * i / n));
+            juce::dsp::FFT fft (14); fft.performFrequencyOnlyForwardTransform (w.data());
+            mag.assign (w.begin(), w.begin() + n / 2); fr.resize ((size_t) n / 2); for (int k = 0; k < n / 2; ++k) fr[(size_t) k] = (float) (k * sr / n);
+        };
+        auto centroid = [&] (auto&& gen) { std::vector<float> m, f; spectrumOf (gen, m, f); double a = 0, b = 0; for (size_t k = 1; k < m.size(); ++k) { a += m[k] * m[k] * f[k]; b += m[k] * m[k]; } return a / b; };
+        auto peakHz = [&] (auto&& gen, float lo) { std::vector<float> m, f; spectrumOf (gen, m, f); size_t best = 0; for (size_t k = 1; k < m.size(); ++k) if (f[k] > lo && (best == 0 || m[k] > m[best])) best = k; return (double) f[best]; };
+        // share of energy above the 2nd harmonic, in dB
+        auto rich = [&] (auto&& gen, double f0) { std::vector<float> m, f; spectrumOf (gen, m, f); double hi = 0, all = 0; for (size_t k = 1; k < m.size(); ++k) { all += m[k] * m[k]; if (f[k] > 2.5 * f0) hi += m[k] * m[k]; } return 10.0 * std::log10 (hi / all + 1e-12); };
+        IntensityOsc o; o.prepare (sr);
+        o.setMode (IntensityOsc::Spectrum); o.setIntensity (0.15f); const double cDull = rich ([&] { return o.next (220.f); }, 220.0);
+        o.setIntensity (0.9f); const double cBright = rich ([&] { return o.next (220.f); }, 220.0);
+        check (cBright > cDull + 15.0, "IntensityOsc SPECTRUM: intensity adds harmonics", "(upper harmonics " + String (cDull, 1) + " -> " + String (cBright, 1) + " dB)");
+        o.setMode (IntensityOsc::Bend); o.setIntensity (0.f); const double b0 = rich ([&] { return o.next (220.f); }, 220.0);
+        o.setIntensity (0.9f); const double b1 = rich ([&] { return o.next (220.f); }, 220.0);
+        check (b0 < -60.0 && b1 > -15.0, "IntensityOsc BEND: 0 = sine, up = sharp", "(upper harmonics " + String (b0, 1) + " -> " + String (b1, 1) + " dB)");
+        (void) centroid;
+        o.setMode (IntensityOsc::Formant); o.setIntensity (0.6f);           // ~1.21 kHz formant
+        const double f1 = peakHz ([&] { return o.next (150.f); }, 400.f), f2 = peakHz ([&] { return o.next (200.f); }, 400.f);
+        check (std::abs (f1 - f2) < 0.15 * f1 && f1 > 900.0 && f1 < 1500.0, "IntensityOsc FORMANT stays put when the pitch moves", "(" + String (f1, 0) + " / " + String (f2, 0) + " Hz)");
+
+        FmOps<4> fm; fm.prepare (sr);
+        const double pure = centroid ([&] { return fm.next (440.f); });
+        fm.setOp (1, 2.f, 1.f, 0.f, false); fm.setMod (1, 0, 1.5f);
+        std::vector<float> m, fr; spectrumOf ([&] { return fm.next (440.f); }, m, fr);
+        auto at = [&] (double hz) { const size_t k = (size_t) std::round (hz / (sr / (1 << 14))); float v = 0; for (size_t j = k - 2; j <= k + 2; ++j) v = jmax (v, m[j]); return v; };
+        check (std::abs (pure - 440.0) < 20.0 && at (1320.0) > at (440.0) * 0.1f && at (2200.0) > at (440.0) * 0.02f, "FmOps: pure sine alone, sidebands at 440 + 2x440 x k with modulation");
+
+        check (std::abs (ChordStack::ratio (ChordStack::Major, 1, 4, 1.f) - std::pow (2.f, 4.f / 12.f)) < 1e-5f && ChordStack::semitones (ChordStack::Major, 2, 4, 0.5f) == 3.5f
+               && ChordStack::semitones (ChordStack::Minor, 3, 4, 0.f) == 0.f, "ChordStack: major third / half way / unison at 0");
+        Slop sl; sl.prepare (sr); auto v3 = sl.forVoice (3, 1.f), v3b = sl.forVoice (3, 1.f), v4 = sl.forVoice (4, 1.f), z = sl.forVoice (3, 0.f);
+        check (v3.pitchCents == v3b.pitchCents && v3.pitchCents != v4.pitchCents && std::abs (v3.pitchCents) <= 12.f && z.pitchCents == 0.f && z.cutoffMul == 1.f, "Slop: fixed per voice, bounded, off at 0");
     }
     printf ("%s\n", ok ? "ALL OK" : "SOME FAILED");
     return ok ? 0 : 1;

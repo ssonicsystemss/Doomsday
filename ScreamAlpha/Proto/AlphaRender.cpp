@@ -13,10 +13,10 @@ static std::map<String, std::function<void (alpha::Params&, float)>> setters()
     std::map<String, std::function<void (alpha::Params&, float)>> m;
 #define F(name) m[#name] = [] (alpha::Params& p, float v) { p.name = v; };
 #define I(name) m[#name] = [] (alpha::Params& p, float v) { p.name = (int) std::round (v); };
-    F(scoopSt) F(scoopMs) F(scoopCurve) F(glideMs) F(tuneSt) F(coreLevel) F(coreShape) F(hashLevel) F(hashDecayMs) F(hashSustain) I(voices) F(detuneCents)
+    F(scoopSt) F(scoopMs) F(scoopCurve) F(glideMs) F(tuneSt) F(coreLevel) F(coreShape) I(coreOct) F(hashLevel) F(hashDecayMs) F(hashSustain) I(voices) F(detuneCents)
     F(carrierSaw) F(ratio) F(index) F(chaos) F(chaosHz) F(grit) F(hashHp) F(drive1Db) I(drive1Curve) F(combMix) F(combFb)
     F(combRatio) F(formHz) F(formGainDb) F(formQ) F(drive2Db) I(drive2Curve) F(toneHz) F(lowCut) F(attackMs)
-    F(decayMs) F(sustain) F(releaseMs) F(outDb)
+    F(decayMs) F(sustain) F(releaseMs) F(chorus) F(outDb)
 #undef F
 #undef I
     return m;

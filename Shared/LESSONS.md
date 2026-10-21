@@ -103,6 +103,11 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - Decyzja właściciela: PoS zamrożony (ostatnia zmiana PoS: commit `f745e5e`; tagów nie da się wypchnąć z tego środowiska), nowy syntezator screechy pisany od zera na wiedzy z `RESEARCH.md` i klockach `Shared/`.
   Przed budową: poprosić o 1 przykład z „polotem” i porównać w tej samej nucie.
 
+## 5CR34M 4LPH4 – pierwsze A/B (2026-10-21)
+- Dopasowanie automatem (CMA-ES na kształt widma + płaskość) dało „**odkurzacz**”: automat podrobił gęstą górę wzorców SZUMEM
+  (chaos = szum w fazie). Ucho słyszy „czysty ton + syk”. → CHAOS w silniku to teraz pływanie wysokości każdego głosu (dźwięk dalej ma nutę),
+  szum tylko jako mały GRIT; matcher mierzy tonalność pasm i karze szum w paśmie głosu (400–1600 Hz). Właściciel: zrób z tego hoovery → v0.1.
+
 ## Technika (pułapki)
 - **RANDOMIZE bez wyrównania głośności** (PoS do v3.1): losowe brzmienia wychodziły 10–20 dB ciszej niż presety (filtr BAND, formant,
   FOLD) – właściciel: „tych z randomu wgl nie słychać”. → Po losowaniu zmierz brzmienie offline (prywatny silnik, 2 trzymane nuty,

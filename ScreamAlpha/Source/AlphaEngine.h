@@ -34,6 +34,7 @@ struct Params
     float tuneSt = 0.f;                                        // fine tune of the whole voice (semitones)
     // core
     float coreLevel = 0.8f, coreShape = 0.15f;                // shape: 0 sine, 0.5 triangle, 1 square
+    int   coreOct = 0;                                         // core one octave down / up (hoover: -1)
     // hash
     float hashLevel = 0.5f;
     float hashDecayMs = 400.f, hashSustain = 1.f;             // the hash is brightest when the note is thrown, then settles
@@ -52,6 +53,7 @@ struct Params
     float toneHz = 9000.f;
     float lowCut = 150.f;                                      // final high-pass: light bottom
     float attackMs = 2.f, decayMs = 300.f, sustain = 0.9f, releaseMs = 80.f;
+    float chorus = 0.f;                                        // stereo chorus (hoover width), 0 = mono
     float outDb = -6.f;
 };
 
@@ -66,6 +68,8 @@ public:
         oversampler = std::make_unique<juce::dsp::Oversampling<float>> (1, osLog2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false);
         oversampler->initProcessing ((size_t) maxBlockSize);
         comb.assign ((size_t) (osr / 20.0) + 8, 0.f);         // down to 20 Hz
+        chorusSize = (int) (sr * 0.04) + 4;
+        chL.assign ((size_t) chorusSize, 0.f); chR.assign ((size_t) chorusSize, 0.f);
         heldNotes.reserve (128);
         reset();
     }
@@ -78,6 +82,7 @@ public:
         hp1 = {}; hp2 = {}; form = {}; tone1 = {}; tone2 = {}; outHp1 = {}; outHp2 = {};
         d1.reset(); d2.reset(); dc.reset();
         std::fill (comb.begin(), comb.end(), 0.f); combW = 0;
+        std::fill (chL.begin(), chL.end(), 0.f); std::fill (chR.begin(), chR.end(), 0.f); chW = 0; chPh = 0.f;
         if (oversampler) oversampler->reset();
     }
 
@@ -216,8 +221,9 @@ private:
             const float dt = f0 * inv;
 
             // core
-            corePh += dt; if (corePh >= 1.f) corePh -= 1.f;
-            const float core = coreWave (corePh, dt, p.coreShape) * p.coreLevel;
+            const float dtc = dt * (p.coreOct < 0 ? 0.5f : (p.coreOct > 0 ? 2.f : 1.f));
+            corePh += dtc; if (corePh >= 1.f) corePh -= 1.f;
+            const float core = coreWave (corePh, dtc, p.coreShape) * p.coreLevel;
 
             // hash: FM + chaos noise in the phase
             noiseLp += noiseC * (noise.next() - noiseLp);
@@ -265,13 +271,37 @@ private:
         }
 
         oversampler->processSamplesDown (block);
+        float* outR = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1, start) : nullptr;
         for (int i = 0; i < len; ++i)
         {
             float y = outHp2.hp (outHp1.hp (outL[i], lowC), lowC);
             y = dc.process (y) * outG;
-            outL[i] = y;
+            float l = y, r = y;
+            if (p.chorus > 0.f) chorusSample (y, l, r);
+            outL[i] = l;
+            if (outR != nullptr) outR[i] = r;
         }
-        for (int ch = 1; ch < buffer.getNumChannels(); ++ch) buffer.copyFrom (ch, start, buffer, 0, start, len);
+        for (int ch = 2; ch < buffer.getNumChannels(); ++ch) buffer.clear (ch, start, len);
+    }
+
+    // CHORUS: two delays (7..17 ms) swinging in opposite directions, the classic wide hoover
+    inline void chorusSample (float x, float& l, float& r)
+    {
+        chPh += 0.6f / (float) sr; if (chPh >= 1.f) chPh -= 1.f;
+        const float m = std::sin (chPh * juce::MathConstants<float>::twoPi);
+        auto rd = [this] (const std::vector<float>& b, float d)
+        {
+            float rp = (float) chW - d; if (rp < 0.f) rp += (float) chorusSize;
+            const int i0 = (int) rp, i1 = (i0 + 1) % chorusSize; const float fr = rp - (float) i0;
+            return b[(size_t) i0] + fr * (b[(size_t) i1] - b[(size_t) i0]);
+        };
+        const float base = (float) sr * 0.012f, depth = (float) sr * 0.005f;
+        const float wl = rd (chL, base + depth * m), wr = rd (chR, base - depth * m);
+        chL[(size_t) chW] = x; chR[(size_t) chW] = x;
+        if (++chW >= chorusSize) chW = 0;
+        const float c = p.chorus;
+        l = x * (1.f - 0.4f * c) + wl * 0.9f * c;
+        r = x * (1.f - 0.4f * c) + wr * 0.9f * c;
     }
 
     Params p;
@@ -291,6 +321,9 @@ private:
     doomsday::drive::Adaa1 d1, d2;
     doomsday::drive::DcBlock dc;
     std::vector<float> comb;
+    std::vector<float> chL, chR;
+    int chorusSize = 1, chW = 0;
+    float chPh = 0.f;
     int combW = 0;
 };
 }

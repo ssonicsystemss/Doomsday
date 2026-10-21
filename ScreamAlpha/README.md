@@ -18,12 +18,15 @@ CORE + HASH → OUTPUT: DRIVE 2 → TONE → LOW CUT → AMP (ADSR) → CHORUS (
 ```
 
 **v0.2:** dodana sekcja SPACE (OTT, delay, reverb) – v0.1 był „suchelec”. Presety mają już ustawioną przestrzeń i są głośniejsze.
-UNDO / REDO na górze. Dwuklik na gałce = wartość domyślna, klik w liczbę = wpisz wartość.
+**RANDOM** – losuje nowe brzmienie w sensownych zakresach i sam ustawia głośność (każdy random ok. tak głośny jak presety).
+**SAVE** – zapis do `Dokumenty\5CR34M 4LPH4\Presets` (lista USER w presetach). UNDO / REDO na górze. Dwuklik na gałce = wartość domyślna, klik w liczbę = wpisz wartość.
 
 ## Presety (v0.1)
 - **HOOVER - Classic Juno** – rozstrojone piły + kwadrat oktawę niżej, podjazd od dołu, chorus.
 - **HOOVER - Rave Dive** – zjazd z góry o oktawę na każdej nucie, mocniejszy przester i formant.
 - **HOOVER - Hardstyle Scream** – ostrzejszy: FM, twardy przester, filtr grzebieniowy, krótki rzut nuty.
+- **SCREECH - Short Shot / Massive Dive / Loop Hash / Bright Talker / Classic Wail / Digital Rise** – dobrane automatem do twoich wzorców
+  (FHSP 107, Massive 023, OPS loop 9, FHSP 069, Sylenth 008, Serum 018), na poprawionym silniku (bez „odkurzacza”), z przestrzenią, głośność wyrównana.
 - **INIT** – punkt startowy.
 
 To wersja do testów: dźwięk i gałki będą się jeszcze zmieniać. Pisz, co brzmi źle.

@@ -3,3 +3,4 @@ build-promo/
 JUCE
 out/
 Promo/out/
+__pycache__/

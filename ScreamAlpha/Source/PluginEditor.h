@@ -17,7 +17,7 @@ private:
 class AlphaCanvas : public juce::Component, private juce::Timer
 {
 public:
-    static constexpr int W = 1240, H = 476;
+    static constexpr int W = 1240, H = 636;
     explicit AlphaCanvas (AlphaProcessor&);
     ~AlphaCanvas() override;
     void paint (juce::Graphics&) override;

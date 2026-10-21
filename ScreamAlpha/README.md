@@ -1,4 +1,4 @@
-# 5CR34M 4LPH4 (v0.1 – wersja testowa)
+# 5CR34M 4LPH4 (v0.2 – wersja testowa)
 Nowy syntezator screechy do hardstyle / rawstyle, następca Prophecy of Scream, pisany od zera na podstawie twoich wzorców
 (analiza: `PLAN.md`). VST3 (instrument) do FL Studio.
 
@@ -14,7 +14,10 @@ NOTE THROW (zjazd / podjazd wysokości na KAŻDEJ nucie, też legato) + GLIDE
               GRIT (odrobina szumu – dużo = odkurzacz), LOW CUT, DECAY / SUSTAIN (hasz najjaśniejszy na starcie nuty)
               → SCREAM: DRIVE (5 krzywych) → COMB (filtr grzebieniowy strojony do nuty) → FORMANT (szczyt „głosu”)
 CORE + HASH → OUTPUT: DRIVE 2 → TONE → LOW CUT → AMP (ADSR) → CHORUS (szerokość jak w hooverze) → VOLUME
+   → SPACE: OTT → DELAY (z tempem FL, ping-pong, czas 1/16…1/2) → REVERB
 ```
+
+**v0.2:** dodana sekcja SPACE (OTT, delay, reverb) – v0.1 był „suchelec”. Presety mają już ustawioną przestrzeń i są głośniejsze.
 UNDO / REDO na górze. Dwuklik na gałce = wartość domyślna, klik w liczbę = wpisz wartość.
 
 ## Presety (v0.1)

@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "AlphaEngine.h"
+#include "../../Shared/Source/DoomsdayDSP.h"
 #include <array>
 #include <atomic>
 
@@ -47,6 +48,8 @@ public:
 
 private:
     alpha::Engine engine;
+    doomsday::dsp::Ott3 ott;
+    doomsday::dsp::FxChain fx;
     int currentProgram = 0;
     juce::String currentName { "INIT" };
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AlphaProcessor)

@@ -53,17 +53,26 @@ namespace
         { "releaseMs", "Release", 5.f, 5000.f, 80.f, 300.f, fmtMs },
         { "chorus", "Chorus", 0.f, 1.f, 0.f, 0.f, fmtPct, true },
         { "outDb", "Volume", -36.f, 12.f, -6.f, 0.f, fmtDb },
+        // FX (after the voice): OTT -> delay -> reverb
+        { "ott", "OTT", 0.f, 1.f, 0.f, 0.f, fmtPct, true },
+        { "dlyMix", "Delay Mix", 0.f, 1.f, 0.f, 0.f, fmtPct, true },
+        { "dlyFb", "Delay Feedback", 0.f, 0.9f, 0.35f, 0.f, fmtPct, true },
+        { "revMix", "Reverb Mix", 0.f, 1.f, 0.f, 0.f, fmtPct, true },
+        { "revSize", "Reverb Size", 0.f, 1.f, 0.7f, 0.f, fmtPct, true },
+        { "revDamp", "Reverb Damp", 0.f, 1.f, 0.45f, 0.f, fmtPct, true },
     };
     const StringArray curves { "SOFT", "HARD", "TUBE", "FOLD", "CUBIC" };
+    const StringArray dlyNames { "1/16", "1/8", "1/8D", "1/4", "1/4D", "1/2" };
+    const float dlyBeats[] { 0.25f, 0.5f, 0.75f, 1.f, 1.5f, 2.f };
 
     struct Preset { const char* name; std::vector<std::pair<const char*, float>> values; };
     const std::vector<Preset>& presets()
     {
         static const std::vector<Preset> p {
             { "INIT", {} },
-    { "HOOVER - Classic Juno", { { "scoopSt", -5.0f }, { "scoopMs", 220.0f }, { "scoopCurve", 0.35f }, { "glideMs", 110.0f }, { "coreLevel", 0.55f }, { "coreShape", 1.0f }, { "coreOct", -1.0f }, { "hashLevel", 0.9f }, { "hashDecayMs", 600.0f }, { "hashSustain", 0.8f }, { "voices", 7.0f }, { "detuneCents", 38.0f }, { "carrierSaw", 1.0f }, { "ratio", 0.5f }, { "index", 0.35f }, { "chaos", 0.3f }, { "chaosHz", 5.0f }, { "grit", 0.0f }, { "hashHp", 90.0f }, { "drive1Db", 9.0f }, { "drive1Curve", 0.0f }, { "combMix", 0.0f }, { "formHz", 900.0f }, { "formGainDb", 3.0f }, { "formQ", 1.0f }, { "drive2Db", 6.0f }, { "drive2Curve", 0.0f }, { "toneHz", 7500.0f }, { "lowCut", 50.0f }, { "attackMs", 3.0f }, { "decayMs", 600.0f }, { "sustain", 0.85f }, { "releaseMs", 120.0f }, { "chorus", 0.85f }, { "outDb", -10.0f } } },
-    { "HOOVER - Rave Dive", { { "scoopSt", 12.0f }, { "scoopMs", 420.0f }, { "scoopCurve", 0.2f }, { "glideMs", 110.0f }, { "coreLevel", 0.55f }, { "coreShape", 1.0f }, { "coreOct", -1.0f }, { "hashLevel", 0.9f }, { "hashDecayMs", 600.0f }, { "hashSustain", 0.8f }, { "voices", 7.0f }, { "detuneCents", 48.0f }, { "carrierSaw", 1.0f }, { "ratio", 0.5f }, { "index", 0.35f }, { "chaos", 0.3f }, { "chaosHz", 5.0f }, { "grit", 0.0f }, { "hashHp", 90.0f }, { "drive1Db", 16.0f }, { "drive1Curve", 0.0f }, { "combMix", 0.0f }, { "formHz", 1300.0f }, { "formGainDb", 7.0f }, { "formQ", 1.5f }, { "drive2Db", 6.0f }, { "drive2Curve", 0.0f }, { "toneHz", 7500.0f }, { "lowCut", 50.0f }, { "attackMs", 3.0f }, { "decayMs", 600.0f }, { "sustain", 0.85f }, { "releaseMs", 120.0f }, { "chorus", 0.7f }, { "outDb", -10.0f } } },
-    { "HOOVER - Hardstyle Scream", { { "scoopSt", 5.0f }, { "scoopMs", 70.0f }, { "scoopCurve", 0.5f }, { "glideMs", 40.0f }, { "coreLevel", 0.55f }, { "coreShape", 0.7f }, { "coreOct", 0.0f }, { "hashLevel", 0.9f }, { "hashDecayMs", 600.0f }, { "hashSustain", 0.8f }, { "voices", 7.0f }, { "detuneCents", 38.0f }, { "carrierSaw", 1.0f }, { "ratio", 2.0f }, { "index", 2.2f }, { "chaos", 0.3f }, { "chaosHz", 5.0f }, { "grit", 0.0f }, { "hashHp", 250.0f }, { "drive1Db", 24.0f }, { "drive1Curve", 1.0f }, { "combMix", 0.35f }, { "formHz", 1200.0f }, { "formGainDb", 10.0f }, { "formQ", 2.0f }, { "drive2Db", 6.0f }, { "drive2Curve", 0.0f }, { "toneHz", 7500.0f }, { "lowCut", 150.0f }, { "attackMs", 3.0f }, { "decayMs", 600.0f }, { "sustain", 0.85f }, { "releaseMs", 120.0f }, { "chorus", 0.5f }, { "outDb", -12.0f }, { "combFb", 0.55f }, { "combRatio", 1.0f } } },
+    { "HOOVER - Classic Juno", { { "scoopSt", -5.0f }, { "scoopMs", 220.0f }, { "scoopCurve", 0.35f }, { "glideMs", 110.0f }, { "coreLevel", 0.55f }, { "coreShape", 1.0f }, { "coreOct", -1.0f }, { "hashLevel", 0.9f }, { "hashDecayMs", 600.0f }, { "hashSustain", 0.8f }, { "voices", 7.0f }, { "detuneCents", 38.0f }, { "carrierSaw", 1.0f }, { "ratio", 0.5f }, { "index", 0.35f }, { "chaos", 0.3f }, { "chaosHz", 5.0f }, { "grit", 0.0f }, { "hashHp", 90.0f }, { "drive1Db", 9.0f }, { "drive1Curve", 0.0f }, { "combMix", 0.0f }, { "formHz", 900.0f }, { "formGainDb", 3.0f }, { "formQ", 1.0f }, { "drive2Db", 6.0f }, { "drive2Curve", 0.0f }, { "toneHz", 7500.0f }, { "lowCut", 50.0f }, { "attackMs", 3.0f }, { "decayMs", 600.0f }, { "sustain", 0.85f }, { "releaseMs", 120.0f }, { "chorus", 0.85f }, { "outDb", -6.0f }, { "ott", 0.25f }, { "dlyMix", 0.18f }, { "dlyDiv", 2.f }, { "dlyFb", 0.35f }, { "revMix", 0.3f }, { "revSize", 0.75f }, { "revDamp", 0.45f } } },
+    { "HOOVER - Rave Dive", { { "scoopSt", 12.0f }, { "scoopMs", 420.0f }, { "scoopCurve", 0.2f }, { "glideMs", 110.0f }, { "coreLevel", 0.55f }, { "coreShape", 1.0f }, { "coreOct", -1.0f }, { "hashLevel", 0.9f }, { "hashDecayMs", 600.0f }, { "hashSustain", 0.8f }, { "voices", 7.0f }, { "detuneCents", 48.0f }, { "carrierSaw", 1.0f }, { "ratio", 0.5f }, { "index", 0.35f }, { "chaos", 0.3f }, { "chaosHz", 5.0f }, { "grit", 0.0f }, { "hashHp", 90.0f }, { "drive1Db", 16.0f }, { "drive1Curve", 0.0f }, { "combMix", 0.0f }, { "formHz", 1300.0f }, { "formGainDb", 7.0f }, { "formQ", 1.5f }, { "drive2Db", 6.0f }, { "drive2Curve", 0.0f }, { "toneHz", 7500.0f }, { "lowCut", 50.0f }, { "attackMs", 3.0f }, { "decayMs", 600.0f }, { "sustain", 0.85f }, { "releaseMs", 120.0f }, { "chorus", 0.7f }, { "outDb", -6.0f }, { "ott", 0.3f }, { "dlyMix", 0.22f }, { "dlyDiv", 3.f }, { "dlyFb", 0.4f }, { "revMix", 0.35f }, { "revSize", 0.8f }, { "revDamp", 0.4f } } },
+    { "HOOVER - Hardstyle Scream", { { "scoopSt", 5.0f }, { "scoopMs", 70.0f }, { "scoopCurve", 0.5f }, { "glideMs", 40.0f }, { "coreLevel", 0.55f }, { "coreShape", 0.7f }, { "coreOct", 0.0f }, { "hashLevel", 0.9f }, { "hashDecayMs", 600.0f }, { "hashSustain", 0.8f }, { "voices", 7.0f }, { "detuneCents", 38.0f }, { "carrierSaw", 1.0f }, { "ratio", 2.0f }, { "index", 2.2f }, { "chaos", 0.3f }, { "chaosHz", 5.0f }, { "grit", 0.0f }, { "hashHp", 250.0f }, { "drive1Db", 24.0f }, { "drive1Curve", 1.0f }, { "combMix", 0.35f }, { "formHz", 1200.0f }, { "formGainDb", 10.0f }, { "formQ", 2.0f }, { "drive2Db", 6.0f }, { "drive2Curve", 0.0f }, { "toneHz", 7500.0f }, { "lowCut", 150.0f }, { "attackMs", 3.0f }, { "decayMs", 600.0f }, { "sustain", 0.85f }, { "releaseMs", 120.0f }, { "chorus", 0.5f }, { "outDb", -6.0f }, { "combFb", 0.55f }, { "combRatio", 1.0f }, { "ott", 0.45f }, { "dlyMix", 0.15f }, { "dlyDiv", 2.f }, { "dlyFb", 0.3f }, { "revMix", 0.25f }, { "revSize", 0.65f }, { "revDamp", 0.5f } } },
         };
         return p;
     }
@@ -84,6 +93,7 @@ AudioProcessorValueTreeState::ParameterLayout AlphaProcessor::createLayout()
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { "coreOct", 1 }, "Core Octave", StringArray { "-1 OCT", "0", "+1 OCT" }, 1));
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { "drive1Curve", 1 }, "Drive Curve", curves, 1));
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { "drive2Curve", 1 }, "Drive 2 Curve", curves, 0));
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { "dlyDiv", 1 }, "Delay Time", dlyNames, 2));
     return l;
 }
 
@@ -134,6 +144,8 @@ void AlphaProcessor::prepareToPlay (double sr, int block)
 {
     engine.setParams (gather());
     engine.prepare (sr, block);
+    ott.prepare (sr);
+    fx.prepare (sr, block);
 }
 
 void AlphaProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
@@ -142,8 +154,21 @@ void AlphaProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     buffer.clear();
     engine.setParams (gather());
     engine.process (buffer, midi);
-    const float* L = buffer.getReadPointer (0);
-    const float* R = buffer.getReadPointer (buffer.getNumChannels() > 1 ? 1 : 0);
+
+    // FX: OTT -> delay (tempo synced, ping-pong) -> reverb
+    double bpm = 150.0;
+    if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) if (auto b = pos->getBpm()) bpm = *b;
+    auto v = [this] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
+    float* L = buffer.getWritePointer (0);
+    float* R = buffer.getWritePointer (1);
+    const float ottAmt = v ("ott");
+    if (ottAmt > 0.001f) for (int i = 0; i < buffer.getNumSamples(); ++i) ott.process (L[i], R[i], ottAmt);
+    doomsday::dsp::FxParams fp;
+    fp.dlyMix = v ("dlyMix"); fp.dlyOn = fp.dlyMix > 0.001f; fp.dlyFb = v ("dlyFb"); fp.dlyPP = true;
+    fp.dlyBeats = dlyBeats[jlimit (0, 5, roundToInt (v ("dlyDiv")))];
+    fp.revMix = v ("revMix"); fp.revOn = fp.revMix > 0.001f; fp.revSize = v ("revSize"); fp.revDamp = v ("revDamp");
+    fx.setup (fp, bpm);
+    fx.process (L, R, buffer.getNumSamples(), -1.0, 0);
     int w = scopeWrite.load (std::memory_order_relaxed);
     for (int i = 0; i < buffer.getNumSamples(); ++i) { scope[(size_t) w] = 0.5f * (L[i] + R[i]); w = (w + 1) & (scopeSize - 1); }
     scopeWrite.store (w, std::memory_order_release);

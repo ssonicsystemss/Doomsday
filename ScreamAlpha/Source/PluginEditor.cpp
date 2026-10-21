@@ -63,6 +63,9 @@ AlphaCanvas::AlphaCanvas (AlphaProcessor& p) : proc (p), scope (p)
     cards.push_back ({ "Output", n, 3, { knob ("drive2Db", "Drive 2", n), knob ("toneHz", "Tone", n), knob ("lowCut", "Low cut", n),
                                          knob ("chorus", "Chorus", n), knob ("outDb", "Volume", n, true) },
                        seg ("drive2Curve", { "Soft", "Hard", "Tube", "Fold", "Cub" }, n) });
+    cards.push_back ({ "Space", cool, 6, { knob ("ott", "OTT", cool), knob ("dlyMix", "Delay", cool), knob ("dlyFb", "Feedback", cool),
+                                           knob ("revMix", "Reverb", cool), knob ("revSize", "Size", cool), knob ("revDamp", "Damp", cool) },
+                       seg ("dlyDiv", { "1/16", "1/8", "1/8D", "1/4", "1/4D", "1/2" }, cool) });
     addAndMakeVisible (scope);
 
     for (int i = 0; i < proc.getNumPrograms(); ++i) presetBox.addItem (proc.getProgramName (i), i + 1);
@@ -108,6 +111,7 @@ void AlphaCanvas::resized()
     x = m;
     for (int i = 3; i < 6; ++i) { auto& c = cards[(size_t) i]; c.area = { x, 234, widthOf (c), 2 * kh + 60 }; x += c.area.getWidth() + gap; }
     cards[5].area.setRight (W - m);
+    cards[6].area = { m, 466, 6 * kw + 32 + 240, 150 };
     for (auto& c : cards)
     {
         auto a = c.area.reduced (16, 10);
@@ -144,7 +148,7 @@ void AlphaCanvas::paint (Graphics& g)
     g.setFont (lnf.font (19.f, Bold, 0.06f)); g.setColour (t.text);
     g.drawText ("5CR34M 4LPH4", Rectangle<float> (tx, 0.f, 200.f, 56.f), Justification::centredLeft);
     g.setFont (lnf.font (12.f, Medium)); g.setColour (t.textMute);
-    g.drawText ("v0.1" + dot + "test build", Rectangle<float> (tx + 170.f, 0.f, 200.f, 56.f), Justification::centredLeft);
+    g.drawText ("v0.2" + dot + "test build", Rectangle<float> (tx + 170.f, 0.f, 200.f, 56.f), Justification::centredLeft);
     for (auto& c : cards) card (g, lnf, c.area, c.title, c.dot);
 }
 
@@ -153,7 +157,7 @@ AlphaEditor::AlphaEditor (AlphaProcessor& p) : AudioProcessorEditor (p), canvas 
 {
     addAndMakeVisible (canvas);
     setResizable (true, true);
-    setResizeLimits (744, 286, 2232, 857);
+    setResizeLimits (744, 382, 2232, 1145);
     getConstrainer()->setFixedAspectRatio ((double) AlphaCanvas::W / (double) AlphaCanvas::H);
     setSize (AlphaCanvas::W, AlphaCanvas::H);
 }

@@ -12,6 +12,7 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
 | Mirror of Souls | `MirrorOfSouls/` | 8-band EQ |
 | Abyss of Echoes | `AbyssOfEchoes/` | reverb / delay / stereo |
 | Throne of Titans | `ThroneOfTitans/` | multiband master + limiter + LUFS (LEARN) |
+| 5CR34M 4LPH4 | `ScreamAlpha/` | new screech synth (successor of PoS) – **in planning**: `ScreamAlpha/PLAN.md`, reference analysis in `ScreamAlpha/Tools` |
 | Forge of Wrath | `ForgeOfWrath/` | hardstyle kick synth (v2: dist chain, room, OTT, drawn pitch, sample layer); preset tuning tools in `Tools/` |
 
 ## Start every task here

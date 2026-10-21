@@ -15,7 +15,7 @@ SPACE = [  # name, lo, hi, log
     ('coreLevel', 0.0, 1.5, False), ('coreShape', 0.0, 1.0, False), ('hashLevel', 0.0, 2.0, False),
     ('hashDecayMs', 30.0, 3000.0, True), ('hashSustain', 0.0, 1.0, False),
     ('detuneCents', 0.0, 80.0, False), ('carrierSaw', 0.0, 1.0, False), ('ratio', 0.5, 4.0, False),
-    ('index', 0.0, 10.0, False), ('chaos', 0.0, 1.5, False), ('chaosHz', 60.0, 6000.0, True),
+    ('index', 0.0, 10.0, False), ('chaos', 0.0, 1.0, False), ('chaosHz', 2.0, 80.0, True), ('grit', 0.0, 0.08, False),
     ('hashHp', 100.0, 4000.0, True), ('drive1Db', 0.0, 40.0, False), ('combMix', 0.0, 1.0, False),
     ('combFb', -0.9, 0.9, False), ('combRatio', 0.5, 4.0, False), ('formHz', 300.0, 5000.0, True),
     ('formGainDb', -6.0, 24.0, False), ('formQ', 0.5, 8.0, True), ('drive2Db', 0.0, 30.0, False),
@@ -32,6 +32,18 @@ def band_shape(m, sr, t0, t1):
     for c in BANDS[BANDS < 16000]:
         sel = (ff >= c / 2 ** (1 / 6)) & (ff < c * 2 ** (1 / 6))
         out.append(10 * np.log10(avg[sel].sum() / tot + 1e-12))
+    return np.array(out)
+
+def tonality(m, sr, t0, t1):
+    # per 1/3-octave band above 400 Hz: how much the strongest bins stand out of the band (dB) - tones high, noise low
+    seg = m[int(t0 * sr):int(t1 * sr)]
+    ff, tt, Z = stft(seg, sr, nperseg=8192, noverlap=6144)
+    P = np.abs(Z) ** 2
+    out = []
+    for c in BANDS[(BANDS > 400) & (BANDS < 10000)]:
+        sel = (ff >= c / 2 ** (1 / 6)) & (ff < c * 2 ** (1 / 6))
+        B = P[sel]
+        out.append(np.median(10 * np.log10(np.percentile(B, 95, axis=0) / (np.median(B, axis=0) + 1e-14) + 1e-9)))
     return np.array(out)
 
 def features(path, f0, t0=0.25, t1=1.2):
@@ -51,12 +63,13 @@ def features(path, f0, t0=0.25, t1=1.2):
     hnr = 10 * np.log10(avg[band8 & mask].sum() / (avg[band8 & ~mask].sum() + 1e-14))
     hop = int(0.04 * sr); e = np.array([np.sqrt(np.mean(m[i:i + hop] ** 2)) for i in range(0, int(1.2 * sr), hop)])
     env = 20 * np.log10(e / (e.max() + 1e-12) + 1e-6)
-    return dict(bands=np.array(bands), flat=10 * np.log10(flat + 1e-9), hnr=hnr, cmove=cmove, env=env)
+    return dict(bands=np.array(bands), flat=10 * np.log10(flat + 1e-9), hnr=hnr, cmove=cmove, env=env, tonal=tonality(m, sr, 0.03, end))
 
 def loss(c, r):
     parts = dict(bands=np.mean(np.abs(c['bands'] - r['bands'])), flat=0.3 * abs(c['flat'] - r['flat']),
                  hnr=0.3 * abs(c['hnr'] - r['hnr']), cmove=8 * abs(c['cmove'] - r['cmove']),
-                 env=0.15 * np.mean(np.abs(np.maximum(c['env'], -40) - np.maximum(r['env'], -40))))
+                 env=0.15 * np.mean(np.abs(np.maximum(c['env'], -40) - np.maximum(r['env'], -40))),
+                 tonal=0.6 * np.mean(np.abs(c['tonal'] - r['tonal'])) + 1.5 * np.mean(np.maximum(0.0, r['tonal'][:5] - c['tonal'][:5])))   # the voice region (400-1600 Hz) must not be noisier
     return sum(parts.values()), parts
 
 def decode(x):

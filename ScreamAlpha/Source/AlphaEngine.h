@@ -41,7 +41,8 @@ struct Params
     float detuneCents = 25.f;
     float carrierSaw = 0.3f;                                   // 0 sine carrier, 1 saw carrier
     float ratio = 1.0f, index = 3.f;                           // FM modulator ratio / depth (radians / 2pi units ~ index)
-    float chaos = 0.4f, chaosHz = 900.f;                       // noise in the phase: amount, bandwidth
+    float chaos = 0.4f, chaosHz = 12.f;                        // every unison voice drifts in pitch on its own (pitched, never noise)
+    float grit = 0.f;                                          // a little fast noise in the phase (keep small: lots = vacuum cleaner)
     float hashHp = 700.f;                                      // high-pass before the drive (keeps the hash above the core)
     float drive1Db = 24.f; int drive1Curve = 1;                // HARD
     float combMix = 0.f, combFb = 0.6f, combRatio = 1.f;       // comb tuned to note * ratio
@@ -164,7 +165,8 @@ private:
         const float inv = (float) (1.0 / osr);
         const float glideC = p.glideMs < 1.f ? 0.f : std::exp (-1.f / (p.glideMs * 0.001f / 3.f * (float) osr));
         const float scoopStep = 1.f / juce::jmax (1.f, p.scoopMs * 0.001f * (float) osr);
-        const float noiseC = onePoleCoef (p.chaosHz, osr);
+        const float noiseC = onePoleCoef (2500.f, osr);                     // GRIT: fast noise
+        const float driftC = onePoleCoef (p.chaosHz, osr);                  // CHAOS: slow per-voice drift
         const auto hpC = svfCoefs (p.hashHp, 1.41f, osr);
         const auto formC = svfCoefs (p.formHz, 1.f / juce::jmax (0.3f, p.formQ), osr);
         const float formG = juce::Decibels::decibelsToGain (p.formGainDb);
@@ -222,12 +224,14 @@ private:
             noiseLp2 += noiseC * (noiseLp - noiseLp2);
             modPh += dt * p.ratio; modPh -= std::floor (modPh);
             const float pm = p.index * std::sin (modPh * juce::MathConstants<float>::twoPi) * 0.15915494f
-                           + p.chaos * 6.f * noiseLp2;
+                           + p.grit * 6.f * noiseLp2;
             float hash = 0.f;
             for (int v = 0; v < nv; ++v)
             {
                 float& ph = carPh[(size_t) v];
-                const float dtv = dt * det[(size_t) v];
+                float& d = drift[(size_t) v];
+                d += driftC * (noise.next() * 2.5f - d);
+                const float dtv = dt * det[(size_t) v] * (1.f + p.chaos * 0.035f * d);   // up to ~ +-60 cents
                 ph += dtv; if (ph >= 1.f) ph -= 1.f;
                 const float t = wrap01 (ph + pm);
                 const float s = std::sin (t * juce::MathConstants<float>::twoPi);
@@ -281,6 +285,7 @@ private:
     float env = 0.f, cur = 60.f, target = 60.f, bend = 0.f, scoopPos = 1.f;
     std::array<float, maxVoices> carPh { 0.f, 0.37f, 0.71f, 0.13f, 0.89f, 0.52f, 0.26f };
     float modPh = 0.f, corePh = 0.f, noiseLp = 0.f, noiseLp2 = 0.f;
+    std::array<float, maxVoices> drift {};
     doomsday::dsp::XorNoise noise;
     doomsday::dsp::Svf hp1, hp2, form, tone1, tone2, outHp1, outHp2;
     doomsday::drive::Adaa1 d1, d2;

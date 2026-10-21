@@ -5,7 +5,7 @@
 //
 //    tokens()               the colour tokens (ground / surface / control / text / one hot + one cool accent)
 //    FlatLookAndFeel        Inter fonts, thin arc rotaries, flat buttons / combos / popups / alerts / tooltips
-//    Knob                   arc + value (editable) + label; any accent colour; optional modulation ring
+//    Knob                   arc + value (editable) + label; any accent colour; optional modulation ring; setCrown = macro tick ring
 //    Toggle                 bool parameter as a small switch (Pill) or a text chip (Chip)
 //    Segmented              choice parameter as a horizontal segmented control
 //    card()                 a flat surface panel with a section title
@@ -80,6 +80,7 @@ namespace doomsday::flat
         void paint (juce::Graphics&) override;
         void resized() override;
         void setAccent (juce::Colour);
+        void setCrown (bool on) { slider.getProperties().set ("crown", on); repaint(); }   // big macro knob tick ring (hot -> cool)
         // modulation ring outside the arc: depth = fraction of the travel (-1..1, 0 hides), nowPos01 = live dot (< 0 none)
         void setModulation (float depth, float nowPos01 = -1.f);
         static int heightFor (int diameter) { return diameter + 36; }

@@ -14,10 +14,23 @@ private:
     AlphaProcessor& proc;
 };
 
+// one cycle of the built-in cutoff automation + where it is now
+class AutoPreview : public juce::Component
+{
+public:
+    explicit AutoPreview (AlphaProcessor& p) : proc (p) {}
+    void paint (juce::Graphics&) override;
+    void tick();
+private:
+    AlphaProcessor& proc;
+    double lastPh = -1.0;
+    int lastShape = -1; float lastDepth = 99.f;
+};
+
 class AlphaCanvas : public juce::Component, private juce::Timer
 {
 public:
-    static constexpr int W = 1240, H = 636;
+    static constexpr int W = 1240, H = 800;
     explicit AlphaCanvas (AlphaProcessor&);
     ~AlphaCanvas() override;
     void paint (juce::Graphics&) override;
@@ -41,6 +54,10 @@ private:
     std::vector<std::unique_ptr<juce::Component>> owned;
     std::vector<Card> cards;
     AlphaScope scope;
+    AutoPreview autoView;
+    juce::Component* fortuneKnob = nullptr;
+    juce::Component* shapeSeg = nullptr;
+    juce::Component* lenSeg = nullptr;
     juce::ComboBox presetBox;
     juce::TextButton prev { "<" }, next { ">" }, undoB { "Undo" }, redoB { "Redo" }, randomB { "Random" }, saveB { "Save" };
     juce::Array<juce::File> userFiles;

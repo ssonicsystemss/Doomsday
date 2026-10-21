@@ -13,6 +13,7 @@ namespace
     String fmtSt (float v, int)  { return (v > 0.05f ? "+" : "") + String (v, 1) + " st"; }
     String fmtCt (float v, int)  { return String (roundToInt (v)) + " ct"; }
     String fmtX (float v, int)   { return String (v, 2) + "x"; }
+    String fmtOct (float v, int) { return (v > 0.005f ? "+" : "") + String (v, 1) + " oct"; }
     String fmtNum (float v, int) { return String (v, 2); }
     float parse (const String& t) { auto v = t.retainCharacters ("0123456789.-+").getFloatValue(); return t.containsIgnoreCase ("k") ? v * 1000.f : v; }
     float parsePct (const String& t) { return parse (t) / 100.f; }
@@ -53,6 +54,11 @@ namespace
         { "releaseMs", "Release", 5.f, 5000.f, 80.f, 300.f, fmtMs },
         { "chorus", "Chorus", 0.f, 1.f, 0.f, 0.f, fmtPct, true },
         { "outDb", "Volume", -36.f, 12.f, -6.f, 0.f, fmtDb },
+        // FILTER + cutoff automation, FORTUNE macro (v0.3)
+        { "cutoffHz", "Cutoff", 20.f, 20000.f, 20000.f, 1200.f, fmtHz },
+        { "reso", "Resonance", 0.f, 1.f, 0.f, 0.f, fmtPct, true },
+        { "autoOct", "Auto Depth", -6.f, 6.f, 0.f, 0.f, fmtOct },
+        { "fortune", "FORTUNE", 0.f, 1.f, 0.f, 0.f, fmtPct, true },
         // FX (after the voice): OTT -> delay -> reverb
         { "ott", "OTT", 0.f, 1.f, 0.f, 0.f, fmtPct, true },
         { "dlyMix", "Delay Mix", 0.f, 1.f, 0.f, 0.f, fmtPct, true },
@@ -64,6 +70,10 @@ namespace
     const StringArray curves { "SOFT", "HARD", "TUBE", "FOLD", "CUBIC" };
     const StringArray dlyNames { "1/16", "1/8", "1/8D", "1/4", "1/4D", "1/2" };
     const float dlyBeats[] { 0.25f, 0.5f, 0.75f, 1.f, 1.5f, 2.f };
+    const StringArray filtModes { "LP 24", "LP 12", "BAND", "HIGH" };
+    const StringArray autoShapes { "OFF", "RISE", "FALL", "UP-DOWN", "WOBBLE", "STEPS" };
+    const StringArray autoLens { "1 BEAT", "2 BEATS", "1 BAR", "2 BARS", "4 BARS", "8 BARS" };
+    const float autoBeatsOf[] { 1.f, 2.f, 4.f, 8.f, 16.f, 32.f };
 
     struct Preset { const char* name; std::vector<std::pair<const char*, float>> values; };
     const std::vector<Preset>& presets()
@@ -100,6 +110,9 @@ AudioProcessorValueTreeState::ParameterLayout AlphaProcessor::createLayout()
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { "drive1Curve", 1 }, "Drive Curve", curves, 1));
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { "drive2Curve", 1 }, "Drive 2 Curve", curves, 0));
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { "dlyDiv", 1 }, "Delay Time", dlyNames, 2));
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { "filtMode", 1 }, "Filter Mode", filtModes, 0));
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { "autoShape", 1 }, "Auto Shape", autoShapes, 0));
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { "autoLen", 1 }, "Auto Length", autoLens, 4));
     return l;
 }
 
@@ -125,6 +138,25 @@ alpha::Params AlphaProcessor::gather() const
     p.drive2Db = v ("drive2Db"); p.drive2Curve = roundToInt (v ("drive2Curve")); p.toneHz = v ("toneHz"); p.lowCut = v ("lowCut");
     p.attackMs = v ("attackMs"); p.decayMs = v ("decayMs"); p.sustain = v ("sustain"); p.releaseMs = v ("releaseMs");
     p.chorus = v ("chorus"); p.outDb = v ("outDb");
+    p.cutoffHz = v ("cutoffHz"); p.reso = v ("reso"); p.filtMode = roundToInt (v ("filtMode"));
+    p.autoShape = roundToInt (v ("autoShape")); p.autoBeats = autoBeatsOf[jlimit (0, 5, roundToInt (v ("autoLen")))]; p.autoOct = v ("autoOct");
+
+    // FORTUNE (from Fortune of Seekers): one big knob pushes everything that makes a screech scream, level kept steady
+    const float f = jlimit (0.f, 1.f, v ("fortune"));
+    if (f > 0.f)
+    {
+        p.hashLevel *= 1.f + 0.6f * f;
+        p.drive1Db += 12.f * f;
+        p.detuneCents = jmin (100.f, p.detuneCents + 25.f * f);
+        p.chaos = jmin (1.f, p.chaos + 0.3f * f);
+        p.index += p.index > 0.2f ? 1.5f * f : 0.f;
+        p.formGainDb += 6.f * f;
+        p.toneHz = jmin (20000.f, p.toneHz * std::pow (2.f, 0.8f * f));
+        p.cutoffHz = jmin (20000.f, p.cutoffHz * std::pow (2.f, 1.5f * f));
+        p.scoopSt *= 1.f + 0.5f * f;
+        p.chorus = jmin (1.f, p.chorus + 0.3f * f);
+        p.outDb -= 4.f * f;
+    }
     return p;
 }
 
@@ -158,7 +190,16 @@ void AlphaProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
 {
     ScopedNoDenormals nd;
     buffer.clear();
+    double bpmNow = 150.0, ppq = 0.0; bool playing = false;
+    if (auto* ph = getPlayHead())
+        if (auto pos = ph->getPosition())
+        {
+            if (auto b = pos->getBpm()) bpmNow = *b;
+            if (auto q = pos->getPpqPosition()) ppq = *q;
+            playing = pos->getIsPlaying();
+        }
     engine.setParams (gather());
+    engine.setTransport (ppq, bpmNow, playing);
     engine.process (buffer, midi);
 
     // FX: OTT -> delay (tempo synced, ping-pong) -> reverb
@@ -172,7 +213,8 @@ void AlphaProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     doomsday::dsp::FxParams fp;
     fp.dlyMix = v ("dlyMix"); fp.dlyOn = fp.dlyMix > 0.001f; fp.dlyFb = v ("dlyFb"); fp.dlyPP = true;
     fp.dlyBeats = dlyBeats[jlimit (0, 5, roundToInt (v ("dlyDiv")))];
-    fp.revMix = v ("revMix"); fp.revOn = fp.revMix > 0.001f; fp.revSize = v ("revSize"); fp.revDamp = v ("revDamp");
+    const float fort = v ("fortune");
+    fp.revMix = jmin (1.f, v ("revMix") + 0.15f * fort); fp.revOn = fp.revMix > 0.001f; fp.revSize = v ("revSize"); fp.revDamp = v ("revDamp");
     fx.setup (fp, bpm);
     fx.process (L, R, buffer.getNumSamples(), -1.0, 0);
     int w = scopeWrite.load (std::memory_order_relaxed);

@@ -70,6 +70,30 @@ int main (int argc, char** argv)
         printf ("random x12 level %.1f .. %.1f dB (target %.1f): %s\n", lo, hi, AlphaProcessor::randomTargetDb, good ? "OK" : "FAIL");
         ok &= good;
     }
+    {   // cutoff automation: RISE over 1 bar, 4 octaves -> the last quarter of the bar is clearly brighter than the first
+        proc.setCurrentProgram (1);
+        auto setP = [&proc] (const char* id, float v) { if (auto* q = proc.apvts.getParameter (id)) q->setValueNotifyingHost (q->convertTo0to1 (v)); };
+        setP ("cutoffHz", 400.f); setP ("autoShape", 1); setP ("autoLen", 2); setP ("autoOct", 4.f); setP ("revMix", 0.f); setP ("dlyMix", 0.f);
+        AudioBuffer<float> rec (2, beat * 4); rec.clear();
+        for (int pos = 0; pos < beat * 4; pos += block)
+        {
+            AudioBuffer<float> buf (2, block); buf.clear(); MidiBuffer m;
+            if (pos == 0) m.addEvent (MidiMessage::noteOn (1, 62, (uint8) 110), 0);
+            proc.processBlock (buf, m);
+            rec.copyFrom (0, pos, buf, 0, 0, jmin (block, beat * 4 - pos));
+        }
+        auto hiShare = [&rec] (int a, int n)
+        {
+            double hi = 0, all = 0; float prev = 0.f;
+            for (int i = a; i < a + n; ++i) { const float x = rec.getSample (0, i); const float d = x - prev; prev = x; hi += d * d; all += x * x; }
+            return hi / (all + 1e-12);
+        };
+        const double early = hiShare (beat / 4, beat / 2), late = hiShare (beat * 3, beat / 2);
+        const bool good = late > early * 2.0;
+        printf ("cutoff automation (rise): brightness %.4f -> %.4f %s\n", early, late, good ? "OK" : "FAIL");
+        ok &= good;
+        proc.setCurrentProgram (0);
+    }
     {   // user preset save / load
         proc.setCurrentProgram (3);
         const float a = proc.apvts.getRawParameterValue ("formHz")->load();
@@ -93,6 +117,8 @@ int main (int argc, char** argv)
     }
     {
         proc.setCurrentProgram (1);
+        auto setP = [&proc] (const char* id, float v) { if (auto* q = proc.apvts.getParameter (id)) q->setValueNotifyingHost (q->convertTo0to1 (v)); };
+        setP ("autoShape", 3); setP ("autoOct", 3.f); setP ("cutoffHz", 1500.f); setP ("reso", 0.4f); setP ("fortune", 0.45f);
         for (int b = 0; b < 30; ++b) { AudioBuffer<float> buf (2, block); buf.clear(); MidiBuffer m; if (b == 0) m.addEvent (MidiMessage::noteOn (1, 62, (uint8) 110), 0); proc.processBlock (buf, m); }
         std::unique_ptr<AudioProcessorEditor> ed (proc.createEditor());
         auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);

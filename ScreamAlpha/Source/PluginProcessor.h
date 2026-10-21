@@ -52,6 +52,8 @@ public:
     bool saveUserPreset (const juce::String& name);
     bool loadUserPreset (const juce::File&);
     alpha::Params gather() const;
+    float autoNow() const { return engine.autoNow(); }
+    double autoPhaseNow() const { return engine.autoPhaseNow(); }
 
     static constexpr int scopeSize = 4096;
     std::array<float, scopeSize> scope {};

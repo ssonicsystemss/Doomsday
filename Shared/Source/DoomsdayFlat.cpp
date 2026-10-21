@@ -64,9 +64,26 @@ void FlatLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, int h,
     auto b = Rectangle<float> ((float) x, (float) y, (float) w, (float) h);
     const float size = jmin (b.getWidth(), b.getHeight());
     const float stroke = jlimit (3.f, 7.f, size * 0.095f);
-    const float r = size * 0.5f - stroke * 0.5f - 6.f;      // room for the modulation ring
+    const bool crown = (bool) s.getProperties()["crown"];
+    const float r = size * 0.5f - stroke * 0.5f - (crown ? 16.f : 6.f);      // room for the modulation ring / crown
     const auto c = b.getCentre();
     const float angle = a0 + pos * (a1 - a0);
+
+    // CROWN (the FORTUNE knob, after Fortune of Seekers): tick ring that lights up hot -> cool along the travel
+    if (crown)
+    {
+        const int ticks = 60;
+        const float ro = size * 0.5f - 2.f;
+        for (int i = 0; i <= ticks; ++i)
+        {
+            const float a = a0 + (a1 - a0) * (float) i / (float) ticks;
+            const float tt = (float) i / (float) ticks;
+            const bool lit = a <= angle + 0.001f;
+            const float len = i % 5 == 0 ? 8.f : 4.f;
+            g.setColour (lit ? t.hot.interpolatedWith (t.cool, tt).withAlpha (0.65f + 0.35f * tt) : t.border);
+            g.drawLine ({ c.getPointOnCircumference (ro, a), c.getPointOnCircumference (ro - len, a) }, i % 5 == 0 ? 1.8f : 1.2f);
+        }
+    }
 
     Path track;
     track.addCentredArc (c.x, c.y, r, r, 0.f, a0, a1, true);

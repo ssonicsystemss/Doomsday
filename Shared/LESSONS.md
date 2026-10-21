@@ -100,7 +100,7 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - Pomiar vs jego wzorce (Massive / Sylenth / Serum, FHSP): centroid wzorców ~2–3 kHz z dużym ruchem; PoS a2–a5 w tym zakresie, a1 ~6 kHz
   (za dużo szumu + OTT). Preset 3 (najbardziej „środkowy”) podobał mu się najbardziej. Wniosek: brakuje bogactwa źródła / łańcucha
   (wavetable, comb, kilka przesterów, formanty), nie modulacji – silnik saw/square + FM + 1 przester ma za mały sufit.
-- Decyzja właściciela: PoS zamrożony (tag `pos-v3.1`), nowy syntezator screechy pisany od zera na wiedzy z `RESEARCH.md` i klockach `Shared/`.
+- Decyzja właściciela: PoS zamrożony (ostatnia zmiana PoS: commit `f745e5e`; tagów nie da się wypchnąć z tego środowiska), nowy syntezator screechy pisany od zera na wiedzy z `RESEARCH.md` i klockach `Shared/`.
   Przed budową: poprosić o 1 przykład z „polotem” i porównać w tej samej nucie.
 
 ## Technika (pułapki)

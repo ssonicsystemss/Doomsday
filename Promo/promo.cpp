@@ -138,6 +138,27 @@ static void drawCursor (Graphics& g, Point<float> p, float alpha, bool pressed, 
     g.strokePath (a, PathStrokeType (1.6f));
 }
 
+// ------------------------------------------------------------------ reverse bass
+// between two kicks: a D bass that swells up from silence (reversed decay) and is cut just before the next kick -> the pump
+static float reverseBass (int i)
+{
+    static double phase = 0.0;
+    const int b = i / BEAT;
+    if (! kickAtBeat (b) || ! kickAtBeat (b + 1)) return 0.f;
+    const float t = (float) (i - b * BEAT) / (float) BEAT;            // 0..1 inside the beat
+    const float start = 0.14f, cut = 0.965f;
+    if (t < start || t > cut) return 0.f;
+    const float x = (t - start) / (cut - start);                        // 0..1 swell
+    float amp = std::pow (x, 2.4f);
+    amp *= jmin (1.f, (cut - t) / 0.012f);                              // short fade so the cut does not click
+    const double f = 73.42 * (0.985 + 0.03 * x);                        // D2, tiny rise like a reversed kick tail
+    phase += f / SR;
+    if (phase >= 1.0) phase -= 1.0;
+    const float s = (float) std::sin (phase * MathConstants<double>::twoPi);
+    const float drive = 1.5f + 2.5f * x;                                // gets dirtier as it swells
+    return std::tanh (s * drive) / std::tanh (drive) * amp;
+}
+
 // ------------------------------------------------------------------ main
 int main (int argc, char** argv)
 {
@@ -529,9 +550,10 @@ int main (int argc, char** argv)
                 env = jmax (env, (dt < 0.004f ? dt / 0.004f : std::exp (-(dt - 0.004f) / 0.10f)));
             }
         const float duck = 1.f - 0.62f * env;
+        const float rb = reverseBass (i);
         for (int ch = 0; ch < 2; ++ch)
         {
-            const float v = synth.getSample (ch, i) * 0.55f * duck + kick.getSample (ch, i) * 0.80f;
+            const float v = synth.getSample (ch, i) * 0.55f * duck + kick.getSample (ch, i) * 0.80f + rb * 0.27f;
             const float a = std::abs (v);
             const float y = a < 0.7f ? v : (v > 0.f ? 1.f : -1.f) * (0.7f + 0.3f * std::tanh ((a - 0.7f) / 0.3f));
             mix.setSample (ch, i, y);

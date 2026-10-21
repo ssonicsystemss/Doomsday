@@ -94,6 +94,15 @@ operatorów na screeche. Massive → INTENSITY z trybami (SPECTRUM / BEND / FORM
 pętla FEEDBACK przez filtry, PERFORMER (sekwencje krzywych), filtry szeregowo ↔ równolegle. **Technika kicka (NI): EQ przed przesterem tnie dół i podbija 300–400 Hz, między przesterami kolejny EQ,
 bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełna lista pomysłów: koniec `RESEARCH.md`.**
 
+## Prophecy of Scream – zamknięty po v3.1 (2026-10-21)
+- Właściciel: presety „chujowe”, w jego własnych presetach (a1–a5) „brakuje polotu”. Prototyp LIFT (vibrato z opóźnieniem, RISE filtra /
+  formantu, AIR = piła oktawę wyżej, SHIMMER = chorus z feedbackiem) w A/B: „nie o to chodzi” – ruch i szerokość to nie to.
+- Pomiar vs jego wzorce (Massive / Sylenth / Serum, FHSP): centroid wzorców ~2–3 kHz z dużym ruchem; PoS a2–a5 w tym zakresie, a1 ~6 kHz
+  (za dużo szumu + OTT). Preset 3 (najbardziej „środkowy”) podobał mu się najbardziej. Wniosek: brakuje bogactwa źródła / łańcucha
+  (wavetable, comb, kilka przesterów, formanty), nie modulacji – silnik saw/square + FM + 1 przester ma za mały sufit.
+- Decyzja właściciela: PoS zamrożony (tag `pos-v3.1`), nowy syntezator screechy pisany od zera na wiedzy z `RESEARCH.md` i klockach `Shared/`.
+  Przed budową: poprosić o 1 przykład z „polotem” i porównać w tej samej nucie.
+
 ## Technika (pułapki)
 - **RANDOMIZE bez wyrównania głośności** (PoS do v3.1): losowe brzmienia wychodziły 10–20 dB ciszej niż presety (filtr BAND, formant,
   FOLD) – właściciel: „tych z randomu wgl nie słychać”. → Po losowaniu zmierz brzmienie offline (prywatny silnik, 2 trzymane nuty,

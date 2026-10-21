@@ -5,7 +5,7 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
 
 | Plugin | Folder | What |
 |---|---|---|
-| Prophecy of Scream | repo root | screech synth |
+| Prophecy of Scream | repo root | screech synth – **frozen at v3.1** (tag `pos-v3.1`); a new screech synth will be written from scratch (see LESSONS) |
 | Ancient Drums | `AncientDrums/` | kick generator (sample layers, WSOLA pitch) – own old code, keep as is |
 | Fortune of Seekers | `FortuneOfSeekers/` | melody synth – own old code |
 | Dark Serpent | `DarkSerpent/` | screamer / lead |

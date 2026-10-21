@@ -108,6 +108,12 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   (chaos = szum w fazie). Ucho słyszy „czysty ton + syk”. → CHAOS w silniku to teraz pływanie wysokości każdego głosu (dźwięk dalej ma nutę),
   szum tylko jako mały GRIT; matcher mierzy tonalność pasm i karze szum w paśmie głosu (400–1600 Hz). Właściciel: zrób z tego hoovery → v0.1.
 
+## 5CR34M 4LPH4 – co właścicielowi się podoba (jego presety „6” i „7”, 2026-10-22: „świetnie brzmią”)
+- Szerokie rozstrojone piły (4–7 głosów, detune 45–52 ct, SAW 0.75–0.9) + CHAOS 0.33–0.58 przy 10 Hz, GRIT 0, bez comb.
+- DRIVE 1 SOFT/FOLD ~20–23 dB → DRIVE 2 TUBE; formant lekki (~1.35 kHz, +1…4 dB); FORTUNE 0.44–0.86; OTT 0.35–0.47, delay ~0.21, reverb 0.28–0.35.
+- Rzut nuty: +3 st / 280 ms albo −6 st / 450 ms; glide 42 ms albo bardzo długi (550 ms).
+- RANDOM losuje w 75 % w tych zakresach (25 % „dziko”). Uwaga: Wobble z Cutoff 20 kHz i Depth + nic nie robi (filtr i tak otwarty).
+
 ## Technika (pułapki)
 - **RANDOMIZE bez wyrównania głośności** (PoS do v3.1): losowe brzmienia wychodziły 10–20 dB ciszej niż presety (filtr BAND, formant,
   FOLD) – właściciel: „tych z randomu wgl nie słychać”. → Po losowaniu zmierz brzmienie offline (prywatny silnik, 2 trzymane nuty,

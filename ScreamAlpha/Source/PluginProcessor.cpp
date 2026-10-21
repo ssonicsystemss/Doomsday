@@ -89,6 +89,8 @@ namespace
     { "SCREECH - Bright Talker", { { "scoopSt", -2.0f }, { "scoopMs", 90.0f }, { "scoopCurve", 0.3f }, { "coreLevel", 0.04002f }, { "coreShape", 0.16523f }, { "hashLevel", 1.1673f }, { "hashDecayMs", 217.03f }, { "hashSustain", 0.51286f }, { "detuneCents", 12.953f }, { "carrierSaw", 0.73669f }, { "ratio", 1.1205f }, { "index", 3.9496f }, { "chaos", 0.85323f }, { "chaosHz", 9.404f }, { "grit", 0.0279f }, { "hashHp", 1045.5f }, { "drive1Db", 26.473f }, { "combMix", 0.11527f }, { "combFb", -0.3682f }, { "combRatio", 2.8747f }, { "formHz", 963.01f }, { "formGainDb", 18.863f }, { "formQ", 1.4922f }, { "drive2Db", 1.8085f }, { "toneHz", 14070.0f }, { "lowCut", 83.332f }, { "outDb", -6.69f }, { "ott", 0.3f }, { "dlyMix", 0.22f }, { "dlyDiv", 2.0f }, { "dlyFb", 0.4f }, { "revMix", 0.4f }, { "revSize", 0.78f }, { "revDamp", 0.45f } } },
     { "SCREECH - Classic Wail", { { "scoopSt", 2.0f }, { "scoopMs", 50.0f }, { "scoopCurve", 0.4f }, { "coreLevel", 0.42107f }, { "coreShape", 0.10828f }, { "hashLevel", 1.7054f }, { "hashDecayMs", 64.266f }, { "hashSustain", 0.61442f }, { "detuneCents", 13.383f }, { "carrierSaw", 0.64781f }, { "ratio", 0.65738f }, { "index", 0.13637f }, { "chaos", 0.83402f }, { "chaosHz", 4.0016f }, { "grit", 0.034f }, { "hashHp", 252.52f }, { "drive1Db", 6.4484f }, { "combMix", 0.40452f }, { "combFb", 0.5971f }, { "combRatio", 2.1403f }, { "formHz", 418.78f }, { "formGainDb", 5.8749f }, { "formQ", 3.5568f }, { "drive2Db", 23.709f }, { "toneHz", 17551.0f }, { "lowCut", 135.93f }, { "outDb", -4.08f }, { "ott", 0.3f }, { "dlyMix", 0.22f }, { "dlyDiv", 2.0f }, { "dlyFb", 0.4f }, { "revMix", 0.4f }, { "revSize", 0.78f }, { "revDamp", 0.45f } } },
     { "SCREECH - Digital Rise", { { "scoopSt", 3.0f }, { "scoopMs", 120.0f }, { "scoopCurve", 0.4f }, { "coreLevel", 0.10263f }, { "coreShape", 0.42512f }, { "hashLevel", 1.8588f }, { "hashDecayMs", 49.392f }, { "hashSustain", 0.76292f }, { "detuneCents", 55.596f }, { "carrierSaw", 0.67598f }, { "ratio", 3.6291f }, { "index", 4.0769f }, { "chaos", 0.92048f }, { "chaosHz", 2.4096f }, { "grit", 0.0457f }, { "hashHp", 397.67f }, { "drive1Db", 33.722f }, { "combMix", 0.5254f }, { "combFb", -0.31815f }, { "combRatio", 1.025f }, { "formHz", 863.09f }, { "formGainDb", 14.04f }, { "formQ", 0.77744f }, { "drive2Db", 22.558f }, { "toneHz", 16446.0f }, { "lowCut", 80.236f }, { "outDb", -3.1f }, { "ott", 0.3f }, { "dlyMix", 0.22f }, { "dlyDiv", 2.0f }, { "dlyFb", 0.4f }, { "revMix", 0.4f }, { "revSize", 0.78f }, { "revDamp", 0.45f } } },
+    { "SCREECH - Owner 6", { { "attackMs", 4.59282f }, { "autoLen", 0.0f }, { "autoOct", 6.0f }, { "autoShape", 4.0f }, { "carrierSaw", 0.74013f }, { "chaos", 0.57937f }, { "chaosHz", 10.68747f }, { "chorus", 0.0f }, { "combFb", 0.05527f }, { "combMix", 0.0f }, { "combRatio", 1.0f }, { "coreLevel", 0.59668f }, { "coreOct", 0.0f }, { "coreShape", 0.40122f }, { "cutoffHz", 20000.0f }, { "decayMs", 302.64859f }, { "detuneCents", 45.82917f }, { "dlyDiv", 1.0f }, { "dlyFb", 0.27968f }, { "dlyMix", 0.21476f }, { "drive1Curve", 3.0f }, { "drive1Db", 19.60166f }, { "drive2Curve", 2.0f }, { "drive2Db", 1.72554f }, { "filtMode", 0.0f }, { "formGainDb", 3.94618f }, { "formHz", 1331.17493f }, { "formQ", 4.55479f }, { "fortune", 0.44063f }, { "glideMs", 42.47207f }, { "grit", 0.0f }, { "hashDecayMs", 315.50885f }, { "hashHp", 114.47311f }, { "hashLevel", 1.23466f }, { "hashSustain", 0.96526f }, { "index", 0.13756f }, { "lowCut", 89.72073f }, { "ott", 0.46901f }, { "outDb", -1.13176f }, { "ratio", 3.0f }, { "releaseMs", 58.72669f }, { "reso", 0.0f }, { "revDamp", 0.30301f }, { "revMix", 0.27634f }, { "revSize", 0.58544f }, { "scoopCurve", 0.44061f }, { "scoopMs", 449.61313f }, { "scoopSt", -5.9746f }, { "sustain", 0.77724f }, { "toneHz", 6098.16113f }, { "tuneSt", 0.0f }, { "voices", 7.0f } } },
+    { "SCREECH - Owner 7", { { "attackMs", 0.5f }, { "autoLen", 0.0f }, { "autoOct", 6.0f }, { "autoShape", 4.0f }, { "carrierSaw", 0.89803f }, { "chaos", 0.33332f }, { "chaosHz", 10.05459f }, { "chorus", 0.28014f }, { "combFb", -0.63844f }, { "combMix", 0.0f }, { "combRatio", 1.0f }, { "coreLevel", 0.12919f }, { "coreOct", 0.0f }, { "coreShape", 0.24594f }, { "cutoffHz", 20000.0f }, { "decayMs", 637.70654f }, { "detuneCents", 52.27443f }, { "dlyDiv", 5.0f }, { "dlyFb", 0.36579f }, { "dlyMix", 0.20954f }, { "drive1Curve", 0.0f }, { "drive1Db", 23.04198f }, { "drive2Curve", 2.0f }, { "drive2Db", 11.03983f }, { "filtMode", 0.0f }, { "formGainDb", 1.09591f }, { "formHz", 1368.21545f }, { "formQ", 2.19943f }, { "fortune", 0.8625f }, { "glideMs", 545.9787f }, { "grit", 0.0f }, { "hashDecayMs", 571.54688f }, { "hashHp", 1241.60767f }, { "hashLevel", 0.43816f }, { "hashSustain", 0.63218f }, { "index", 0.49875f }, { "lowCut", 20.0f }, { "ott", 0.35033f }, { "outDb", 2.40181f }, { "ratio", 1.0f }, { "releaseMs", 75.70741f }, { "reso", 0.0f }, { "revDamp", 0.44691f }, { "revMix", 0.35393f }, { "revSize", 0.80465f }, { "scoopCurve", 0.15203f }, { "scoopMs", 278.01672f }, { "scoopSt", 2.99883f }, { "sustain", 0.66806f }, { "toneHz", 14912.3252f }, { "tuneSt", 0.0f }, { "voices", 4.0f } } },
         };
         return p;
     }
@@ -255,23 +257,49 @@ void AlphaProcessor::randomize()
     auto pick = [&r] (std::initializer_list<float> o) { return *(o.begin() + r.nextInt ((int) o.size())); };
     auto chance = [&r] (float pr) { return r.nextFloat() < pr; };
 
-    set ("scoopSt", chance (0.7f) ? lin (2.f, 14.f) : lin (-8.f, -3.f));
-    set ("scoopMs", lg (40.f, 500.f)); set ("scoopCurve", lin (0.2f, 0.6f)); set ("glideMs", lg (10.f, 150.f)); set ("tuneSt", 0.f);
-    set ("coreLevel", lin (0.3f, 1.f)); set ("coreShape", r.nextFloat());
-    set ("coreOct", chance (0.25f) ? 0.f : (chance (0.12f) ? 2.f : 1.f));                       // choice index: 0 = -1 oct
-    set ("hashLevel", lin (0.4f, 1.4f)); set ("hashDecayMs", lg (100.f, 2000.f)); set ("hashSustain", lin (0.3f, 1.f));
-    set ("voices", (float) (3 + r.nextInt (5))); set ("detuneCents", lin (10.f, 60.f)); set ("carrierSaw", r.nextFloat());
-    set ("ratio", pick ({ 0.5f, 1.f, 1.5f, 2.f, 3.f, 4.f })); set ("index", chance (0.3f) ? lin (0.f, 0.6f) : lg (0.6f, 5.f));
-    set ("chaos", lin (0.f, 0.6f)); set ("chaosHz", lg (2.f, 30.f)); set ("grit", chance (0.3f) ? lin (0.f, 0.04f) : 0.f);
-    set ("hashHp", lg (100.f, 1500.f));
-    set ("drive1Db", lin (6.f, 32.f)); set ("drive1Curve", (float) r.nextInt (5));
-    set ("combMix", chance (0.4f) ? lin (0.1f, 0.6f) : 0.f); set ("combFb", lin (-0.7f, 0.8f)); set ("combRatio", pick ({ 0.5f, 1.f, 2.f }));
-    set ("formHz", lg (500.f, 3000.f)); set ("formGainDb", lin (0.f, 14.f)); set ("formQ", lg (0.7f, 5.f));
-    set ("drive2Db", lin (0.f, 12.f)); set ("drive2Curve", pick ({ 0.f, 2.f })); set ("toneHz", lg (5000.f, 14000.f)); set ("lowCut", lg (60.f, 250.f));
-    set ("attackMs", lin (0.5f, 5.f)); set ("decayMs", lg (150.f, 2000.f)); set ("sustain", lin (0.6f, 1.f)); set ("releaseMs", lg (40.f, 300.f));
-    set ("chorus", chance (0.6f) ? lin (0.2f, 0.85f) : 0.f);
-    set ("ott", lin (0.f, 0.6f)); set ("dlyMix", lin (0.f, 0.3f)); set ("dlyDiv", (float) r.nextInt (6)); set ("dlyFb", lin (0.2f, 0.5f));
-    set ("revMix", lin (0.1f, 0.4f)); set ("revSize", lin (0.5f, 0.85f)); set ("revDamp", lin (0.3f, 0.6f));
+    if (chance (0.75f))
+    {
+        // the owner's taste (his presets "6" / "7", 2026-10-22): wide detuned saws with chaos, soft / fold drive into a tube,
+        // FORTUNE up, no grit, no comb, light formant around 1.3 kHz, OTT + delay + reverb
+        set ("scoopSt", chance (0.6f) ? lin (2.f, 5.f) : lin (-7.f, -3.f)); set ("scoopMs", lin (220.f, 480.f)); set ("scoopCurve", lin (0.1f, 0.5f));
+        set ("glideMs", chance (0.15f) ? lin (300.f, 600.f) : lg (30.f, 150.f)); set ("tuneSt", 0.f);
+        set ("coreLevel", lin (0.1f, 0.7f)); set ("coreShape", lin (0.15f, 0.5f)); set ("coreOct", 1.f);
+        set ("hashLevel", lin (0.4f, 1.3f)); set ("hashDecayMs", lin (250.f, 650.f)); set ("hashSustain", lin (0.6f, 1.f));
+        set ("voices", (float) (4 + r.nextInt (4))); set ("detuneCents", lin (35.f, 58.f)); set ("carrierSaw", lin (0.65f, 1.f));
+        set ("ratio", pick ({ 1.f, 3.f })); set ("index", lin (0.1f, 0.6f));
+        set ("chaos", lin (0.25f, 0.65f)); set ("chaosHz", lin (7.f, 14.f)); set ("grit", 0.f); set ("hashHp", lg (100.f, 1300.f));
+        set ("drive1Db", lin (16.f, 25.f)); set ("drive1Curve", pick ({ 0.f, 3.f, 2.f }));
+        set ("combMix", 0.f); set ("combFb", 0.f); set ("combRatio", 1.f);
+        set ("formHz", lin (1100.f, 1600.f)); set ("formGainDb", lin (0.f, 5.f)); set ("formQ", lin (2.f, 5.f));
+        set ("drive2Db", lin (1.f, 11.f)); set ("drive2Curve", 2.f); set ("toneHz", lg (6000.f, 15000.f)); set ("lowCut", lg (20.f, 100.f));
+        set ("attackMs", lin (0.5f, 5.f)); set ("decayMs", lin (300.f, 700.f)); set ("sustain", lin (0.65f, 0.8f)); set ("releaseMs", lin (55.f, 80.f));
+        set ("chorus", chance (0.5f) ? lin (0.1f, 0.4f) : 0.f);
+        set ("ott", lin (0.3f, 0.5f)); set ("dlyMix", lin (0.15f, 0.25f)); set ("dlyDiv", pick ({ 1.f, 2.f, 5.f })); set ("dlyFb", lin (0.25f, 0.4f));
+        set ("revMix", lin (0.25f, 0.38f)); set ("revSize", lin (0.55f, 0.82f)); set ("revDamp", lin (0.3f, 0.5f));
+        set ("fortune", lin (0.35f, 0.9f));
+        set ("cutoffHz", 20000.f); set ("reso", 0.f); set ("autoShape", 0.f); set ("autoOct", 0.f);
+    }
+    else
+    {
+        set ("scoopSt", chance (0.7f) ? lin (2.f, 14.f) : lin (-8.f, -3.f));
+        set ("scoopMs", lg (40.f, 500.f)); set ("scoopCurve", lin (0.2f, 0.6f)); set ("glideMs", lg (10.f, 150.f)); set ("tuneSt", 0.f);
+        set ("coreLevel", lin (0.3f, 1.f)); set ("coreShape", r.nextFloat());
+        set ("coreOct", chance (0.25f) ? 0.f : (chance (0.12f) ? 2.f : 1.f));                       // choice index: 0 = -1 oct
+        set ("hashLevel", lin (0.4f, 1.4f)); set ("hashDecayMs", lg (100.f, 2000.f)); set ("hashSustain", lin (0.3f, 1.f));
+        set ("voices", (float) (3 + r.nextInt (5))); set ("detuneCents", lin (10.f, 60.f)); set ("carrierSaw", r.nextFloat());
+        set ("ratio", pick ({ 0.5f, 1.f, 1.5f, 2.f, 3.f, 4.f })); set ("index", chance (0.3f) ? lin (0.f, 0.6f) : lg (0.6f, 5.f));
+        set ("chaos", lin (0.f, 0.6f)); set ("chaosHz", lg (2.f, 30.f)); set ("grit", chance (0.3f) ? lin (0.f, 0.04f) : 0.f);
+        set ("hashHp", lg (100.f, 1500.f));
+        set ("drive1Db", lin (6.f, 32.f)); set ("drive1Curve", (float) r.nextInt (5));
+        set ("combMix", chance (0.4f) ? lin (0.1f, 0.6f) : 0.f); set ("combFb", lin (-0.7f, 0.8f)); set ("combRatio", pick ({ 0.5f, 1.f, 2.f }));
+        set ("formHz", lg (500.f, 3000.f)); set ("formGainDb", lin (0.f, 14.f)); set ("formQ", lg (0.7f, 5.f));
+        set ("drive2Db", lin (0.f, 12.f)); set ("drive2Curve", pick ({ 0.f, 2.f })); set ("toneHz", lg (5000.f, 14000.f)); set ("lowCut", lg (60.f, 250.f));
+        set ("attackMs", lin (0.5f, 5.f)); set ("decayMs", lg (150.f, 2000.f)); set ("sustain", lin (0.6f, 1.f)); set ("releaseMs", lg (40.f, 300.f));
+        set ("chorus", chance (0.6f) ? lin (0.2f, 0.85f) : 0.f);
+        set ("ott", lin (0.f, 0.6f)); set ("dlyMix", lin (0.f, 0.3f)); set ("dlyDiv", (float) r.nextInt (6)); set ("dlyFb", lin (0.2f, 0.5f));
+        set ("revMix", lin (0.1f, 0.4f)); set ("revSize", lin (0.5f, 0.85f)); set ("revDamp", lin (0.3f, 0.6f));
+        set ("fortune", chance (0.5f) ? lin (0.f, 0.6f) : 0.f);
+    }
 
     // level: every random sound about as loud as the presets (2 passes: the drives are not linear)
     set ("outDb", 0.f);

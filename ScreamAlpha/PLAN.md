@@ -34,3 +34,21 @@ Mono / legato voice, 4x oversampled core, everything per note:
 ## How we work
 Step by step with A/B against the references (same note, level matched) before anything goes into the plugin.
 First milestone: the source + note gesture + scream chain offline (render tool), A/B vs FHSP 107, Massive 023 and loop 9.
+
+## Owner's ideas – next steps (2026-10-22, after testing v0.3)
+1. **Preset 8** from the owner (coming) → factory preset; tune RANDOM "owner taste" ranges on presets 6 / 7 / 8.
+2. **Bigger automation window**: the cutoff-automation preview much larger (full card width).
+3. **Custom shape**: besides the ready shapes (rise / fall / up-down / wobble / steps) a CUSTOM shape drawn with points
+   (click = add, drag = move, bend the curve between points – like the drawn pitch in Forge of Wrath). Picking a ready
+   shape loads it into the editor, so it can be edited, not drawn from zero. Length 1/16 … 1 bar, tempo-synced as now.
+4. **MOD 1 / MOD 2** (owner's own design – NOT Serum drag & drop):
+   - one window with two tabs of graphs, MOD 1 and MOD 2, each its own colour (different from each other);
+   - per MOD a button **ASSIGN**: press it, then click any knob → that knob takes the MOD colour and the button text changes
+     to the knob name (e.g. CUTOFF); right-click / small "x" removes the assignment;
+   - **one knob per MOD** for now (more targets later if needed);
+   - under it **one range slider + a [+ / −] switch**. The slider sets the OTHER END of the range as an absolute knob value:
+     - **+**: the MOD moves from the knob's position UP to the slider value (knob 30 %, slider 50 % → 30 % … 50 %);
+     - **−**: from the knob's position DOWN to the slider value (knob 30 %, slider 10 % → 10 % … 30 %);
+     - in + the slider can't go below the knob, in − not above; turning the knob past the slider pushes the slider along;
+   - the knob shows the range as a thin ring in the MOD colour (`flat::Knob::setModulation` already exists);
+   - today's cutoff automation becomes MOD 1 → CUTOFF; old projects / presets must load the same (new param IDs only).

@@ -68,24 +68,83 @@ AlphaCanvas::AlphaCanvas (AlphaProcessor& p) : proc (p), scope (p)
                        seg ("dlyDiv", { "1/16", "1/8", "1/8D", "1/4", "1/4D", "1/2" }, cool) });
     addAndMakeVisible (scope);
 
-    for (int i = 0; i < proc.getNumPrograms(); ++i) presetBox.addItem (proc.getProgramName (i), i + 1);
-    presetBox.onChange = [this] { if (presetBox.getSelectedId() > 0) proc.setCurrentProgram (presetBox.getSelectedId() - 1); };
+    refreshList();
+    presetBox.onChange = [this]
+    {
+        const int id = presetBox.getSelectedId();
+        if (id <= 0) return;
+        if (id < userBase) proc.setCurrentProgram (id - 1);
+        else if (isPositiveAndBelow (id - userBase, userFiles.size())) proc.loadUserPreset (userFiles[id - userBase]);
+        lastName = {};
+    };
+    randomB.onClick = [this] { proc.randomize(); lastName = {}; };
+    saveB.onClick = [this] { showSave(); };
+    randomB.setTooltip ("A new sound in sensible ranges (level matched)");
+    saveB.setTooltip ("Save the current sound to Documents / 5CR34M 4LPH4 / Presets");
+    FlatLookAndFeel::makePrimary (saveB);
     prev.onClick = [this] { step (-1); };
     next.onClick = [this] { step (1); };
     undoB.onClick = [this] { proc.undo.undo(); };
     redoB.onClick = [this] { proc.undo.redo(); };
-    for (auto* c : { (Component*) &presetBox, (Component*) &prev, (Component*) &next, (Component*) &undoB, (Component*) &redoB }) addAndMakeVisible (c);
+    for (auto* c : { (Component*) &presetBox, (Component*) &prev, (Component*) &next, (Component*) &undoB, (Component*) &redoB,
+                     (Component*) &randomB, (Component*) &saveB }) addAndMakeVisible (c);
     setSize (W, H);
     timerCallback();
     startTimerHz (30);
 }
 
-AlphaCanvas::~AlphaCanvas() { setLookAndFeel (nullptr); }
+AlphaCanvas::~AlphaCanvas()
+{
+    if (dialog != nullptr) dialog->exitModalState (0);
+    dialog.reset();
+    setLookAndFeel (nullptr);
+}
+
+void AlphaCanvas::refreshList()
+{
+    presetBox.clear (dontSendNotification);
+    presetBox.addSectionHeading ("FACTORY");
+    for (int i = 0; i < proc.getNumPrograms(); ++i) presetBox.addItem (proc.getProgramName (i), i + 1);
+    userFiles = proc.userPresets();
+    if (! userFiles.isEmpty())
+    {
+        presetBox.addSeparator();
+        presetBox.addSectionHeading ("USER");
+        for (int i = 0; i < userFiles.size(); ++i) presetBox.addItem (userFiles[i].getFileNameWithoutExtension(), userBase + i);
+    }
+    lastName = {};
+}
+
+void AlphaCanvas::showSave()
+{
+    if (dialog != nullptr) return;
+    dialog = std::make_unique<AlertWindow> ("Save preset", "Name (Documents / 5CR34M 4LPH4 / Presets):", MessageBoxIconType::NoIcon, this);
+    dialog->setLookAndFeel (&lnf);
+    dialog->addTextEditor ("name", proc.presetName().startsWith ("Random") ? String ("My Screech") : proc.presetName());
+    dialog->addButton ("Save", 1, KeyPress (KeyPress::returnKey));
+    dialog->addButton ("Cancel", 0, KeyPress (KeyPress::escapeKey));
+    SafePointer<AlphaCanvas> safe (this);
+    dialog->enterModalState (true, ModalCallbackFunction::create ([safe] (int result)
+    {
+        if (safe == nullptr || safe->dialog == nullptr) return;
+        const auto name = safe->dialog->getTextEditorContents ("name");
+        MessageManager::callAsync ([safe] { if (safe != nullptr) safe->dialog.reset(); });
+        if (result == 1)
+        {
+            if (safe->proc.saveUserPreset (name)) safe->refreshList();
+            else AlertWindow::showMessageBoxAsync (MessageBoxIconType::WarningIcon, "Save preset", "Could not save the preset.");
+        }
+    }), false);
+}
 
 void AlphaCanvas::step (int d)
 {
-    const int n = proc.getNumPrograms();
-    proc.setCurrentProgram ((proc.getCurrentProgram() + d + n) % n);
+    Array<int> ids;
+    for (int i = 0; i < presetBox.getNumItems(); ++i) ids.add (presetBox.getItemId (i));
+    if (ids.isEmpty()) return;
+    int at = ids.indexOf (presetBox.getSelectedId());
+    at = at < 0 ? 0 : (at + d + ids.size()) % ids.size();
+    presetBox.setSelectedId (ids[at], sendNotificationSync);
 }
 
 void AlphaCanvas::timerCallback()
@@ -93,7 +152,11 @@ void AlphaCanvas::timerCallback()
     if (proc.presetName() != lastName)
     {
         lastName = proc.presetName();
-        presetBox.setSelectedId (proc.getCurrentProgram() + 1, dontSendNotification);
+        int found = 0;
+        for (int i = 0; i < presetBox.getNumItems(); ++i) if (presetBox.getItemText (i) == lastName) { found = presetBox.getItemId (i); break; }
+        if (proc.programIndex() >= 0) found = proc.programIndex() + 1;
+        if (found != 0) presetBox.setSelectedId (found, dontSendNotification);
+        else presetBox.setText (lastName, dontSendNotification);
     }
     const int w = proc.scopeWrite.load();
     if (w != lastScope) { lastScope = w; scope.repaint(); }
@@ -106,7 +169,7 @@ void AlphaCanvas::resized()
     // row 1: Note throw / Core / Amp      row 2: Hash / Scream / Output
     int x = m;
     for (int i = 0; i < 3; ++i) { auto& c = cards[(size_t) i]; c.area = { x, 72, widthOf (c) + (c.header ? 100 : 0), 150 }; x += c.area.getWidth() + gap; }
-    scope.setBounds (440, 12, 260, 34);
+    scope.setBounds (390, 12, 180, 34);
     cards[2].area.setRight (W - m);
     x = m;
     for (int i = 3; i < 6; ++i) { auto& c = cards[(size_t) i]; c.area = { x, 234, widthOf (c), 2 * kh + 60 }; x += c.area.getWidth() + gap; }
@@ -131,10 +194,12 @@ void AlphaCanvas::resized()
         c.header->setBounds (c.area.getX() + 16 + 2 * kw + 6, c.area.getY() + 70, 92, 26);
     }
     const int bx = W - m;
-    redoB.setBounds (bx - 70, 14, 70, 30);
-    undoB.setBounds (bx - 146, 14, 70, 30);
-    next.setBounds (bx - 190, 14, 34, 30);
-    presetBox.setBounds (bx - 196 - 250, 14, 250, 30);
+    redoB.setBounds (bx - 62, 14, 62, 30);
+    undoB.setBounds (bx - 130, 14, 62, 30);
+    saveB.setBounds (bx - 210, 14, 72, 30);
+    randomB.setBounds (bx - 302, 14, 86, 30);
+    next.setBounds (bx - 346, 14, 34, 30);
+    presetBox.setBounds (bx - 352 - 240, 14, 240, 30);
     prev.setBounds (presetBox.getX() - 40, 14, 34, 30);
 }
 

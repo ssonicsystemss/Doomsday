@@ -174,6 +174,105 @@ void AlphaProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     scopeWrite.store (w, std::memory_order_release);
 }
 
+// ------------------------------------------------------------ RANDOM + user presets
+float AlphaProcessor::measureLoudnessDb()
+{
+    auto prm = gather();
+    constexpr double rate = 48000.0; constexpr int block = 512, total = (int) (rate * 0.7), skip = (int) (rate * 0.05);
+    double sum = 0.0; long n = 0;
+    for (int note : { 62, 74 })
+    {
+        auto eng = std::make_unique<alpha::Engine>();
+        eng->setParams (prm); eng->prepare (rate, block);
+        AudioBuffer<float> b (2, block);
+        for (int pos = 0; pos < total; pos += block)
+        {
+            b.clear(); MidiBuffer m;
+            if (pos == 0) m.addEvent (MidiMessage::noteOn (1, note, (uint8) 110), 0);
+            eng->process (b, m);
+            for (int i = 0; i < block; ++i)
+                if (pos + i >= skip) { const float v = 0.5f * (b.getSample (0, i) + b.getSample (1, i)); sum += (double) v * v; ++n; }
+        }
+    }
+    return n > 0 ? (float) (10.0 * std::log10 (sum / (double) n + 1e-12)) : -100.f;
+}
+
+void AlphaProcessor::randomize()
+{
+    auto& r = rng;
+    auto set = [this] (const char* id, float v)
+    { if (auto* p = apvts.getParameter (id)) { p->beginChangeGesture(); p->setValueNotifyingHost (p->convertTo0to1 (v)); p->endChangeGesture(); } };
+    auto lin = [&r] (float a, float b) { return a + r.nextFloat() * (b - a); };
+    auto lg = [&r] (float a, float b) { return a * std::pow (b / a, r.nextFloat()); };
+    auto pick = [&r] (std::initializer_list<float> o) { return *(o.begin() + r.nextInt ((int) o.size())); };
+    auto chance = [&r] (float pr) { return r.nextFloat() < pr; };
+
+    set ("scoopSt", chance (0.7f) ? lin (2.f, 14.f) : lin (-8.f, -3.f));
+    set ("scoopMs", lg (40.f, 500.f)); set ("scoopCurve", lin (0.2f, 0.6f)); set ("glideMs", lg (10.f, 150.f)); set ("tuneSt", 0.f);
+    set ("coreLevel", lin (0.3f, 1.f)); set ("coreShape", r.nextFloat());
+    set ("coreOct", chance (0.25f) ? 0.f : (chance (0.12f) ? 2.f : 1.f));                       // choice index: 0 = -1 oct
+    set ("hashLevel", lin (0.4f, 1.4f)); set ("hashDecayMs", lg (100.f, 2000.f)); set ("hashSustain", lin (0.3f, 1.f));
+    set ("voices", (float) (3 + r.nextInt (5))); set ("detuneCents", lin (10.f, 60.f)); set ("carrierSaw", r.nextFloat());
+    set ("ratio", pick ({ 0.5f, 1.f, 1.5f, 2.f, 3.f, 4.f })); set ("index", chance (0.3f) ? lin (0.f, 0.6f) : lg (0.6f, 5.f));
+    set ("chaos", lin (0.f, 0.6f)); set ("chaosHz", lg (2.f, 30.f)); set ("grit", chance (0.3f) ? lin (0.f, 0.04f) : 0.f);
+    set ("hashHp", lg (100.f, 1500.f));
+    set ("drive1Db", lin (6.f, 32.f)); set ("drive1Curve", (float) r.nextInt (5));
+    set ("combMix", chance (0.4f) ? lin (0.1f, 0.6f) : 0.f); set ("combFb", lin (-0.7f, 0.8f)); set ("combRatio", pick ({ 0.5f, 1.f, 2.f }));
+    set ("formHz", lg (500.f, 3000.f)); set ("formGainDb", lin (0.f, 14.f)); set ("formQ", lg (0.7f, 5.f));
+    set ("drive2Db", lin (0.f, 12.f)); set ("drive2Curve", pick ({ 0.f, 2.f })); set ("toneHz", lg (5000.f, 14000.f)); set ("lowCut", lg (60.f, 250.f));
+    set ("attackMs", lin (0.5f, 5.f)); set ("decayMs", lg (150.f, 2000.f)); set ("sustain", lin (0.6f, 1.f)); set ("releaseMs", lg (40.f, 300.f));
+    set ("chorus", chance (0.6f) ? lin (0.2f, 0.85f) : 0.f);
+    set ("ott", lin (0.f, 0.6f)); set ("dlyMix", lin (0.f, 0.3f)); set ("dlyDiv", (float) r.nextInt (6)); set ("dlyFb", lin (0.2f, 0.5f));
+    set ("revMix", lin (0.1f, 0.4f)); set ("revSize", lin (0.5f, 0.85f)); set ("revDamp", lin (0.3f, 0.6f));
+
+    // level: every random sound about as loud as the presets (2 passes: the drives are not linear)
+    set ("outDb", 0.f);
+    for (int pass = 0; pass < 2; ++pass)
+    {
+        const float lvl = measureLoudnessDb();
+        if (lvl < -90.f) break;
+        set ("outDb", jlimit (-24.f, 12.f, apvts.getRawParameterValue ("outDb")->load() + (randomTargetDb - lvl)));
+    }
+    currentName = "Random #" + String (1000 + r.nextInt (9000));
+    currentProgram = -1;
+}
+
+File AlphaProcessor::userFolder()
+{
+    return File::getSpecialLocation (File::userDocumentsDirectory).getChildFile ("5CR34M 4LPH4").getChildFile ("Presets");
+}
+
+Array<File> AlphaProcessor::userPresets() const
+{
+    auto f = userFolder().findChildFiles (File::findFiles, false, "*.sapreset");
+    f.sort();
+    return f;
+}
+
+bool AlphaProcessor::saveUserPreset (const String& name)
+{
+    const auto clean = File::createLegalFileName (name.trim());
+    if (clean.isEmpty() || ! userFolder().createDirectory()) return false;
+    auto st = apvts.copyState();
+    if (auto xml = st.createXml())
+        if (xml->writeTo (userFolder().getChildFile (clean + ".sapreset"))) { currentName = clean; currentProgram = -1; return true; }
+    return false;
+}
+
+bool AlphaProcessor::loadUserPreset (const File& f)
+{
+    auto xml = XmlDocument::parse (f);
+    if (xml == nullptr || ! xml->hasTagName (apvts.state.getType())) return false;
+    for (auto* prm : getParameters())
+        if (auto* rp = dynamic_cast<RangedAudioParameter*> (prm)) rp->setValueNotifyingHost (rp->getDefaultValue());
+    for (auto* c : xml->getChildWithTagNameIterator ("PARAM"))
+        if (auto* rp = apvts.getParameter (c->getStringAttribute ("id")))
+            rp->setValueNotifyingHost (rp->convertTo0to1 ((float) c->getDoubleAttribute ("value")));
+    currentName = f.getFileNameWithoutExtension(); currentProgram = -1;
+    undo.clearUndoHistory();
+    return true;
+}
+
 AudioProcessorEditor* AlphaProcessor::createEditor() { return new AlphaEditor (*this); }
 
 void AlphaProcessor::getStateInformation (MemoryBlock& dest)

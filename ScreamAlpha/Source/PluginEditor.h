@@ -33,6 +33,8 @@ private:
     void timerCallback() override;
     juce::Component* knob (const char* id, const char* label, juce::Colour c, bool bipolar = false);
     void step (int);
+    void refreshList();
+    void showSave();
 
     AlphaProcessor& proc;
     doomsday::flat::FlatLookAndFeel lnf;
@@ -40,7 +42,10 @@ private:
     std::vector<Card> cards;
     AlphaScope scope;
     juce::ComboBox presetBox;
-    juce::TextButton prev { "<" }, next { ">" }, undoB { "Undo" }, redoB { "Redo" };
+    juce::TextButton prev { "<" }, next { ">" }, undoB { "Undo" }, redoB { "Redo" }, randomB { "Random" }, saveB { "Save" };
+    juce::Array<juce::File> userFiles;
+    std::unique_ptr<juce::AlertWindow> dialog;
+    static constexpr int userBase = 1000;
     juce::String lastName;
     int lastScope = -1;
     juce::TooltipWindow tips { this, 600 };

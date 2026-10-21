@@ -27,7 +27,8 @@ public:
     double getTailLengthSeconds() const override { return 2.0; }
 
     int getNumPrograms() override;
-    int getCurrentProgram() override { return currentProgram; }
+    int getCurrentProgram() override { return juce::jmax (0, currentProgram); }
+    int programIndex() const { return currentProgram; }      // -1 = user preset / random
     void setCurrentProgram (int) override;
     const juce::String getProgramName (int) override;
     void changeProgramName (int, const juce::String&) override {}
@@ -40,6 +41,16 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
     juce::String presetName() const { return currentName; }
+
+    // RANDOM: a new sound in sensible ranges, level matched (measured offline) - message thread
+    void randomize();
+    float measureLoudnessDb();                       // the current sound, two held notes, without the SPACE effects
+    static constexpr float randomTargetDb = -14.f;
+    // user presets: Documents/5CR34M 4LPH4/Presets/*.sapreset
+    static juce::File userFolder();
+    juce::Array<juce::File> userPresets() const;
+    bool saveUserPreset (const juce::String& name);
+    bool loadUserPreset (const juce::File&);
     alpha::Params gather() const;
 
     static constexpr int scopeSize = 4096;
@@ -52,5 +63,6 @@ private:
     doomsday::dsp::FxChain fx;
     int currentProgram = 0;
     juce::String currentName { "INIT" };
+    juce::Random rng;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AlphaProcessor)
 };

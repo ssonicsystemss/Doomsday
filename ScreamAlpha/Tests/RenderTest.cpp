@@ -57,6 +57,31 @@ int main (int argc, char** argv)
         std::unique_ptr<AudioFormatWriter> w (wav.createWriterFor (new FileOutputStream (f), sr, 2, 24, {}, 0));
         if (w) w->writeFromAudioSampleBuffer (all, 0, all.getNumSamples());
     }
+    {   // RANDOM: no NaN, every sound near the target level
+        float lo = 100.f, hi = -100.f; bool fin = true;
+        for (int i = 0; i < 12; ++i)
+        {
+            proc.randomize();
+            const float db = proc.measureLoudnessDb();
+            fin &= std::isfinite (db);
+            lo = jmin (lo, db); hi = jmax (hi, db);
+        }
+        const bool good = fin && lo > AlphaProcessor::randomTargetDb - 4.f && hi < AlphaProcessor::randomTargetDb + 4.f;
+        printf ("random x12 level %.1f .. %.1f dB (target %.1f): %s\n", lo, hi, AlphaProcessor::randomTargetDb, good ? "OK" : "FAIL");
+        ok &= good;
+    }
+    {   // user preset save / load
+        proc.setCurrentProgram (3);
+        const float a = proc.apvts.getRawParameterValue ("formHz")->load();
+        const bool saved = proc.saveUserPreset ("__alpha_test");
+        proc.setCurrentProgram (1);
+        auto f = AlphaProcessor::userFolder().getChildFile ("__alpha_test.sapreset");
+        const bool loaded = proc.loadUserPreset (f);
+        const bool same = std::abs (proc.apvts.getRawParameterValue ("formHz")->load() - a) < 0.5f;
+        printf ("user preset save/load: %s\n", saved && loaded && same ? "OK" : "FAIL");
+        ok &= saved && loaded && same;
+        f.deleteFile();
+    }
     {   // state round trip
         proc.setCurrentProgram (2);
         MemoryBlock mb; proc.getStateInformation (mb);

@@ -9,6 +9,7 @@
 #        NAME "Dark Serpent"  CODE DkSp  CATEGORIES Instrument Synth
 #        EFFECT                                        (optional: audio effect instead of an instrument)
 #        FLAT                                          (optional: the Minimal / flat look - Inter fonts + DoomsdayFlat.cpp)
+#        VENDOR "sonicsystems"                         (optional: vendor shown in the DAW; default "Prophecy Audio")
 #        SOURCES Source/PluginProcessor.cpp Source/PluginEditor.cpp
 #        RESOURCES <extra binary data files>          (optional)
 #        TEST Tests/RenderTest.cpp)                    (optional, built with -DPROPHECY_BUILD_TESTS=ON)
@@ -32,12 +33,17 @@ if(NOT TARGET juce::juce_core)
 endif()
 
 function(doomsday_plugin TARGET)
-    cmake_parse_arguments(D "EFFECT;FLAT" "NAME;CODE;TEST" "SOURCES;RESOURCES;CATEGORIES" ${ARGN})
+    cmake_parse_arguments(D "EFFECT;FLAT" "NAME;CODE;TEST;VENDOR" "SOURCES;RESOURCES;CATEGORIES" ${ARGN})
     set(data ${TARGET}Data)
     if(D_EFFECT)
         set(isSynth FALSE)
     else()
         set(isSynth TRUE)
+    endif()
+    if(D_VENDOR)
+        set(vendor "${D_VENDOR}")
+    else()
+        set(vendor "Prophecy Audio")
     endif()
     set(flatFonts "")
     set(flatSrc "")
@@ -57,7 +63,7 @@ function(doomsday_plugin TARGET)
     set_target_properties(${data} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
     juce_add_plugin(${TARGET}
-        COMPANY_NAME "Prophecy Audio"
+        COMPANY_NAME "${vendor}"
         PLUGIN_MANUFACTURER_CODE Prph
         PLUGIN_CODE ${D_CODE}
         FORMATS VST3 Standalone

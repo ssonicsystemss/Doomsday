@@ -109,4 +109,6 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   albo tekst bez znaków spoza ASCII.
 - Fonty Google / systemowe OTF (CFF) do BinaryData: przycięte do łaciny + polskich znaków i przerobione na TTF (fontTools: subset + cu2qu)
   – 3 grubości Inter = ~170 KB zamiast ~1.9 MB, pewne renderowanie na Windows.
+- `Graphics::drawImage` rysuje z przezroczystością **aktualnego koloru** (np. po `setColour (white.withAlpha (0.03f))` obraz jest prawie niewidoczny)
+  → `g.setOpacity (1.f)` tuż przed `drawImage` (film promo v3.1 wyszedł przez to ciemny).
 - `TabStrip` / zakładki: przyciski włącznika wszystkich zakładek w tym samym miejscu → `removeFromRight` liczyć RAZ, nie w pętli (zjadało pasek zakładek).

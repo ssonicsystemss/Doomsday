@@ -224,6 +224,8 @@ void ResponseGraph::paint (Graphics& g)
 
     // nodes of the selected oscillator
     const auto v = view (osc);
+    struct Tag { Node n; Point<float> p; bool active, hot; String text; };
+    std::vector<Tag> tags;
     for (auto n : { Cut, Form })
     {
         const auto p = nodePos (osc, n);
@@ -236,27 +238,41 @@ void ResponseGraph::paint (Graphics& g)
         g.drawEllipse (Rectangle<float> (r * 2.f, r * 2.f).withCentre (p), 2.f);
         if (hot) { g.setColour (oscAccent (osc)); g.fillEllipse (Rectangle<float> (6.f, 6.f).withCentre (p)); }
 
-        // label + value tag
         auto fmtHz = [] (float hz) { return hz >= 1000.f ? String (hz / 1000.f, 2) + " kHz" : String (roundToInt (hz)) + " Hz"; };
-        String tag;
+        String text;
         if (n == Cut)
-            tag = active ? "CUTOFF  " + fmtHz (v.cutoff) + dot + "reso " + String (roundToInt (v.reso * 100.f)) + "%" : "FILTER off" + dot + "drag to use";
+            text = active ? "CUTOFF  " + fmtHz (v.cutoff) + dot + "reso " + String (roundToInt (v.reso * 100.f)) + "%" : "FILTER off" + dot + "drag to use";
         else
-            tag = active ? "FORMANT  " + fmtHz (v.formHz) + dot + "+" + String (v.formGain, 1) + " dB" + dot + "Q " + String (v.formQ, 1)
-                         : "FORMANT off" + dot + "drag to use";
-        const auto f = lnf.font (11.5f, SemiBold);
-        const float tw = GlyphArrangement::getStringWidth (f, tag) + 16.f;
-        auto box = Rectangle<float> (tw, 22.f).withPosition (p.x + 14.f, p.y - 30.f);
-        if (box.getRight() > plot.getRight()) box.setX (p.x - 14.f - tw);
-        if (box.getY() < plot.getY()) box.setY (p.y + 10.f);
-        if (hot || drag == None)
+            text = active ? "FORMANT  " + fmtHz (v.formHz) + dot + "+" + String (v.formGain, 1) + " dB" + dot + "Q " + String (v.formQ, 1)
+                          : "FORMANT off" + dot + "drag to use";
+        if (hot || drag == None) tags.push_back ({ n, p, active, hot, text });
+    }
+
+    // value tags: the touched dot first, then switched-on ones; a tag that would cover another moves below its dot or is left out
+    std::stable_sort (tags.begin(), tags.end(), [] (const Tag& a, const Tag& b) { return (a.hot ? 2 : a.active ? 1 : 0) > (b.hot ? 2 : b.active ? 1 : 0); });
+    std::vector<Rectangle<float>> used;
+    const auto f = lnf.font (11.5f, SemiBold);
+    for (auto& tg : tags)
+    {
+        const float tw = GlyphArrangement::getStringWidth (f, tg.text) + 16.f;
+        auto place = [&] (bool below)
         {
-            g.setColour (hot ? t.border : t.control.withAlpha (0.92f));
-            g.fillRoundedRectangle (box, 6.f);
-            g.setFont (f);
-            g.setColour (active ? t.text : t.textDim);
-            g.drawText (tag, box, Justification::centred);
-        }
+            auto box = Rectangle<float> (tw, 22.f).withPosition (tg.p.x + 14.f, below ? tg.p.y + 12.f : tg.p.y - 30.f);
+            if (box.getRight() > plot.getRight()) box.setX (tg.p.x - 14.f - tw);
+            if (box.getY() < plot.getY()) box.setY (tg.p.y + 12.f);
+            if (box.getBottom() > plot.getBottom()) box.setY (tg.p.y - 30.f);
+            return box;
+        };
+        auto clash = [&used] (Rectangle<float> b) { for (auto& u : used) if (u.expanded (4.f).intersects (b)) return true; return false; };
+        auto box = place (false);
+        if (clash (box)) box = place (true);
+        if (clash (box)) continue;
+        used.push_back (box);
+        g.setColour (tg.hot ? t.border : t.control.withAlpha (0.92f));
+        g.fillRoundedRectangle (box, 6.f);
+        g.setFont (f);
+        g.setColour (tg.active ? t.text : t.textDim);
+        g.drawText (tg.text, box, Justification::centred);
     }
     }
 

@@ -1,7 +1,8 @@
-// TikTok promo renderer for PROPHECY OF SCREAM
+// TikTok promo renderer for PROPHECY OF SCREAM v3.1 (Minimal / flat look)
 // Renders the real plugin (audio + GUI) frame by frame and writes raw BGRA 1080x1920 frames into a pipe for ffmpeg (see render.sh).
 // argv[1] = output dir (final.wav + control stills), argv[2] = kick track (Promo/assets/kick.flac), argv[3] = frame pipe
-// Timeline, captions, presets and camera moves: see `sections` below. Song timing: song.h
+// Timeline, captions, presets, camera moves and the scripted mouse (dragging the graph dots): see `sections` and `script` below.
+// Song timing: song.h
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -13,32 +14,38 @@
 #include <atomic>
 #include <functional>
 #include <cstdio>
-#define private public        // local promo tool only: lets us drive the editor's timer and tabs
+#define private public        // local promo tool only: lets us drive the editor's timer, graph nodes and tabs
 #include "PluginEditor.h"
 #undef private
 #include "song.h"
 
 using namespace juce;
+using namespace doomsday::flat;
 
 static constexpr int VW = 1080, VH = 1920;
 
 // ------------------------------------------------------------------ timeline
 struct Section { int bar; const char* title; const char* sub; Rectangle<float> cam; };
-static const Rectangle<float> camFull   { 0.f, 0.f, 1360.f, 800.f };
-static const Rectangle<float> camIntro  { 40.f, 24.f, 1280.f, 752.f };
-static const Rectangle<float> camOscs   { 10.f, 120.f, 1340.f, 490.f };
-static const Rectangle<float> camLeft   { 12.f, 124.f, 548.f, 484.f };
-static const Rectangle<float> camScream { 548.f, 124.f, 264.f, 268.f };
+static const Rectangle<float> camFull    { 0.f, 0.f, 1360.f, 800.f };
+static const Rectangle<float> camGraph   { 12.f, 62.f, 1016.f, 546.f };    // graph + OSC 1 card (knobs follow the dots)
+static const Rectangle<float> camLayers  { 12.f, 62.f, 1336.f, 546.f };    // graph + both OSC cards
+static const Rectangle<float> camOsc1    { 12.f, 340.f, 670.f, 268.f };
+static const Rectangle<float> camScream  { 1024.f, 64.f, 324.f, 280.f };
 
+static const String dotSep (CharPointer_UTF8 (" \xc2\xb7 "));
 static const Section sections[] {
-    { 0,  "PROPHECY\nOF SCREAM",  "HARDSTYLE SCREECH SYNTH", camFull },
-    { 2,  "2 OSCILLATORS",        "LAYER YOUR SCREECH",      camOscs },
-    { 4,  "FX ON EVERY OSC",      "DIST  /  FILTER  /  LFO", camLeft },
-    { 6,  "ONE KNOB.",            "TURN UP THE SCREAM",      camScream },
-    { 8,  "14 PRESETS",           "FROM EUPHORIC TO RAW",    camFull },
-    { 10, "PROPHECY\nOF SCREAM",  "VST3  /  FL STUDIO",      camFull },
+    { 0,  "PROPHECY\nOF SCREAM",      "V3.1  NEW LOOK",                   camFull },
+    { 2,  "DRAG THE FILTER",          "CUTOFF + RESONANCE IN ONE MOVE",   camGraph },
+    { 5,  "GRAB THE FORMANT",         "THE VOICE OF YOUR SCREECH",        camGraph },
+    { 8,  "2 OSCILLATORS",            "EACH WITH ITS OWN CURVE",          camLayers },
+    { 10, "EVERY VALUE\nIN NUMBERS",  "OSC  DIST  FILTER  LFO  FORMANT",  camOsc1 },
+    { 12, "ONE KNOB.",                "TURN UP THE SCREAM",               camScream },
+    { 14, "PRESETS",                  "FROM EUPHORIC TO RAW",             camLayers },
+    { 16, "PROPHECY\nOF SCREAM",      "VST3  /  FL STUDIO",               camFull },
 };
-static int sectionAt (int bar) { int s = 0; for (int i = 0; i < 6; ++i) if (bar >= sections[i].bar) s = i; return s; }
+static constexpr int numSections = (int) std::size (sections);
+static int sectionAt (int bar) { int s = 0; for (int i = 0; i < numSections; ++i) if (bar >= sections[i].bar) s = i; return s; }
+static int sectionEndBar (int s) { return s + 1 < numSections ? sections[s + 1].bar : BARS; }
 
 // melody: 2-bar phrase in D minor, eighth-note grid, slight overlaps -> legato slides
 struct Note { int start, len, note; };
@@ -69,49 +76,49 @@ static Rectangle<float> lerpRect (Rectangle<float> a, Rectangle<float> b, float 
     return { a.getX() + (b.getX() - a.getX()) * t, a.getY() + (b.getY() - a.getY()) * t,
              a.getWidth() + (b.getWidth() - a.getWidth()) * t, a.getHeight() + (b.getHeight() - a.getHeight()) * t };
 }
+// value along eased keyframes (x = section progress 0..1, y = value)
+static float keys (std::initializer_list<Point<float>> k, float p)
+{
+    const Point<float>* prev = nullptr;
+    for (auto& pt : k)
+    {
+        if (p <= pt.x) return prev == nullptr ? pt.y : prev->y + (pt.y - prev->y) * ease ((p - prev->x) / (pt.x - prev->x));
+        prev = &pt;
+    }
+    return prev != nullptr ? prev->y : 0.f;
+}
+static float logKeys (std::initializer_list<Point<float>> k, float p)
+{
+    std::vector<Point<float>> l;
+    for (auto& pt : k) l.push_back ({ pt.x, std::log (pt.y) });
+    const Point<float>* prev = nullptr;
+    for (auto& pt : l)
+    {
+        if (p <= pt.x) return std::exp (prev == nullptr ? pt.y : prev->y + (pt.y - prev->y) * ease ((p - prev->x) / (pt.x - prev->x)));
+        prev = &pt;
+    }
+    return std::exp (prev->y);
+}
 
 // ------------------------------------------------------------------ drawing helpers
-static void drawBeamV (Graphics& g, Point<float> src, float angle, float spread, float len, Colour col, float alpha)
+static void drawCursor (Graphics& g, Point<float> p, float alpha, bool pressed, Colour accent)
 {
-    for (int layer = 0; layer < 3; ++layer)
+    if (pressed)
     {
-        const float s = spread * (1.f - 0.3f * (float) layer);
-        const auto dir = Point<float> (std::sin (angle), std::cos (angle));
-        const auto perp = Point<float> (dir.y, -dir.x);
-        const auto end = src + dir * len;
-        const float hw = std::tan (s) * len;
-        Path p; p.startNewSubPath (src - perp * 2.f); p.lineTo (src + perp * 2.f); p.lineTo (end + perp * hw); p.lineTo (end - perp * hw); p.closeSubPath();
-        ColourGradient gr (col.withAlpha (alpha * (0.4f + 0.3f * (float) layer)), src.x, src.y, col.withAlpha (0.f), end.x, end.y, false);
-        g.setGradientFill (gr);
-        g.fillPath (p);
+        g.setColour (accent.withAlpha (0.35f * alpha));
+        g.fillEllipse (Rectangle<float> (46.f, 46.f).withCentre (p));
+        g.setColour (accent.withAlpha (alpha));
+        g.drawEllipse (Rectangle<float> (46.f, 46.f).withCentre (p), 3.f);
     }
-}
-
-static void glowText (Graphics& g, const String& t, Rectangle<float> r, const Font& f, Colour core, Colour glow, float glowAmt, Justification j)
-{
-    g.setFont (f);
-    for (int i = 5; i >= 1; --i)
-    {
-        g.setColour (glow.withAlpha (glowAmt * 0.16f / (float) i));
-        const float o = (float) i * 2.2f;
-        for (auto d : { Point<float> (-o, 0.f), Point<float> (o, 0.f), Point<float> (0.f, -o), Point<float> (0.f, o) })
-            g.drawFittedText (t, r.translated (d.x, d.y).toNearestInt(), j, 3, 1.f);
-    }
-    g.setColour (core);
-    g.drawFittedText (t, r.toNearestInt(), j, 3, 1.f);
-}
-
-static void drawCursor (Graphics& g, Point<float> p, float alpha)
-{
     Path a;
     a.startNewSubPath (0, 0); a.lineTo (0, 34); a.lineTo (9, 26); a.lineTo (15, 40); a.lineTo (21, 37); a.lineTo (15, 24); a.lineTo (27, 24); a.closeSubPath();
-    a.applyTransform (AffineTransform::translation (p));
-    g.setColour (Colours::black.withAlpha (0.6f * alpha));
-    g.fillPath (a, AffineTransform::translation (2.f, 3.f));
+    a.applyTransform (AffineTransform::scale (1.25f).translated (p));
+    g.setColour (Colours::black.withAlpha (0.5f * alpha));
+    g.fillPath (a, AffineTransform::translation (2.f, 4.f));
     g.setColour (Colours::white.withAlpha (alpha));
     g.fillPath (a);
-    g.setColour (Colours::black.withAlpha (0.8f * alpha));
-    g.strokePath (a, PathStrokeType (1.5f));
+    g.setColour (Colours::black.withAlpha (0.85f * alpha));
+    g.strokePath (a, PathStrokeType (1.6f));
 }
 
 // ------------------------------------------------------------------ main
@@ -120,18 +127,36 @@ int main (int argc, char** argv)
     ScopedJuceInitialiser_GUI gui;
     if (argc < 4) { fprintf (stderr, "usage: promotool outdir kick.wav frames.fifo\n"); return 1; }
     const File outDir (argv[1]);
+    const auto& tk = tokens();
 
     ProphecyProcessor proc;
     proc.setPlayConfigDetails (0, 2, SR, SPF);
     proc.prepareToPlay (SR, SPF);
     auto program = [&proc] (const String& name) { for (int i = 0; i < proc.getNumPrograms(); ++i) if (proc.getProgramName (i) == name) proc.setCurrentProgram (i); };
+    auto setP = [&proc] (const String& id, float v) { if (auto* p = proc.apvts.getParameter (id)) p->setValueNotifyingHost (p->convertTo0to1 (v)); };
     program ("Dutchie");
 
     std::unique_ptr<AudioProcessorEditor> edBase (proc.createEditor());
     auto* ed = dynamic_cast<ProphecyEditor*> (edBase.get());
     ed->setSize (1360, 800);
     auto& canvas = ed->canvas;
-    StageLookAndFeel lnf;
+    auto& graph = canvas.graph;
+    FlatLookAndFeel lnf;
+
+    // canvas coordinates of things the cursor touches
+    auto inCanvas = [&canvas] (Component& c, Point<float> p) { return canvas.getLocalPoint (&c, p); };
+    auto nodeAt = [&] (int osc, ResponseGraph::Node n) { return inCanvas (graph, graph.nodePos (osc, n)); };
+    auto tabCentre = [&] (OscCard& card, int i)
+    {
+        auto b = card.tabs.getBounds().toFloat();
+        return inCanvas (card, { b.getX() + b.getWidth() * ((float) i + 0.5f) / (float) OscCard::numTabs, b.getCentreY() });
+    };
+    auto screamCentre = [&]
+    {
+        auto& s = canvas.screamKnob->slider;
+        auto b = s.getBounds().toFloat().withTrimmedBottom (24.f);
+        return inCanvas (*canvas.screamKnob, b.getCentre());
+    };
 
     const auto midi = buildMidi();
     size_t mi = 0;
@@ -144,7 +169,15 @@ int main (int argc, char** argv)
     Rectangle<float> camFrom = camFull, camTo = camFull;
     FILE* out = fopen (argv[3], "wb");
     if (out == nullptr) { fprintf (stderr, "cannot open frame output\n"); return 1; }
-    const char* presetCycle[] = { "Sexy Nightmare", "Mad Machine", "Horn of Fallen", "Blippy Blippy" };
+    const char* presetCycle[] = { "Sexy Nightmare", "Wail of Souls", "Mad Machine", "Talking Dead" };
+
+    Point<float> cursor { 1500.f, 900.f };        // canvas coordinates (starts off screen)
+    float cursorAlpha = 0.f;
+    bool pressed = false;
+    Colour pressColour = tk.hot;
+    std::vector<int> stills;
+    for (int s = 0; s < numSections; ++s)
+        stills.push_back ((int) ((sections[s].bar + (sectionEndBar (s) - sections[s].bar) * 0.6) * BAR / SPF));
 
     for (int f = 0; f < frames; ++f)
     {
@@ -160,39 +193,110 @@ int main (int argc, char** argv)
             camTo = sections[sec].cam;
             lastSection = sec;
             sectionStartFrame = f;
+            graph.drag = ResponseGraph::None;
+            graph.hover = ResponseGraph::None;
             switch (sec)
             {
                 case 0: program ("Dutchie"); break;
-                case 1: program ("Twin Prophecy"); break;
-                case 2: program ("Devil's Scream"); break;
-                case 3: program ("Cardio"); break;
-                case 4: program (presetCycle[0]); break;
-                case 5: program ("Dutchie"); break;
+                case 1: graph.selectOsc (0); canvas.osc1->selectTab (2); break;       // keep Dutchie: one oscillator, wide open filter
+                case 2: canvas.osc1->selectTab (4); break;
+                case 3: program ("Twin Prophecy"); graph.selectOsc (0); canvas.osc1->selectTab (0); canvas.osc2->selectTab (0); break;
+                case 4: canvas.osc1->selectTab (0); break;
+                case 5: program ("Cardio"); break;
+                case 6: program (presetCycle[0]); break;
+                case 7: program ("Dutchie"); graph.selectOsc (0); canvas.osc1->selectTab (0); canvas.osc2->selectTab (0); break;
             }
         }
         const int inSec = f - sectionStartFrame;
         const float secT = (float) inSec / (float) FPS;
+        const float secLen = (float) ((sectionEndBar (sec) - sections[sec].bar) * BAR / SPF);
+        const float p = (float) inSec / secLen;            // section progress 0..1
 
-        // ---- scripted moves inside sections
-        if (sec == 2)
+        // ---- the scripted mouse
+        Point<float> target = cursor;
+        bool follow = true;
+        bool wantVisible = false;
+        pressed = false;
+        pressColour = tk.hot;
+        if (sec == 1)       // drag CUTOFF: from wide open down to a dark growl, then back up with more resonance
         {
-            const int tab = (inSec / 24) % 3;            // switch tab every half bar
-            canvas.fx1->selectTab (tab);
-            canvas.fx2->selectTab ((tab + 1) % 3);
+            wantVisible = true;
+            const bool drag = p >= 0.16f && p <= 0.9f;
+            if (drag)
+            {
+                setP ("cutoff", logKeys ({ { 0.16f, 20000.f }, { 0.45f, 650.f }, { 0.7f, 2400.f }, { 0.9f, 9000.f } }, p));
+                setP ("reso",   keys ({ { 0.16f, 0.51f }, { 0.45f, 0.8f }, { 0.9f, 0.62f } }, p));
+            }
+            graph.drag = drag ? ResponseGraph::Cut : ResponseGraph::None;
+            graph.hover = p > 0.1f ? ResponseGraph::Cut : ResponseGraph::None;
+            target = nodeAt (0, ResponseGraph::Cut);
+            follow = ! drag;
+            pressed = drag;
         }
-        else
+        else if (sec == 2)  // grab the (switched off) FORMANT dot: it turns on, then sweeps like a voice
         {
-            canvas.fx1->selectTab (0);
-            canvas.fx2->selectTab (0);
+            wantVisible = true;
+            const bool drag = p >= 0.14f && p <= 0.9f;
+            if (drag)
+            {
+                setP ("o1_form_on", 1.f);
+                setP ("o1_form_q", 5.f);
+                setP ("o1_form_hz",   logKeys ({ { 0.14f, 900.f }, { 0.38f, 2600.f }, { 0.62f, 520.f }, { 0.9f, 1500.f } }, p));
+                setP ("o1_form_gain", keys ({ { 0.14f, 12.f }, { 0.5f, 22.f }, { 0.9f, 18.f } }, p));
+            }
+            graph.drag = drag ? ResponseGraph::Form : ResponseGraph::None;
+            graph.hover = p > 0.08f ? ResponseGraph::Form : ResponseGraph::None;
+            target = nodeAt (0, ResponseGraph::Form);
+            follow = ! drag;
+            pressed = drag;
         }
-        float screamSweep = -1.f;
-        if (sec == 3)
+        else if (sec == 3)  // click OSC 2, then drag its cutoff (OSC 1 stays as the dim curve)
         {
-            screamSweep = ease ((float) inSec / (float) (2 * BAR / SPF - 6));
-            if (auto* p = proc.apvts.getParameter ("scream")) p->setValueNotifyingHost (p->convertTo0to1 (0.08f + 0.92f * screamSweep));
+            wantVisible = true;
+            if (p < 0.2f)
+                target = inCanvas (graph, graph.chipBounds (1).getCentre());
+            else
+            {
+                if (graph.osc != 1) { graph.selectOsc (1); canvas.osc2->selectTab (2); }
+                const bool drag = p >= 0.34f && p <= 0.92f;
+                if (drag)
+                {
+                    setP ("o2_cutoff", logKeys ({ { 0.34f, 1600.f }, { 0.62f, 7500.f }, { 0.92f, 2800.f } }, p));
+                    setP ("o2_reso",   keys ({ { 0.34f, 0.3f }, { 0.62f, 0.72f }, { 0.92f, 0.55f } }, p));
+                }
+                graph.drag = drag ? ResponseGraph::Cut : ResponseGraph::None;
+                graph.hover = ResponseGraph::Cut;
+                target = nodeAt (1, ResponseGraph::Cut);
+                follow = ! drag;
+                pressed = drag;
+                pressColour = tk.cool;
+            }
+            pressed = pressed || (p > 0.16f && p < 0.21f);      // the chip click
         }
-        if (sec == 4 && inSec > 0 && inSec % 24 == 0)
-            program (presetCycle[jmin (3, inSec / 24)]);
+        else if (sec == 4)  // click through the tabs of OSC 1
+        {
+            wantVisible = true;
+            const int tab = jlimit (0, OscCard::numTabs - 1, (int) (p * 5.2f));
+            target = tabCentre (*canvas.osc1, tab);
+            const float local = p * 5.2f - (float) tab;
+            if (local > 0.35f) canvas.osc1->selectTab (tab);
+            pressed = local > 0.35f && local < 0.5f;
+        }
+        else if (sec == 5)  // THE SCREAM knob, dragged up
+        {
+            wantVisible = true;
+            const float sweep = ease ((p - 0.12f) / 0.8f);
+            setP ("scream", 0.08f + 0.92f * sweep);
+            target = screamCentre() + Point<float> (34.f, 46.f - 90.f * sweep);
+            follow = p < 0.12f;
+            pressed = p >= 0.12f && p < 0.95f;
+        }
+        else if (sec == 6 && inSec > 0 && inSec % (BAR / SPF / 2) == 0)
+            program (presetCycle[jmin (3, inSec / (BAR / SPF / 2))]);
+
+        if (follow) cursor += (target - cursor) * 0.22f;
+        else        cursor = target;
+        cursorAlpha += ((wantVisible ? 1.f : 0.f) - cursorAlpha) * 0.2f;
 
         // ---- audio for this frame
         {
@@ -206,7 +310,7 @@ int main (int argc, char** argv)
             proc.processBlock (buf, m);
             for (int ch = 0; ch < 2; ++ch) synth.copyFrom (ch, s0, buf, ch, 0, jmin (SPF, TOTAL - s0));
         }
-        canvas.timerCallback();     // meters, title glow, preset name, dimming
+        canvas.timerCallback();     // spectrum, scope, meter, preset name, dimming
 
         // ---- kick pulse (kicks land on beat starts)
         float pulse = 0.f;
@@ -229,123 +333,111 @@ int main (int argc, char** argv)
         const float drawScale = vpW / cam.getWidth();
 
         Image shot = ed->createComponentSnapshot (cam.getSmallestIntegerContainer(), true, drawScale);
-        Image bgShot = ed->createComponentSnapshot (ed->getLocalBounds(), true, 0.18f);
 
         // ---- compose
         {
             Graphics g (frame);
-            g.fillAll (Colour (0xff050304));
+            g.fillAll (Colour (0xff0f1114));
 
-            // blurred plugin backdrop
-            g.setImageResamplingQuality (Graphics::highResamplingQuality);
-            g.setOpacity (0.30f);
-            const float bgH = (float) VH, bgW = bgH * 1360.f / 800.f;
-            g.drawImage (bgShot, Rectangle<float> ((VW - bgW) * 0.5f - 120.f * std::sin (tSec * 0.3f), 0.f, bgW, bgH), RectanglePlacement::stretchToFit);
-            g.setOpacity (1.f);
+            // soft accent light (hot from the top, cool from below), breathing with the kick
+            ColourGradient hotGlow (tk.hot.withAlpha (0.16f + 0.10f * pulse), VW * 0.2f, -120.f, Colours::transparentBlack, VW * 0.2f, 900.f, true);
+            g.setGradientFill (hotGlow); g.fillRect (0, 0, VW, VH);
+            ColourGradient coolGlow (tk.cool.withAlpha (0.10f + 0.05f * pulse), VW * 0.85f, VH + 100.f, Colours::transparentBlack, VW * 0.85f, VH - 900.f, true);
+            g.setGradientFill (coolGlow); g.fillRect (0, 0, VW, VH);
 
-            // stage light
-            ColourGradient haze (Colour (0xff7a0817).withAlpha (0.75f), VW * 0.5f, -80.f, Colours::transparentBlack, VW * 0.5f, 1100.f, true);
-            g.setGradientFill (haze); g.fillRect (0, 0, VW, VH);
-            const float sway = std::sin (tSec * 1.3f) * 0.08f;
-            for (int i = 0; i < 4; ++i)
-            {
-                const float a = -0.55f + 0.3f * (float) i + sway;
-                drawBeamV (g, { 90.f, -30.f }, -a - 0.3f, 0.05f, 2300.f, Colour (0xffff2a45), 0.07f + 0.05f * pulse);
-                drawBeamV (g, { VW - 90.f, -30.f }, a + 0.3f, 0.05f, 2300.f, Colour (0xffff2a45), 0.07f + 0.05f * pulse);
-            }
-            drawBeamV (g, { VW * 0.5f, -80.f }, 0.f, 0.12f, 1500.f, Colour (0xffffd9de), 0.05f + 0.04f * pulse);
-
-            // LED dots behind captions
-            for (int y = 150; y < 560; y += 12)
-                for (int x = 6; x < VW; x += 12)
-                {
-                    const float dx = ((float) x - VW * 0.5f) / (VW * 0.5f);
-                    const float a = 0.10f * (1.f - (float) (y - 150) / 410.f) * (1.f - 0.6f * dx * dx) * (0.7f + 0.3f * pulse);
-                    g.setColour (Colour (0xffff2440).withAlpha (jmax (0.f, a)));
-                    g.fillRect ((float) x, (float) y, 3.f, 3.f);
-                }
-
-            ColourGradient vig (Colours::transparentBlack, VW * 0.5f, VH * 0.5f, Colours::black.withAlpha (0.8f), 0.f, -200.f, true);
-            g.setGradientFill (vig); g.fillRect (0, 0, VW, VH);
+            // dot grid
+            g.setColour (Colours::white.withAlpha (0.035f));
+            for (int y = 12; y < VH; y += 28)
+                for (int x = 12; x < VW; x += 28)
+                    g.fillRect ((float) x, (float) y, 2.f, 2.f);
 
             // ---- plugin viewport
-            const float zoom = 1.f + 0.022f * pulse;
-            const Point<float> shake (pulse * 5.f * (rng.nextFloat() - 0.5f), pulse * 5.f * (rng.nextFloat() - 0.5f));
+            const float zoom = 1.f + 0.015f * pulse;
+            const Point<float> shake (pulse * 3.f * (rng.nextFloat() - 0.5f), pulse * 3.f * (rng.nextFloat() - 0.5f));
             const float cy = 1010.f;
             auto vp = Rectangle<float> (vpW, vpH).withCentre ({ VW * 0.5f, cy }).translated (shake.x, shake.y);
             vp = vp.withSizeKeepingCentre (vp.getWidth() * zoom, vp.getHeight() * zoom);
+            const float sc = vp.getWidth() / cam.getWidth();
+            auto toVideo = [&] (Point<float> c) { return Point<float> (vp.getX() + (c.x - cam.getX()) * sc, vp.getY() + (c.y - cam.getY()) * sc); };
 
-            Path vpPath; vpPath.addRoundedRectangle (vp, 18.f);
-            DropShadow (Colour (0xffff2440).withAlpha (0.35f + 0.35f * pulse), 60, { 0, 0 }).drawForPath (g, vpPath);
-            DropShadow (Colours::black.withAlpha (0.8f), 40, { 0, 18 }).drawForPath (g, vpPath);
+            Path vpPath; vpPath.addRoundedRectangle (vp, 20.f);
+            DropShadow (Colours::black.withAlpha (0.75f), 50, { 0, 22 }).drawForPath (g, vpPath);
+            DropShadow (tk.hot.withAlpha (0.10f + 0.22f * pulse), 70, { 0, 0 }).drawForPath (g, vpPath);
             {
                 Graphics::ScopedSaveState ss (g);
                 g.reduceClipRegion (vpPath);
                 // the snapshot covers the integer-rounded camera rect: position it so the float camera fills the viewport
                 const auto grab = cam.getSmallestIntegerContainer().toFloat();
-                const float sc = vp.getWidth() / cam.getWidth();
                 const Rectangle<float> dst (vp.getX() - (cam.getX() - grab.getX()) * sc, vp.getY() - (cam.getY() - grab.getY()) * sc,
                                             grab.getWidth() * sc, grab.getHeight() * sc);
+                g.setImageResamplingQuality (Graphics::highResamplingQuality);
+                g.setOpacity (1.f);                      // drawImage uses the alpha of the current colour
                 g.drawImage (shot, dst, RectanglePlacement::stretchToFit);
-                g.setColour (Colour (0xffff2440).withAlpha (0.10f * pulse));
-                g.fillRect (vp);
             }
-            ColourGradient border (Colour (0xffff6b7d).withAlpha (0.9f), vp.getCentreX(), vp.getY(), Colour (0xff7a0016).withAlpha (0.6f), vp.getCentreX(), vp.getBottom(), false);
-            g.setGradientFill (border);
+            g.setColour (tk.border);
             g.strokePath (vpPath, PathStrokeType (2.f));
 
-            // fake cursor turning THE SCREAM knob
-            if (screamSweep >= 0.f)
+            if (cursorAlpha > 0.01f)
             {
-                const Point<float> knobUI (680.f, 262.f);
-                const float sc = vp.getWidth() / cam.getWidth();
-                const Point<float> kp (vp.getX() + (knobUI.x - cam.getX()) * sc, vp.getY() + (knobUI.y - cam.getY()) * sc);
-                const float appear = ease (secT / 0.5f);
-                drawCursor (g, kp + Point<float> (70.f, 140.f - 260.f * screamSweep), appear);
+                Graphics::ScopedSaveState ss (g);
+                g.reduceClipRegion (vp.expanded (40.f).toNearestInt());
+                drawCursor (g, toVideo (cursor), cursorAlpha, pressed, pressColour);
             }
 
             // ---- captions (slide up + fade at section start)
             const auto& S = sections[sec];
             const float in = ease (secT / 0.35f);
-            const float y0 = 205.f + (1.f - in) * 50.f;
+            const float y0 = 190.f + (1.f - in) * 46.f;
             const bool twoLines = String (S.title).containsChar ('\n');
-            const float titleH = twoLines ? 88.f : 80.f;
-            auto titleFont = lnf.titleFont (twoLines ? 82.f : (String (S.title).length() > 12 ? 62.f : 76.f), 0.06f);
+            const float titleSize = twoLines ? 92.f : (String (S.title).length() > 13 ? 76.f : 92.f);
+            const float th = twoLines ? titleSize * 2.15f : titleSize * 1.15f;
             {
                 Graphics::ScopedSaveState ss (g);
                 g.setOpacity (in);
-                const float th = twoLines ? titleH * 2.f + 10.f : titleH;
-                glowText (g, S.title, { 50.f, y0, (float) VW - 100.f, th }, titleFont, Colours::white, Colour (0xffff2440), 0.8f + 0.6f * pulse, Justification::centred);
-                g.setFont (lnf.labelFont (40.f, 0.42f));
-                g.setColour (Colour (0xffff3a52));
-                g.drawText (S.sub, Rectangle<float> (40.f, y0 + th + 14.f, (float) VW - 80.f, 48.f), Justification::centred);
+                g.setFont (lnf.font (titleSize, Bold, -0.01f));
+                g.setColour (tk.text);
+                g.drawFittedText (S.title, Rectangle<float> (50.f, y0, (float) VW - 100.f, th).toNearestInt(), Justification::centred, 2, 1.f);
+                // accent bar + subline
+                g.setColour (tk.hot);
+                g.fillRoundedRectangle (Rectangle<float> (64.f, 6.f).withCentre ({ VW * 0.5f, y0 + th + 22.f }), 3.f);
+                String sub (S.sub);
+                if (sec == 4) sub = "OSC" + dotSep + "DIST" + dotSep + "FILTER" + dotSep + "LFO" + dotSep + "FORMANT";
+                if (sec == 6) sub = String (proc.getNumPrograms()) + " FACTORY PRESETS" + dotSep + "EUPHORIC TO RAW";
+                if (sec == 0) sub = "V3.1" + dotSep + "NEW LOOK";
+                if (sec == 7) sub = "VST3" + dotSep + "FL STUDIO";
+                g.setFont (lnf.font (34.f, SemiBold, 0.1f));
+                g.setColour (tk.textDim);
+                g.drawText (sub, Rectangle<float> (30.f, y0 + th + 40.f, (float) VW - 60.f, 46.f), Justification::centred);
             }
 
             // ---- preset tag under the viewport
             {
-                const String name = proc.getPresetName().toUpperCase();
-                auto font = lnf.labelFont (34.f, 0.22f);
-                auto lab = lnf.labelFont (24.f, 0.3f);
+                const String name = proc.getPresetName();
+                auto font = lnf.font (34.f, Bold);
+                auto lab = lnf.font (24.f, SemiBold, 0.12f);
                 const float labW = (float) GlyphArrangement::getStringWidthInt (lab, "PRESET");
                 const float nameW = (float) GlyphArrangement::getStringWidthInt (font, name);
                 const float tw = 56.f + labW + 22.f + nameW + 40.f;
-                auto pill = Rectangle<float> (tw, 70.f).withCentre ({ VW * 0.5f, jmin (1580.f, cy + vpH * 0.5f * zoom + 80.f) });
-                g.setColour (Colour (0xcc0c0809)); g.fillRoundedRectangle (pill, 35.f);
-                g.setColour (Colour (0xffff2440).withAlpha (0.8f)); g.drawRoundedRectangle (pill, 35.f, 2.f);
+                auto pill = Rectangle<float> (tw, 72.f).withCentre ({ VW * 0.5f, jmin (1600.f, cy + vpH * 0.5f * zoom + 86.f) });
+                g.setColour (tk.surface); g.fillRoundedRectangle (pill, 18.f);
+                g.setColour (tk.border); g.drawRoundedRectangle (pill, 18.f, 2.f);
                 auto led = Rectangle<float> (14.f, 14.f).withCentre ({ pill.getX() + 34.f, pill.getCentreY() });
-                g.setColour (Colour (0xffff2440).withAlpha (0.4f + 0.5f * pulse)); g.fillEllipse (led.expanded (6.f));
-                g.setColour (Colour (0xffff6b7d)); g.fillEllipse (led);
+                g.setColour (tk.hot.withAlpha (0.25f + 0.4f * pulse)); g.fillEllipse (led.expanded (5.f));
+                g.setColour (tk.hot); g.fillEllipse (led);
                 g.setFont (lab);
-                g.setColour (Colour (0xff9a8a8d));
+                g.setColour (tk.textMute);
                 g.drawText ("PRESET", Rectangle<float> (pill.getX() + 56.f, pill.getY(), labW + 10.f, pill.getHeight()), Justification::centredLeft);
                 g.setFont (font);
-                g.setColour (Colours::white);
+                g.setColour (tk.text);
                 g.drawText (name, Rectangle<float> (pill.getX() + 56.f + labW + 22.f, pill.getY(), nameW + 20.f, pill.getHeight()), Justification::centredLeft);
             }
 
-            // beat flash + fades
-            g.setColour (Colour (0xffff2440).withAlpha (0.06f * pulse));
-            g.fillRect (0, 0, VW, VH);
+            // brand line at the bottom
+            g.setFont (lnf.font (24.f, SemiBold, 0.2f));
+            g.setColour (tk.textMute);
+            g.drawText ("SONICSYSTEMS" + dotSep + "DOOMSDAY", Rectangle<float> (0.f, (float) VH - 150.f, (float) VW, 40.f), Justification::centred);
+
+            // fades
             const float fadeIn = jlimit (0.f, 1.f, tSec / 0.35f);
             const float fadeOut = jlimit (0.f, 1.f, ((float) TOTAL / (float) SR - tSec) / 0.6f);
             const float black = 1.f - jmin (fadeIn, fadeOut);
@@ -358,7 +450,7 @@ int main (int argc, char** argv)
             for (int y = 0; y < VH; ++y) fwrite (bd.getLinePointer (y), 4, (size_t) VW, out);
         }
         if (f % 60 == 0) fprintf (stderr, "frame %d / %d\n", f, frames);
-        if (f == 70 || f == 170 || f == 260 || f == 360 || f == 430 || f == 560)
+        if (std::find (stills.begin(), stills.end(), f) != stills.end())
         {
             FileOutputStream os (outDir.getChildFile ("still_" + String (f) + ".png"));
             PNGImageFormat().writeImageToStream (frame, os);
@@ -370,7 +462,20 @@ int main (int argc, char** argv)
     AudioFormatManager fm; fm.registerBasicFormats();
     std::unique_ptr<AudioFormatReader> rd (fm.createReaderFor (File (argv[2])));
     AudioBuffer<float> kick (2, TOTAL); kick.clear();
-    if (rd) rd->read (&kick, 0, jmin (TOTAL, (int) rd->lengthInSamples), 0, true, true);
+    if (rd)
+    {
+        // the kick file (Promo/assets) starts its kicks at bar 2: cut one hit there and place it on every kick beat
+        const int firstKick = 8 * BEAT;
+        AudioBuffer<float> hit (2, BEAT);
+        hit.clear();
+        if (rd->lengthInSamples > firstKick + BEAT) rd->read (&hit, 0, BEAT, firstKick, true, true);
+        for (int i = BEAT - 400; i < BEAT; ++i)               // tiny fade so the hit ends cleanly
+            for (int ch = 0; ch < 2; ++ch) hit.setSample (ch, i, hit.getSample (ch, i) * (float) (BEAT - i) / 400.f);
+        for (int b = 0; b * BEAT < TOTAL; ++b)
+            if (kickAtBeat (b))
+                for (int ch = 0; ch < 2; ++ch)
+                    kick.addFrom (ch, b * BEAT, hit, ch, 0, jmin (BEAT, TOTAL - b * BEAT));
+    }
 
     AudioBuffer<float> mix (2, TOTAL);
     for (int i = 0; i < TOTAL; ++i)
@@ -387,7 +492,6 @@ int main (int argc, char** argv)
         for (int ch = 0; ch < 2; ++ch)
         {
             const float v = synth.getSample (ch, i) * 0.55f * duck + kick.getSample (ch, i) * 0.80f;
-            // gentle peak control only above -3 dBFS
             const float a = std::abs (v);
             const float y = a < 0.7f ? v : (v > 0.f ? 1.f : -1.f) * (0.7f + 0.3f * std::tanh ((a - 0.7f) / 0.3f));
             mix.setSample (ch, i, y);

@@ -84,4 +84,4 @@ Presety z `Resources/Presets` są wbudowane w plugin – żeby dodać nowy fabry
 
 ## Fonty
 Interfejs (od v3.1) używa fontu Inter (SIL Open Font License, `Shared/Resources/Fonts/OFL-Inter.txt`). Stary wygląd v3.0 używał Michroma i Barlow
-(`Resources/Fonts`, nadal używane przez narzędzie do filmików `Promo/`, które jest zrobione pod wygląd v3.0).
+(`Resources/Fonts`, zostawione tylko w historii). Film na TikToka: `Promo/README.md`.

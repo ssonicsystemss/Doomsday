@@ -8,7 +8,7 @@ using namespace juce;
 namespace
 {
     String fmtHz (float v, int)    { return v >= 1000.f ? String (v / 1000.f, 2) + " kHz" : String ((int) std::round (v)) + " Hz"; }
-    String fmtMs (float v, int)    { return v >= 1000.f ? String (v / 1000.f, 2) + " s" : String (v, v < 10.f ? 1 : 0) + " ms"; }
+    String fmtMs (float v, int)    { return v >= 1000.f ? String (v / 1000.f, 2) + " s" : (v < 10.f ? String (v, 1) : String (roundToInt (v))) + " ms"; }
     String fmtDb (float v, int)    { return (v > 0.05f ? "+" : "") + String (v, 1) + " dB"; }
     String fmtPct (float v, int)   { return String ((int) std::round (v * 100.f)) + "%"; }
     String fmtSemi (float v, int)  { return (v > 0.05f ? "+" : "") + String (v, 1) + " st"; }

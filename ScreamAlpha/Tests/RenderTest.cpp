@@ -73,7 +73,7 @@ int main (int argc, char** argv)
     {   // cutoff automation: RISE over 1 bar, 4 octaves -> the last quarter of the bar is clearly brighter than the first
         proc.setCurrentProgram (1);
         auto setP = [&proc] (const char* id, float v) { if (auto* q = proc.apvts.getParameter (id)) q->setValueNotifyingHost (q->convertTo0to1 (v)); };
-        setP ("cutoffHz", 400.f); setP ("autoShape", 1); setP ("autoLen", 2); setP ("autoOct", 4.f); setP ("revMix", 0.f); setP ("dlyMix", 0.f);
+        setP ("cutoffHz", 400.f); setP ("autoShape", 1); setP ("autoDiv", 6); setP ("autoOct", 4.f); setP ("revMix", 0.f); setP ("dlyMix", 0.f);
         AudioBuffer<float> rec (2, beat * 4); rec.clear();
         for (int pos = 0; pos < beat * 4; pos += block)
         {

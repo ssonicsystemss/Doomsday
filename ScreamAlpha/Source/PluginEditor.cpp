@@ -134,7 +134,7 @@ AlphaCanvas::AlphaCanvas (AlphaProcessor& p) : proc (p), scope (p), autoView (p)
     cards.push_back ({ "Filter + cutoff automation", cool, 3, { knob ("cutoffHz", "Cutoff", cool), knob ("reso", "Reso", cool), knob ("autoOct", "Depth", cool, true) },
                        seg ("filtMode", { "LP 24", "LP 12", "Band", "High" }, cool) });
     shapeSeg = seg ("autoShape", { "Off", "Rise", "Fall", "Up/Dn", "Wobble", "Steps" }, cool);
-    lenSeg = seg ("autoLen", { "1 beat", "2 beats", "1 bar", "2 bars", "4 bars", "8 bars" }, cool);
+    lenSeg = seg ("autoDiv", { "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1 bar" }, cool);
     addAndMakeVisible (autoView);
     addAndMakeVisible (scope);
 

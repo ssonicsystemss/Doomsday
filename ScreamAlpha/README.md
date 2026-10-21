@@ -21,8 +21,8 @@ CORE + HASH → OUTPUT: DRIVE 2 → TONE → LOW CUT → AMP (ADSR) → CHORUS (
 **v0.3:**
 - **FORTUNE** (duża gałka, jak w Fortune of Seekers) – jedno kręcenie: więcej hasza, przesteru, chaosu, detune, formantu,
   otwiera filtr i ton, mocniejszy rzut nuty, chorus i pogłos; głośność trzyma się w miejscu.
-- **Automatyka cutoffu** – kształt (RISE / FALL / UP-DN / WOBBLE / STEPS), długość (1 beat … 8 taktów), DEPTH w oktawach (+ w górę, − w dół).
-  Gdy FL gra – trzyma się taktu; gdy stoi – startuje z pierwszą nutą. Podgląd pokazuje kształt i gdzie teraz jest. RISE na 8 taktów = gotowy build-up.
+- **Automatyka cutoffu** – kształt (RISE / FALL / UP-DN / WOBBLE / STEPS), długość (1/16, 1/8T = FL-owe „1/3 beat”, 1/8, 1/4T, 1/4, 1/2, 1 takt), DEPTH w oktawach (+ w górę, − w dół).
+  Gdy FL gra – trzyma się taktu; gdy stoi – startuje z pierwszą nutą. Podgląd pokazuje kształt i gdzie teraz jest.
 
 **v0.2:** dodana sekcja SPACE (OTT, delay, reverb) – v0.1 był „suchelec”. Presety mają już ustawioną przestrzeń i są głośniejsze.
 **RANDOM** – losuje nowe brzmienie w sensownych zakresach i sam ustawia głośność (każdy random ok. tak głośny jak presety).

@@ -17,7 +17,7 @@ Pierwszy raz trwa dłużej (kompilacja), kolejne rendery ok. 5 minut.
 | Napisy, kamera i kolejność scen | `sections` w `promo.cpp` |
 | Ruchy kursora i kropek na wykresie (zakresy Hz / rezonans / gain, kiedy łapie i puszcza) | blok `the scripted mouse` w `promo.cpp` (`keys` / `logKeys` = punkty w czasie sceny 0..1) |
 | Presety w scenach | `switch (sec)` i `presetCycle` w `promo.cpp` |
-| Riff (nuty) | `phrase` w `promo.cpp` |
+| Riff (nuty) | `barA / barB / barC` i `riff` w `promo.cpp` (siatka szesnastek: step 0..15, `slide` = legato do następnej nuty) |
 | Tempo, liczba taktów, kiedy gra kick | `song.h` |
 | Miks (sidechain, głośność) | koniec `main()` w `promo.cpp` |
 | Inny kick | wyrenderuj nowy `assets/kick.flac` (`tools/kick_from_ancient_drums.cpp`); generator bierze z niego jedno uderzenie (takt 2) i kładzie na każdą ćwierćnutę |

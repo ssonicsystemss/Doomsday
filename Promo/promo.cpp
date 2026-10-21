@@ -31,6 +31,7 @@ static const Rectangle<float> camGraph   { 12.f, 62.f, 1016.f, 546.f };    // gr
 static const Rectangle<float> camLayers  { 12.f, 62.f, 1336.f, 546.f };    // graph + both OSC cards
 static const Rectangle<float> camOsc1    { 12.f, 340.f, 670.f, 268.f };
 static const Rectangle<float> camScream  { 1024.f, 64.f, 324.f, 280.f };
+static const Rectangle<float> camRandom  { 12.f, 0.f, 1336.f, 608.f };    // top bar (Randomize button) + graph + both OSC cards
 
 static const String dotSep (CharPointer_UTF8 (" \xc2\xb7 "));
 static const Section sections[] {
@@ -41,31 +42,47 @@ static const Section sections[] {
     { 10, "EVERY VALUE\nIN NUMBERS",  "OSC  DIST  FILTER  LFO  FORMANT",  camOsc1 },
     { 12, "ONE KNOB.",                "TURN UP THE SCREAM",               camScream },
     { 14, "PRESETS",                  "FROM EUPHORIC TO RAW",             camLayers },
-    { 16, "PROPHECY\nOF SCREAM",      "VST3  /  FL STUDIO",               camFull },
+    { 16, "RANDOMIZE",                "A NEW SCREECH IN ONE CLICK",       camRandom },
+    { 19, "PROPHECY\nOF SCREAM",      "VST3  /  FL STUDIO",               camFull },
 };
 static constexpr int numSections = (int) std::size (sections);
 static int sectionAt (int bar) { int s = 0; for (int i = 0; i < numSections; ++i) if (bar >= sections[i].bar) s = i; return s; }
 static int sectionEndBar (int s) { return s + 1 < numSections ? sections[s + 1].bar : BARS; }
 
-// melody: 2-bar phrase in D minor, eighth-note grid, slight overlaps -> legato slides
-struct Note { int start, len, note; };
-static const Note phrase[] { { 0, 2, 62 }, { 2, 1, 65 }, { 3, 1, 69 }, { 4, 2, 67 }, { 6, 1, 65 }, { 7, 1, 64 },
-                             { 8, 2, 62 }, { 10, 1, 60 }, { 11, 1, 62 }, { 12, 3, 69 }, { 15, 1, 72 } };
+// riff: 4-bar hardstyle screech riff in D minor on a 16th grid (bar A, bar B, bar A, bar C = variation that climbs),
+// short retriggered notes, `slide` = overlap into the next note -> legato pitch slide
+struct Note { int step, len, note; bool slide; };
+// D4 = 62, E4 64, F4 65, G4 67, A4 69, Bb4 70, C5 72, D5 74, C4 60
+static const std::vector<Note> barA { { 0, 1, 62, false }, { 1, 1, 62, false }, { 2, 1, 74, false }, { 3, 1, 62, false },
+                                      { 5, 1, 62, false }, { 6, 1, 65, false }, { 7, 1, 69, false }, { 8, 2, 72, true },
+                                      { 10, 1, 69, false }, { 11, 1, 67, false }, { 12, 1, 65, false }, { 13, 1, 64, false }, { 14, 2, 65, false } };
+static const std::vector<Note> barB { { 0, 1, 62, false }, { 1, 1, 62, false }, { 2, 1, 74, false }, { 3, 1, 62, false },
+                                      { 5, 1, 62, false }, { 6, 1, 65, false }, { 7, 1, 67, false }, { 8, 2, 69, true },
+                                      { 10, 1, 70, false }, { 11, 1, 69, false }, { 12, 1, 67, false }, { 13, 1, 65, false },
+                                      { 14, 1, 64, false }, { 15, 1, 60, true } };
+static const std::vector<Note> barC { { 0, 1, 62, false }, { 1, 1, 62, false }, { 2, 1, 74, false }, { 3, 1, 62, false },
+                                      { 5, 1, 62, false }, { 6, 1, 69, false }, { 7, 1, 72, false }, { 8, 2, 74, true },
+                                      { 10, 1, 72, false }, { 11, 1, 69, false }, { 12, 1, 67, false }, { 13, 1, 69, false },
+                                      { 14, 1, 65, false }, { 15, 1, 64, true } };
+static const std::vector<Note>* riff[] { &barA, &barB, &barA, &barC };
 struct Ev { int pos; bool on; int note; };
 static std::vector<Ev> buildMidi()
 {
     std::vector<Ev> ev;
-    const int eighth = BEAT / 2, overlap = 420;
-    for (int rep = 0; rep < BARS / 2; ++rep)
-        for (size_t i = 0; i < std::size (phrase); ++i)
+    const int six = BEAT / 4, gap = 700, overlap = 300;      // gap: short silence before a retrigger, overlap: legato slide
+    for (int bar = 0; bar < BARS; ++bar)
+    {
+        const auto& notes = *riff[bar % 4];
+        for (size_t i = 0; i < notes.size(); ++i)
         {
-            const auto& n = phrase[i];
-            const int on = rep * 2 * BAR + n.start * eighth;
-            const bool last = rep == BARS / 2 - 1 && i == std::size (phrase) - 1;
-            const int off = on + n.len * eighth + (last ? 9000 : overlap);
+            const auto& n = notes[i];
+            const int on = bar * BAR + n.step * six;
+            const bool last = bar == BARS - 1 && i == notes.size() - 1;
+            const int off = on + n.len * six + (last ? 30000 : (n.slide ? overlap : -gap));
             ev.push_back ({ on, true, n.note });
             ev.push_back ({ off, false, n.note });
         }
+    }
     std::sort (ev.begin(), ev.end(), [] (const Ev& a, const Ev& b) { return a.pos < b.pos || (a.pos == b.pos && ! a.on && b.on); });
     return ev;
 }
@@ -132,7 +149,12 @@ int main (int argc, char** argv)
     ProphecyProcessor proc;
     proc.setPlayConfigDetails (0, 2, SR, SPF);
     proc.prepareToPlay (SR, SPF);
-    auto program = [&proc] (const String& name) { for (int i = 0; i < proc.getNumPrograms(); ++i) if (proc.getProgramName (i) == name) proc.setCurrentProgram (i); };
+    // 16th riff: glide kept short (presets are made for slower lines; long glide would smear every note)
+    auto program = [&proc] (const String& name)
+    {
+        for (int i = 0; i < proc.getNumPrograms(); ++i) if (proc.getProgramName (i) == name) proc.setCurrentProgram (i);
+        if (auto* g = proc.apvts.getParameter ("glide")) g->setValueNotifyingHost (g->convertTo0to1 (jmin (28.f, g->convertFrom0to1 (g->getValue()))));
+    };
     auto setP = [&proc] (const String& id, float v) { if (auto* p = proc.apvts.getParameter (id)) p->setValueNotifyingHost (p->convertTo0to1 (v)); };
     program ("Dutchie");
 
@@ -204,7 +226,8 @@ int main (int argc, char** argv)
                 case 4: canvas.osc1->selectTab (0); break;
                 case 5: program ("Cardio"); break;
                 case 6: program (presetCycle[0]); break;
-                case 7: program ("Dutchie"); graph.selectOsc (0); canvas.osc1->selectTab (0); canvas.osc2->selectTab (0); break;
+                case 7: program ("Dutchie"); proc.randomGen.setSeed (3141); graph.selectOsc (0); break;   // fixed seed = same 3 sounds every render
+                case 8: program ("Dutchie"); canvas.randomButton.setState (Button::buttonNormal); graph.selectOsc (0); canvas.osc1->selectTab (0); canvas.osc2->selectTab (0); break;
             }
         }
         const int inSec = f - sectionStartFrame;
@@ -290,6 +313,23 @@ int main (int argc, char** argv)
             target = screamCentre() + Point<float> (34.f, 46.f - 90.f * sweep);
             follow = p < 0.12f;
             pressed = p >= 0.12f && p < 0.95f;
+        }
+        else if (sec == 7)  // RANDOMIZE clicked 3 times: every knob, curve and the sound change at once
+        {
+            wantVisible = true;
+            target = inCanvas (canvas, canvas.randomButton.getBounds().toFloat().getCentre()) + Point<float> (-8.f, 2.f);
+            static const float clicks[] { 0.12f, 0.43f, 0.74f };
+            for (float c : clicks)
+            {
+                const float frameOfClick = std::round (c * secLen);
+                if ((float) inSec == frameOfClick)
+                {
+                    proc.randomize();
+                    if (auto* gl = proc.apvts.getParameter ("glide")) gl->setValueNotifyingHost (gl->convertTo0to1 (jmin (28.f, gl->convertFrom0to1 (gl->getValue()))));
+                }
+                if ((float) inSec >= frameOfClick && (float) inSec < frameOfClick + 5.f) pressed = true;
+            }
+            canvas.randomButton.setState (pressed ? Button::buttonDown : Button::buttonOver);
         }
         else if (sec == 6 && inSec > 0 && inSec % (BAR / SPF / 2) == 0)
             program (presetCycle[jmin (3, inSec / (BAR / SPF / 2))]);
@@ -404,7 +444,7 @@ int main (int argc, char** argv)
                 if (sec == 4) sub = "OSC" + dotSep + "DIST" + dotSep + "FILTER" + dotSep + "LFO" + dotSep + "FORMANT";
                 if (sec == 6) sub = String (proc.getNumPrograms()) + " FACTORY PRESETS" + dotSep + "EUPHORIC TO RAW";
                 if (sec == 0) sub = "V3.1" + dotSep + "NEW LOOK";
-                if (sec == 7) sub = "VST3" + dotSep + "FL STUDIO";
+                if (sec == 8) sub = "VST3" + dotSep + "FL STUDIO";
                 g.setFont (lnf.font (34.f, SemiBold, 0.1f));
                 g.setColour (tk.textDim);
                 g.drawText (sub, Rectangle<float> (30.f, y0 + th + 40.f, (float) VW - 60.f, 46.f), Justification::centred);

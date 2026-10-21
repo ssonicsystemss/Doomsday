@@ -210,6 +210,7 @@ int main (int argc, char** argv)
     Random rng (7);
     int lastSection = -1, sectionStartFrame = 0;
     Rectangle<float> camFrom = camFull, camTo = camFull;
+    const bool audioOnly = getenv ("PROMO_AUDIO_ONLY") != nullptr;
     FILE* out = fopen (argv[3], "wb");
     if (out == nullptr) { fprintf (stderr, "cannot open frame output\n"); return 1; }
     const char* presetCycle[] = { "Sexy Nightmare", "Wail of Souls", "Mad Machine", "Talking Dead" };
@@ -247,7 +248,7 @@ int main (int argc, char** argv)
                 case 4: canvas.osc1->selectTab (0); break;
                 case 5: program ("Cardio"); break;
                 case 6: program (presetCycle[0]); break;
-                case 7: program ("Dutchie"); proc.randomGen.setSeed (3141); graph.selectOsc (0); break;   // fixed seed = same 3 sounds every render
+                case 7: program ("Dutchie"); proc.randomGen.setSeed (getenv ("PROMO_SEED") ? (int64) atoll (getenv ("PROMO_SEED")) : (int64) 2026); graph.selectOsc (0); break;   // fixed seed = same 3 sounds every render
                 case 8: program ("Dutchie"); canvas.randomButton.setState (Button::buttonNormal); graph.selectOsc (0); canvas.osc1->selectTab (0); canvas.osc2->selectTab (0); break;
             }
         }
@@ -346,7 +347,17 @@ int main (int argc, char** argv)
                 if ((float) inSec == frameOfClick)
                 {
                     proc.randomize();
+                    if (audioOnly)
+                    {
+                        String dump;
+                        for (auto* prm : proc.getParameters())
+                            if (auto* rp = dynamic_cast<RangedAudioParameter*> (prm))
+                                dump << rp->getParameterID() << "=" << rp->getCurrentValueAsText() << "  ";
+                        fprintf (stderr, "RANDOM: %s\n", dump.toRawUTF8());
+                    }
                     if (auto* gl = proc.apvts.getParameter ("glide")) gl->setValueNotifyingHost (gl->convertTo0to1 (jmin (28.f, gl->convertFrom0to1 (gl->getValue()))));
+                    // the plugin levels a random sound on a held note; short 16ths need a little more to sit with the presets
+                    if (auto* vol = proc.apvts.getParameter ("volume")) vol->setValueNotifyingHost (vol->convertTo0to1 (jmin (6.f, vol->convertFrom0to1 (vol->getValue()) + 5.f)));
                 }
                 if ((float) inSec >= frameOfClick && (float) inSec < frameOfClick + 5.f) pressed = true;
             }
@@ -385,6 +396,8 @@ int main (int argc, char** argv)
                     break;
                 }
         }
+
+        if (audioOnly) continue;                    // PROMO_AUDIO_ONLY=1: sound check without pictures (seconds instead of minutes)
 
         // ---- camera
         const float camT = ease (secT / 0.45f);
@@ -561,6 +574,12 @@ int main (int argc, char** argv)
     }
     const float pk = mix.getMagnitude (0, TOTAL);
     if (pk > 0.f) mix.applyGain (0.89f / pk);
+    {   // the synth alone (before kick, bass and ducking) - handy to check the level of every scene
+        auto sf = outDir.getChildFile ("synth_only.wav"); sf.deleteFile();
+        WavAudioFormat sw;
+        std::unique_ptr<AudioFormatWriter> sww (sw.createWriterFor (new FileOutputStream (sf), SR, 2, 24, {}, 0));
+        if (sww) sww->writeFromAudioSampleBuffer (synth, 0, TOTAL);
+    }
     auto wavF = outDir.getChildFile ("final.wav"); wavF.deleteFile();
     WavAudioFormat wav;
     std::unique_ptr<AudioFormatWriter> w (wav.createWriterFor (new FileOutputStream (wavF), SR, 2, 24, {}, 0));

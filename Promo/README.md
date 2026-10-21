@@ -19,7 +19,8 @@ Pierwszy raz trwa dłużej (kompilacja), kolejne rendery ok. 5 minut.
 | Presety w scenach | `switch (sec)` i `presetCycle` w `promo.cpp` |
 | Riff (nuty) | `barA / barB / barC` i `riff` w `promo.cpp` (siatka szesnastek: step 0..15, `slide` = legato do następnej nuty) |
 | Tempo, liczba taktów, kiedy gra kick | `song.h` |
-| Miks (sidechain, głośność) | koniec `main()` w `promo.cpp` |
+| Miks (sidechain, głośność, reverse bass) | koniec `main()` i `reverseBass` w `promo.cpp` |
+| Losowania w scenie RANDOMIZE | ziarno `setSeed (2026)` w `promo.cpp`; szybki test głośności bez obrazu: `PROMO_AUDIO_ONLY=1 PROMO_SEED=<liczba>` + `synth_only.wav` |
 | Inny kick | wyrenderuj nowy `assets/kick.flac` (`tools/kick_from_ancient_drums.cpp`); generator bierze z niego jedno uderzenie (takt 2) i kładzie na każdą ćwierćnutę |
 
 Generator nie wchodzi do builda VST3 (opcja `PROPHECY_BUILD_PROMO`, domyślnie wyłączona).

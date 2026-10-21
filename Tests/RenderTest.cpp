@@ -231,6 +231,26 @@ int main (int argc, char** argv)
     }
     printf ("randomize x20: done\n");
     {
+        // RANDOMIZE keeps the level: every random sound within a few dB of the target; factory presets for comparison
+        float lo = 100.f, hi = -100.f;
+        for (int i = 0; i < 12; ++i)
+        {
+            proc.randomize();
+            const float db = proc.measureLoudnessDb (true);
+            lo = jmin (lo, db); hi = jmax (hi, db);
+        }
+        String presetLevels;
+        for (int i = 0; i < proc.getNumPrograms(); ++i)
+        {
+            proc.setCurrentProgram (i);
+            presetLevels << String (proc.measureLoudnessDb (true), 1) << " ";
+        }
+        const bool levelOk = lo > ProphecyProcessor::randomTargetDb - 4.f && hi < ProphecyProcessor::randomTargetDb + 4.f;
+        printf ("randomize level: %.1f .. %.1f dB (target %.1f) %s\n  presets: %s\n", lo, hi, ProphecyProcessor::randomTargetDb,
+                levelOk ? "OK" : "FAIL", presetLevels.toRawUTF8());
+        ok &= levelOk;
+    }
+    {
         const float cut = proc.apvts.getRawParameterValue ("cutoff")->load();
         const bool saved = proc.saveUserPreset ("__test_preset");
         auto f = ProphecyProcessor::getUserPresetFolder().getChildFile ("__test_preset.pos");

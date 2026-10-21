@@ -419,9 +419,55 @@ void ProphecyProcessor::randomize()
     set (sweepTime, logBetween (150.f, 2000.f));
     set (ott, between (0.f, 0.8f));
     set (spread, between (0.f, 0.9f));
-    // volume is left alone on purpose
+    // VOLUME: measured, so every random sound is about as loud as the factory presets (bandpass / formant / fold
+    // could otherwise make it 10-20 dB quieter)
+    {
+        const float level = measureLoudnessDb (false);
+        if (level > -80.f)
+        {
+            set (volume, jlimit (-24.f, 6.f, randomTargetDb - level));
+            const float now = measureLoudnessDb (true);           // second pass: the output soft clip is not linear
+            if (now > -80.f)
+                set (volume, jlimit (-24.f, 6.f, ptr.volume->load() + randomTargetDb - now));
+        }
+    }
 
     currentPresetName = "Random #" + String (1000 + r.nextInt (9000));
+}
+
+// ------------------------------------------------------------ loudness check (RANDOMIZE)
+float ProphecyProcessor::measureLoudnessDb (bool atVolume) const
+{
+    auto e = gatherParams (150.0);
+    if (! atVolume) e.volumeDb = 0.f;
+    e.delayOn = false;                      // the dry sound decides the level; FX tails only slow the check down
+    e.reverbOn = false;
+    constexpr double rate = 48000.0;
+    constexpr int block = 512, total = (int) (rate * 0.7), skip = (int) (rate * 0.05);
+    double sum = 0.0;
+    long count = 0;
+    for (int note : { 62, 74 })
+    {
+        auto eng = std::make_unique<ScreechEngine>();
+        eng->setParams (e);
+        eng->prepare (rate, block);
+        AudioBuffer<float> buf (2, block);
+        for (int pos = 0; pos < total; pos += block)
+        {
+            buf.clear();
+            MidiBuffer midi;
+            if (pos == 0) midi.addEvent (MidiMessage::noteOn (1, note, (uint8) 110), 0);
+            eng->process (buf, midi);
+            for (int i = 0; i < block; ++i)
+                if (pos + i >= skip)
+                {
+                    const float m = 0.5f * (buf.getSample (0, i) + buf.getSample (1, i));
+                    sum += (double) m * m;
+                    ++count;
+                }
+        }
+    }
+    return count > 0 ? (float) (10.0 * std::log10 (sum / (double) count + 1.0e-12)) : -100.f;
 }
 
 // ------------------------------------------------------------ processor

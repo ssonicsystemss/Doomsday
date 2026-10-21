@@ -44,6 +44,9 @@ public:
     bool saveUserPreset (const juce::String& name);
     bool loadUserPreset (const juce::File& file);
     void randomize();
+    // loudness (dB RMS) of the current sound for two held notes, measured offline with a private engine (message thread only)
+    float measureLoudnessDb (bool atVolume) const;
+    static constexpr float randomTargetDb = -11.f;   // RANDOMIZE sets VOLUME so every random sound lands here
     juce::String getPresetName() const { return currentPresetName; }
 
     // oscilloscope feed (written on audio thread, read on UI thread)

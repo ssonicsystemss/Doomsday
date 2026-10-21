@@ -80,7 +80,7 @@ Presety z `Resources/Presets` są wbudowane w plugin – żeby dodać nowy fabry
 
 - **< >** – poprzedni / następny preset.
 - **SAVE** – zapis do `Dokumenty\Prophecy of Scream\Presets\*.pos`. Twoje presety są na liście w sekcji USER.
-- **RANDOMIZE** – losuje screecha w rozsądnych zakresach, czasem dokłada OSC 2 (głośność zostaje).
+- **RANDOMIZE** – losuje screecha w rozsądnych zakresach, czasem dokłada OSC 2. Od v3.1 sam ustawia VOLUME (mierzy próbną nutę po cichu), więc każdy random jest mniej więcej tak głośny jak presety.
 
 ## Fonty
 Interfejs (od v3.1) używa fontu Inter (SIL Open Font License, `Shared/Resources/Fonts/OFL-Inter.txt`). Stary wygląd v3.0 używał Michroma i Barlow

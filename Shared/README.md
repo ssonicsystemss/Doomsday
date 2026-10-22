@@ -109,7 +109,7 @@ Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, lat
   Sample trzymany **w stanie** (FLAC base64, ≤ 20 s) – projekt / preset ma go po skasowaniu pliku. LAYER / REPLACE, wstecz z „fit”.
 
 ## Source/DoomsdayReverseBass.h  (`doomsday::rbass`) – reverse bass z tempem (z dkd Damiana)
-- `Params { stepBeats, in, out, curve, riseSt, saw, sine }`, `swell (p, s, stepSec, riseU)` (ta sama funkcja dla GUI),
+- `Params { stepBeats, in, out, curve, riseSt, peak, saw, sine }` (peak = gdzie najgłośniej, potem wygaszenie do OUT), `swell (p, s, stepSec, riseU)` (ta sama funkcja dla GUI),
   `ReverseBass` (`prepare`, `setNoteHz`, `next (p, beat, bpm, held)`), `tailLenMs / tailDecayMs (tail, beatMs)` – ogon kicka w ułamku beatu.
 
 ## Source/DoomsdayParams.h  (`doomsday`)

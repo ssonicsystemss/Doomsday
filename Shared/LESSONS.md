@@ -41,6 +41,11 @@ Dopisuj po każdej uwadze właściciela („brzmi źle”, „słabo działa”,
   + punch z własnym przesterem poza obwiednią AMP. Pomiar: `zero-crossing / DFT` w scratchpadzie, wzorce są właściciela (nie w git).
 - Wniosek: reverse w kicku to jego sposób pracy → sekcja REVERSE BASS (v2.1) jako uzupełnienie, nie zamiennik obwiedni.
 
+## Reverse bass – „chujowe narastanie”, szczyt nie na końcu (2026-10-22)
+- Bas rósł x^CURVE do samego OUT i był ucinany → właściciel: szczyt ma być wcześniej. Poradniki: swell (attack) 100–150 ms, potem
+  ~50 ms decay do 0, sustain 0, kick wchodzi w ciszę (beatkey.app; musicproductionwiki: „fade its front so it swells in”).
+  → `rbass::Params::peak` (domyślnie 0.75 okna IN..OUT), po szczycie ((1-r)/(1-peak))^1.5 do zera; gałka PEAK w Forge.
+
 ## Crash FL: klik w nazwę presetu (przeglądarka) – ZNALEZIONY (2026-10-22)
 - `PresetBrowser` (DoomsdayUI.cpp) ustawiał `catModel.owner` PO `catList.setModel (...)`; ListBox od razu pyta model o liczbę wierszy
   → `owner->cats` na nullptr → access violation (odczyt 0x7C4 = przesunięcie pola w obiekcie). Dotyczył każdej wtyczki z `PresetBar`

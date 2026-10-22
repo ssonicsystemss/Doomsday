@@ -82,6 +82,7 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (b (punchInto, "Punch Into Distortion", false));
     l.add (b (headOn, "Fixed Head", false));
     l.add (b (rbTail, "Reverse Bass From Tail", true));
+    l.add (f (rbPeak, "Reverse Bass Peak", { 0.3f, 1.f }, 0.75f));
     l.add (f (punchLen, "Punch Length", skew (0.f, 250.f, 80.f), 0.f, [] (float v, int) { return v < 0.5f ? String ("DECAY") : fm::ms (v, 0); }, fm::msIn));
     l.add (f (headLen, "Head Length", skew (20.f, 300.f, 110.f), 110.f, fm::ms, fm::msIn));
     l.add (f (headHz, "Head Pitch", skew (30.f, 120.f, 55.f), 49.f, [] (float v, int)
@@ -236,7 +237,7 @@ ForgeParams ForgeProcessor::gather() const
     e.rbOn = get (rbOn) > 0.5f; e.rbTail = get (rbTail) > 0.5f;
     const int pat = jlimit (0, 2, (int) std::round (get (rbPattern)));
     e.rb.stepBeats = pat == 2 ? 0.25 : pat == 1 ? 0.5 : 1.0;
-    e.rb.in = get (rbIn); e.rb.out = get (rbOut); e.rb.curve = get (rbCurve); e.rb.riseSt = get (rbRise);
+    e.rb.in = get (rbIn); e.rb.out = get (rbOut); e.rb.curve = get (rbCurve); e.rb.riseSt = get (rbRise); e.rb.peak = get (rbPeak);
     e.rbTuneSt = get (rbTune); e.rbDriveDb = get (rbDrive); e.rbToneHz = get (rbTone); e.rbLevelDb = get (rbLevel);
     return e;
 }

@@ -28,6 +28,8 @@ namespace doomsday::rbass
         float out = 0.95f;           // swell end, fraction of the step (the rest = the gap before the next kick)
         float curve = 2.6f;          // amplitude = x^curve (higher = later, harder swell)
         float riseSt = 12.f;         // pitch rise at the end of the swell
+        float peak = 0.75f;          // where the loudest point is (0..1 of IN..OUT); after it the bass fades to silence at OUT
+                                     // (tutorials: swell 100-150 ms, then ~50 ms down to 0 before the kick; >= 0.98 = old: loudest at OUT)
         float saw = 0.45f, sine = 0.7f;
     };
 
@@ -40,7 +42,11 @@ namespace doomsday::rbass
         const double fade = juce::jmin (1.0, (p.out - s) * stepSec / 0.0015) * juce::jmin (1.0, (s - p.in) * stepSec / 0.001);
         const double rr = juce::jmax (0.0, (r - 0.6) / 0.4);
         riseU = (float) (rr * rr);
-        return (float) (std::pow (r, (double) p.curve) * fade);
+        const double pk = juce::jlimit (0.3, 1.0, (double) p.peak);
+        if (pk >= 0.98) return (float) (std::pow (r, (double) p.curve) * fade);
+        const double env = r < pk ? std::pow (r / pk, (double) p.curve)                     // swell up to the peak
+                                  : std::pow ((1.0 - r) / (1.0 - pk), 1.5);                  // then down to silence at OUT
+        return (float) (env * fade);
     }
 
     // a kick tail measured in beats (it follows the tempo): tail = 0..1 of a beat

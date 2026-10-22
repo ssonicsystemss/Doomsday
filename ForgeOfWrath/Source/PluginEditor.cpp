@@ -289,7 +289,7 @@ void AnvilDisplay::paint (Graphics& g)
 void BassLane::tick()
 {
     const auto p = proc.gatherForGui();
-    const float sig = (float) p.rb.stepBeats * 7.f + p.rb.in * 3.f + p.rb.out * 5.f + p.rb.curve * 0.37f + p.rb.riseSt * 0.011f
+    const float sig = (float) p.rb.stepBeats * 7.f + p.rb.in * 3.f + p.rb.out * 5.f + p.rb.curve * 0.37f + p.rb.riseSt * 0.011f + p.rb.peak * 13.f
                     + p.k.lengthMs * 0.001f + (p.rbOn ? 100.f : 0.f) + proc.getEngine().tempoNow.load() * 0.0001f;
     if (std::abs (sig - lastSig) > 1e-5f) { lastSig = sig; repaint(); }
 }
@@ -518,6 +518,7 @@ Canvas::Canvas (ForgeProcessor& p)
         add (s, rbIn, "IN", false, "Where in each step the bass starts to swell");
         add (s, rbOut, "OUT", false, "Where it stops - the rest of the step is a clean gap before the next kick");
         add (s, rbCurve, "CURVE", false, "Swell shape: low = rises early and long, high = a late, hard suck-in");
+        add (s, rbPeak, "PEAK", false, "Where the bass is loudest (% of IN..OUT); after it it fades to silence at OUT. 100 % = loudest right at OUT");
         add (s, rbRise, "RISE", false, "Pitch rise at the end of every swell (FROM TAIL off; with FROM TAIL the tail's own pitch drop is the rise)");
         add (s, rbTune, "TUNE", true, "Bass pitch against the kick note in semitones (12 = an octave up)");
         add (s, rbDrive, "DRIVE", false, "Distortion of the bass: from a clean sub to a buzzing saw");
@@ -559,7 +560,7 @@ void Canvas::resized()
         if (sec.side != nullptr) { sec.side->setBounds (a.removeFromLeft (sec.sideW).withSizeKeepingCentre (sec.sideW, jmin (a.getHeight(), 128))); a.removeFromLeft (8); }
         if (sec.sideW < 0) { meter.setBounds (a.removeFromRight (22).reduced (0, 6)); a.removeFromRight (8); }
         if (sec.title == "SAMPLE") { sampleNameArea = a.removeFromBottom (18); }
-        if (sec.title == "REVERSE BASS") { bassLane.setBounds (a.removeFromRight (380).reduced (0, 2)); a.removeFromRight (12); }
+        if (sec.title == "REVERSE BASS") { bassLane.setBounds (a.removeFromRight (330).reduced (0, 2)); a.removeFromRight (12); }
         const float cw = (float) a.getWidth() / (float) jmax<size_t> (1, sec.knobs.size());
         for (size_t i = 0; i < sec.knobs.size(); ++i)
             sec.knobs[i]->setBounds (Rectangle<int> (a.getX() + (int) (cw * (float) i), a.getY(), (int) cw, a.getHeight()).withSizeKeepingCentre (jmin ((int) cw - 2, 100), a.getHeight()));

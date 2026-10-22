@@ -105,6 +105,7 @@ int main (int argc, char** argv)
             dynamic_cast<ForgeEditor&> (*ed).getCanvas().tickForTest();
             ed->createComponentSnapshot (ed->getLocalBounds(), true, 0.5f);
         }
+        dynamic_cast<ForgeEditor&> (*ed).getCanvas().openPresetBrowserForTest();     // the click on the preset name (crashed FL, 2026-10-22)
         printf ("guistress done\n");
         return 0;
     }

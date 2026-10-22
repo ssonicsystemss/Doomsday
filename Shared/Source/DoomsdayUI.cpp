@@ -448,10 +448,10 @@ namespace
             addAndMakeVisible (search);
             cats.add ("ALL"); cats.add ("FAVOURITES");
             for (auto& e : bar.entries()) if (! cats.contains (e.category)) cats.add (e.category);
+            catModel.owner = this;              // BEFORE setModel: the ListBox asks the model for rows right away (FL crash, 2026-10-22)
             catList.setModel (&catModel); presetList.setModel (this);
             catList.setRowHeight (24); presetList.setRowHeight (24);
             for (auto* l : { &catList, &presetList }) { l->setColour (ListBox::backgroundColourId, Colour (0xff0a0a0c)); addAndMakeVisible (*l); }
-            catModel.owner = this;
             filter();
             setSize (460, 420);
             const int cur = bar.currentIndex();
@@ -472,7 +472,7 @@ namespace
         struct CatModel : public ListBoxModel
         {
             PresetBrowser* owner = nullptr;
-            int getNumRows() override { return owner->cats.size(); }
+            int getNumRows() override { return owner != nullptr ? owner->cats.size() : 0; }
             void paintListBoxItem (int row, Graphics& g, int w, int h, bool sel) override
             {
                 auto& lnf = lnfOf (owner->bar);

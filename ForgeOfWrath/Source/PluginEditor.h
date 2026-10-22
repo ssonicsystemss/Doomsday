@@ -69,7 +69,8 @@ public:
     ~Canvas() override;
     void paint (juce::Graphics&) override;
     void resized() override;
-    void tickForTest() { timerCallback(); }      // tests: one UI update without the message loop
+    void tickForTest() { timerCallback(); }
+    void openPresetBrowserForTest() { presets.openBrowser(); }      // tests: one UI update without the message loop
 private:
     void timerCallback() override;
     void renderBackground();

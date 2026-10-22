@@ -177,11 +177,11 @@ namespace doomsday::ui
         int currentIndex() const;
         bool isFavourite (const juce::String& name) const { return favourites.contains (name); }
         void toggleFavourite (const juce::String& name);
+        void openBrowser();                 // what a click on the name does (public for tests)
     private:
         bool keyPressed (const juce::KeyPress&, juce::Component*) override;
         void step (int);
         void showSave();
-        void openBrowser();
         juce::File favouritesFile() const;
         PresetHost& host;
         bool withPlay, withRandom;

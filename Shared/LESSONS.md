@@ -41,6 +41,12 @@ Dopisuj po każdej uwadze właściciela („brzmi źle”, „słabo działa”,
   + punch z własnym przesterem poza obwiednią AMP. Pomiar: `zero-crossing / DFT` w scratchpadzie, wzorce są właściciela (nie w git).
 - Wniosek: reverse w kicku to jego sposób pracy → sekcja REVERSE BASS (v2.1) jako uzupełnienie, nie zamiennik obwiedni.
 
+## Crash FL: klik w nazwę presetu (przeglądarka) – ZNALEZIONY (2026-10-22)
+- `PresetBrowser` (DoomsdayUI.cpp) ustawiał `catModel.owner` PO `catList.setModel (...)`; ListBox od razu pyta model o liczbę wierszy
+  → `owner->cats` na nullptr → access violation (odczyt 0x7C4 = przesunięcie pola w obiekcie). Dotyczył każdej wtyczki z `PresetBar`
+  (Forge, Throne, Mirror, Dark Serpent, Abyss). Zasada: wskaźniki modelu / właściciela ustawiaj ZANIM podepniesz model do ListBox /
+  TableListBox / ComboBox; test `RenderTest guistress` (Forge) otwiera przeglądarkę – nowe okna dialogowe też otwieraj w testach.
+
 ## Crash FL w Forge v2.1 (2026-10-22, raz, w wątku okna; po ponownym otwarciu brak)
 - Prawdopodobnie wyścig przy ponownym `prepareToPlay` (FL woła je np. przy wczytaniu projektu): bufory / pokój pogłosu realokowane,
   a audio albo GUI je czyta. Poprawka: duże bufory raz w konstruktorze, `prepareLock` (prepare trzyma, processBlock tylko try-lock

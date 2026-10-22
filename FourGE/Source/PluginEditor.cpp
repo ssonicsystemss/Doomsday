@@ -159,7 +159,7 @@ void AnvilDisplay::renderPreview()
     {
         const float y = doomsday::kick::masterClip (v.render (prm.k), g, prm.clipSoft) * outG;
         const auto c = (size_t) jmin (cols - 1, (int) ((int64) i * cols / jmax (1, total)));
-        lo[c] = jmin (lo[c], y); hi[c] = jmax (hi[c], y);
+        lo[c] = jmin (lo[c], jmax (-1.f, y)); hi[c] = jmax (hi[c], jmin (1.f, y));     // a preset louder than 0 dBFS stays inside the plot
     }
     const float endHz = 440.f * std::pow (2.f, ((float) proc.auditionNote - 69.f + prm.k.tuneSemis) / 12.f);
     for (int c = 0; c < cols; ++c)
@@ -296,101 +296,11 @@ void AnvilDisplay::paint (Graphics& g)
     }
 }
 
-// ======================================================================= REVERSE BASS lane
-void BassLane::tick()
-{
-    const auto p = proc.gatherForGui();
-    const float sig = (float) p.rb.stepBeats * 7.f + p.rb.in * 3.f + p.rb.out * 5.f + p.rb.curve * 0.37f + p.rb.riseSt * 0.011f + p.rb.peak * 13.f + (p.rb.pump ? 50.f : 0.f) + p.rb.releaseMs * 0.003f + p.rb.fadeMs * 0.007f
-                    + p.k.lengthMs * 0.001f + (p.rbOn ? 100.f : 0.f) + proc.getEngine().tempoNow.load() * 0.0001f;
-    if (std::abs (sig - lastSig) > 1e-5f) { lastSig = sig; repaint(); }
-}
-
-void BassLane::paint (Graphics& g)
-{
-    using namespace ForgeTheme;
-    ForgeLook lnf (*this);
-    const auto p = proc.gatherForGui();
-    const double bpm = proc.getEngine().tempoNow.load(), beatMs = 60000.0 / bpm;
-    auto r = getLocalBounds().toFloat();
-    g.setColour (doomsday::flat::tokens().surface); g.fillRoundedRectangle (r, 12.f);
-    auto plot = r.reduced (12.f, 10.f).withTrimmedTop (16.f).withTrimmedBottom (16.f);    // bottom: the ms scale
-    // ms scale: a line every 10 ms, longer every 50 ms with the number (every 100 ms when the beat is long)
-    {
-        const float x0 = plot.getX(), w = plot.getWidth();
-        const double labelEvery = beatMs > 700.0 ? 100.0 : 50.0;
-        g.setFont (lnf.valueFont (10.5f));
-        for (double ms = 0.0; ms <= beatMs + 0.01; ms += 10.0)
-        {
-            const float x = x0 + w * (float) (ms / beatMs);
-            const bool major = std::fmod (ms + 0.01, labelEvery) < 0.1;
-            g.setColour (lnf.theme.dim.withAlpha (major ? 0.22f : 0.08f));
-            g.drawVerticalLine ((int) x, plot.getY(), plot.getBottom() + (major ? 4.f : 2.f));
-            if (major)
-            {
-                g.setColour (lnf.theme.dim);
-                g.drawText (String ((int) std::round (ms)) + " ms", Rectangle<float> (x - 30.f, plot.getBottom() + 3.f, 60.f, 13.f), Justification::centred);
-            }
-        }
-    }
-    const float kickH = plot.getHeight() * 0.42f;
-    auto kickLane = plot.removeFromTop (kickH);
-    plot.removeFromTop (6.f);
-    auto bassLaneR = plot;
-    // grid: the steps of the pattern
-    const int steps = (int) std::round (1.0 / p.rb.stepBeats);
-    for (int i = 1; i < steps; ++i)
-    {
-        const float x = r.getX() + 12.f + (r.getWidth() - 24.f) * (float) i / (float) steps;
-        g.setColour (lnf.theme.dim.withAlpha (0.5f)); g.drawVerticalLine ((int) x, kickLane.getY(), bassLaneR.getBottom());
-    }
-    // the kick: its LENGTH against the beat
-    const float kickFrac = (float) jmin (1.0, (double) p.k.lengthMs / beatMs);
-    {
-        Path k; k.startNewSubPath (kickLane.getX(), kickLane.getBottom());
-        for (int i = 0; i <= 60; ++i)
-        {
-            const float t = (float) i / 60.f, x = kickLane.getX() + kickLane.getWidth() * kickFrac * t;
-            k.lineTo (x, kickLane.getBottom() - kickLane.getHeight() * (t < 0.03f ? t / 0.03f : 1.f - 0.6f * t * t));
-        }
-        k.lineTo (kickLane.getX() + kickLane.getWidth() * kickFrac, kickLane.getBottom()); k.closeSubPath();
-        g.setColour (magmaHot.withAlpha (0.35f)); g.fillPath (k);
-        g.setColour (magmaHot); g.strokePath (k, PathStrokeType (1.2f));
-    }
-    // the bass swells
-    Path bp; bool started = false;
-    float firstIn = 2.f;
-    for (int i = 0; i <= 400; ++i)
-    {
-        const double beat = (double) i / 400.0;
-        const double q = beat / p.rb.stepBeats;
-        float riseU = 0.f;
-        const float a = doomsday::rbass::swell (p.rb, q - std::floor (q), p.rb.stepBeats * 60.0 / bpm, riseU);
-        if (a > 0.001f) firstIn = jmin (firstIn, (float) beat);
-        const float x = bassLaneR.getX() + bassLaneR.getWidth() * (float) beat, y = bassLaneR.getBottom() - bassLaneR.getHeight() * a;
-        if (! started) { bp.startNewSubPath (x, y); started = true; } else bp.lineTo (x, y);
-    }
-    const Colour bc = p.rbOn ? magma : lnf.theme.dim;
-    Path bf (bp); bf.lineTo (bassLaneR.getRight(), bassLaneR.getBottom()); bf.lineTo (bassLaneR.getX(), bassLaneR.getBottom()); bf.closeSubPath();
-    g.setColour (bc.withAlpha (0.3f)); g.fillPath (bf);
-    g.setColour (bc); g.strokePath (bp, PathStrokeType (1.6f));
-    // labels + overlap warning
-    g.setFont (lnf.labelFont (11.f, 0.2f));
-    g.setColour (lnf.theme.label);
-    g.drawText ("ONE BEAT AT " + String (roundToInt (bpm)) + " BPM", r.reduced (12.f, 4.f).withHeight (14.f), Justification::topLeft);
-    g.drawText ("KICK", kickLane.reduced (4.f, 0.f), Justification::topRight);
-    g.drawText ("BASS", bassLaneR.reduced (4.f, 0.f), Justification::topRight);
-    if (p.rbOn && kickFrac > firstIn)
-    {
-        g.setColour (ember);
-        g.drawText ("OVERLAP - SHORTEN THE KICK (LENGTH) OR MOVE IN", r.reduced (12.f, 4.f).withHeight (14.f), Justification::topRight);
-    }
-}
-
 // ======================================================================= SOLO / MUTE strip
 namespace
 {
-    const char* layerName[LayerStrip::count] { "Punch", "Tail", "Texture", "Sub", "Click", "Bass", "Sample" };
-    const int layerBit[LayerStrip::count] { ge::LPunch, ge::LTail, ge::LTexture, ge::LSub, ge::LClick, ge::LBass, ge::LSample };
+    const char* layerName[LayerStrip::count] { "Punch", "Tail", "Texture", "Sub", "Click", "Sample" };
+    const int layerBit[LayerStrip::count] { ge::LPunch, ge::LTail, ge::LTexture, ge::LSub, ge::LClick, ge::LSample };
 }
 Rectangle<float> LayerStrip::cell (int i) const
 {
@@ -459,7 +369,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (GeProcessor& p) : proc (p), anvil (p), bassLane (p), layers (p)
+Canvas::Canvas (GeProcessor& p) : proc (p), anvil (p), layers (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -658,32 +568,11 @@ Canvas::Canvas (GeProcessor& p) : proc (p), anvil (p), bassLane (p), layers (p)
         addAndMakeVisible (loadBtn); addAndMakeVisible (clearBtn);
         c.head.push_back (&clearBtn); c.head.push_back (&loadBtn);
     }
-    // ---- page 4: REVERSE BASS
-    {
-        auto& c = card ("Reverse bass", hot, 4); cRb = (int) cards.size() - 1;
-        knob (c, rbIn, "In", "Where in each step the bass starts (PUMP: where the duck ends)");
-        knob (c, rbOut, "Out", "Where it stops - the rest of the step is a clean gap before the next kick");
-        knob (c, rbCurve, "Curve", "SWELL: early / late rise. PUMP: how the release lands (high = fast, then smooth)");
-        knob (c, rbRelease, "Release", "PUMP: how fast the bass comes back after the kick (like a sidechain release)");
-        knob (c, rbFade, "Fade", "PUMP: how short the cut right before the next kick is");
-        knob (c, rbPeak, "Peak", "SWELL only: where the bass is loudest, then it fades to silence at OUT");
-        knob (c, rbRise, "Rise", "SYNTH bass only (FROM TAIL off): pitch rise at the end of every swell");
-        knob (c, rbTune, "Tune", "Bass pitch against the kick note in semitones (12 = an octave up)", true);
-        knob (c, rbSub, "Sub", "Clean sine on the bass note under the reverse bass - the bass punch");
-        knob (c, rbDrive, "Drive", "Distortion of the bass: from a clean sub to a buzzing saw");
-        knob (c, rbTone, "Tone", "Low-pass of the bass: low = round and deep, high = bright and present");
-        knob (c, rbLevel, "Level", "Bass level against the kick (both go into the master clipper)");
-        c.head.push_back (toggle (rbOn, "On", Toggle::Pill, hot, "Reverse bass: every kick starts one beat of bass on the same note"));
-        c.head.push_back (toggle (rbPump, "Pump", Toggle::Chip, hot, "ON: sidechain shape - the kick ducks the bass, it comes back in RELEASE, holds and is cut in FADE. OFF: SWELL - a slow rise to PEAK"));
-        c.head.push_back (toggle (rbTail, "From tail", Toggle::Chip, hot, "ON: the bass is the kick's own tail played backwards. OFF: a saw + sine bass with RISE"));
-        c.head.push_back (seg (rbPattern, { "1/4", "1/8", "1/16" }, hot, "How many bass swells per beat (locked to the FL tempo)"));
-    }
     addAndMakeVisible (anvil);
-    addAndMakeVisible (bassLane);
 
-    tabs = std::make_unique<TabStrip> (StringArray { "Punch", "Tail", "Texture", "Bus / FX", "Reverse bass" }, hot);
+    tabs = std::make_unique<TabStrip> (StringArray { "Punch", "Tail", "Texture", "Bus / FX" }, hot);
     tabs->onSelect = [this] (int i) { showPage (i); };
-    tabs->isOn = [this] (int i) { return i == 4 ? raw (proc, ParamIDs::rbOn) > 0.5f : i == 0 ? raw (proc, ParamIDs::punchOn) > 0.5f : i == 2 ? raw (proc, ParamIDs::texLevel) > -59.f : i == 3 ? raw (proc, ParamIDs::busType) > 0.5f : true; };
+    tabs->isOn = [this] (int i) { return i == 0 ? raw (proc, ParamIDs::punchOn) > 0.5f : i == 2 ? raw (proc, ParamIDs::texLevel) > -59.f : i == 3 ? raw (proc, ParamIDs::busType) > 0.5f : true; };
     addAndMakeVisible (*tabs);
     addAndMakeVisible (layers);
 
@@ -776,7 +665,7 @@ void Canvas::showSave()
 
 void Canvas::showPage (int pg)
 {
-    page = jlimit (0, 4, pg);
+    page = jlimit (0, 3, pg);
     if (tabs != nullptr && tabs->getSelected() != page) tabs->setSelected (page);
     for (auto& c : cards)
     {
@@ -785,7 +674,6 @@ void Canvas::showPage (int pg)
         if (c.side != nullptr) c.side->setVisible (on);
         for (auto* h : c.head) h->setVisible (on);
     }
-    bassLane.setVisible (page == 4);
     resized();
     repaint();
 }
@@ -830,8 +718,8 @@ void Canvas::resized()
     auto& master = cards[0];
     master.area = { W - m - 430, 68, 430, 200 };
     anvil.setBounds (m, 68, master.area.getX() - gap - m, 200);
-    tabs->setBounds (m, 280, 500, 30);
-    layers.setBounds (m + 516, 278, W - 2 * m - 516, 34);
+    tabs->setBounds (m, 280, 420, 30);
+    layers.setBounds (m + 440, 278, W - 2 * m - 440, 34);
     // pages
     const int y1 = 318, rowH = 134, y2 = y1 + rowH + gap;
     auto place = [&] (std::initializer_list<std::pair<int, int>> list, int y)
@@ -856,15 +744,10 @@ void Canvas::resized()
         place ({ { cTex, kws (7) }, { cChar, kws (5) }, { cImpact, 0 } }, y1);
         place ({ { cFilter, 0 } }, y2);
     }
-    else if (page == 3)
+    else
     {
         place ({ { cBus, 440 }, { cOtt, 170 }, { cRoom, 0 } }, y1);
         place ({ { cSample, 0 } }, y2);
-    }
-    else
-    {
-        cards[(size_t) cRb].area = { m, y1, W - 2 * m, rowH };
-        bassLane.setBounds (m, y2, W - 2 * m, H - m - y2);
     }
     for (auto& c : cards) if (! c.area.isEmpty()) layoutCard (c, c.page < 0 ? 96 : kw);
     // MASTER: 5 knobs in one row + the meter
@@ -936,7 +819,6 @@ void Canvas::filesDropped (const StringArray& files, int, int)
 void Canvas::timerCallback()
 {
     anvil.tick();
-    if (page == 4) bassLane.tick();
     layers.repaint();
     tabs->refresh();
     if (proc.currentPresetName() != lastName)

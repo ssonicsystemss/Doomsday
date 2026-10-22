@@ -18,6 +18,8 @@ on:
       - 'ForgeOfWrath/**'
       - 'FourGE/**'
       - '.github/workflows/build-4ge.yml'
+      - 'Re4GE/**'
+      - '.github/workflows/build-re4ge.yml'
       - 'ScreamAlpha/**'
       - '.github/workflows/build-ScreamAlpha.yml'
       - '.github/workflows/build-forge-of-wrath.yml'

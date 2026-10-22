@@ -1,11 +1,13 @@
-# 4GE v0.1
+# 4GE v0.2
 
 Syntezator kicków hardstyle (instrument VST3, FL Studio), **następca Forge of Wrath** (Forge jest zamrożony na v2.1).
 Silnik to Forge plus nowe moduły, zbudowane według analizy architektury kicka (`Shared/RESEARCH.md`, „Architektura hardstyle kicka”):
 osobne sekcje **PUNCH / TAIL / TEXTURE / SUB / CLICK**, a na końcu **BUS** (klej) i clipper.
 
+**v0.2: reverse bass wyprowadzony do osobnej wtyczki RE4GE** (`Re4GE/`). 4GE to teraz czysty kick synth: cztery zakładki, bez presetów BASS.
+
 Presety `.fow` z Forge się tu nie wczytują (świadomie, bo 4GE to nowa wtyczka). **Twoje kicki są przeniesione jako presety fabryczne**
-(OWNER - QL / QL 1 / QL 2 / Nice / Nice 1 / Nice 2 / Sgsdg, Volcanic, Undertow, BASS …) i brzmią jak w Forge.
+(OWNER - QL / QL 1 / QL 2 / Nice / Nice 1 / Nice 2 / Sgsdg, Volcanic, Undertow) i brzmią jak w Forge.
 Swoje presety zapisujesz w `Dokumenty\4GE\Presets` (przycisk **Folder**).
 
 ## Instalacja (Windows)
@@ -15,10 +17,10 @@ Wstaw jako **instrument** (Channel Rack).
 
 ## Ekran
 Na górze presety (< lista > Random Save Folder Play Undo Redo), pod spodem **THE ANVIL** (podgląd + rysowane obwiednie AMP / DRIVE / PITCH)
-i **MASTER** (Length, Clip, Soft, Velocity, Output, przełącznik **AUTO GAIN**). Niżej pięć zakładek i pasek **SOLO / MUTE**.
+i **MASTER** (Length, Clip, Soft, Velocity, Output, przełącznik **AUTO GAIN**). Niżej cztery zakładki i pasek **SOLO / MUTE**.
 
 ### Pasek SOLO / MUTE
-Każda warstwa: PUNCH, TAIL, TEXTURE, SUB, CLICK, BASS (reverse bass), SAMPLE. **M** wycisza, a **S** zostawia tylko zaznaczone warstwy (można kilka).
+Każda warstwa: PUNCH, TAIL, TEXTURE, SUB, CLICK, SAMPLE. **M** wycisza, a **S** zostawia tylko zaznaczone warstwy (można kilka).
 Nie zapisuje się w presecie, służy tylko do odsłuchu.
 
 ### 1. PUNCH
@@ -73,9 +75,6 @@ Nie zapisuje się w presecie, służy tylko do odsłuchu.
 - **OTT**.
 - **ROOM**: z nowym **LOW CUT**, żeby pogłos nie zamulał dołu.
 - **SAMPLE**: własna warstwa (LOAD albo przeciągnij WAV).
-
-### 5. REVERSE BASS
-Bez zmian względem Forge v2.1 (FROM TAIL, PUMP, SUB, PEAK, okienko z podziałką w ms).
 
 ## AUTO GAIN
 Gdy jest włączony (domyślnie w nowych kickach), podkręcenie DRIVE w STAGE 1 / 2 zmienia **charakter, a nie głośność**, więc ucho nie daje się oszukać

@@ -247,63 +247,6 @@ int main (int argc, char** argv)
         check (diff < all * 1e-6 && std::abs (tailG - 49.0) < 3.0 && std::abs (tailD - 73.4) < 4.0, "FIXED HEAD: same first 100 ms on every note, tail on the note",
                "(head diff " + String (10.0 * std::log10 (diff / (all + 1e-20) + 1e-20), 1) + " dB, tails " + String (tailG, 1) + " / " + String (tailD, 1) + " Hz)");
     }
-    // 7) REVERSE BASS (v2.1): a kick on every beat at 150 BPM -> bass swells between them, on the note, clean gap before each kick
-    {
-        int rbPreset = 0;      // INIT + explicit reverse bass settings (tail, pump), short kick so the bass zone is free
-        sr = 48000.0;
-        auto play = [&] (bool on, int beats)
-        {
-            p.setCurrentProgram (rbPreset);
-            set (p, ParamIDs::length, 150.f); set (p, ParamIDs::headOn, 0.f); set (p, ParamIDs::rbTail, 1.f); set (p, ParamIDs::rbPump, 1.f);
-            set (p, ParamIDs::rbIn, 0.4f); set (p, ParamIDs::rbOut, 0.95f); set (p, ParamIDs::rbLevel, -4.f); set (p, ParamIDs::rbSub, 0.f);   // the tail alone
-            set (p, ParamIDs::rbOn, on ? 1.f : 0.f);
-            p.prepareToPlay (sr, block);
-            const int beat = (int) (sr * 0.4);
-            AudioBuffer<float> out (2, beat * beats); out.clear();
-            for (int pos = 0; pos < out.getNumSamples(); pos += block)
-            {
-                const int n = jmin (block, out.getNumSamples() - pos);
-                AudioBuffer<float> c (2, n); c.clear(); MidiBuffer m;
-                for (int k = 0; k < beats; ++k) if (k * beat >= pos && k * beat < pos + n) m.addEvent (MidiMessage::noteOn (1, 31, 1.f), k * beat - pos);
-                p.processBlock (c, m);
-                for (int ch = 0; ch < 2; ++ch) out.copyFrom (ch, pos, c, ch, 0, n);
-            }
-            return out;
-        };
-        auto rms = [] (const AudioBuffer<float>& b, double fromBeat, double toBeat)
-        {
-            const int a = (int) (fromBeat * 0.4 * sr), e = (int) (toBeat * 0.4 * sr);
-            double acc = 0; for (int i = a; i < e; ++i) acc += (double) b.getSample (0, i) * b.getSample (0, i);
-            return std::sqrt (acc / jmax (1, e - a));
-        };
-        const auto on = play (true, 8), off = play (false, 8);
-        const double swellOn = rms (on, 2.6, 2.9), swellOff = rms (off, 2.6, 2.9), gap = rms (on, 2.965, 2.995);
-        // strongest frequency 20..200 Hz in the swell (DFT scan)
-        auto domHz = [&] (double fromBeat, double lenS)
-        {
-            double hz = 0, bestMag = 0;
-            const int a0 = (int) (fromBeat * 0.4 * sr), n = (int) (lenS * sr);
-            for (double f = 20.0; f <= 300.0; f += 0.25)
-            {
-                double re = 0, im = 0;
-                for (int i = 0; i < n; ++i) { const double w = 0.5 - 0.5 * std::cos (6.283185307 * i / n), v = on.getSample (0, a0 + i) * w;
-                                             re += v * std::cos (6.283185307 * f * i / sr); im += v * std::sin (6.283185307 * f * i / sr); }
-                if (re * re + im * im > bestMag) { bestMag = re * re + im * im; hz = f; }
-            }
-            return hz;
-        };
-        // FROM TAIL: the reversed tail starts near the note and rises towards OUT (its pitch drop played backwards)
-        const double hz = domHz (2.42, 0.06), hzLate = domHz (2.84, 0.04);
-        check (swellOn > 0.05 && swellOn > swellOff * 20.0 && gap < swellOn * 0.15 && hz > 45.0 && hz < 75.0 && hzLate > hz * 1.3,
-               "REVERSE BASS (tail backwards): swell between kicks, rises to OUT, gap before the kick",
-               "(swell " + String (swellOn, 3) + " vs off " + String (swellOff, 4) + ", gap " + String (gap, 3) + ", " + String (hz, 1) + " -> " + String (hzLate, 1) + " Hz)");
-        float pk = on.getMagnitude (0, 0, on.getNumSamples());
-        check (std::isfinite (pk) && pk < 1.05f, "REVERSE BASS: output stays clean", "(peak " + String (pk, 2) + ")");
-        // A/B for the owner: 8 beats kick only, then 8 beats kick + reverse bass
-        AudioBuffer<float> ab (2, off.getNumSamples() * 2);
-        for (int ch = 0; ch < 2; ++ch) { ab.copyFrom (ch, 0, off, ch, 0, off.getNumSamples()); ab.copyFrom (ch, off.getNumSamples(), on, ch, 0, on.getNumSamples()); }
-        writeWav (outDir.getChildFile ("reverse_bass_ab.wav"), ab);
-    }
     // ===================== 4GE modules
     auto finiteOf = [] (const AudioBuffer<float>& b) { for (int i = 0; i < b.getNumSamples(); ++i) if (! std::isfinite (b.getSample (0, i))) return false; return true; };
     auto rmsOf = [] (const AudioBuffer<float>& b, double a, double e)
@@ -419,16 +362,16 @@ int main (int argc, char** argv)
     }
     // 6) GUI snapshot
     {
-        for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith ("BASS - QL Pump")) p.setCurrentProgram (i);
+        for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith ("OWNER - QL")) { p.setCurrentProgram (i); break; }
         sr = 48000.0; hit (p, 31, 0.15);
         std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
         ed->setSize (Canvas::W, Canvas::H);
         p.muteMask.store (ge::LTexture); p.soloMask.store (0);
-        for (int pg : { 0, 1, 2, 3, 4 })
+        for (int pg : { 0, 1, 2, 3 })
         {
             dynamic_cast<GeEditor&> (*ed).getCanvas().showPageForTest (pg);
             auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
-            const char* names[] { "gui_punch.png", "gui_tail.png", "gui_texture.png", "gui_bus.png", "gui_bass.png" };
+            const char* names[] { "gui_punch.png", "gui_tail.png", "gui_texture.png", "gui_bus.png" };
             PNGImageFormat png; FileOutputStream fo (outDir.getChildFile (names[pg])); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
         }
         p.muteMask.store (0);

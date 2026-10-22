@@ -3,7 +3,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.1";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.2";      // keep in step with CMakeLists.txt
     // TAIL
     inline constexpr const char* tailLevel = "tail_level";
     inline constexpr const char* tailStart = "tail_start";    // start pitch = START x note
@@ -62,29 +62,12 @@ namespace ParamIDs
     inline constexpr const char* clipSoft = "clip_soft";
     inline constexpr const char* velocity = "velocity";
     inline constexpr const char* output   = "output";
-    // REVERSE BASS (v2.1)
-    inline constexpr const char* rbOn      = "rb_on";
-    inline constexpr const char* rbPattern = "rb_pattern";
-    inline constexpr const char* rbIn      = "rb_in";
-    inline constexpr const char* rbOut     = "rb_out";
-    inline constexpr const char* rbCurve   = "rb_curve";
-    inline constexpr const char* rbRise    = "rb_rise";
-    inline constexpr const char* rbTune    = "rb_tune";
-    inline constexpr const char* rbDrive   = "rb_drive";
-    inline constexpr const char* rbTone    = "rb_tone";
-    inline constexpr const char* rbLevel   = "rb_level";
     inline constexpr const char* tailFine  = "tail_fine";
     inline constexpr const char* punchInto = "punch_into";
     inline constexpr const char* headOn    = "head_on";      // v2.1: FIXED HEAD - the start of the kick is the same on every note
     inline constexpr const char* headLen   = "head_len";
     inline constexpr const char* headHz    = "head_hz";
     inline constexpr const char* punchLen  = "punch_len";
-    inline constexpr const char* rbTail    = "rb_tail";
-    inline constexpr const char* rbPeak    = "rb_peak";
-    inline constexpr const char* rbPump    = "rb_pump";      // v2.1: SIDECHAIN shape (duck, release, shelf, cut) instead of SWELL
-    inline constexpr const char* rbRelease = "rb_release";
-    inline constexpr const char* rbFade    = "rb_fade";
-    inline constexpr const char* rbSub     = "rb_sub";
     // ---- 4GE (new modules, 2026-10-23)
     inline constexpr const char* tailStartMode = "tail_start_mode";   // RATIO (x note) / FIXED Hz
     inline constexpr const char* tailStartHz   = "tail_start_hz";
@@ -138,5 +121,4 @@ namespace Choices
     inline const juce::StringArray filterTypes { "OFF", "LP", "HP", "BP", "NOTCH" };
     inline const juce::StringArray punchTypes { "SINE", "TRI", "SAW", "NOISE", "RESO" };
     inline const juce::StringArray texSources { "WHITE", "PINK", "PULSE", "SAW" };
-    inline const juce::StringArray rbPatterns { "1/4", "1/8", "1/16" };
 }

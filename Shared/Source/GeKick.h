@@ -1,6 +1,7 @@
 #pragma once
 // =====================================================================
-//  4GE - kick voice (successor of Forge of Wrath's DoomsdayKick.h; Forge is frozen, this one grows)
+//  GeKick.h (Shared) - the 4GE kick voice (successor of Forge of Wrath's DoomsdayKick.h; Forge is frozen, this one grows).
+//  Used by 4GE (the kick) and RE4GE (its tail as the reverse bass source, ge::stage / ge::filt in its tone chain)
 //  Built after the owner's architecture document (Shared/RESEARCH.md "Architektura hardstyle kicka", 2026-10-23):
 //
 //   PUNCH   : SINE / TRI / SAW / NOISE / RESO source, Hz START -> END with AMOUNT (depth of the move), DROP, ATTACK, PHASE,
@@ -31,7 +32,7 @@ namespace ge
     using Shape = doomsday::mod::Shape;
     using doomsday::kick::masterClip;
 
-    enum Layer { LPunch = 1, LTail = 2, LTexture = 4, LSub = 8, LClick = 16, LBass = 32, LSample = 64, LAll = 127 };
+    enum Layer { LPunch = 1, LTail = 2, LTexture = 4, LSub = 8, LClick = 16, LSample = 32, LAll = 63 };
 
     // waveshapers: 0 SOFT, 1 TUBE, 2 HARD, 3 FOLD, 4 RAW, 5 CRUSH (stepped)
     inline float shape (float x, int type)

@@ -70,25 +70,8 @@ AudioProcessorValueTreeState::ParameterLayout GeProcessor::createLayout()
     l.add (f (clipSoft, "Clip Softness", { 0.f, 1.f }, 0.3f));
     l.add (f (velocity, "Velocity Sensitivity", { 0.f, 1.f }, 0.f));
     l.add (f (output, "Output", { -24.f, 24.f }, 0.f, fm::db, fm::num));
-    // REVERSE BASS (v2.1, appended - new IDs only)
-    l.add (b (rbOn, "Reverse Bass On", false));
-    l.add (c (rbPattern, "Reverse Bass Pattern", Choices::rbPatterns, 0));
-    l.add (f (rbIn, "Reverse Bass In", { 0.02f, 0.9f }, 0.38f));
-    l.add (f (rbOut, "Reverse Bass Out", { 0.12f, 1.f }, 0.95f));
-    l.add (f (rbCurve, "Reverse Bass Curve", { 0.8f, 6.f }, 2.6f, fmtNum, fm::num));
-    l.add (f (rbRise, "Reverse Bass Rise", { 0.f, 24.f }, 12.f, fm::semi, fm::num));
-    l.add (f (rbTune, "Reverse Bass Tune", { -24.f, 24.f }, 0.f, fm::semi, fm::num));
-    l.add (f (rbDrive, "Reverse Bass Drive", { 0.f, 36.f }, 14.f, fm::db, fm::num));
-    l.add (f (rbTone, "Reverse Bass Tone", skew (300.f, 6000.f, 1600.f), 1600.f, fm::hz, fm::hzIn));
-    l.add (f (rbLevel, "Reverse Bass Level", { -36.f, 6.f }, -4.f, fm::db, fm::num));
     l.add (b (punchInto, "Punch Into Distortion", false));
     l.add (b (headOn, "Fixed Head", false));
-    l.add (b (rbTail, "Reverse Bass From Tail", true));
-    l.add (f (rbPeak, "Reverse Bass Peak", { 0.3f, 1.f }, 0.75f));
-    l.add (b (rbPump, "Reverse Bass Pump", true));
-    l.add (f (rbRelease, "Reverse Bass Release", skew (5.f, 300.f, 70.f), 70.f, fm::ms, fm::msIn));
-    l.add (f (rbFade, "Reverse Bass Fade", skew (2.f, 120.f, 25.f), 25.f, fm::ms, fm::msIn));
-    l.add (f (rbSub, "Reverse Bass Sub", { 0.f, 1.f }, 0.7f));
     l.add (f (punchLen, "Punch Length", skew (0.f, 250.f, 80.f), 0.f, [] (float v, int) { return v < 0.5f ? String ("DECAY") : fm::ms (v, 0); }, fm::msIn));
     l.add (f (headLen, "Head Length", skew (20.f, 300.f, 110.f), 110.f, fm::ms, fm::msIn));
     l.add (f (headHz, "Head Pitch", skew (30.f, 120.f, 55.f), 49.f, [] (float v, int)
@@ -294,12 +277,6 @@ GeParams GeProcessor::gather() const
     k.mute = effectiveMute();
     e.ott = get (ott); e.sampleDb = get (smpLevel); e.samplePitch = get (smpPitch); e.sampleStartMs = get (smpStart);
     e.clipDriveDb = get (clipDrive); e.clipSoft = get (clipSoft); e.velocitySens = get (velocity); e.outDb = get (output);
-    e.rbOn = get (rbOn) > 0.5f; e.rbTail = get (rbTail) > 0.5f;
-    const int pat = jlimit (0, 2, (int) std::round (get (rbPattern)));
-    e.rb.stepBeats = pat == 2 ? 0.25 : pat == 1 ? 0.5 : 1.0;
-    e.rb.in = get (rbIn); e.rb.out = get (rbOut); e.rb.curve = get (rbCurve); e.rb.riseSt = get (rbRise); e.rb.peak = get (rbPeak);
-    e.rbSub = get (rbSub); e.rb.pump = get (rbPump) > 0.5f; e.rb.releaseMs = get (rbRelease); e.rb.fadeMs = get (rbFade);
-    e.rbTuneSt = get (rbTune); e.rbDriveDb = get (rbDrive); e.rbToneHz = get (rbTone); e.rbLevelDb = get (rbLevel);
     return e;
 }
 
@@ -312,11 +289,6 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     auto prm = gather();
     lastAmp = prm.k.amp; lastDrive = prm.k.drive; lastPitch = prm.k.pitch;
     engine.setParams (prm);
-    double bpmNow = 150.0;
-    if (auto* ph = getPlayHead())
-        if (auto pos = ph->getPosition())
-            if (auto bp = pos->getBpm()) bpmNow = *bp;
-    engine.setTempo (bpmNow);
     if (pendingAudition.exchange (false)) engine.audition (true, auditionNote);
     engine.process (buffer, midi);
 }

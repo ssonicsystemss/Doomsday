@@ -6,7 +6,7 @@
 
 // =====================================================================
 //  4GE - flat UI (the 5CR34M 4LPH4 look, Shared/DoomsdayFlat.h) with a magma accent (Forge of Wrath's editor, regrouped
-//  after the kick architecture: PUNCH / TAIL / TEXTURE / BUS / REVERSE BASS + a SOLO / MUTE strip for the layers)
+//  after the kick architecture: PUNCH / TAIL / TEXTURE / BUS + a SOLO / MUTE strip for the layers)
 // =====================================================================
 namespace ForgeTheme
 {
@@ -49,18 +49,6 @@ private:
     void convertCurveToDrawn();
 };
 
-// REVERSE BASS lane: one beat - the kick (its LENGTH at the FL tempo) and the bass swells; warns when they overlap
-class BassLane : public juce::Component
-{
-public:
-    explicit BassLane (GeProcessor& p) : proc (p) {}
-    void paint (juce::Graphics&) override;
-    void tick();
-private:
-    GeProcessor& proc;
-    float lastSig = -1.f;
-};
-
 // SOLO / MUTE per layer (not saved): click M or S; a soloed layer plays alone (several can be soloed)
 class LayerStrip : public juce::Component, public juce::SettableTooltipClient
 {
@@ -68,14 +56,14 @@ public:
     explicit LayerStrip (GeProcessor& p) : proc (p) { setTooltip ("M = mute the layer, S = solo (only the soloed layers play). Not saved with the preset"); }
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
-    static constexpr int count = 7;
+    static constexpr int count = 6;
 private:
     juce::Rectangle<float> cell (int i) const;
     juce::Rectangle<float> button (int i, bool solo) const;
     GeProcessor& proc;
 };
 
-// the whole editor: top bar (presets) | THE ANVIL + MASTER | pages KICK / LAYERS / REVERSE BASS
+// the whole editor: top bar (presets) | THE ANVIL + MASTER | pages PUNCH / TAIL / TEXTURE / BUS
 class Canvas : public juce::Component, public juce::FileDragAndDropTarget, private juce::Timer
 {
 public:
@@ -115,11 +103,10 @@ private:
     std::vector<std::unique_ptr<juce::Component>> owned;
     std::vector<Card> cards;
     AnvilDisplay anvil;
-    BassLane bassLane;
     LayerStrip layers;
     std::map<juce::Component*, int> segW;
     int cPunch = 0, cHead = 0, cClick = 0, cPFilt = 0, cPDrive = 0, cHand = 0, cTail = 0, cOscA = 0, cOscB = 0, cPre = 0, cS1 = 0, cMid = 0, cS2 = 0,
-        cTex = 0, cChar = 0, cImpact = 0, cFilter = 0, cBus = 0, cOtt = 0, cRoom = 0, cSample = 0, cRb = 0;
+        cTex = 0, cChar = 0, cImpact = 0, cFilter = 0, cBus = 0, cOtt = 0, cRoom = 0, cSample = 0;
     std::unique_ptr<doomsday::flat::TabStrip> tabs;
     int page = 0;
     juce::ComboBox presetBox;

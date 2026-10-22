@@ -277,6 +277,45 @@ Co robi: **jedna trzymana nuta = kick na każdą ćwierćnutę + reverse bass mi
   `DoomsdayParamMenu.h` (menu prawego kliku + FREEZE + RandomMover), `DoomsdayOwnSound.h` (OWN SOUND), `DoomsdayReverseBass.h` (reverse bass).
 
 ---
+## Architektura hardstyle kicka (dokument właściciela, 2026-10-23) → Forge of Wrath
+Dokument: 4 sekcje (PUNCH / TOK, TAIL, CRUNCH / TEXTURE, SUB / BODY) → suma → bus distortion / clipper → filtr → DC / output / limiter.
+Wniosek główny: **szkielet Forge już jest zgodny z tym modelem** – nie przepisujemy silnika, dobudowujemy klocki; każdy nowy parametr
+ma nowe ID i wartość neutralną, więc presety właściciela (QL / Nice / Sgsdg / Volcanic / Undertow) brzmią identycznie.
+
+| Sekcja dokumentu | Forge dziś | Luka |
+|---|---|---|
+| Oscylatory, faza startowa | tail: 1 osc z WAVE (sine → tri → saw); punch: sinus; faza zawsze od zera | OSC B, pulse / PWM, szum różowy, PHASE |
+| Pitch env (tok / tail / strojenie) | PUNCH Hz START → END + DROP (nie idzie za nutą); TAIL START × nuta, DROP, CURVE, HOLD, DRAWN; FIXED HEAD; TUNE + FINE | rysowany pitch toka, START taila w półtonach / FIXED Hz, PUNCH AMOUNT |
+| Amp env, one-shot | LENGTH + rysowany AMP; punch DECAY / TOK; note-off nic nie ucina | ATTACK taila / puncha, rysowany AMP toka |
+| Punch: osc → env → pre-filter → dist → miks | osc, env, DRIVE / INTO DIST, LEVEL | **pre-filter**, typ przesteru, **typy puncha** (Tonal / Hard / Click / Reso) |
+| Tail: A + B → pitch → env → pre → dist A → post A → dist B → post B | TONE (pre, tilt 400 Hz) → STAGE 1 → MID EQ → STAGE 2 → LOW / HIGH CUT → SCREAM / CRUNCH / GRIT | OSC B, mocniejszy pre-filter ze sweepem |
+| Texture jako osobny generator | GRIT / CHAOS / CRUNCH = obróbka taila | warstwa TEXTURE (źródło → pitch → BP / reso → drive → env → HP) |
+| Stopień przesteru: drive, algorytm, bias, mix, gain, pre / post tone | drive, 5 / 6 algorytmów (SOFT, TUBE = asymetria, HARD, FOLD, RAW) | **BIAS, MIX, OUTPUT GAIN / auto-gain** (tanh(gx)/tanh(g) + korekta RMS, jako przełącznik) |
+| Bus distortion | CLIPPER na sumie, PUNCH INTO DIST | DIST BUS (CLEAN SUB go omija), filtr końcowy |
+| Oversampling | cały głos 4×, IIR, tworzony raz | QUALITY 2 / 4 / 8× (3 gotowe obiekty) + 8× przy renderze |
+| Filtry LP / HP / BP / notch + reso + drive | LOW / HIGH CUT, SCREAM (reso) | wspólny moduł FILTER (raz napisany, w punch / tail / texture) |
+| Reverb, sub protection | ROOM w tailu (przed / po przesterze); CLEAN SUB (LR4) | ROOM LOW CUT, ROOM w punchu, SUB LEVEL |
+| Stereo | całość mono | WIDTH tylko dla texture / room, < 150–200 Hz zawsze mono, MONO CHECK |
+| Silnik: reset, brak alokacji, SR, szczyty | wszystko ✅ | wygładzanie gałek ciągłych (najpierw test, czy słychać schodki) |
+| Interfejs | edytory krzywych, podgląd fali, ms w BassLane | EXPORT WAV, A/B, widmo, SOLO / MUTE warstw |
+| Testy | head identity, pitch, szczyty presetów | 2 rendery bit w bit, 44.1 / 48 / 96, sam punch / sam tail, drive monotoniczny, aliasing |
+| Ponad dokument (smaczki właściciela) | REVERSE BASS z odwróconego taila (PEAK, PUMP, SUB), OTT, SAMPLE layer | umieścić jako 5. sekcję w MIX BUS |
+
+**Plan kroków (propozycja – kolejność do potwierdzenia po pomiarach ~35 referencji i uchem właściciela):**
+- **A. Małe gałki, zero ryzyka:** SUB LEVEL, PUNCH AMOUNT, BIAS / MIX / GAIN na STAGE 1 i 2 (+ DC block, auto-gain z `Shared/`),
+  ATTACK taila / puncha, ROOM LOW CUT, PHASE taila / puncha, SOLO / MUTE warstw (nie zapisywane).
+- **B. Punch:** TYP PUNCHA Tonal / Hard / Click / Reso + PRE-FILTER + typ przesteru; rysowany PITCH / AMP toka (jedno okno, zakładki);
+  opcjonalnie CLICK przez łańcuch puncha; potem 2 punche naraz (tick + tok).
+- **C. Tail:** OSC B (LEVEL A i LEVEL B osobno), PRE-FILTER ze sweepem (rozbudowa TONE), START taila w półtonach i tryb FIXED Hz.
+- **D. Texture:** osobna warstwa (pulse / saw / szum biały / różowy, mały pitch drop, BP / reso, drive, env, HP); PHASE RANDOM (domyślnie off);
+  PM (niski priorytet). Stare GRIT / CHAOS / CRUNCH zostają.
+- **E. Bus:** przejście tok → tail (ducking taila od toka), crossover ~180 Hz między warstwami, DIST BUS, MIX BUS (glue → clipper z obejściem
+  czystego subu → filtr → out), reverse bass jako 5. sekcja, WIDTH dla górnych warstw.
+- **F. Jakość i wygoda:** QUALITY + 8× przy eksporcie, wygładzanie gałek, EXPORT WAV, A/B, rozszerzone testy, przełącznik kolejności
+  tekstur (przed / po STAGE 2); notatka: BITCRUSH jako typ przesteru (jest w `Shared/`).
+Z `Shared/` do wzięcia: ADAA, auto-gain, `Ladder`, oscylator modulujący (PM), bitcrusher, Oversampling.
+
+---
 ## Wspólne wzorce (wszystkie analizy)
 - **Słuchanie różnicy**: delta / audition / unity gain (Pro-L 2, nasze MATCH) – producent od razu słyszy, co robi efekt.
 - **Rysowanie zamiast kręcenia**: EQ Sketch, krzywe Béziera w Kick 2, nasze obwiednie w Forge.

@@ -312,6 +312,10 @@ Do zrobienia przy wpinaniu: interfejsy tych funkcji w konkretnych wtyczkach (lis
   testy z udawanym hostem (gra transport) i test głośności 44.1 / 48 / 96 kHz; CLAP obok VST3.
 - **Forge of Wrath / Ancient Drums (z dkd):** sample warstwy **w stanie** (OwnSound zamiast ścieżki do pliku); tryb **kick + reverse bass
   z jednej nuty** (BeatClock + ReverseBass) albo osobna mała wtyczka; ogon kicka w ułamku beatu (idzie za tempem).
+- **Forge of Wrath – RANDOM w kierunkach (pomysł właściciela, 2026-10-22, na później):** jak w 5CR34M 4LPH4 – RANDOM najpierw losuje
+  kierunek, potem brzmienie w jego zakresach, zamiast losować wszystko na ślepo. Kierunki z jego ulubionych presetów: „QL” (CLEAN SUB
+  ~209 Hz, FIXED HEAD ~65 Hz, reverse bass z wczesnym szczytem, DRIVE basu ~29 dB), „Nice” (reverse obwiednią AMP w kicku, SCREAM wysoko),
+  „Sgsdg / Volcanic / Undertow” (raw), + mały procent „dziko”; głośność wyrównana jak w 4LPH4.
 - **Forge of Wrath:** EXPORT WAV w tonacji; **PRE EQ przed STAGE 1** (cięcie dołu + podbicie 300–400 Hz); **BITCRUSH ogona**;
   transient shaper w pasmach; ducking ogona od punchu; DYNAMICS przesteru (Saturn); oś PITCH w nutach + przyciąganie; podgląd warstw
   osobno + zoom; 2–3 warstwy sampla; preset zapisuje swój sample; presety dopasowane do 38 kicków referencyjnych na silniku v2.

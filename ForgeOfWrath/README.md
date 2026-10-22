@@ -6,8 +6,13 @@ Włącznik ON, kroki **1/4 / 1/8 / 1/16**, **IN / OUT** (gdzie w kroku zaczyna i
 **TUNE** (względem nuty kicka), **DRIVE**, **TONE**, **LEVEL**. Okienko obok pokazuje jeden beat: kick (jego LENGTH) i bas –
 napis **OVERLAP**, gdy kick wchodzi na bas (skróć LENGTH albo przesuń IN). Presety: BASS - Euphoric Kick + Reverse Bass, BASS - Raw Kick + Dirty Reverse.
 **PITCH + FINE w sekcji TAIL** stroją sam ogon (półtony + centy); PUNCH i CLICK zostają na swoich wysokościach.
-**PUNCH → INTO DIST** (przełącznik w sekcji PUNCH, w INIT włączony): punch idzie przez ten sam przester co ogon, więc brzmi jak
-początek taila – ale jego wysokość ustawiają tylko START / END punchu, nie nuta. Wyłączony = czysty sinus na wierzchu (jak w v2.0).
+**Jak prawdziwe hardstyle'owe kicki** (z twoich wzorców OPS: pierwsze ~105–130 ms jest identyczne na każdej nucie, potem ogon na nucie):
+- **PUNCH → INTO DIST**: punch ma własną kopię przesteru ogona (typ + drive STAGE 1, HIGH CUT, SCREAM) i nie ścisza go obwiednia AMP –
+  brzmi jak początek taila, a wysokość dają tylko START / END punchu. Wyłączony = czysty sinus na wierzchu (jak w v2.0).
+- **PUNCH → LENGTH** (TOK): szpic, krótki dołek, równa półka przez LENGTH i ostre ucięcie – jak toki (100–150 ms). DECAY = stary zanikający punch.
+  END sięga teraz do 1.2 kHz (toki często idą w górę, np. 450 → 690 Hz).
+- **FIXED HEAD** (ON, LENGTH, PITCH): początek kicka zawsze na tej samej wysokości, ogon po LENGTH przechodzi na graną nutę.
+- **INIT** jest tak zbudowany: tok 330 → 520 Hz przez 115 ms, ogon wchodzi pod nim po ~120 ms (obwiednia AMP), FIXED HEAD włączony.
 Twoje kicki: **OWNER - Nice / Nice 1 / Sgsdg** (dokładnie tak, jak je ustawiłeś; mają szczyt trochę ponad 0 dB – OUTPUT −1.5 dB, jeśli przeszkadza).
 
 **v2:** łańcuch STAGE 1 → MID EQ → STAGE 2, ROOM (INTO DIST), OTT, rysowany PITCH, PUNCH DRIVE, CHAOS, HOLD, własny SAMPLE (LOAD / przeciągnij WAV), **CLEAN SUB** (poniżej wybranej częstotliwości czysty sinus zamiast przesteru – ciasny dół, clipper go nie rusza).

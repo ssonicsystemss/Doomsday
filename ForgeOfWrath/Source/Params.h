@@ -73,7 +73,11 @@ namespace ParamIDs
     inline constexpr const char* rbTone    = "rb_tone";
     inline constexpr const char* rbLevel   = "rb_level";
     inline constexpr const char* tailFine  = "tail_fine";
-    inline constexpr const char* punchInto = "punch_into";   // v2.1: the punch goes through the tail's distortion    // v2.1: fine pitch of the tail in cents
+    inline constexpr const char* punchInto = "punch_into";
+    inline constexpr const char* headOn    = "head_on";      // v2.1: FIXED HEAD - the start of the kick is the same on every note
+    inline constexpr const char* headLen   = "head_len";
+    inline constexpr const char* headHz    = "head_hz";
+    inline constexpr const char* punchLen  = "punch_len";    // v2.1: TOK punch length (0 = old decaying punch)   // v2.1: the punch goes through the tail's distortion    // v2.1: fine pitch of the tail in cents
 }
 
 namespace Choices

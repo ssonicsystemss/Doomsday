@@ -460,6 +460,7 @@ Canvas::Canvas (ForgeProcessor& p)
         add (s, punchDrop, "DROP", false, "How fast the punch pitch falls");
         add (s, punchDecay, "DECAY", false, "How long the punch rings");
         add (s, punchDrive, "DRIVE", false, "Distorts the punch: from a clean sine to a hard, modern 'tok'");
+        add (s, punchLen, "LENGTH", false, "TOK: the punch holds its level this long and is cut (like tok samples, 100 - 150 ms). DECAY (0) = the old fading punch");
         punchOn = std::make_unique<Switch> (p.apvts, ParamIDs::punchOn, "ON", Switch::Power, 1);
         addAndMakeVisible (*punchOn);
         punchInto = std::make_unique<Switch> (p.apvts, ParamIDs::punchInto, "INTO DIST", Switch::Chip, 1);
@@ -498,7 +499,16 @@ Canvas::Canvas (ForgeProcessor& p)
         add (s, output, "OUTPUT", true, "Output level");
         s.sideW = -30;      // room for the meter on the right
     }
-    // ---- row D: REVERSE BASS (v2.1, from Damian's dkd)
+    // ---- row D: FIXED HEAD | REVERSE BASS (v2.1)
+    {
+        auto& s = section ("FIXED HEAD", 0);
+        add (s, headLen, "LENGTH", false, "How long the head stays the same on every note (the reference kicks: 100 - 130 ms)");
+        add (s, headHz, "PITCH", false, "The note the head is always played on - the tail moves to the played note after LENGTH");
+        headOn = std::make_unique<Switch> (p.apvts, ParamIDs::headOn, "ON", Switch::Power, 0);
+        headOn->setTooltip ("ON: the start of the kick (punch + the first part of the tail) is exactly the same on every note, like real hardstyle kicks; "
+                            "only the tail follows the key. OFF: the whole kick moves with the note");
+        addAndMakeVisible (*headOn);
+    }
     {
         auto& s = section ("REVERSE BASS", 1);
         rbPattern = std::make_unique<Choice> (p.apvts, ParamIDs::rbPattern, Choices::rbPatterns, 1, true);
@@ -530,7 +540,7 @@ void Canvas::resized()
     presets.setBounds (W - m - 300, 34, 300, 90);
     anvil.setBounds (m, 150, W - 2 * m, 250);
     // widths per row (sum + gaps = W - 2m)
-    const std::vector<std::vector<int>> rows { { 640, 300, 242, 236 }, { 340, 392, 286, 220, 166 }, { 480, 300, 236, 402 }, { W - 2 * m } };
+    const std::vector<std::vector<int>> rows { { 640, 300, 242, 236 }, { 340, 392, 286, 220, 166 }, { 560, 270, 216, 372 }, { 330, W - 2 * m - 330 - gap } };
     size_t si = 0;
     int y = 414;
     for (auto& r : rows)
@@ -545,7 +555,7 @@ void Canvas::resized()
         if (sec.side != nullptr) { sec.side->setBounds (a.removeFromLeft (sec.sideW).withSizeKeepingCentre (sec.sideW, jmin (a.getHeight(), 128))); a.removeFromLeft (8); }
         if (sec.sideW < 0) { meter.setBounds (a.removeFromRight (22).reduced (0, 6)); a.removeFromRight (8); }
         if (sec.title == "SAMPLE") { sampleNameArea = a.removeFromBottom (18); }
-        if (sec.title == "REVERSE BASS") { bassLane.setBounds (a.removeFromRight (470).reduced (0, 2)); a.removeFromRight (12); }
+        if (sec.title == "REVERSE BASS") { bassLane.setBounds (a.removeFromRight (380).reduced (0, 2)); a.removeFromRight (12); }
         const float cw = (float) a.getWidth() / (float) jmax<size_t> (1, sec.knobs.size());
         for (size_t i = 0; i < sec.knobs.size(); ++i)
             sec.knobs[i]->setBounds (Rectangle<int> (a.getX() + (int) (cw * (float) i), a.getY(), (int) cw, a.getHeight()).withSizeKeepingCentre (jmin ((int) cw - 2, 100), a.getHeight()));
@@ -559,7 +569,8 @@ void Canvas::resized()
         h.removeFromRight (8);
         punchInto->setBounds (h.removeFromRight (104));
     }
-    rbOn->setBounds (head (sections[13]).removeFromRight (100));
+    headOn->setBounds (head (sections[13]).removeFromRight (100));
+    rbOn->setBounds (head (sections[14]).removeFromRight (100));
     {
         auto h = head (sections[10]);
         clearBtn.setBounds (h.removeFromRight (30));

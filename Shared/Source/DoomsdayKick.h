@@ -25,6 +25,10 @@ namespace doomsday::kick
     {
         // tail
         float tailDb = 0.f, startRatio = 3.5f, dropMs = 60.f, curve = 4.f, wave = 0.f, tuneSemis = 0.f, holdMs = 0.f;   // hold: pitch stays at START before it drops
+        // FIXED HEAD (2026-10-22, from the owner's reference kicks: the first ~100-130 ms are identical on every note):
+        // for headMs the pitch is computed on headHz instead of the played note, then it glides (headGlideMs) onto the note
+        bool  headFixed = false;
+        float headMs = 110.f, headHz = 49.f, headGlideMs = 8.f;
         bool  pitchDrawn = false;                   // true: the drawn PITCH envelope (0..1 = 0..+48 semitones over the note) replaces START / DROP / CURVE / HOLD
         // distortion chain: STAGE 1 -> MID EQ -> STAGE 2 -> filters
         int   distType = 1;                         // 0 SOFT, 1 TUBE, 2 HARD, 3 FOLD, 4 RAW
@@ -40,8 +44,11 @@ namespace doomsday::kick
         // punch + click
         bool  punchOn = true;
         float punchDb = -6.f, punchStartHz = 400.f, punchEndHz = 90.f, punchDropMs = 12.f, punchDecayMs = 40.f, punchDriveDb = 0.f;
-        bool  punchIntoDist = false;                // true: the punch goes through the tail's distortion chain (sounds like the start of the
-                                                    // tail, but keeps its own pitch on every note - the owner's wish, 2026-10-22)
+        float punchLenMs = 0.f;                     // > 0: TOK punch - spike, short dip, a level shelf for this long, then a hard cut
+                                                    // (the owner's tok references: 100-150 ms, cut, not a ring-out); 0 = the old decaying punch
+        bool  punchIntoDist = false;                // true: the punch gets its own copy of the tail's distortion (STAGE 1 type + drive, HIGH CUT,
+                                                    // SCREAM): sounds like the start of the tail, keeps its own pitch on every note and is NOT
+                                                    // shaped by the AMP envelope (so a tail that fades in under it leaves the tok alone)
         float clickDb = -14.f, clickHz = 5000.f, clickMs = 4.f;
         // envelopes over LENGTH (time axis in per-mille: 0 = hit, 1000 = LENGTH)
         float lengthMs = 410.f;
@@ -157,7 +164,7 @@ namespace doomsday::kick
             ampSeg = driveSeg = pitchSeg = 0; fade = 1.f; fadeStep = 0.f;
             pre = {}; lc = {}; hc1 = {}; hc2 = {}; sc = {}; crHp = {}; dcx = dcy = 0.f; ck = {}; ck2 = {};
             noise = 0x12345678u; gnoise = 0x9e3779b9u; cnoise = 0x7f4a7c15u; grHp = {}; bodyLp = {}; ch1 = {}; ch2 = {};
-            midF.reset(); room.clear(); subY1 = {}; subY2 = {}; subS1 = {}; subS2 = {};
+            midF.reset(); room.clear(); subY1 = {}; subY2 = {}; subS1 = {}; subS2 = {}; phc1 = {}; phc2 = {}; psc = {}; plc = {};
         }
         void release (float ms) { fadeStep = 1.f / juce::jmax (1.f, ms * 0.001f * (float) rate); }
         bool isActive() const { return active; }
@@ -173,10 +180,18 @@ namespace doomsday::kick
             const float endMs = p.amp.endMs() / toPm;
             const bool roomAfter = p.room > 0.001f && ! p.roomIntoDist;
             const float tailEnd = endMs + (roomAfter ? room.tailMs() : 0.f);
-            if (ms > tailEnd + 1.f && ms > p.punchDecayMs * 4.f + 10.f) { active = false; return 0.f; }
+            const float punchEnd = p.punchLenMs > 0.5f ? p.punchLenMs + 6.f : p.punchDecayMs * 4.f + 10.f;
+            if (ms > tailEnd + 1.f && ms > punchEnd) { active = false; return 0.f; }
             const float two = juce::MathConstants<float>::twoPi;
             // --- tail oscillator: pitch from START x note down to the note (or the drawn PITCH envelope)
-            const float endHz = baseHz * std::pow (2.f, p.tuneSemis / 12.f);
+            float endHz = baseHz * std::pow (2.f, p.tuneSemis / 12.f);
+            if (p.headFixed)
+            {
+                // the head always plays on headHz (the same hit on every note), then the tail moves onto the note
+                const float u = juce::jlimit (0.f, 1.f, (ms - p.headMs) / juce::jmax (0.5f, p.headGlideMs));
+                const float sm = u * u * (3.f - 2.f * u);
+                endHz = p.headHz * std::pow (endHz / p.headHz, sm);
+            }
             float hz;
             if (p.pitchDrawn) hz = endHz * std::pow (2.f, p.pitch.eval (ms * toPm, pitchSeg) * 4.f);
             else
@@ -188,17 +203,25 @@ namespace doomsday::kick
             const bool inTail = ms <= endMs + 1.f;
             float y = 0.f;
             // --- PUNCH: fast pitch drop in Hz (never follows the note), optionally driven
-            float punch = 0.f;
-            if (p.punchOn && ms < p.punchDecayMs * 4.f + 10.f)
+            float punch = 0.f, punchGate = 1.f;
+            if (p.punchOn && ms < punchEnd)
             {
                 const float ph = p.punchEndHz + (p.punchStartHz - p.punchEndHz) * std::exp (-ms / juce::jmax (0.5f, p.punchDropMs) * 3.f);
                 pphase += ph * inv; if (pphase >= 1.f) pphase -= 1.f;
-                const float pe = std::exp (-ms / juce::jmax (1.f, p.punchDecayMs) * 2.3f) * juce::jmin (1.f, ms / 0.3f + 0.2f);
+                float pe;
+                if (p.punchLenMs > 0.5f)
+                {
+                    // TOK: spike -> DECAY down to a shelf (55 %) -> held for LENGTH -> 5 ms cut
+                    pe = 0.55f + 0.45f * std::exp (-ms / juce::jmax (1.f, p.punchDecayMs) * 2.3f);
+                    pe *= juce::jmin (1.f, ms / 0.3f + 0.2f) * juce::jlimit (0.f, 1.f, (p.punchLenMs + 5.f - ms) / 5.f);
+                }
+                else pe = std::exp (-ms / juce::jmax (1.f, p.punchDecayMs) * 2.3f) * juce::jmin (1.f, ms / 0.3f + 0.2f);
                 float ps = std::sin (two * pphase);
                 if (p.punchDriveDb > 0.05f) ps = std::tanh (ps * c.punchNorm) / std::tanh (c.punchNorm);
                 punch = ps * pe * c.punchG;
+                punchGate = p.punchLenMs > 0.5f ? juce::jlimit (0.f, 1.f, (p.punchLenMs + 5.f - ms) / 5.f) : 1.f;
             }
-            const bool punchInChain = p.punchIntoDist && (inTail || roomAfter);
+
             const float dEnv = p.drive.eval (ms * toPm, driveSeg);
             if (inTail || roomAfter)
             {
@@ -209,7 +232,6 @@ namespace doomsday::kick
                 saw -= doomsday::dsp::polyBlep (phase, hz * inv);
                 const float w = p.wave;
                 float x = inTail ? (w < 0.5f ? s + (tri - s) * (w * 2.f) : tri + (saw - tri) * ((w - 0.5f) * 2.f)) : 0.f;
-                if (punchInChain) x += punch;           // PUNCH INTO DIST: distorted with the tail
                 // --- pre tone (tilt around ~400 Hz)
                 const float lp = pre.lp (x, c.preC);
                 x = lp * (1.f - 0.6f * p.tone) + (x - lp) * (1.f + 2.f * p.tone);
@@ -267,7 +289,16 @@ namespace doomsday::kick
                 if (roomAfter) y += room.process (y) * p.room * 1.6f;
             }
             float out = y;
-            if (! punchInChain) out += punch;          // clean punch on top
+            if (p.punchIntoDist && punch != 0.f)
+            {
+                // PUNCH INTO DIST: its own pass through the tail's distortion (TOK)
+                float pd = shape (punch / juce::jmax (1.0e-6f, c.punchG) * std::pow (10.f, p.driveDb / 20.f), p.distType);
+                pd = plc.hp (pd, c.lcC);                // LOW CUT also removes the DC of the asymmetric types
+                pd = phc2.lp (phc1.lp (pd, c.hc), c.hc);
+                if (p.scream > 0.001f) pd = std::tanh (pd + p.scream * 3.f * psc.bp (pd, c.scream));
+                out += pd * c.punchG * punchGate;
+            }
+            else out += punch;                          // clean punch on top
             // --- CLICK: filtered noise burst
             if (p.clickDb > -59.f && ms < p.clickMs * 3.f)
             {
@@ -287,8 +318,8 @@ namespace doomsday::kick
         float inv = 1.f / 192000.f, phase = 0.f, pphase = 0.f, vel = 1.f, baseHz = 49.f, fade = 1.f, fadeStep = 0.f, dcx = 0.f, dcy = 0.f;
         bool active = false;
         int ampSeg = 0, driveSeg = 0, pitchSeg = 0;
-        OnePole pre, lc, crHp, grHp;
-        doomsday::dsp::Svf hc1, hc2, sc, ck, ck2, bodyLp, ch1, ch2;
+        OnePole pre, lc, crHp, grHp, plc;
+        doomsday::dsp::Svf hc1, hc2, sc, ck, ck2, bodyLp, ch1, ch2, phc1, phc2, psc;
         doomsday::dsp::Biquad midF;
         doomsday::dsp::Svf subY1, subY2, subS1, subS2;
         KickRoom room;

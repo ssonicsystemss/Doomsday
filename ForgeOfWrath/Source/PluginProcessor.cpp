@@ -53,7 +53,7 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (b (punchOn, "Punch On", true));
     l.add (f (punchLevel, "Punch Level", { -36.f, 6.f }, -6.f, fm::db, fm::num));
     l.add (f (punchStart, "Punch Start", skew (50.f, 2000.f, 400.f), 400.f, fm::hz, fm::hzIn));
-    l.add (f (punchEnd, "Punch End", skew (30.f, 300.f, 90.f), 90.f, fm::hz, fm::hzIn));
+    l.add (f (punchEnd, "Punch End", skew (30.f, 1200.f, 120.f), 90.f, fm::hz, fm::hzIn));     // v2.1: up to 1.2 kHz (toks rise)
     l.add (f (punchDrop, "Punch Drop", skew (0.5f, 80.f, 12.f), 12.f, fm::ms, fm::msIn));
     l.add (f (punchDecay, "Punch Decay", skew (3.f, 300.f, 40.f), 40.f, fm::ms, fm::msIn));
     l.add (f (chaos, "Chaos", { 0.f, 1.f }, 0.f));
@@ -80,6 +80,15 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (f (rbTone, "Reverse Bass Tone", skew (300.f, 6000.f, 1600.f), 1600.f, fm::hz, fm::hzIn));
     l.add (f (rbLevel, "Reverse Bass Level", { -36.f, 6.f }, -4.f, fm::db, fm::num));
     l.add (b (punchInto, "Punch Into Distortion", false));
+    l.add (b (headOn, "Fixed Head", false));
+    l.add (f (punchLen, "Punch Length", skew (0.f, 250.f, 80.f), 0.f, [] (float v, int) { return v < 0.5f ? String ("DECAY") : fm::ms (v, 0); }, fm::msIn));
+    l.add (f (headLen, "Head Length", skew (20.f, 300.f, 110.f), 110.f, fm::ms, fm::msIn));
+    l.add (f (headHz, "Head Pitch", skew (30.f, 120.f, 55.f), 49.f, [] (float v, int)
+              {
+                  static const char* names[] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+                  const int n = roundToInt (69.0 + 12.0 * std::log2 (v / 440.0));
+                  return String (v, 1) + " Hz (" + names[(n % 12 + 12) % 12] + String (n / 12 - 1) + ")";
+              }, fm::hzIn));
     l.add (f (tailFine, "Tail Fine Tune", { -100.f, 100.f }, 0.f, [] (float v, int) { return (v > 0.5f ? "+" : "") + String (roundToInt (v)) + " ct"; }, fm::num));
     return l;
 }
@@ -161,6 +170,7 @@ void ForgeProcessor::randomizeSound()
     set (crunch, rng.nextFloat() < 0.5f ? between (0.2f, 0.9f) : 0.f); set (crunchDec, logB (40.f, 300.f));
     set (body, between (-2.f, 6.f)); set (grit, rng.nextFloat() < 0.5f ? between (0.05f, 0.5f) : 0.f);
     set (punchInto, rng.nextFloat() < 0.7f ? 1.f : 0.f);
+    set (headOn, rng.nextFloat() < 0.7f ? 1.f : 0.f); set (headLen, between (80.f, 140.f));
     set (punchLevel, between (-14.f, -2.f)); set (punchStart, logB (200.f, 900.f)); set (punchEnd, logB (60.f, 150.f)); set (punchDrop, logB (4.f, 30.f)); set (punchDecay, logB (15.f, 80.f));
     set (chaos, rng.nextFloat() < 0.7f ? between (0.2f, 0.8f) : 0.f); set (chaosDec, logB (20.f, 150.f)); set (chaosHz, logB (800.f, 6000.f));
     set (clickLevel, between (-30.f, -8.f)); set (clickHz, logB (2000.f, 10000.f));
@@ -198,7 +208,8 @@ ForgeParams ForgeProcessor::gather() const
     k.bodyDb = get (body); k.grit = get (grit); k.cleanSubHz = get (cleanSub);
     k.punchOn = get (punchOn) > 0.5f; k.punchDb = get (punchLevel); k.punchStartHz = get (punchStart); k.punchEndHz = get (punchEnd);
     k.punchDropMs = get (punchDrop); k.punchDecayMs = get (punchDecay);
-    k.punchIntoDist = get (punchInto) > 0.5f;
+    k.punchIntoDist = get (punchInto) > 0.5f; k.punchLenMs = get (punchLen);
+    k.headFixed = get (headOn) > 0.5f; k.headMs = get (headLen); k.headHz = get (headHz);
     k.chaos = get (chaos); k.chaosMs = get (chaosDec); k.chaosHz = get (chaosHz);
     k.clickDb = get (clickLevel); k.clickHz = get (clickHz); k.clickMs = get (clickLen);
     k.lengthMs = get (length);

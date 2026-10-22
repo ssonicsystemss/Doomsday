@@ -35,6 +35,10 @@ Dopisuj po każdej uwadze właściciela („brzmi źle”, „słabo działa”,
 - „Punch chuja daje”: czysty sinusowy PUNCH ginie przy przesterowanym ogonie; to, co właściciel słyszy jako uderzenie, to początek
   ogona (START × nuta, więc chodzi z nutą). Chce: punch brzmiący jak początek taila, ale ze stałą wysokością → PUNCH INTO DIST
   (punch przez łańcuch przesterów ogona, wysokość tylko z gałek), domyślnie włączony w INIT.
+- Wzorce OPS (2026-10-22): kick na C / D / G / A jest **identyczny co do próbki przez pierwsze 105–130 ms**, potem ogon na nucie
+  (D1 = 36.7 Hz). W tej „głowie” gra TOK: środek ~300–700 Hz (często rośnie), szpic → dołek ~15 ms → półka → ucięcie po 100–150 ms,
+  crest 2–3, centroid 0.8–1.6 kHz; tok ~4 dB ciszej niż ogon. Ogon pod tokiem prawie cichy. → FIXED HEAD + TOK punch (LENGTH)
+  + punch z własnym przesterem poza obwiednią AMP. Pomiar: `zero-crossing / DFT` w scratchpadzie, wzorce są właściciela (nie w git).
 - Wniosek: reverse w kicku to jego sposób pracy → sekcja REVERSE BASS (v2.1) jako uzupełnienie, nie zamiennik obwiedni.
 
 ## Z dkd Damiana (`ssonicsystemss/dkd`, 2026-10-22) – technika, której nam brakowało (szczegóły: RESEARCH.md)

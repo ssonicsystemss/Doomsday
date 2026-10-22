@@ -211,6 +211,18 @@ int main (int argc, char** argv)
         check (finite && ab.getMagnitude (0, 0, ab.getNumSamples()) < 1.05f, "PUNCH INTO DIST: clean output");
         writeWav (outDir.getChildFile ("punch_into_ab.wav"), ab);
     }
+    // 11) FIXED HEAD: like the owner's reference kicks - the first part is identical on G1 and D2, the tail is on the note
+    {
+        sr = 48000.0;
+        p.setCurrentProgram (0); set (p, ParamIDs::headOn, 1.f); set (p, ParamIDs::headLen, 110.f);
+        hit (p, 31, 1.0);                                       // flush the previous voice
+        auto g1 = hit (p, 31, 1.0), d2 = hit (p, 38, 1.0);
+        double diff = 0, all = 0;
+        for (int i = 0; i < (int) (0.1 * sr); ++i) { const double a = g1.getSample (0, i), b = d2.getSample (0, i); diff += (a - b) * (a - b); all += a * a; }
+        const double tailG = pitchAt (g1, 0.25, 0.08), tailD = pitchAt (d2, 0.25, 0.08);
+        check (diff < all * 1e-6 && std::abs (tailG - 49.0) < 3.0 && std::abs (tailD - 73.4) < 4.0, "FIXED HEAD: same first 100 ms on every note, tail on the note",
+               "(head diff " + String (10.0 * std::log10 (diff / (all + 1e-20) + 1e-20), 1) + " dB, tails " + String (tailG, 1) + " / " + String (tailD, 1) + " Hz)");
+    }
     // 7) REVERSE BASS (v2.1): a kick on every beat at 150 BPM -> bass swells between them, on the note, clean gap before each kick
     {
         int rbPreset = 0;

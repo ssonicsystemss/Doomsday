@@ -16,6 +16,8 @@ on:
       - 'ThroneOfTitans/**'
       - '.github/workflows/build-throne-of-titans.yml'
       - 'ForgeOfWrath/**'
+      - 'FourGE/**'
+      - '.github/workflows/build-4ge.yml'
       - 'ScreamAlpha/**'
       - '.github/workflows/build-ScreamAlpha.yml'
       - '.github/workflows/build-forge-of-wrath.yml'

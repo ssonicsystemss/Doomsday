@@ -301,6 +301,9 @@ ma nowe ID i wartość neutralną, więc presety właściciela (QL / Nice / Sgsd
 | Testy | head identity, pitch, szczyty presetów | 2 rendery bit w bit, 44.1 / 48 / 96, sam punch / sam tail, drive monotoniczny, aliasing |
 | Ponad dokument (smaczki właściciela) | REVERSE BASS z odwróconego taila (PEAK, PUMP, SUB), OTT, SAMPLE layer | umieścić jako 5. sekcję w MIX BUS |
 
+**Stan (2026-10-23): właściciel zamknął Forge – plan realizuje nowa wtyczka 4GE (`FourGE/`). v0.1 = kroki A + większość B, C, D, E
+(bez: rysowanego pitch / amp toka, 2 punchy, crossovera, WIDTH, QUALITY, EXPORT, A/B).**
+
 **Plan kroków (propozycja – kolejność do potwierdzenia po pomiarach ~35 referencji i uchem właściciela):**
 - **A. Małe gałki, zero ryzyka:** SUB LEVEL, PUNCH AMOUNT, BIAS / MIX / GAIN na STAGE 1 i 2 (+ DC block, auto-gain z `Shared/`),
   ATTACK taila / puncha, ROOM LOW CUT, PHASE taila / puncha, SOLO / MUTE warstw (nie zapisywane).

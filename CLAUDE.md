@@ -13,7 +13,8 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
 | Abyss of Echoes | `AbyssOfEchoes/` | reverb / delay / stereo |
 | Throne of Titans | `ThroneOfTitans/` | multiband master + limiter + LUFS (LEARN) |
 | 5CR34M 4LPH4 | `ScreamAlpha/` | new screech synth (successor of PoS) – **v0.4 test build** (engine `Source/AlphaEngine.h`, MOD 1/2 with ASSIGN + drawn shapes `Source/AlphaMod.h`, flat UI, owner presets 6/7/8); plan `PLAN.md`, offline prototype `Proto/`, reference analysis + matcher `Tools/` |
-| Forge of Wrath | `ForgeOfWrath/` | hardstyle kick synth (v2: dist chain, room, OTT, drawn pitch, sample layer); preset tuning tools in `Tools/` |
+| Forge of Wrath | `ForgeOfWrath/` | hardstyle kick synth – **frozen at v2.1** (owner, 2026-10-23); its successor is 4GE |
+| 4GE | `FourGE/` | new kick synth (successor of Forge) – **v0.1**: engine `Source/GeKick.h` (PUNCH types / filter / drive, TAIL osc A + B, pre filter + sweep, stage BIAS / MIX / AUTO GAIN, TEXTURE layer, SUB level, BUS dist, SOLO / MUTE), owner's Forge kicks ported as factory presets; plan in its README + `Shared/RESEARCH.md` |
 
 ## Start every task here
 1. `Shared/README.md` – catalogue of reusable DSP / UI / params blocks. Reuse before writing new code.

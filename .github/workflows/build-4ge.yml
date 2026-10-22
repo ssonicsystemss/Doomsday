@@ -1,0 +1,41 @@
+name: Build 4GE VST3
+
+on:
+  push:
+    paths:
+      - 'FourGE/**'
+      - 'Shared/**'
+      - '.github/workflows/build-4ge.yml'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: FourGE
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        run: cmake -B build -A x64
+      - name: Build VST3
+        run: cmake --build build --config Release --target FourGE_VST3 --parallel
+      - name: Remove build leftovers (.lib / .exp), keep the symbols (.pdb) aside
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          New-Item -ItemType Directory -Force build/symbols | Out-Null
+          Get-ChildItem build/FourGE_artefacts -Recurse -Filter *.pdb -ErrorAction SilentlyContinue | Copy-Item -Destination build/symbols -Force -ErrorAction SilentlyContinue
+          Get-ChildItem build/FourGE_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp,*.pdb -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          exit 0
+      - name: Upload VST3
+        uses: actions/upload-artifact@v5
+        with:
+          name: 4GE-VST3-Windows
+          path: FourGE/build/FourGE_artefacts/Release/VST3/
+      - name: Upload symbols (for crash logs)
+        uses: actions/upload-artifact@v5
+        with:
+          name: 4GE-symbols
+          path: FourGE/build/symbols/
+          if-no-files-found: warn

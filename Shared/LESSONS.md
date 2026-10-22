@@ -186,7 +186,18 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   Presety 6 / 7 grały przez niego (Wobble + Depth na otwartym filtrze), więc MOD na CUTOFF zawsze trzyma ladder włączony.
   Przy zmianach toru: porównać RMS / peak fabrycznych presetów przed i po (RenderTest wypisuje je). Uwaga: Wobble z Cutoff 20 kHz i Depth + nic nie robi (filtr i tak otwarty).
 
+## Forge of Wrath – zamknięty po v2.1, następca 4GE (2026-10-23)
+- Właściciel przeanalizował architekturę hardstyle kicka (dokument w częściach, porównanie w `RESEARCH.md`) i zdecydował:
+  Forge zamrożony, nowy kick synth **4GE** (`FourGE/`) na silniku Forge + brakujące moduły. Kompatybilność z presetami `.fow`
+  **niepotrzebna** („prościej będzie”), ale jego kicki przeniesione jako presety fabryczne (te same nazwy parametrów, AUTO GAIN off,
+  ROOM LOW CUT otwarty → brzmią jak w Forge).
+- Smaczki z Forge, które mają zostać w 4GE: tok jak początek taila (INTO DIST), FIXED HEAD, reverse bass z odwróconego taila z wczesnym
+  szczytem / PUMP + SUB, krótki kick (~170 ms) pod reverse bassem.
+
 ## Technika (pułapki)
+- **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
+  odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:
+  `R = exp (-2π · 5 Hz / rate)`. Test „44.1 / 48 / 96 kHz brzmią tak samo” (4GE RenderTest) to wyłapał.
 - **RANDOMIZE bez wyrównania głośności** (PoS do v3.1): losowe brzmienia wychodziły 10–20 dB ciszej niż presety (filtr BAND, formant,
   FOLD) – właściciel: „tych z randomu wgl nie słychać”. → Po losowaniu zmierz brzmienie offline (prywatny silnik, 2 trzymane nuty,
   RMS) i ustaw VOLUME na cel (2 przejścia, bo soft clip nie jest liniowy). Test: `randomize level` w RenderTest PoS.

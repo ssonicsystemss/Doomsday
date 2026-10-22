@@ -72,6 +72,7 @@ namespace ParamIDs
     inline constexpr const char* rbDrive   = "rb_drive";
     inline constexpr const char* rbTone    = "rb_tone";
     inline constexpr const char* rbLevel   = "rb_level";
+    inline constexpr const char* tailFine  = "tail_fine";    // v2.1: fine pitch of the tail in cents
 }
 
 namespace Choices

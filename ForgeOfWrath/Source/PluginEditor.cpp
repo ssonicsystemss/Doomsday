@@ -388,7 +388,8 @@ Canvas::Canvas (ForgeProcessor& p)
         add (s, tailHold, "HOLD", false, "The pitch stays up at START this long before it drops (the 'piercing' high hit of uptempo / electro kicks)");
         add (s, tailCurve, "CURVE", false, "Shape of the pitch fall: low = slow glide, high = fast snap then a long settle");
         add (s, tailWave, "WAVE", false, "Oscillator before the distortion: sine > triangle > saw (more buzz)");
-        add (s, tune, "TUNE", true, "Tune the whole kick in semitones (the note you play still sets the key)");
+        add (s, tune, "PITCH", true, "Pitch of the TAIL only, in semitones (PUNCH and CLICK keep their own pitch; the note you play still sets the key)");
+        add (s, tailFine, "FINE", true, "Fine pitch of the tail in cents (100 ct = 1 semitone)");
         pitchMode = std::make_unique<Choice> (p.apvts, ParamIDs::pitchMode, Choices::pitchModes, 0);
         pitchMode->setTooltip ("CURVE = pitch from the knobs, DRAWN = pitch from the PITCH envelope on the screen");
         addAndMakeVisible (*pitchMode);
@@ -525,7 +526,7 @@ void Canvas::resized()
     presets.setBounds (W - m - 300, 34, 300, 90);
     anvil.setBounds (m, 150, W - 2 * m, 250);
     // widths per row (sum + gaps = W - 2m)
-    const std::vector<std::vector<int>> rows { { 560, 320, 262, 276 }, { 340, 392, 286, 220, 166 }, { 480, 300, 236, 402 }, { W - 2 * m } };
+    const std::vector<std::vector<int>> rows { { 640, 300, 242, 236 }, { 340, 392, 286, 220, 166 }, { 480, 300, 236, 402 }, { W - 2 * m } };
     size_t si = 0;
     int y = 414;
     for (auto& r : rows)

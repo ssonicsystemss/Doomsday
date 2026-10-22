@@ -175,6 +175,15 @@ int main (int argc, char** argv)
         const double secs = std::chrono::duration<double> (std::chrono::high_resolution_clock::now() - t0).count();
         check (secs / 10.0 < 0.15, "CPU (10 s of kicks at 150 BPM)", String (secs / 10.0 * 100.0, 1) + " %");
     }
+    // 8) PITCH / FINE move the tail only
+    {
+        p.setCurrentProgram (0); sr = 48000.0;
+        set (p, ParamIDs::tune, 5.f); set (p, ParamIDs::tailFine, 50.f);
+        auto b = hit (p, 31, 0.5);
+        const double hz = pitchAt (b, 0.3, 0.08), want = 49.0 * std::pow (2.0, 5.5 / 12.0);
+        check (std::abs (hz - want) < 3.0, "PITCH +5 st, FINE +50 ct -> tail on 66.7 Hz", String (hz, 1) + " Hz");
+        set (p, ParamIDs::tune, 0.f); set (p, ParamIDs::tailFine, 0.f);
+    }
     // 7) REVERSE BASS (v2.1): a kick on every beat at 150 BPM -> bass swells between them, on the note, clean gap before each kick
     {
         int rbPreset = 0;

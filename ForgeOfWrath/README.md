@@ -5,6 +5,7 @@ Bas narasta między kickami, na końcu podjeżdża w górę (jak odwrócony ogon
 Włącznik ON, kroki **1/4 / 1/8 / 1/16**, **IN / OUT** (gdzie w kroku zaczyna i kończy), **CURVE** (wcześnie / późno), **RISE** (podjazd),
 **TUNE** (względem nuty kicka), **DRIVE**, **TONE**, **LEVEL**. Okienko obok pokazuje jeden beat: kick (jego LENGTH) i bas –
 napis **OVERLAP**, gdy kick wchodzi na bas (skróć LENGTH albo przesuń IN). Presety: BASS - Euphoric Kick + Reverse Bass, BASS - Raw Kick + Dirty Reverse.
+**PITCH + FINE w sekcji TAIL** stroją sam ogon (półtony + centy); PUNCH i CLICK zostają na swoich wysokościach.
 Twoje kicki: **OWNER - Nice / Nice 1 / Sgsdg** (dokładnie tak, jak je ustawiłeś; mają szczyt trochę ponad 0 dB – OUTPUT −1.5 dB, jeśli przeszkadza).
 
 **v2:** łańcuch STAGE 1 → MID EQ → STAGE 2, ROOM (INTO DIST), OTT, rysowany PITCH, PUNCH DRIVE, CHAOS, HOLD, własny SAMPLE (LOAD / przeciągnij WAV), **CLEAN SUB** (poniżej wybranej częstotliwości czysty sinus zamiast przesteru – ciasny dół, clipper go nie rusza).
@@ -34,7 +35,7 @@ podwójny klik / prawy klik = usuń. Oś czasu = cała długość (LENGTH) – o
 
 ## Sekcje
 - **TAIL** (ogon): LEVEL, **START** (pitch na starcie = START × nuta), **DROP** (jak długo opada), **CURVE** (kształt opadania),
-  **WAVE** (sinus → trójkąt → piła przed przesterem), **TUNE**.
+  **WAVE** (sinus → trójkąt → piła przed przesterem), **PITCH** (półtony) + **FINE** (centy) – tylko ogon, punch bez zmian.
 - **DISTORTION**: TYPE (SOFT, TUBE, HARD, FOLD, **RAW**), **DRIVE**, TONE (przed przesterem: bas ↔ środek), LOW CUT, HIGH CUT,
   **SCREAM** + SCREAM HZ (rezonansowy „wrzask” rawstyle), **CRUNCH** + CRUNCH DEC (ostry trzask na początku ogona),
   **BODY** (po przesterze: więcej / mniej dołu), **GRIT** („piasek” – brudna faktura na ogonie).

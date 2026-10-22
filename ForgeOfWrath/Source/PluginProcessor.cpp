@@ -79,6 +79,7 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (f (rbDrive, "Reverse Bass Drive", { 0.f, 36.f }, 14.f, fm::db, fm::num));
     l.add (f (rbTone, "Reverse Bass Tone", skew (300.f, 6000.f, 1600.f), 1600.f, fm::hz, fm::hzIn));
     l.add (f (rbLevel, "Reverse Bass Level", { -36.f, 6.f }, -4.f, fm::db, fm::num));
+    l.add (f (tailFine, "Tail Fine Tune", { -100.f, 100.f }, 0.f, [] (float v, int) { return (v > 0.5f ? "+" : "") + String (roundToInt (v)) + " ct"; }, fm::num));
     return l;
 }
 
@@ -189,7 +190,7 @@ ForgeParams ForgeProcessor::gather() const
     using namespace ParamIDs;
     ForgeParams e;
     auto& k = e.k;
-    k.tailDb = get (tailLevel); k.startRatio = get (tailStart); k.dropMs = get (tailDrop); k.curve = get (tailCurve); k.holdMs = get (tailHold); k.wave = get (tailWave); k.tuneSemis = get (tune);
+    k.tailDb = get (tailLevel); k.startRatio = get (tailStart); k.dropMs = get (tailDrop); k.curve = get (tailCurve); k.holdMs = get (tailHold); k.wave = get (tailWave); k.tuneSemis = get (tune) + get (tailFine) / 100.f;
     k.distType = jlimit (0, 4, (int) std::round (get (distType))); k.driveDb = get (ParamIDs::drive); k.tone = get (tone); k.lowCutHz = get (lowCut); k.highCutHz = get (highCut);
     k.scream = get (scream); k.screamHz = get (screamHz); k.crunch = get (crunch); k.crunchDecayMs = get (crunchDec);
     k.bodyDb = get (body); k.grit = get (grit); k.cleanSubHz = get (cleanSub);

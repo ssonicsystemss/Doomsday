@@ -446,6 +446,13 @@ namespace
             search.setTextToShowWhenEmpty ("SEARCH...", Colours::grey);
             search.addListener (this);
             addAndMakeVisible (search);
+            folder = bar.presetHost().userPresetFolder();
+            if (folder != File())
+            {
+                openFolder.setTooltip ("Open the folder with your own presets (" + folder.getFullPathName() + ")");
+                openFolder.onClick = [this] { folder.createDirectory(); folder.startAsProcess(); };
+                addAndMakeVisible (openFolder);
+            }
             cats.add ("ALL"); cats.add ("FAVOURITES");
             for (auto& e : bar.entries()) if (! cats.contains (e.category)) cats.add (e.category);
             catModel.owner = this;              // BEFORE setModel: the ListBox asks the model for rows right away (FL crash, 2026-10-22)
@@ -461,7 +468,9 @@ namespace
         void resized() override
         {
             auto r = getLocalBounds().reduced (8);
-            search.setBounds (r.removeFromTop (30));
+            auto top = r.removeFromTop (30);
+            if (openFolder.isVisible()) { openFolder.setBounds (top.removeFromRight (150)); top.removeFromRight (6); }
+            search.setBounds (top);
             r.removeFromTop (6);
             catList.setBounds (r.removeFromLeft (130));
             r.removeFromLeft (6);
@@ -521,6 +530,8 @@ namespace
         }
         PresetBar& bar;
         TextEditor search;
+        TextButton openFolder { "MY PRESETS FOLDER" };
+        File folder;
         ListBox catList, presetList;
         StringArray cats;
         String cat { "ALL" };

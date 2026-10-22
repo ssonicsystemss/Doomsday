@@ -153,6 +153,7 @@ namespace doomsday::ui
         virtual void randomizeSound() = 0;
         virtual juce::String currentPresetName() = 0;
         virtual juce::String presetFolderText() = 0;
+        virtual juce::File userPresetFolder() { return {}; }          // the browser's OPEN FOLDER button (empty = no button)
         virtual void audition (bool) {}
         virtual juce::UndoManager* undoManager() { return nullptr; }   // give one to the APVTS -> Ctrl+Z / UNDO buttons
     };
@@ -178,6 +179,7 @@ namespace doomsday::ui
         bool isFavourite (const juce::String& name) const { return favourites.contains (name); }
         void toggleFavourite (const juce::String& name);
         void openBrowser();                 // what a click on the name does (public for tests)
+        PresetHost& presetHost() { return host; }
     private:
         bool keyPressed (const juce::KeyPress&, juce::Component*) override;
         void step (int);

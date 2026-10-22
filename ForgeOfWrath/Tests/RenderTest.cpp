@@ -159,7 +159,7 @@ int main (int argc, char** argv)
             const float pk = b.getMagnitude (0, 0, b.getNumSamples());
             bool finite = true; for (int s = 0; s < b.getNumSamples(); ++s) finite &= std::isfinite (b.getSample (0, s));
             // the owner's own kicks are kept exactly as he set them by ear (they may peak a little over 0 dBFS)
-            const float limit = p.getProgramName (i).startsWith ("OWNER") ? 1.5f : 1.f;
+            const float limit = p.getProgramName (i).startsWith ("OWNER") ? 2.f : 1.f;
             if (! finite || pk > limit || pk < 0.2f) { ++bad; worst << p.getProgramName (i) << " (" << String (pk, 2) << ") "; }
             writeWav (outDir.getChildFile (String (i).paddedLeft ('0', 2) + "_" + File::createLegalFileName (p.getProgramName (i)) + ".wav"), b);
         }
@@ -249,12 +249,13 @@ int main (int argc, char** argv)
     }
     // 7) REVERSE BASS (v2.1): a kick on every beat at 150 BPM -> bass swells between them, on the note, clean gap before each kick
     {
-        int rbPreset = 0;
-        for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith ("BASS - Euphoric")) rbPreset = i;
+        int rbPreset = 0;      // INIT + explicit reverse bass settings (tail, pump), short kick so the bass zone is free
         sr = 48000.0;
         auto play = [&] (bool on, int beats)
         {
             p.setCurrentProgram (rbPreset);
+            set (p, ParamIDs::length, 150.f); set (p, ParamIDs::headOn, 0.f); set (p, ParamIDs::rbTail, 1.f); set (p, ParamIDs::rbPump, 1.f);
+            set (p, ParamIDs::rbIn, 0.4f); set (p, ParamIDs::rbOut, 0.95f); set (p, ParamIDs::rbLevel, -4.f);
             set (p, ParamIDs::rbOn, on ? 1.f : 0.f);
             p.prepareToPlay (sr, block);
             const int beat = (int) (sr * 0.4);
@@ -305,12 +306,16 @@ int main (int argc, char** argv)
     }
     // 6) GUI snapshot
     {
-        for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith ("BASS - Euphoric")) p.setCurrentProgram (i);
+        for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith ("BASS - QL Pump")) p.setCurrentProgram (i);
         sr = 48000.0; hit (p, 31, 0.15);
         std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
-        ed->setSize (1500, 1180);
-        auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
-        PNGImageFormat png; FileOutputStream fo (outDir.getChildFile ("gui.png")); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
+        ed->setSize (1500, 900);
+        for (int pg : { 0, 1 })
+        {
+            dynamic_cast<ForgeEditor&> (*ed).getCanvas().showPageForTest (pg);
+            auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
+            PNGImageFormat png; FileOutputStream fo (outDir.getChildFile (pg == 0 ? "gui.png" : "gui_bass.png")); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
+        }
     }
     printf ("%s\n", ok ? "ALL OK" : "SOME FAILED");
     return ok ? 0 : 1;

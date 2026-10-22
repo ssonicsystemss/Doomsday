@@ -362,7 +362,7 @@ void BassLane::paint (Graphics& g)
 Canvas::Section& Canvas::section (const String& title, int accent)
 {
     sections.push_back ({});
-    sections.back().title = title; sections.back().accent = accent;
+    sections.back().title = title; sections.back().accent = accent; sections.back().page = buildPage;
     return sections.back();
 }
 
@@ -499,7 +499,8 @@ Canvas::Canvas (ForgeProcessor& p)
         add (s, output, "OUTPUT", true, "Output level");
         s.sideW = -30;      // room for the meter on the right
     }
-    // ---- row D: FIXED HEAD | REVERSE BASS (v2.1)
+    // ---- page 2: FIXED HEAD | REVERSE BASS (v2.1)
+    buildPage = 1;
     {
         auto& s = section ("FIXED HEAD", 0);
         add (s, headLen, "LENGTH", false, "How long the head stays the same on every note (the reference kicks: 100 - 130 ms)");
@@ -518,7 +519,9 @@ Canvas::Canvas (ForgeProcessor& p)
         add (s, rbIn, "IN", false, "Where in each step the bass starts to swell");
         add (s, rbOut, "OUT", false, "Where it stops - the rest of the step is a clean gap before the next kick");
         add (s, rbCurve, "CURVE", false, "Swell shape: low = rises early and long, high = a late, hard suck-in");
-        add (s, rbPeak, "PEAK", false, "Where the bass is loudest (% of IN..OUT); after it it fades to silence at OUT. 100 % = loudest right at OUT");
+        add (s, rbPeak, "PEAK", false, "SWELL only: where the bass is loudest (% of IN..OUT); after it it fades to silence at OUT");
+        add (s, rbRelease, "RELEASE", false, "PUMP: how fast the bass comes back after the kick (like a sidechain release)");
+        add (s, rbFade, "FADE", false, "PUMP: how short the cut right before the next kick is");
         add (s, rbRise, "RISE", false, "Pitch rise at the end of every swell (FROM TAIL off; with FROM TAIL the tail's own pitch drop is the rise)");
         add (s, rbTune, "TUNE", true, "Bass pitch against the kick note in semitones (12 = an octave up)");
         add (s, rbDrive, "DRIVE", false, "Distortion of the bass: from a clean sub to a buzzing saw");
@@ -531,36 +534,72 @@ Canvas::Canvas (ForgeProcessor& p)
         rbTail->setTooltip ("ON: the bass is the kick's own tail played backwards (its distortion, its pitch drop becomes the rise). "
                             "OFF: a saw + sine bass with RISE");
         addAndMakeVisible (*rbTail);
+        rbPump = std::make_unique<Switch> (p.apvts, ParamIDs::rbPump, "PUMP", Switch::Chip, 1);
+        rbPump->setTooltip ("ON: sidechain shape - the kick ducks the bass, it comes back in RELEASE, holds and is cut in FADE before the next kick "
+                            "(like the FHSP reversed bass kicks). OFF: SWELL - a slow rise to PEAK");
+        addAndMakeVisible (*rbPump);
         addAndMakeVisible (bassLane);
     }
+    for (auto* b : { &pageKick, &pageBass })
+    {
+        b->setClickingTogglesState (false);
+        addAndMakeVisible (*b);
+    }
+    pageKick.onClick = [this] { showPage (0); };
+    pageBass.onClick = [this] { showPage (1); };
+    pageBass.setTooltip ("FIXED HEAD (the same start on every note) and REVERSE BASS (from the kick's own tail, pumping)");
     setSize (W, H);
+    showPage (0);
     timerCallback();
     startTimerHz (30);
 }
 Canvas::~Canvas() { setLookAndFeel (nullptr); }
 
+void Canvas::showPage (int p)
+{
+    page = jlimit (0, 1, p);
+    pageKick.setToggleState (page == 0, dontSendNotification);
+    pageBass.setToggleState (page == 1, dontSendNotification);
+    for (auto& sec : sections)
+    {
+        const bool on = sec.page == page;
+        for (auto& k : sec.knobs) k->setVisible (on);
+        if (sec.side != nullptr) sec.side->setVisible (on);
+    }
+    for (auto* c : { (Component*) pitchMode.get(), (Component*) roomInto.get(), (Component*) punchOn.get(), (Component*) punchInto.get(),
+                     (Component*) &loadBtn, (Component*) &clearBtn, (Component*) &meter })
+        c->setVisible (page == 0);
+    for (auto* c : { (Component*) headOn.get(), (Component*) rbOn.get(), (Component*) rbTail.get(), (Component*) rbPump.get(), (Component*) &bassLane })
+        c->setVisible (page == 1);
+    resized();
+    repaint();
+}
+
 void Canvas::resized()
 {
-    const int m = 20, gap = 14, rowH = 176;
+    const int m = 20, gap = 10, rowH = 156;
     presets.setBounds (W - m - 300, 34, 300, 90);
-    anvil.setBounds (m, 150, W - 2 * m, 250);
-    // widths per row (sum + gaps = W - 2m)
-    const std::vector<std::vector<int>> rows { { 640, 300, 242, 236 }, { 340, 392, 286, 220, 166 }, { 560, 270, 216, 372 }, { 330, W - 2 * m - 330 - gap } };
+    anvil.setBounds (m, 146, W - 2 * m, 190);
+    pageKick.setBounds (m, 346, 140, 30);
+    pageBass.setBounds (m + 148, 346, 230, 30);
+    // widths per row (sum + gaps = W - 2m); page 1: rows A, B, C; page 2: FIXED HEAD | REVERSE BASS, then the big lane
+    const std::vector<std::vector<int>> rows { { 644, 300, 244, 242 }, { 344, 396, 290, 224, 166 }, { 564, 274, 220, 372 }, { 330, W - 2 * m - 330 - gap } };
     size_t si = 0;
-    int y = 414;
-    for (auto& r : rows)
+    int y = 388;
+    for (size_t r = 0; r < rows.size(); ++r)
     {
+        if (r == 3) y = 388;                         // page 2 starts at the top again
         int x = m;
-        for (int w : r) { if (si < sections.size()) sections[si++].area = { x, y, w, rowH }; x += w + gap; }
+        for (int w : rows[r]) { if (si < sections.size()) sections[si++].area = { x, y, w, rowH }; x += w + gap; }
         y += rowH + gap;
     }
+    bassLane.setBounds (m, 388 + rowH + gap, W - 2 * m, H - 14 - (388 + rowH + gap));
     for (auto& sec : sections)
     {
         auto a = sec.area.reduced (12, 8).withTrimmedTop (36);
         if (sec.side != nullptr) { sec.side->setBounds (a.removeFromLeft (sec.sideW).withSizeKeepingCentre (sec.sideW, jmin (a.getHeight(), 128))); a.removeFromLeft (8); }
         if (sec.sideW < 0) { meter.setBounds (a.removeFromRight (22).reduced (0, 6)); a.removeFromRight (8); }
         if (sec.title == "SAMPLE") { sampleNameArea = a.removeFromBottom (18); }
-        if (sec.title == "REVERSE BASS") { bassLane.setBounds (a.removeFromRight (330).reduced (0, 2)); a.removeFromRight (12); }
         const float cw = (float) a.getWidth() / (float) jmax<size_t> (1, sec.knobs.size());
         for (size_t i = 0; i < sec.knobs.size(); ++i)
             sec.knobs[i]->setBounds (Rectangle<int> (a.getX() + (int) (cw * (float) i), a.getY(), (int) cw, a.getHeight()).withSizeKeepingCentre (jmin ((int) cw - 2, 100), a.getHeight()));
@@ -580,6 +619,8 @@ void Canvas::resized()
         rbOn->setBounds (h.removeFromRight (100));
         h.removeFromRight (8);
         rbTail->setBounds (h.removeFromRight (118));
+        h.removeFromRight (8);
+        rbPump->setBounds (h.removeFromRight (90));
     }
     {
         auto h = head (sections[10]);
@@ -604,9 +645,12 @@ void Canvas::filesDropped (const StringArray& files, int, int)
 void Canvas::paintOverChildren (Graphics& g)
 {
     const String name = proc.sampleName();
-    g.setFont (lnf.valueFont (12.f));
-    g.setColour (name.isEmpty() ? lnf.theme.dim : ForgeTheme::magmaHot);
-    g.drawText (name.isEmpty() ? "NO SAMPLE  -  LOAD OR DROP A WAV" : name, sampleNameArea, Justification::centred, true);
+    if (page == 0)      // the sample name lives on the KICK page
+    {
+        g.setFont (lnf.valueFont (12.f));
+        g.setColour (name.isEmpty() ? lnf.theme.dim : ForgeTheme::magmaHot);
+        g.drawText (name.isEmpty() ? "NO SAMPLE  -  LOAD OR DROP A WAV" : name, sampleNameArea, Justification::centred, true);
+    }
     if (dragHover)
     {
         g.setColour (ForgeTheme::magma.withAlpha (0.12f)); g.fillRect (getLocalBounds());
@@ -684,7 +728,7 @@ void Canvas::renderBackground()
     g.setColour (magma);
     g.drawText ("HAMMERED, NOT MIXED", tx, 76, 320, 16, Justification::left);
     doomsday::brand::drawHeaderBadge (g, ui, 0.55f);
-    for (auto& sec : sections) paint::glassPanel (g, lnf, sec.area, sec.title, sec.accent);
+    for (auto& sec : sections) if (sec.page == page) paint::glassPanel (g, lnf, sec.area, sec.title, sec.accent);
 }
 
 void Canvas::timerCallback()
@@ -705,7 +749,7 @@ ForgeEditor::ForgeEditor (ForgeProcessor& p) : AudioProcessorEditor (p), canvas 
 {
     addAndMakeVisible (canvas);
     setResizable (true, true);
-    setResizeLimits (900, 708, 2250, 1770);
+    setResizeLimits (900, 540, 2250, 1350);
     getConstrainer()->setFixedAspectRatio ((double) Canvas::W / (double) Canvas::H);
-    setSize (1200, 944);
+    setSize (1200, 720);
 }

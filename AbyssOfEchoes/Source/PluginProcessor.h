@@ -49,6 +49,7 @@ public:
     void randomizeSound() override {}
     juce::String currentPresetName() override { return presetName; }
     juce::String presetFolderText() override { return "Documents / Abyss of Echoes / Presets"; }
+    juce::File userPresetFolder() override { return io.folder(); }
     juce::UndoManager* undoManager() override { return &undo; }
 
     EchoEngine& getEngine() { return engine; }

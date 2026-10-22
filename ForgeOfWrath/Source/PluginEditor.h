@@ -61,7 +61,7 @@ private:
 class Canvas : public juce::Component, public juce::FileDragAndDropTarget, private juce::Timer
 {
 public:
-    static constexpr int W = 1500, H = 1180;
+    static constexpr int W = 1500, H = 900;      // two pages (KICK / HEAD + REVERSE BASS): fits FL at a readable size
     bool isInterestedInFileDrag (const juce::StringArray&) override;
     void filesDropped (const juce::StringArray&, int, int) override;
     void paintOverChildren (juce::Graphics&) override;
@@ -70,7 +70,8 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void tickForTest() { timerCallback(); }
-    void openPresetBrowserForTest() { presets.openBrowser(); }      // tests: one UI update without the message loop
+    void openPresetBrowserForTest() { presets.openBrowser(); }
+    void showPageForTest (int p) { showPage (p); }      // tests: one UI update without the message loop
 private:
     void timerCallback() override;
     void renderBackground();
@@ -79,11 +80,14 @@ private:
     juce::Image background;
     AnvilDisplay anvil;
     doomsday::ui::PresetBar presets;
-    struct Section { juce::String title; std::vector<std::unique_ptr<doomsday::ui::Knob>> knobs; juce::Component* side = nullptr; int sideW = 0; int accent = 0; juce::Rectangle<int> area; };
+    struct Section { juce::String title; std::vector<std::unique_ptr<doomsday::ui::Knob>> knobs; juce::Component* side = nullptr; int sideW = 0; int accent = 0; juce::Rectangle<int> area; int page = 0; };
+    int page = 0, buildPage = 0;
+    void showPage (int);
+    juce::TextButton pageKick { "KICK" }, pageBass { "HEAD + REVERSE BASS" };
     std::vector<Section> sections;
     Section& section (const juce::String& title, int accent);
     std::unique_ptr<doomsday::ui::Choice> distType, dist2Type, pitchMode, rbPattern;
-    std::unique_ptr<doomsday::ui::Switch> punchOn, roomInto, rbOn, punchInto, headOn, rbTail;
+    std::unique_ptr<doomsday::ui::Switch> punchOn, roomInto, rbOn, punchInto, headOn, rbTail, rbPump;
     BassLane bassLane;
     juce::TextButton loadBtn { "LOAD" }, clearBtn { "X" };
     std::unique_ptr<juce::FileChooser> chooser;

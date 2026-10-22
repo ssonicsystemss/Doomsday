@@ -79,7 +79,10 @@ namespace ParamIDs
     inline constexpr const char* headHz    = "head_hz";
     inline constexpr const char* punchLen  = "punch_len";
     inline constexpr const char* rbTail    = "rb_tail";
-    inline constexpr const char* rbPeak    = "rb_peak";      // v2.1: where the reverse bass is loudest (then it fades to OUT)      // v2.1: REVERSE BASS from the kick's own tail played backwards    // v2.1: TOK punch length (0 = old decaying punch)   // v2.1: the punch goes through the tail's distortion    // v2.1: fine pitch of the tail in cents
+    inline constexpr const char* rbPeak    = "rb_peak";
+    inline constexpr const char* rbPump    = "rb_pump";      // v2.1: SIDECHAIN shape (duck, release, shelf, cut) instead of SWELL
+    inline constexpr const char* rbRelease = "rb_release";
+    inline constexpr const char* rbFade    = "rb_fade";      // v2.1: where the reverse bass is loudest (then it fades to OUT)      // v2.1: REVERSE BASS from the kick's own tail played backwards    // v2.1: TOK punch length (0 = old decaying punch)   // v2.1: the punch goes through the tail's distortion    // v2.1: fine pitch of the tail in cents
 }
 
 namespace Choices

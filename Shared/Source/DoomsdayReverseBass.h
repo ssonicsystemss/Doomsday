@@ -31,6 +31,10 @@ namespace doomsday::rbass
         float peak = 0.75f;          // where the loudest point is (0..1 of IN..OUT); after it the bass fades to silence at OUT
                                      // (tutorials: swell 100-150 ms, then ~50 ms down to 0 before the kick; >= 0.98 = old: loudest at OUT)
         float saw = 0.45f, sine = 0.7f;
+        // PUMP (sidechain shape, measured on FHSP "reversed bass kicks", 2026-10-22): ducked until IN, then back up in
+        // releaseMs (1 - (1-r)^curve: fast, then landing), a level shelf, cut in fadeMs right before OUT. PEAK is not used.
+        bool  pump = false;
+        float releaseMs = 70.f, fadeMs = 25.f;
     };
 
     // amplitude 0..1 at s (0..1 of a step lasting stepSec); riseU = 0..1 how far into the pitch rise
@@ -39,6 +43,17 @@ namespace doomsday::rbass
         riseU = 0.f;
         if (p.out <= p.in + 0.01f || s < p.in || s >= p.out) return 0.f;
         const double r = (s - p.in) / (p.out - p.in);
+        if (p.pump)
+        {
+            const double rr = juce::jmax (0.0, (r - 0.6) / 0.4);
+            riseU = (float) (rr * rr);
+            const double tIn = (s - p.in) * stepSec * 1000.0, tOut = (p.out - s) * stepSec * 1000.0;     // ms after IN / before OUT
+            const double rel = juce::jlimit (0.0, 1.0, tIn / juce::jmax (1.0, (double) p.releaseMs));
+            const double up = 1.0 - std::pow (1.0 - rel, (double) juce::jmax (0.5f, p.curve));                   // sidechain release
+            const double f = juce::jlimit (0.0, 1.0, tOut / juce::jmax (1.0, (double) p.fadeMs));
+            const double down = 0.5 - 0.5 * std::cos (f * juce::MathConstants<double>::pi);                      // smooth cut
+            return (float) (up * down * juce::jmin (1.0, tIn / 1.0));
+        }
         const double fade = juce::jmin (1.0, (p.out - s) * stepSec / 0.0015) * juce::jmin (1.0, (s - p.in) * stepSec / 0.001);
         const double rr = juce::jmax (0.0, (r - 0.6) / 0.4);
         riseU = (float) (rr * rr);

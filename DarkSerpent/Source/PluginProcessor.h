@@ -47,6 +47,7 @@ public:
     void randomizeSound() override;
     juce::String currentPresetName() override { return presetName; }
     juce::String presetFolderText() override { return "Documents / Dark Serpent / Presets"; }
+    juce::File userPresetFolder() override { return io.folder(); }
     juce::UndoManager* undoManager() override { return &undo; }
     void audition (bool on) override { auditionCmd.store (on ? 1 : 2); }
 

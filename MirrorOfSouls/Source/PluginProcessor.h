@@ -47,6 +47,7 @@ public:
     void randomizeSound() override {}
     juce::String currentPresetName() override { return presetName; }
     juce::String presetFolderText() override { return "Documents / Mirror of Souls / Presets"; }
+    juce::File userPresetFolder() override { return io.folder(); }
     juce::UndoManager* undoManager() override { return &undo; }
 
     MirrorEngine& getEngine() { return engine; }

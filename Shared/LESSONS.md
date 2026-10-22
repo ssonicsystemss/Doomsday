@@ -41,6 +41,14 @@ Dopisuj po każdej uwadze właściciela („brzmi źle”, „słabo działa”,
   + punch z własnym przesterem poza obwiednią AMP. Pomiar: `zero-crossing / DFT` w scratchpadzie, wzorce są właściciela (nie w git).
 - Wniosek: reverse w kicku to jego sposób pracy → sekcja REVERSE BASS (v2.1) jako uzupełnienie, nie zamiennik obwiedni.
 
+## Reverse bass ma POMPOWAĆ jak sidechain (2026-10-22)
+- Właściciel: model „swell w okienku” mało responsywny. Sample FHSP „Reversed Bass Kicks” (beat ~0.4 s): kick → dołek do ~15–25 %
+  → powrót w ~50–80 ms → równa półka (często głośniejsza od kicka) → ucięcie w ~20–40 ms przed kolejnym kickiem.
+  → `rbass::Params::pump` (release ms + 1-(1-r)^curve, półka, fade ms, cosinus), w Forge domyślnie ON.
+- Okno Forge'a v2 (1500 × 1180) nie mieściło się w FL, a zmniejszone było nieczytelne → płaski wygląd jak 5CR34M 4LPH4,
+  1400 × 612, trzy zakładki. Zasada: okno ≤ ~1400 × 650 przy 100 %, gałki płaskie 44 px, reszta w zakładkach.
+- `fmt::ms` pokazywał „32.0148 ms”: `juce::String (float, 0)` = wszystkie miejsca po przecinku, nie zero – liczby całkowite przez int.
+
 ## Reverse bass – „chujowe narastanie”, szczyt nie na końcu (2026-10-22)
 - Bas rósł x^CURVE do samego OUT i był ucinany → właściciel: szczyt ma być wcześniej. Poradniki: swell (attack) 100–150 ms, potem
   ~50 ms decay do 0, sustain 0, kick wchodzi w ciszę (beatkey.app; musicproductionwiki: „fade its front so it swells in”).

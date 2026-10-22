@@ -90,7 +90,7 @@ int main (int argc, char** argv)
         // the editor with its timer + paint running while every parameter is moved (FL crash hunt, 2026-10-22)
         ForgeProcessor p; p.prepareToPlay (48000.0, 512);
         std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
-        ed->setSize (1200, 944);
+        ed->setSize (Canvas::W, Canvas::H);
         Random r (7);
         for (int it = 0; it < 400; ++it)
         {
@@ -309,12 +309,12 @@ int main (int argc, char** argv)
         for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith ("BASS - QL Pump")) p.setCurrentProgram (i);
         sr = 48000.0; hit (p, 31, 0.15);
         std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
-        ed->setSize (1500, 900);
-        for (int pg : { 0, 1 })
+        ed->setSize (Canvas::W, Canvas::H);
+        for (int pg : { 0, 1, 2 })
         {
             dynamic_cast<ForgeEditor&> (*ed).getCanvas().showPageForTest (pg);
             auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
-            PNGImageFormat png; FileOutputStream fo (outDir.getChildFile (pg == 0 ? "gui.png" : "gui_bass.png")); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
+            PNGImageFormat png; FileOutputStream fo (outDir.getChildFile (pg == 0 ? "gui.png" : pg == 1 ? "gui_layers.png" : "gui_bass.png")); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
         }
     }
     printf ("%s\n", ok ? "ALL OK" : "SOME FAILED");

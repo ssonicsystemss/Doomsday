@@ -1,9 +1,10 @@
 #pragma once
 #include "PluginProcessor.h"
 #include "DoomsdayUI.h"
+#include "DoomsdayFlat.h"
 
 // =====================================================================
-//  FORGE OF WRATH - black + magma
+//  FORGE OF WRATH - flat UI (the 5CR34M 4LPH4 look, Shared/DoomsdayFlat.h) with a magma accent
 // =====================================================================
 namespace ForgeTheme
 {
@@ -58,45 +59,68 @@ private:
     float lastSig = -1.f;
 };
 
+// the whole editor: top bar (presets) | THE ANVIL + MASTER | pages KICK / LAYERS / REVERSE BASS
 class Canvas : public juce::Component, public juce::FileDragAndDropTarget, private juce::Timer
 {
 public:
-    static constexpr int W = 1500, H = 900;      // two pages (KICK / HEAD + REVERSE BASS): fits FL at a readable size
-    bool isInterestedInFileDrag (const juce::StringArray&) override;
-    void filesDropped (const juce::StringArray&, int, int) override;
-    void paintOverChildren (juce::Graphics&) override;
+    static constexpr int W = 1400, H = 612;
     explicit Canvas (ForgeProcessor&);
     ~Canvas() override;
     void paint (juce::Graphics&) override;
+    void paintOverChildren (juce::Graphics&) override;
     void resized() override;
-    void tickForTest() { timerCallback(); }
-    void openPresetBrowserForTest() { presets.openBrowser(); }
-    void showPageForTest (int p) { showPage (p); }      // tests: one UI update without the message loop
-private:
-    void timerCallback() override;
-    void renderBackground();
-    ForgeProcessor& proc;
-    doomsday::ui::StageLookAndFeel lnf;
-    juce::Image background;
-    AnvilDisplay anvil;
-    doomsday::ui::PresetBar presets;
-    struct Section { juce::String title; std::vector<std::unique_ptr<doomsday::ui::Knob>> knobs; juce::Component* side = nullptr; int sideW = 0; int accent = 0; juce::Rectangle<int> area; int page = 0; };
-    int page = 0, buildPage = 0;
-    void showPage (int);
-    juce::TextButton pageKick { "KICK" }, pageBass { "HEAD + REVERSE BASS" };
-    std::vector<Section> sections;
-    Section& section (const juce::String& title, int accent);
-    std::unique_ptr<doomsday::ui::Choice> distType, dist2Type, pitchMode, rbPattern;
-    std::unique_ptr<doomsday::ui::Switch> punchOn, roomInto, rbOn, punchInto, headOn, rbTail, rbPump;
-    BassLane bassLane;
-    juce::TextButton loadBtn { "LOAD" }, clearBtn { "X" };
-    std::unique_ptr<juce::FileChooser> chooser;
-    juce::Rectangle<int> sampleNameArea;
-    int lastSampleSerial = -1;
-    bool dragHover = false;
+    bool isInterestedInFileDrag (const juce::StringArray&) override;
+    void filesDropped (const juce::StringArray&, int, int) override;
     void fileDragEnter (const juce::StringArray&, int, int) override { dragHover = true; repaint(); }
     void fileDragExit (const juce::StringArray&) override { dragHover = false; repaint(); }
-    doomsday::ui::Meter meter;
+    void tickForTest() { timerCallback(); }
+    void showPageForTest (int p) { showPage (p); }
+    void openPresetBrowserForTest() { refreshList(); }       // the preset list (FACTORY + USER) is rebuilt like a click would
+private:
+    struct Card
+    {
+        juce::String title; juce::Colour dot; int page = -1;       // -1 = always visible
+        std::vector<juce::Component*> knobs;
+        juce::Component* side = nullptr; int sideW = 0;            // a vertical choice on the left of the knobs
+        std::vector<juce::Component*> head;                        // toggles / buttons in the title row (right to left)
+        juce::Rectangle<int> area;
+    };
+    void timerCallback() override;
+    Card& card (const juce::String& title, juce::Colour dot, int page);
+    juce::Component* knob (Card&, const char* id, const char* label, const char* tip, bool bipolar = false);
+    void showPage (int);
+    void refreshList();
+    void step (int);
+    void showSave();
+    void layoutCard (Card&, int kw);
+
+    ForgeProcessor& proc;
+    doomsday::flat::FlatLookAndFeel lnf;
+    std::vector<std::unique_ptr<juce::Component>> owned;
+    std::vector<Card> cards;
+    AnvilDisplay anvil;
+    BassLane bassLane;
+    std::unique_ptr<doomsday::flat::TabStrip> tabs;
+    int page = 0;
+    juce::ComboBox presetBox;
+    juce::TextButton prev { "<" }, next { ">" }, randomB { "Random" }, saveB { "Save" }, folderB { "Folder" },
+                     undoB { "Undo" }, redoB { "Redo" }, loadBtn { "Load" }, clearBtn { "x" };
+    struct PlayButton : public juce::TextButton
+    {
+        std::function<void (bool)> onPress;
+        PlayButton() : juce::TextButton ("Play") {}
+        void mouseDown (const juce::MouseEvent& e) override { juce::TextButton::mouseDown (e); if (onPress) onPress (true); }
+        void mouseUp (const juce::MouseEvent& e) override   { juce::TextButton::mouseUp (e);   if (onPress) onPress (false); }
+    } playB;
+    juce::Array<juce::File> userFiles;
+    std::unique_ptr<juce::AlertWindow> dialog;
+    std::unique_ptr<juce::FileChooser> chooser;
+    static constexpr int userBase = 1000;
+    juce::String lastName;
+    juce::Rectangle<int> sampleNameArea, meterArea;
+    float meterLevel = 0.f;
+    int lastSampleSerial = -1;
+    bool dragHover = false;
     juce::TooltipWindow tips { this, 600 };
 };
 
@@ -104,7 +128,7 @@ class ForgeEditor : public juce::AudioProcessorEditor
 {
 public:
     explicit ForgeEditor (ForgeProcessor&);
-    void resized() override { doomsday::ui::scaleCanvas (*this, canvas, Canvas::W, Canvas::H); }
+    void resized() override;
     Canvas& getCanvas() { return canvas; }
 private:
     Canvas canvas;

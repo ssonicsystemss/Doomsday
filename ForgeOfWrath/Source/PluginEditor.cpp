@@ -21,6 +21,17 @@ Theme ForgeTheme::make()
 
 namespace
 {
+    // the anvil / lane drawing code asks for title / label / value fonts and text / dim / label colours: flat look
+    struct ForgeLook
+    {
+        doomsday::flat::FlatLookAndFeel& f;
+        struct Th { Colour text, dim, label; } theme;
+        explicit ForgeLook (Component& c) : f (doomsday::flat::lnfOf (c)),
+            theme { doomsday::flat::tokens().text, doomsday::flat::tokens().textMute, doomsday::flat::tokens().textDim } {}
+        Font titleFont (float h, float = 0.f) const { return f.font (h, doomsday::flat::Bold, 0.04f); }
+        Font labelFont (float h, float = 0.f) const { return f.font (h, doomsday::flat::SemiBold); }
+        Font valueFont (float h) const { return f.font (h, doomsday::flat::Medium); }
+    };
     float raw (ForgeProcessor& p, const char* id) { return p.apvts.getRawParameterValue (id)->load(); }
     const Colour envCol[3] = { ForgeTheme::magmaHot, ForgeTheme::heat, Colour (0xffffe6d2) };
     const char* envName[3] = { "AMP", "DRIVE", "PITCH" };
@@ -174,9 +185,9 @@ void AnvilDisplay::tick()
 
 void AnvilDisplay::paint (Graphics& g)
 {
-    auto& lnf = lnfOf (*this);
+    ForgeLook lnf (*this);
     auto b = getLocalBounds().toFloat();
-    g.setColour (Colour (0xff050303)); g.fillRoundedRectangle (b, 9.f);
+    g.setColour (doomsday::flat::tokens().surface); g.fillRoundedRectangle (b, 12.f);
     {
         ColourGradient floor (ForgeTheme::magma.withAlpha (0.10f), b.getCentreX(), b.getBottom() + 40.f, ForgeTheme::magma.withAlpha (0.f), b.getCentreX(), b.getY() + 40.f, true);
         g.setGradientFill (floor); g.fillRoundedRectangle (b, 9.f);
@@ -282,14 +293,13 @@ void AnvilDisplay::paint (Graphics& g)
         g.setGradientFill (ph); g.fillRect (Rectangle<float> (x - 40.f, plot.getY(), 40.f, plot.getHeight()));
         g.setColour (ForgeTheme::magmaHot); g.drawVerticalLine ((int) x, plot.getY(), plot.getBottom());
     }
-    g.setColour (ForgeTheme::magma.withAlpha (0.25f)); g.drawRoundedRectangle (b.reduced (0.5f), 9.f, 1.f);
 }
 
 // ======================================================================= REVERSE BASS lane
 void BassLane::tick()
 {
     const auto p = proc.gatherForGui();
-    const float sig = (float) p.rb.stepBeats * 7.f + p.rb.in * 3.f + p.rb.out * 5.f + p.rb.curve * 0.37f + p.rb.riseSt * 0.011f + p.rb.peak * 13.f
+    const float sig = (float) p.rb.stepBeats * 7.f + p.rb.in * 3.f + p.rb.out * 5.f + p.rb.curve * 0.37f + p.rb.riseSt * 0.011f + p.rb.peak * 13.f + (p.rb.pump ? 50.f : 0.f) + p.rb.releaseMs * 0.003f + p.rb.fadeMs * 0.007f
                     + p.k.lengthMs * 0.001f + (p.rbOn ? 100.f : 0.f) + proc.getEngine().tempoNow.load() * 0.0001f;
     if (std::abs (sig - lastSig) > 1e-5f) { lastSig = sig; repaint(); }
 }
@@ -297,12 +307,11 @@ void BassLane::tick()
 void BassLane::paint (Graphics& g)
 {
     using namespace ForgeTheme;
-    auto& lnf = dynamic_cast<doomsday::ui::StageLookAndFeel&> (getLookAndFeel());
+    ForgeLook lnf (*this);
     const auto p = proc.gatherForGui();
     const double bpm = proc.getEngine().tempoNow.load(), beatMs = 60000.0 / bpm;
     auto r = getLocalBounds().toFloat();
-    g.setColour (Colours::black.withAlpha (0.45f)); g.fillRoundedRectangle (r, 8.f);
-    g.setColour (magma.withAlpha (0.25f)); g.drawRoundedRectangle (r.reduced (0.5f), 8.f, 1.f);
+    g.setColour (doomsday::flat::tokens().surface); g.fillRoundedRectangle (r, 12.f);
     auto plot = r.reduced (12.f, 10.f).withTrimmedTop (16.f);
     const float kickH = plot.getHeight() * 0.42f;
     auto kickLane = plot.removeFromTop (kickH);
@@ -358,121 +367,147 @@ void BassLane::paint (Graphics& g)
     }
 }
 
-// ======================================================================= canvas
-Canvas::Section& Canvas::section (const String& title, int accent)
+// ======================================================================= canvas (flat, like 5CR34M 4LPH4)
+using namespace doomsday::flat;
+
+namespace { const String dotSep (CharPointer_UTF8 (" \xc2\xb7 ")); }
+
+Canvas::Card& Canvas::card (const String& title, Colour dot, int pg)
 {
-    sections.push_back ({});
-    sections.back().title = title; sections.back().accent = accent; sections.back().page = buildPage;
-    return sections.back();
+    cards.push_back ({});
+    auto& c = cards.back(); c.title = title; c.dot = dot; c.page = pg;
+    return c;
 }
 
-Canvas::Canvas (ForgeProcessor& p)
-    : proc (p), lnf (ForgeTheme::make()), anvil (p), presets (p, true), bassLane (p)
+Component* Canvas::knob (Card& c, const char* id, const char* label, const char* tip, bool bipolar)
+{
+    auto k = std::make_unique<doomsday::flat::Knob> (proc.apvts, id, label, c.dot, bipolar);
+    k->slider.setTooltip (tip);
+    auto* kp = k.get(); addAndMakeVisible (*kp); owned.push_back (std::move (k));
+    c.knobs.push_back (kp);
+    return kp;
+}
+
+Canvas::Canvas (ForgeProcessor& p) : proc (p), anvil (p), bassLane (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
-    addAndMakeVisible (anvil); addAndMakeVisible (presets); addAndMakeVisible (meter);
-    sections.reserve (16);
-    auto add = [&] (Section& sec, const char* id, const char* name, bool bip, const char* tip)
+    const auto& t = tokens();
+    const Colour hot = t.hot, cool = t.cool, n { 0xffb4bac3 }, gold { 0xffffc46b };
+    cards.reserve (20);
+    auto seg = [this] (const char* id, StringArray labels, Colour c, const char* tip)
     {
-        sec.knobs.push_back (std::make_unique<Knob> (p.apvts, id, name, sec.accent, bip));
-        sec.knobs.back()->slider.setTooltip (tip);
-        addAndMakeVisible (*sec.knobs.back());
+        auto s = std::make_unique<Segmented> (proc.apvts, id, labels, c);
+        s->setTooltip (tip);
+        auto* sp = s.get(); addAndMakeVisible (*sp); owned.push_back (std::move (s)); return (Component*) sp;
     };
-    // ---- row A: TAIL | STAGE 1 | MID EQ | STAGE 2
+    auto toggle = [this] (const char* id, const char* text, Toggle::Style st, Colour c, const char* tip)
     {
-        auto& s = section ("TAIL", 0);
-        add (s, tailLevel, "LEVEL", false, "Level of the distorted tail");
-        add (s, tailStart, "START", false, "Pitch at the hit = START x the played note. x1 = no drop (zaag kicks), high = hard 'tok'");
-        add (s, tailDrop, "DROP", false, "How long the pitch falls from START down to the note");
-        add (s, tailHold, "HOLD", false, "The pitch stays up at START this long before it drops (the 'piercing' high hit of uptempo / electro kicks)");
-        add (s, tailCurve, "CURVE", false, "Shape of the pitch fall: low = slow glide, high = fast snap then a long settle");
-        add (s, tailWave, "WAVE", false, "Oscillator before the distortion: sine > triangle > saw (more buzz)");
-        add (s, tune, "PITCH", true, "Pitch of the TAIL only, in semitones (PUNCH and CLICK keep their own pitch; the note you play still sets the key)");
-        add (s, tailFine, "FINE", true, "Fine pitch of the tail in cents (100 ct = 1 semitone)");
-        pitchMode = std::make_unique<Choice> (p.apvts, ParamIDs::pitchMode, Choices::pitchModes, 0);
-        pitchMode->setTooltip ("CURVE = pitch from the knobs, DRAWN = pitch from the PITCH envelope on the screen");
-        addAndMakeVisible (*pitchMode);
+        auto s = std::make_unique<Toggle> (proc.apvts, id, text, st, c);
+        s->setTooltip (tip);
+        auto* sp = s.get(); addAndMakeVisible (*sp); owned.push_back (std::move (s)); return (Component*) sp;
+    };
+
+    // ---- always: MASTER (next to THE ANVIL)
+    {
+        auto& c = card ("Master", n, -1);
+        knob (c, length, "Length", "Length of the whole kick: the envelopes stretch with it");
+        knob (c, clipDrive, "Clip", "Pushes the kick into the master clipper: louder, harder, flatter");
+        knob (c, clipSoft, "Soft", "Clipper shape: 0 = hard (aggressive), 1 = soft (round)");
+        knob (c, velocity, "Velocity", "0 = every hit full level, 1 = MIDI velocity sets the level");
+        knob (c, output, "Output", "Output level", true);
+    }
+    // ---- page 0: KICK
+    {
+        auto& c = card ("Tail", hot, 0);
+        knob (c, tailLevel, "Level", "Level of the distorted tail");
+        knob (c, tailStart, "Start", "Pitch at the hit = START x the played note. x1 = no drop (zaag kicks), high = hard 'tok'");
+        knob (c, tailDrop, "Drop", "How long the pitch falls from START down to the note");
+        knob (c, tailHold, "Hold", "The pitch stays up at START this long before it drops");
+        knob (c, tailCurve, "Curve", "Shape of the pitch fall: low = slow glide, high = fast snap then a long settle");
+        knob (c, tailWave, "Wave", "Oscillator before the distortion: sine > triangle > saw (more buzz)");
+        knob (c, tune, "Pitch", "Pitch of the TAIL only, in semitones (PUNCH and CLICK keep their own pitch)", true);
+        knob (c, tailFine, "Fine", "Fine pitch of the tail in cents", true);
+        c.head.push_back (seg (pitchMode, { "Curve", "Drawn" }, hot, "CURVE = pitch from the knobs, DRAWN = pitch from the PITCH envelope on the screen"));
     }
     {
-        auto& s = section ("STAGE 1", 2);
-        distType = std::make_unique<Choice> (p.apvts, ParamIDs::distType, Choices::distTypes, 2, true);
-        distType->setTooltip ("Distortion character: SOFT round, TUBE warm and uneven, HARD square, FOLD metallic, RAW buzzing");
-        addAndMakeVisible (*distType);
-        s.side = distType.get(); s.sideW = 92;
-        add (s, drive, "DRIVE", false, "How hard the tail hits the first distortion (the DRIVE envelope moves it over time)");
-        add (s, tone, "TONE", true, "Before the distortion: left = more low end, right = more mids (harder, brighter distortion)");
+        auto& c = card ("Stage 1", hot, 0);
+        c.head.push_back (seg (distType, { "Soft", "Tube", "Hard", "Fold", "Raw" }, hot, "Distortion character: SOFT round, TUBE warm, HARD square, FOLD metallic, RAW buzzing"));
+        knob (c, ParamIDs::drive, "Drive", "How hard the tail hits the first distortion (the DRIVE envelope moves it over time)");
+        knob (c, tone, "Tone", "Before the distortion: left = more low end, right = more mids", true);
     }
     {
-        auto& s = section ("MID EQ", 2);
-        add (s, midHz, "FREQ", false, "A bell between the two distortions: shapes what STAGE 2 bites into (honk, body, bite)");
-        add (s, midGain, "GAIN", true, "Boost = that range gets distorted harder (more honk), cut = smoother, rounder tail");
-        add (s, midQ, "Q", false, "Width of the bell");
+        auto& c = card ("Mid EQ", hot, 0);
+        knob (c, midHz, "Freq", "A bell between the two distortions: shapes what STAGE 2 bites into");
+        knob (c, midGain, "Gain", "Boost = that range gets distorted harder (more honk), cut = smoother tail", true);
+        knob (c, midQ, "Q", "Width of the bell");
     }
     {
-        auto& s = section ("STAGE 2", 2);
-        dist2Type = std::make_unique<Choice> (p.apvts, ParamIDs::dist2Type, Choices::dist2Types, 2, true);
-        dist2Type->setTooltip ("Second distortion after the MID EQ. SOFT / TUBE round and thicken the tail = the modern sound. OFF = one stage only");
-        addAndMakeVisible (*dist2Type);
-        s.side = dist2Type.get(); s.sideW = 92;
-        add (s, drive2, "DRIVE", false, "How hard STAGE 2 is pushed");
-    }
-    // ---- row B: FILTER | TEXTURE | IMPACT | ROOM | OTT
-    {
-        auto& s = section ("FILTER", 2);
-        add (s, lowCut, "LOW CUT", false, "Removes rumble under the tail");
-        add (s, highCut, "HIGH CUT", false, "Darkens the distortion: low = round and warm, high = open and fizzy");
-        add (s, body, "BODY", true, "More or less low end (the fundamental of the tail)");
-        add (s, cleanSub, "CLEAN SUB", false, "Below this frequency the distortion is replaced by a clean sine: tight, mono-safe sub that never mushes (OFF = all distorted)");
+        auto& c = card ("Stage 2", hot, 0);
+        c.head.push_back (seg (dist2Type, { "Off", "Soft", "Tube", "Hard", "Fold", "Raw" }, hot, "Second distortion after the MID EQ. OFF = one stage only"));
+        knob (c, drive2, "Drive", "How hard STAGE 2 is pushed");
     }
     {
-        auto& s = section ("TEXTURE", 2);
-        add (s, scream, "SCREAM", false, "A resonant peak pushed into saturation: the 'yell' of raw kicks");
-        add (s, screamHz, "SCREAM HZ", false, "Where the scream peak sits");
-        add (s, crunch, "CRUNCH", false, "Extra high distortion at the start of the tail (the 'crack')");
-        add (s, crunchDec, "CRUNCH DEC", false, "How long the crunch lasts");
-        add (s, grit, "GRIT", false, "Noisy texture riding on the tail: the dirty 'sand'");
+        auto& c = card ("Filter", cool, 0);
+        knob (c, lowCut, "Low cut", "Removes rumble under the tail");
+        knob (c, highCut, "High cut", "Darkens the distortion: low = round and warm, high = open and fizzy");
+        knob (c, body, "Body", "More or less low end (the fundamental of the tail)", true);
+        knob (c, cleanSub, "Clean sub", "Below this frequency the distortion is replaced by a clean sine: a tight, mono-safe sub (OFF = all distorted)");
     }
     {
-        auto& s = section ("IMPACT", 1);
-        add (s, chaos, "CHAOS", false, "Noise burst pushed INTO the distortion at the start: the dense, messy impact of modern kicks (0 = clean old-school square)");
-        add (s, chaosDec, "DECAY", false, "How long the chaos lasts");
-        add (s, chaosHz, "TONE", false, "Colour of the chaos: low = dark rumble, high = bright crackle");
+        auto& c = card ("Texture", cool, 0);
+        knob (c, scream, "Scream", "A resonant peak pushed into saturation: the 'yell' of raw kicks");
+        knob (c, screamHz, "Scream Hz", "Where the scream peak sits");
+        knob (c, crunch, "Crunch", "Extra high distortion at the start of the tail (the 'crack')");
+        knob (c, crunchDec, "Crunch dec", "How long the crunch lasts");
+        knob (c, grit, "Grit", "Noisy texture riding on the tail: the dirty 'sand'");
     }
     {
-        auto& s = section ("ROOM", 0);
-        add (s, room, "ROOM", false, "Small room. INTO DIST on: the reflections are distorted with the tail (dense raw / psy tails). Off: space around the kick");
-        add (s, roomSize, "SIZE", false, "Room size: small = thick, big = long tail");
-        roomInto = std::make_unique<Switch> (p.apvts, ParamIDs::roomInto, "INTO DIST", Switch::Chip, 0);
-        roomInto->setTooltip ("ON: the room goes INTO the distortion (modern raw trick). OFF: the room comes after (space)");
-        addAndMakeVisible (*roomInto);
+        auto& c = card ("Impact", cool, 0);
+        knob (c, chaos, "Chaos", "Noise burst pushed INTO the distortion at the start: the dense, messy impact of modern kicks");
+        knob (c, chaosDec, "Decay", "How long the chaos lasts");
+        knob (c, chaosHz, "Tone", "Colour of the chaos: low = dark rumble, high = bright crackle");
+    }
+    // ---- page 1: LAYERS
+    {
+        auto& c = card ("Punch", gold, 1);
+        knob (c, punchLevel, "Level", "The punch on top: the body / tok of the hit");
+        knob (c, punchStart, "Start", "Punch pitch at the hit (never follows the note)");
+        knob (c, punchEnd, "End", "Punch pitch at the end of its drop (can be higher than START: a rising tok)");
+        knob (c, punchDrop, "Drop", "How fast the punch pitch moves from START to END");
+        knob (c, punchDecay, "Decay", "How fast the punch fades (TOK: how fast the spike settles on the shelf)");
+        knob (c, punchDrive, "Drive", "Distorts the punch: from a clean sine to a hard tok");
+        knob (c, punchLen, "Length", "TOK: the punch holds its level this long and is cut (100 - 150 ms like tok samples). DECAY (0) = the old fading punch");
+        c.head.push_back (toggle (punchOn, "On", Toggle::Pill, gold, "Punch on / off"));
+        c.head.push_back (toggle (punchInto, "Into dist", Toggle::Chip, gold, "ON: the punch gets its own pass through the tail's distortion - it sounds like the start of the tail. OFF: a clean sine on top"));
     }
     {
-        auto& s = section ("OTT", 0);
-        add (s, ott, "OTT", false, "3-band upward + downward compression on the whole kick: dense, loud, in your face");
-    }
-    // ---- row C: PUNCH | SAMPLE | CLICK | MASTER
-    {
-        auto& s = section ("PUNCH", 1);
-        add (s, punchLevel, "LEVEL", false, "Sine punch on top: the body of the hit");
-        add (s, punchStart, "START", false, "Punch pitch at the hit");
-        add (s, punchEnd, "END", false, "Punch pitch at the end of its drop");
-        add (s, punchDrop, "DROP", false, "How fast the punch pitch falls");
-        add (s, punchDecay, "DECAY", false, "How long the punch rings");
-        add (s, punchDrive, "DRIVE", false, "Distorts the punch: from a clean sine to a hard, modern 'tok'");
-        add (s, punchLen, "LENGTH", false, "TOK: the punch holds its level this long and is cut (like tok samples, 100 - 150 ms). DECAY (0) = the old fading punch");
-        punchOn = std::make_unique<Switch> (p.apvts, ParamIDs::punchOn, "ON", Switch::Power, 1);
-        addAndMakeVisible (*punchOn);
-        punchInto = std::make_unique<Switch> (p.apvts, ParamIDs::punchInto, "INTO DIST", Switch::Chip, 1);
-        punchInto->setTooltip ("ON: the punch goes through the tail's distortion (STAGE 1 / 2, filters, scream) - it sounds like the start of the tail, "
-                               "but its pitch comes only from START / END, never from the note. OFF: a clean sine on top");
-        addAndMakeVisible (*punchInto);
+        auto& c = card ("Click", gold, 1);
+        knob (c, clickLevel, "Level", "Short noise click at the very start: helps the kick cut through");
+        knob (c, clickHz, "Tone", "Colour of the click");
+        knob (c, clickLen, "Length", "Length of the click");
     }
     {
-        auto& s = section ("SAMPLE", 1);
-        add (s, smpLevel, "LEVEL", false, "Level of your own sample (LOAD or drop a WAV here)");
-        add (s, smpPitch, "PITCH", true, "Pitch of the sample in semitones (it does not follow the note)");
-        add (s, smpStart, "START", false, "Skips the start of the sample");
+        auto& c = card ("Fixed head", gold, 1);
+        knob (c, headLen, "Length", "How long the start of the kick stays the same on every note (reference kicks: 100 - 130 ms)");
+        knob (c, headHz, "Pitch", "The note the head is always played on - after LENGTH the tail moves to the key you play");
+        c.head.push_back (toggle (headOn, "On", Toggle::Pill, gold, "ON: the start of the kick is exactly the same on every note; only the tail follows the key"));
+    }
+    {
+        auto& c = card ("Room", cool, 1);
+        knob (c, room, "Room", "Small room. INTO DIST on: the reflections are distorted with the tail. Off: space around the kick");
+        knob (c, roomSize, "Size", "Room size: small = thick, big = long tail");
+        c.head.push_back (toggle (roomInto, "Into dist", Toggle::Chip, cool, "ON: the room goes INTO the distortion. OFF: the room comes after (space)"));
+    }
+    {
+        auto& c = card ("OTT", cool, 1);
+        knob (c, ott, "OTT", "3-band upward + downward compression on the whole kick: dense, loud, in your face");
+    }
+    {
+        auto& c = card ("Sample", n, 1);
+        knob (c, smpLevel, "Level", "Level of your own sample (LOAD or drop a WAV on the plugin)");
+        knob (c, smpPitch, "Pitch", "Pitch of the sample in semitones (it does not follow the note)", true);
+        knob (c, smpStart, "Start", "Skips the start of the sample");
         loadBtn.setTooltip ("Load your own punch / kick / layer (WAV, AIFF, FLAC). You can also drag a file onto the plugin");
         clearBtn.setTooltip ("Remove the sample");
         loadBtn.onClick = [this]
@@ -483,152 +518,255 @@ Canvas::Canvas (ForgeProcessor& p)
         };
         clearBtn.onClick = [this] { proc.clearSample(); };
         addAndMakeVisible (loadBtn); addAndMakeVisible (clearBtn);
+        c.head.push_back (&clearBtn); c.head.push_back (&loadBtn);
     }
+    // ---- page 2: REVERSE BASS
     {
-        auto& s = section ("CLICK", 1);
-        add (s, clickLevel, "LEVEL", false, "Short noise click at the very start: helps the kick cut through");
-        add (s, clickHz, "TONE", false, "Colour of the click");
-        add (s, clickLen, "LENGTH", false, "Length of the click");
+        auto& c = card ("Reverse bass", hot, 2);
+        knob (c, rbIn, "In", "Where in each step the bass starts (PUMP: where the duck ends)");
+        knob (c, rbOut, "Out", "Where it stops - the rest of the step is a clean gap before the next kick");
+        knob (c, rbCurve, "Curve", "SWELL: early / late rise. PUMP: how the release lands (high = fast, then smooth)");
+        knob (c, rbRelease, "Release", "PUMP: how fast the bass comes back after the kick (like a sidechain release)");
+        knob (c, rbFade, "Fade", "PUMP: how short the cut right before the next kick is");
+        knob (c, rbPeak, "Peak", "SWELL only: where the bass is loudest, then it fades to silence at OUT");
+        knob (c, rbRise, "Rise", "SYNTH bass only (FROM TAIL off): pitch rise at the end of every swell");
+        knob (c, rbTune, "Tune", "Bass pitch against the kick note in semitones (12 = an octave up)", true);
+        knob (c, rbDrive, "Drive", "Distortion of the bass: from a clean sub to a buzzing saw");
+        knob (c, rbTone, "Tone", "Low-pass of the bass: low = round and deep, high = bright and present");
+        knob (c, rbLevel, "Level", "Bass level against the kick (both go into the master clipper)");
+        c.head.push_back (toggle (rbOn, "On", Toggle::Pill, hot, "Reverse bass: every kick starts one beat of bass on the same note"));
+        c.head.push_back (toggle (rbPump, "Pump", Toggle::Chip, hot, "ON: sidechain shape - the kick ducks the bass, it comes back in RELEASE, holds and is cut in FADE. OFF: SWELL - a slow rise to PEAK"));
+        c.head.push_back (toggle (rbTail, "From tail", Toggle::Chip, hot, "ON: the bass is the kick's own tail played backwards. OFF: a saw + sine bass with RISE"));
+        c.head.push_back (seg (rbPattern, { "1/4", "1/8", "1/16" }, hot, "How many bass swells per beat (locked to the FL tempo)"));
     }
+    addAndMakeVisible (anvil);
+    addAndMakeVisible (bassLane);
+
+    tabs = std::make_unique<TabStrip> (StringArray { "Kick", "Layers", "Reverse bass" }, hot);
+    tabs->onSelect = [this] (int i) { showPage (i); };
+    tabs->isOn = [this] (int i) { return i == 2 ? raw (proc, ParamIDs::rbOn) > 0.5f : i == 1 ? raw (proc, ParamIDs::punchOn) > 0.5f : true; };
+    addAndMakeVisible (*tabs);
+
+    // top bar: presets like 5CR34M 4LPH4 + Folder (opens your presets) + Play (hold)
+    refreshList();
+    presetBox.onChange = [this]
     {
-        auto& s = section ("MASTER", 0);
-        add (s, length, "LENGTH", false, "Length of the whole kick: the envelopes stretch with it");
-        add (s, clipDrive, "CLIP", false, "Pushes the kick into the master clipper: louder, harder, flatter");
-        add (s, clipSoft, "SOFT", false, "Clipper shape: 0 = hard (aggressive), 1 = soft (round)");
-        add (s, velocity, "VELOCITY", false, "0 = every hit full level, 1 = MIDI velocity sets the level");
-        add (s, output, "OUTPUT", true, "Output level");
-        s.sideW = -30;      // room for the meter on the right
-    }
-    // ---- page 2: FIXED HEAD | REVERSE BASS (v2.1)
-    buildPage = 1;
-    {
-        auto& s = section ("FIXED HEAD", 0);
-        add (s, headLen, "LENGTH", false, "How long the head stays the same on every note (the reference kicks: 100 - 130 ms)");
-        add (s, headHz, "PITCH", false, "The note the head is always played on - the tail moves to the played note after LENGTH");
-        headOn = std::make_unique<Switch> (p.apvts, ParamIDs::headOn, "ON", Switch::Power, 0);
-        headOn->setTooltip ("ON: the start of the kick (punch + the first part of the tail) is exactly the same on every note, like real hardstyle kicks; "
-                            "only the tail follows the key. OFF: the whole kick moves with the note");
-        addAndMakeVisible (*headOn);
-    }
-    {
-        auto& s = section ("REVERSE BASS", 1);
-        rbPattern = std::make_unique<Choice> (p.apvts, ParamIDs::rbPattern, Choices::rbPatterns, 1, true);
-        rbPattern->setTooltip ("How many bass swells per beat: 1/4 = one, 1/8 = two, 1/16 = four (locked to the FL tempo)");
-        addAndMakeVisible (*rbPattern);
-        s.side = rbPattern.get(); s.sideW = 70;
-        add (s, rbIn, "IN", false, "Where in each step the bass starts to swell");
-        add (s, rbOut, "OUT", false, "Where it stops - the rest of the step is a clean gap before the next kick");
-        add (s, rbCurve, "CURVE", false, "Swell shape: low = rises early and long, high = a late, hard suck-in");
-        add (s, rbPeak, "PEAK", false, "SWELL only: where the bass is loudest (% of IN..OUT); after it it fades to silence at OUT");
-        add (s, rbRelease, "RELEASE", false, "PUMP: how fast the bass comes back after the kick (like a sidechain release)");
-        add (s, rbFade, "FADE", false, "PUMP: how short the cut right before the next kick is");
-        add (s, rbRise, "RISE", false, "Pitch rise at the end of every swell (FROM TAIL off; with FROM TAIL the tail's own pitch drop is the rise)");
-        add (s, rbTune, "TUNE", true, "Bass pitch against the kick note in semitones (12 = an octave up)");
-        add (s, rbDrive, "DRIVE", false, "Distortion of the bass: from a clean sub to a buzzing saw");
-        add (s, rbTone, "TONE", false, "Low-pass of the bass: low = round and deep, high = bright and present");
-        add (s, rbLevel, "LEVEL", false, "Bass level against the kick (both go into the master clipper)");
-        rbOn = std::make_unique<Switch> (p.apvts, ParamIDs::rbOn, "ON", Switch::Power, 1);
-        rbOn->setTooltip ("Reverse bass: every kick starts one beat of bass swells on the same note");
-        addAndMakeVisible (*rbOn);
-        rbTail = std::make_unique<Switch> (p.apvts, ParamIDs::rbTail, "FROM TAIL", Switch::Chip, 1);
-        rbTail->setTooltip ("ON: the bass is the kick's own tail played backwards (its distortion, its pitch drop becomes the rise). "
-                            "OFF: a saw + sine bass with RISE");
-        addAndMakeVisible (*rbTail);
-        rbPump = std::make_unique<Switch> (p.apvts, ParamIDs::rbPump, "PUMP", Switch::Chip, 1);
-        rbPump->setTooltip ("ON: sidechain shape - the kick ducks the bass, it comes back in RELEASE, holds and is cut in FADE before the next kick "
-                            "(like the FHSP reversed bass kicks). OFF: SWELL - a slow rise to PEAK");
-        addAndMakeVisible (*rbPump);
-        addAndMakeVisible (bassLane);
-    }
-    for (auto* b : { &pageKick, &pageBass })
-    {
-        b->setClickingTogglesState (false);
-        addAndMakeVisible (*b);
-    }
-    pageKick.onClick = [this] { showPage (0); };
-    pageBass.onClick = [this] { showPage (1); };
-    pageBass.setTooltip ("FIXED HEAD (the same start on every note) and REVERSE BASS (from the kick's own tail, pumping)");
+        const int id = presetBox.getSelectedId();
+        if (id <= 0) return;
+        if (id < userBase) proc.setCurrentProgram (id - 1);
+        else if (isPositiveAndBelow (id - userBase, userFiles.size())) proc.loadUserPresetFile (userFiles[id - userBase]);
+        lastName = {};
+    };
+    randomB.onClick = [this] { proc.randomizeSound(); lastName = {}; };
+    saveB.onClick = [this] { showSave(); };
+    folderB.onClick = [this] { auto f = proc.userPresetFolder(); f.createDirectory(); f.startAsProcess(); };
+    playB.onPress = [this] (bool d) { proc.audition (d); };
+    prev.onClick = [this] { step (-1); };
+    next.onClick = [this] { step (1); };
+    undoB.onClick = [this] { proc.undo.undo(); };
+    redoB.onClick = [this] { proc.undo.redo(); };
+    randomB.setTooltip ("A new kick in musical ranges");
+    saveB.setTooltip ("Save the current kick to Documents / Forge of Wrath / Presets");
+    folderB.setTooltip ("Open the folder with your own presets");
+    playB.setTooltip ("Hold to play the kick");
+    FlatLookAndFeel::makePrimary (saveB);
+    for (auto* c : { (Component*) &presetBox, (Component*) &prev, (Component*) &next, (Component*) &randomB, (Component*) &saveB, (Component*) &folderB,
+                     (Component*) &playB, (Component*) &undoB, (Component*) &redoB })
+        addAndMakeVisible (c);
+
     setSize (W, H);
     showPage (0);
     timerCallback();
     startTimerHz (30);
 }
-Canvas::~Canvas() { setLookAndFeel (nullptr); }
 
-void Canvas::showPage (int p)
+Canvas::~Canvas()
 {
-    page = jlimit (0, 1, p);
-    pageKick.setToggleState (page == 0, dontSendNotification);
-    pageBass.setToggleState (page == 1, dontSendNotification);
-    for (auto& sec : sections)
+    if (dialog != nullptr) dialog->exitModalState (0);
+    dialog.reset();
+    setLookAndFeel (nullptr);
+}
+
+void Canvas::refreshList()
+{
+    presetBox.clear (dontSendNotification);
+    presetBox.addSectionHeading ("FACTORY");
+    for (int i = 0; i < proc.getNumPrograms(); ++i) presetBox.addItem (proc.getProgramName (i), i + 1);
+    userFiles = proc.userPresetFiles();
+    if (! userFiles.isEmpty())
     {
-        const bool on = sec.page == page;
-        for (auto& k : sec.knobs) k->setVisible (on);
-        if (sec.side != nullptr) sec.side->setVisible (on);
+        presetBox.addSeparator();
+        presetBox.addSectionHeading ("USER  (Folder = open them)");
+        for (int i = 0; i < userFiles.size(); ++i) presetBox.addItem (userFiles[i].getFileNameWithoutExtension(), userBase + i);
     }
-    for (auto* c : { (Component*) pitchMode.get(), (Component*) roomInto.get(), (Component*) punchOn.get(), (Component*) punchInto.get(),
-                     (Component*) &loadBtn, (Component*) &clearBtn, (Component*) &meter })
-        c->setVisible (page == 0);
-    for (auto* c : { (Component*) headOn.get(), (Component*) rbOn.get(), (Component*) rbTail.get(), (Component*) rbPump.get(), (Component*) &bassLane })
-        c->setVisible (page == 1);
+    lastName = {};
+}
+
+void Canvas::step (int d)
+{
+    Array<int> ids;
+    for (int i = 0; i < presetBox.getNumItems(); ++i) ids.add (presetBox.getItemId (i));
+    if (ids.isEmpty()) return;
+    int at = ids.indexOf (presetBox.getSelectedId());
+    at = at < 0 ? 0 : (at + d + ids.size()) % ids.size();
+    presetBox.setSelectedId (ids[at], sendNotificationSync);
+}
+
+void Canvas::showSave()
+{
+    if (dialog != nullptr) return;
+    dialog = std::make_unique<AlertWindow> ("Save preset", "Name (Documents / Forge of Wrath / Presets):", MessageBoxIconType::NoIcon, this);
+    dialog->setLookAndFeel (&lnf);
+    dialog->addTextEditor ("name", proc.currentPresetName().startsWith ("Random") ? String ("My Kick") : proc.currentPresetName());
+    dialog->addButton ("Save", 1, KeyPress (KeyPress::returnKey));
+    dialog->addButton ("Cancel", 0, KeyPress (KeyPress::escapeKey));
+    SafePointer<Canvas> safe (this);
+    dialog->enterModalState (true, ModalCallbackFunction::create ([safe] (int result)
+    {
+        if (safe == nullptr || safe->dialog == nullptr) return;
+        const auto name = safe->dialog->getTextEditorContents ("name");
+        MessageManager::callAsync ([safe] { if (safe != nullptr) safe->dialog.reset(); });
+        if (result == 1)
+        {
+            if (safe->proc.saveUserPresetAs (name)) safe->refreshList();
+            else AlertWindow::showMessageBoxAsync (MessageBoxIconType::WarningIcon, "Save preset", "Could not save the preset.");
+        }
+    }), false);
+}
+
+void Canvas::showPage (int pg)
+{
+    page = jlimit (0, 2, pg);
+    if (tabs != nullptr && tabs->getSelected() != page) tabs->setSelected (page);
+    for (auto& c : cards)
+    {
+        const bool on = c.page < 0 || c.page == page;
+        for (auto* k : c.knobs) k->setVisible (on);
+        if (c.side != nullptr) c.side->setVisible (on);
+        for (auto* h : c.head) h->setVisible (on);
+    }
+    bassLane.setVisible (page == 2);
     resized();
     repaint();
 }
 
+void Canvas::layoutCard (Card& c, int kw)
+{
+    const int kh = doomsday::flat::Knob::heightFor (44);
+    auto a = c.area.reduced (16, 10);
+    auto head = a.removeFromTop (28);
+    for (auto* h : c.head)
+    {
+        const int w = dynamic_cast<Segmented*> (h) != nullptr ? jmin (c.title == "Stage 2" ? 230 : 190, head.getWidth() - 90)
+                    : dynamic_cast<TextButton*> (h) != nullptr ? (h == &clearBtn ? 28 : 64) : 92;
+        h->setBounds (head.removeFromRight (w).withSizeKeepingCentre (w, 24));
+        head.removeFromRight (6);
+    }
+    a.removeFromTop (4);
+    const int cols = jmax (1, (int) c.knobs.size());
+    const int perRow = jmax (1, jmin (cols, a.getWidth() / kw));
+    for (int i = 0; i < cols; ++i)
+    {
+        const int row = i / perRow, col = i % perRow;
+        c.knobs[(size_t) i]->setBounds (a.getX() + col * kw, a.getY() + row * (kh + 4), kw, kh);
+    }
+}
+
 void Canvas::resized()
 {
-    const int m = 20, gap = 10, rowH = 156;
-    presets.setBounds (W - m - 300, 34, 300, 90);
-    anvil.setBounds (m, 146, W - 2 * m, 190);
-    pageKick.setBounds (m, 346, 140, 30);
-    pageBass.setBounds (m + 148, 346, 230, 30);
-    // widths per row (sum + gaps = W - 2m); page 1: rows A, B, C; page 2: FIXED HEAD | REVERSE BASS, then the big lane
-    const std::vector<std::vector<int>> rows { { 644, 300, 244, 242 }, { 344, 396, 290, 224, 166 }, { 564, 274, 220, 372 }, { 330, W - 2 * m - 330 - gap } };
-    size_t si = 0;
-    int y = 388;
-    for (size_t r = 0; r < rows.size(); ++r)
+    const int m = 20, gap = 12, kw = 74;
+    // top bar
+    const int bx = W - m;
+    redoB.setBounds (bx - 62, 14, 62, 30);
+    undoB.setBounds (bx - 130, 14, 62, 30);
+    playB.setBounds (bx - 206, 14, 70, 30);
+    folderB.setBounds (bx - 284, 14, 72, 30);
+    saveB.setBounds (bx - 362, 14, 72, 30);
+    randomB.setBounds (bx - 454, 14, 86, 30);
+    next.setBounds (bx - 498, 14, 34, 30);
+    presetBox.setBounds (bx - 504 - 270, 14, 270, 30);
+    prev.setBounds (presetBox.getX() - 40, 14, 34, 30);
+    // THE ANVIL + MASTER
+    auto& master = cards[0];
+    master.area = { W - m - 430, 68, 430, 200 };
+    anvil.setBounds (m, 68, master.area.getX() - gap - m, 200);
+    tabs->setBounds (m, 280, 420, 30);
+    // pages
+    const int y1 = 318, rowH = 134, y2 = y1 + rowH + gap;
+    auto place = [&] (std::initializer_list<std::pair<int, int>> list, int y)
     {
-        if (r == 3) y = 388;                         // page 2 starts at the top again
         int x = m;
-        for (int w : rows[r]) { if (si < sections.size()) sections[si++].area = { x, y, w, rowH }; x += w + gap; }
-        y += rowH + gap;
-    }
-    bassLane.setBounds (m, 388 + rowH + gap, W - 2 * m, H - 14 - (388 + rowH + gap));
-    for (auto& sec : sections)
+        for (auto [idx, w] : list) { cards[(size_t) idx].area = { x, y, w == 0 ? W - m - x : w, rowH }; x += cards[(size_t) idx].area.getWidth() + gap; }
+    };
+    for (auto& c : cards) if (c.page >= 0) c.area = {};
+    if (page == 0)
     {
-        auto a = sec.area.reduced (12, 8).withTrimmedTop (36);
-        if (sec.side != nullptr) { sec.side->setBounds (a.removeFromLeft (sec.sideW).withSizeKeepingCentre (sec.sideW, jmin (a.getHeight(), 128))); a.removeFromLeft (8); }
-        if (sec.sideW < 0) { meter.setBounds (a.removeFromRight (22).reduced (0, 6)); a.removeFromRight (8); }
-        if (sec.title == "SAMPLE") { sampleNameArea = a.removeFromBottom (18); }
-        const float cw = (float) a.getWidth() / (float) jmax<size_t> (1, sec.knobs.size());
-        for (size_t i = 0; i < sec.knobs.size(); ++i)
-            sec.knobs[i]->setBounds (Rectangle<int> (a.getX() + (int) (cw * (float) i), a.getY(), (int) cw, a.getHeight()).withSizeKeepingCentre (jmin ((int) cw - 2, 100), a.getHeight()));
+        place ({ { 1, 8 * kw + 32 }, { 2, 360 }, { 4, 0 } }, y1);                          // Tail | Stage 1 | Stage 2
+        place ({ { 3, 3 * kw + 32 }, { 5, 4 * kw + 32 }, { 6, 5 * kw + 32 }, { 7, 0 } }, y2);   // Mid EQ | Filter | Texture | Impact
     }
-    auto head = [] (const Section& s) { return Rectangle<int> (s.area.getX(), s.area.getY() + 9, s.area.getWidth() - 14, 26); };
-    pitchMode->setBounds (head (sections[0]).removeFromRight (150));
-    roomInto->setBounds (head (sections[7]).removeFromRight (104));
+    else if (page == 1)
     {
-        auto h = head (sections[9]);
-        punchOn->setBounds (h.removeFromRight (100));
-        h.removeFromRight (8);
-        punchInto->setBounds (h.removeFromRight (104));
+        place ({ { 8, 7 * kw + 32 }, { 9, 3 * kw + 32 }, { 10, 0 } }, y1);      // Punch | Click | Fixed head
+        place ({ { 11, 3 * kw + 32 }, { 12, 2 * kw + 32 }, { 13, 0 } }, y2);    // Room | OTT | Sample
     }
-    headOn->setBounds (head (sections[13]).removeFromRight (100));
+    else
     {
-        auto h = head (sections[14]);
-        rbOn->setBounds (h.removeFromRight (100));
-        h.removeFromRight (8);
-        rbTail->setBounds (h.removeFromRight (118));
-        h.removeFromRight (8);
-        rbPump->setBounds (h.removeFromRight (90));
+        cards[14].area = { m, y1, W - 2 * m, rowH };
+        bassLane.setBounds (m, y2, W - 2 * m, H - m - y2);
     }
+    for (auto& c : cards) if (! c.area.isEmpty()) layoutCard (c, c.page < 0 ? 96 : kw);
+    // MASTER: 5 knobs in one row + the meter
     {
-        auto h = head (sections[10]);
-        clearBtn.setBounds (h.removeFromRight (30));
-        h.removeFromRight (6);
-        loadBtn.setBounds (h.removeFromRight (90));
+        auto a = master.area.reduced (16, 10);
+        a.removeFromTop (32);
+        meterArea = a.removeFromRight (14).reduced (0, 4);
+        a.removeFromRight (8);
+        const int w = a.getWidth() / 5;
+        for (int i = 0; i < 5; ++i) master.knobs[(size_t) i]->setBounds (a.getX() + i * w, a.getY() + 20, w, doomsday::flat::Knob::heightFor (44));
     }
-    renderBackground();
+    if (! cards[13].area.isEmpty()) sampleNameArea = cards[13].area.reduced (16, 10).removeFromTop (28).withTrimmedLeft (110).withTrimmedRight (140);
+    else sampleNameArea = {};
+}
+
+void Canvas::paint (Graphics& g)
+{
+    const auto& t = tokens();
+    g.fillAll (t.ground);
+    g.setColour (t.divider); g.fillRect (0, 56, W, 1);
+    doomsday::brand::drawBadge (g, doomsday::brand::headerBadgeArea (1.f, 28.f), 0.6f, RectanglePlacement::xLeft | RectanglePlacement::yMid);
+    const float tx = doomsday::brand::headerTextX (1.f);
+    g.setFont (lnf.font (19.f, Bold, 0.06f)); g.setColour (t.text);
+    g.drawText ("FORGE OF WRATH", Rectangle<float> (tx, 0.f, 240.f, 56.f), Justification::centredLeft);
+    g.setFont (lnf.font (12.f, Medium)); g.setColour (t.textMute);
+    g.drawText ("v2.1" + dotSep + "kick synth", Rectangle<float> (tx + 196.f, 0.f, 200.f, 56.f), Justification::centredLeft);
+    for (auto& c : cards) if (! c.area.isEmpty()) doomsday::flat::card (g, lnf, c.area, c.title, c.dot);
+}
+
+void Canvas::paintOverChildren (Graphics& g)
+{
+    const auto& t = tokens();
+    // output meter (MASTER)
+    if (! meterArea.isEmpty())
+    {
+        auto r = meterArea.toFloat();
+        g.setColour (t.control); g.fillRoundedRectangle (r, 4.f);
+        const float lv = jlimit (0.f, 1.f, (Decibels::gainToDecibels (meterLevel, -48.f) + 48.f) / 50.f);
+        auto fill = r.withTop (r.getBottom() - r.getHeight() * lv);
+        g.setColour (meterLevel > 0.99f ? t.hot : t.cool); g.fillRoundedRectangle (fill, 4.f);
+    }
+    if (! sampleNameArea.isEmpty())
+    {
+        const String name = proc.sampleName();
+        g.setFont (lnf.font (11.5f, Medium));
+        g.setColour (name.isEmpty() ? t.textMute : t.hot);
+        g.drawText (name.isEmpty() ? "No sample - Load or drop a WAV on the plugin" : name, sampleNameArea, Justification::centredLeft, true);
+    }
+    if (dragHover)
+    {
+        g.setColour (t.hot.withAlpha (0.10f)); g.fillRect (getLocalBounds());
+        g.setColour (t.text); g.setFont (lnf.font (22.f, Bold));
+        g.drawText ("Drop to load the sample", getLocalBounds(), Justification::centred);
+    }
 }
 
 bool Canvas::isInterestedInFileDrag (const StringArray& files)
@@ -642,114 +780,38 @@ void Canvas::filesDropped (const StringArray& files, int, int)
     for (auto& f : files) if (File (f).hasFileExtension ("wav;aif;aiff;flac")) { proc.loadSample (File (f)); break; }
     repaint();
 }
-void Canvas::paintOverChildren (Graphics& g)
-{
-    const String name = proc.sampleName();
-    if (page == 0)      // the sample name lives on the KICK page
-    {
-        g.setFont (lnf.valueFont (12.f));
-        g.setColour (name.isEmpty() ? lnf.theme.dim : ForgeTheme::magmaHot);
-        g.drawText (name.isEmpty() ? "NO SAMPLE  -  LOAD OR DROP A WAV" : name, sampleNameArea, Justification::centred, true);
-    }
-    if (dragHover)
-    {
-        g.setColour (ForgeTheme::magma.withAlpha (0.12f)); g.fillRect (getLocalBounds());
-        g.setColour (ForgeTheme::magmaHot); g.setFont (lnf.titleFont (22.f, 0.2f));
-        g.drawText ("DROP TO LOAD THE SAMPLE", getLocalBounds(), Justification::centred);
-    }
-}
-
-void Canvas::renderBackground()
-{
-    const float scale = 2.f, ui = 1200.f / (float) W;
-    background = Image (Image::RGB, (int) (W * scale), (int) (H * scale), true);
-    Graphics g (background);
-    g.addTransform (AffineTransform::scale (scale));
-    using namespace ForgeTheme;
-    g.fillAll (lnf.theme.bg);
-    {
-        // heat rising from below the header + embers
-        ColourGradient haze (magma.withAlpha (0.16f), W * 0.5f, 120.f, magma.withAlpha (0.f), W * 0.5f + 560.f, 120.f, true);
-        g.setGradientFill (haze); g.fillRect (0, 0, W, 180);
-        ColourGradient low (ember.withAlpha (0.10f), W * 0.5f, (float) H + 60.f, ember.withAlpha (0.f), W * 0.5f, (float) H - 360.f, true);
-        g.setGradientFill (low); g.fillRect (0, H - 400, W, 400);
-        Random r (11);
-        for (int i = 0; i < 90; ++i)
-        {
-            const float x = r.nextFloat() * W, y = 6.f + r.nextFloat() * 130.f, s = 0.8f + r.nextFloat() * 1.8f;
-            g.setColour ((r.nextBool() ? magmaHot : magma).withAlpha (0.10f + 0.35f * r.nextFloat() * (1.f - y / 140.f)));
-            g.fillEllipse (x, y, s, s);
-        }
-        ColourGradient vig (Colours::transparentBlack, W * 0.5f, H * 0.45f, Colours::black.withAlpha (0.7f), 0.f, -80.f, true);
-        g.setGradientFill (vig); g.fillRect (0, 0, W, H);
-        // molten seam under the header
-        ColourGradient line (magma.withAlpha (0.f), 0.f, 0.f, magma.withAlpha (0.f), (float) W, 0.f, false);
-        line.addColour (0.5, magmaHot.withAlpha (0.9f)); line.addColour (0.3, magma.withAlpha (0.5f)); line.addColour (0.7, magma.withAlpha (0.5f));
-        g.setGradientFill (line); g.fillRect (0.f, 136.f, (float) W, 1.2f);
-        ColourGradient glow (magma.withAlpha (0.18f), W * 0.5f, 136.f, magma.withAlpha (0.f), W * 0.5f, 150.f, false);
-        g.setGradientFill (glow); g.fillRect (0, 128, W, 18);
-    }
-    // title: forged metal, glowing from inside
-    {
-        const String title ("FORGE OF WRATH");
-        const auto area = Rectangle<float> (0.f, 26.f, (float) W, 60.f);
-        g.setFont (lnf.titleFont (40.f, 0.26f));
-        for (int i = 5; i >= 1; --i)
-        {
-            g.setColour (magma.withAlpha (0.09f / (float) i));
-            for (auto o : { Point<float> (-1.8f * (float) i, 0.f), Point<float> (1.8f * (float) i, 0.f), Point<float> (0.f, 1.8f * (float) i), Point<float> (0.f, -1.4f * (float) i) })
-                g.drawText (title, area.translated (o.x, o.y), Justification::centred);
-        }
-        g.setColour (Colours::black.withAlpha (0.85f)); g.drawText (title, area.translated (0.f, 2.f), Justification::centred);
-        ColourGradient tg (Colour (0xfffff3d6), 0.f, area.getY() + 12.f, ember, 0.f, area.getBottom() - 8.f, false);
-        tg.addColour (0.45, magmaHot); tg.addColour (0.7, magma);
-        g.setGradientFill (tg); g.drawText (title, area, Justification::centred);
-        // anvil + hammer spark mark above the title
-        const float cx = W * 0.5f, cy = 20.f;
-        Path anvilP;
-        anvilP.startNewSubPath (cx - 26.f, cy - 4.f); anvilP.lineTo (cx + 18.f, cy - 4.f); anvilP.lineTo (cx + 30.f, cy - 8.f);
-        anvilP.lineTo (cx + 22.f, cy + 1.f); anvilP.lineTo (cx + 8.f, cy + 2.f); anvilP.lineTo (cx + 12.f, cy + 8.f);
-        anvilP.lineTo (cx - 12.f, cy + 8.f); anvilP.lineTo (cx - 8.f, cy + 2.f); anvilP.lineTo (cx - 22.f, cy + 1.f); anvilP.closeSubPath();
-        g.setColour (magma.withAlpha (0.75f)); g.strokePath (anvilP, PathStrokeType (1.3f, PathStrokeType::mitered));
-        for (int i = 0; i < 5; ++i)
-        {
-            const float a = -2.5f + (float) i * 0.35f;
-            g.setColour (magmaHot.withAlpha (0.7f));
-            g.drawLine (cx + std::cos (a) * 7.f, cy - 8.f + std::sin (a) * 7.f, cx + std::cos (a) * 14.f, cy - 8.f + std::sin (a) * 14.f, 1.1f);
-        }
-        g.setFont (lnf.labelFont (12.5f, 0.6f)); g.setColour (magma.withAlpha (0.85f));
-        g.drawText ("HARDSTYLE  KICK  SYNTHESIZER", 0, 104, W, 18, Justification::centred);
-    }
-    const int tx = (int) doomsday::brand::headerTextX (ui);
-    g.setFont (lnf.titleFont (10.f, 0.25f)); g.setColour (lnf.theme.text.withAlpha (0.75f));
-    g.drawText ("V2.1", tx, 40, 300, 14, Justification::left);
-    g.setFont (lnf.labelFont (12.f, 0.28f)); g.setColour (lnf.theme.label);
-    g.drawText ("PUNCH  /  TAIL  /  DISTORTION  /  CLIP", tx, 58, 340, 16, Justification::left);
-    g.setColour (magma);
-    g.drawText ("HAMMERED, NOT MIXED", tx, 76, 320, 16, Justification::left);
-    doomsday::brand::drawHeaderBadge (g, ui, 0.55f);
-    for (auto& sec : sections) if (sec.page == page) paint::glassPanel (g, lnf, sec.area, sec.title, sec.accent);
-}
 
 void Canvas::timerCallback()
 {
     anvil.tick();
-    bassLane.tick();
-    presets.refresh();
-    meter.setLevel (proc.getEngine().outPeak.exchange (0.f));
+    if (page == 2) bassLane.tick();
+    tabs->refresh();
+    if (proc.currentPresetName() != lastName)
+    {
+        lastName = proc.currentPresetName();
+        int found = 0;
+        for (int i = 0; i < presetBox.getNumItems(); ++i) if (presetBox.getItemText (i) == lastName) { found = presetBox.getItemId (i); break; }
+        if (found != 0) presetBox.setSelectedId (found, dontSendNotification);
+        else presetBox.setText (lastName, dontSendNotification);
+    }
+    const float pk = proc.getEngine().outPeak.exchange (0.f);
+    meterLevel = jmax (pk, meterLevel * 0.85f);
+    repaint (meterArea.expanded (2));
     if (proc.getSampleSerial() != lastSampleSerial) { lastSampleSerial = proc.getSampleSerial(); repaint (sampleNameArea.expanded (4)); }
 }
 
-void Canvas::paint (Graphics& g)
-{
-    if (background.isValid()) g.drawImage (background, getLocalBounds().toFloat(), RectanglePlacement::stretchToFit);
-}
-
+// ======================================================================= editor
 ForgeEditor::ForgeEditor (ForgeProcessor& p) : AudioProcessorEditor (p), canvas (p)
 {
     addAndMakeVisible (canvas);
     setResizable (true, true);
-    setResizeLimits (900, 540, 2250, 1350);
+    setResizeLimits (Canvas::W * 6 / 10, Canvas::H * 6 / 10, Canvas::W * 16 / 10, Canvas::H * 16 / 10);
     getConstrainer()->setFixedAspectRatio ((double) Canvas::W / (double) Canvas::H);
-    setSize (1200, 720);
+    setSize (Canvas::W, Canvas::H);
+}
+
+void ForgeEditor::resized()
+{
+    canvas.setBounds (0, 0, Canvas::W, Canvas::H);
+    canvas.setTransform (AffineTransform::scale ((float) getWidth() / (float) Canvas::W));
 }

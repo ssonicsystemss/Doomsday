@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(ForgeOfWrath VERSION 2.1.0)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../Shared/cmake/Doomsday.cmake)
 
-doomsday_plugin(ForgeOfWrath
+doomsday_plugin(ForgeOfWrath FLAT
     NAME "Forge of Wrath"
     CODE FoWr
     CATEGORIES Instrument Drum

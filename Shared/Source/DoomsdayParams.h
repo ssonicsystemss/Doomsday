@@ -13,7 +13,8 @@ namespace doomsday
     namespace fmt
     {
         inline juce::String hz (float v, int)   { return v >= 1000.f ? juce::String (v / 1000.f, 2) + " kHz" : juce::String ((int) std::round (v)) + " Hz"; }
-        inline juce::String ms (float v, int)   { return v >= 1000.f ? juce::String (v / 1000.f, 2) + " s" : juce::String (v, v < 10.f ? 1 : 0) + " ms"; }
+        // note: juce::String (float, 0) means "all decimals" - whole numbers go through an int
+        inline juce::String ms (float v, int)   { return v >= 1000.f ? juce::String (v / 1000.f, 2) + " s" : (v < 10.f ? juce::String (v, 1) : juce::String ((int) std::round (v))) + " ms"; }
         inline juce::String db (float v, int)   { return v <= -47.9f ? juce::String ("-inf") : (v > 0.05f ? "+" : "") + juce::String (v, 1) + " dB"; }
         inline juce::String pct (float v, int)  { return juce::String ((int) std::round (v * 100.f)) + "%"; }
         inline juce::String bip (float v, int)  { return (v > 0.005f ? "+" : "") + juce::String ((int) std::round (v * 100.f)) + "%"; }

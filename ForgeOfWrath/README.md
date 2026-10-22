@@ -1,5 +1,13 @@
 # FORGE OF WRATH v2.1
 
+**Nowy wygląd** (jak 5CR34M 4LPH4): na górze presety (< lista > Random Save **Folder** Play Undo Redo – *Folder* otwiera
+`Dokumenty\Forge of Wrath\Presets` z twoimi presetami), pod spodem THE ANVIL i MASTER, a niżej trzy zakładki:
+**Kick** (Tail, Stage 1 / 2, Mid EQ, Filter, Texture, Impact), **Layers** (Punch, Click, Fixed head, Room, OTT, Sample),
+**Reverse bass** (gałki + duży podgląd jednego beatu). Okno 1400 × 612 – mieści się w FL bez zmniejszania.
+
+**REVERSE BASS → PUMP** (domyślnie, wzór: sample FHSP „reversed bass kicks”): kick wycina bas, bas wraca w **RELEASE**
+(jak sidechain), trzyma równą półkę i jest ucinany w **FADE** tuż przed kolejnym kickiem. PUMP wyłączony = stary SWELL z PEAK.
+
 **v2.1 – REVERSE BASS** (pomysł z dkd Damiana): każdy kick odpala jeden beat basu na tej samej nucie, w tempie FL.
 Bas narasta między kickami, na końcu podjeżdża w górę (jak odwrócony ogon kicka), a przed następnym kickiem jest czysta przerwa.
 **FROM TAIL** (domyślnie włączony): bas to ogon twojego kicka puszczony od tyłu – ten sam przester i barwa, a opadanie
@@ -54,10 +62,9 @@ podwójny klik / prawy klik = usuń. Oś czasu = cała długość (LENGTH) – o
 - **MASTER**: LENGTH, **CLIP** (wbija w clipper – głośniej, twardziej), SOFT (0 = twardy clip, 1 = miękki), VELOCITY, OUTPUT.
 
 ## Presety
-Dopasowane do 20 kicków referencyjnych (porównanie widma w czasie, pitchu i obwiedni) + kilka narzędziowych:
-RAW (Rusted Chainsaw, Unchained Beast, Tribal Fury, Volcanic Eruption, Galactic Roar), HARD (Forged Steel, Old Skool Pick,
-Old Skool Hammer, Iron Fist), EUPHORIC (Classic Thump, Bright Thump, Deep Thump, Clean Hammer, Short Tok, Soft Pillow),
-REVERSE (Rising Wrath, Undertow, Backdraft, Long Rise), SPECIAL – Double Strike, TOOL (Pure Sub Tail, Punch + Click Only,
-Reverse Bass Builder). **RANDOMIZE** losuje nowy kick, **SAVE** → `Dokumenty\Forge of Wrath\Presets\*.fow` (razem z obwiedniami).
+Wyczyszczone (2026-10-22) do tego, co ci się podoba: **INIT**, twoje **OWNER - QL / QL 1 / QL 2 / Nice / Nice 1 / Nice 2 / Sgsdg**
+(dokładnie tak, jak je zapisałeś), fabryczne **RAW - Volcanic Eruption** i **REVERSE - Undertow**, oraz nowe **BASS - … Pump**
+(QL, QL 1, QL 2, Nice 2, Volcanic, Undertow) – twoje kicki z pompującym reverse bassem z odwróconego ogona.
+**RANDOM** losuje nowy kick, **SAVE** → `Dokumenty\Forge of Wrath\Presets\*.fow`.
 
 Silnik: `../Shared/Source/DoomsdayKick.h` (renderowany 4× oversampling). Ancient Drums zostaje bez zmian.

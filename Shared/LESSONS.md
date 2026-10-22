@@ -191,6 +191,8 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   Forge zamrożony, nowy kick synth **4GE** (`FourGE/`) na silniku Forge + brakujące moduły. Kompatybilność z presetami `.fow`
   **niepotrzebna** („prościej będzie”), ale jego kicki przeniesione jako presety fabryczne (te same nazwy parametrów, AUTO GAIN off,
   ROOM LOW CUT otwarty → brzmią jak w Forge).
+- **Reverse bass: domyślnie NIE wycinamy dołu** (właściciel, 2026-10-23; wcześniej: „brakuje pierdolnięcia basowego”). Zintegrowany
+  kick + bas: low cut wyłączony, SUB pełny; low cut działa tylko na przesterowanej części, nigdy na czystym subie. Dół zabiera tylko świadomie ustawiona gałka.
 - Smaczki z Forge, które mają zostać w 4GE: tok jak początek taila (INTO DIST), FIXED HEAD, reverse bass z odwróconego taila z wczesnym
   szczytem / PUMP + SUB, krótki kick (~170 ms) pod reverse bassem.
 

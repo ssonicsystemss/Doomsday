@@ -319,6 +319,30 @@ ma nowe ID i wartość neutralną, więc presety właściciela (QL / Nice / Sgsd
 Z `Shared/` do wzięcia: ADAA, auto-gain, `Ladder`, oscylator modulujący (PM), bitcrusher, Oversampling.
 
 ---
+## Reverse bass – architektura (dokument właściciela, 2026-10-23) → 4GE
+Dziś (4GE v0.1 = Forge v2.1): bas startuje z kickiem, kroki 1/4 / 1/8 / 1/16 w tempie FL; SOURCE TAIL (odwrócony ogon kicka, bez puncha / kliku)
+albo SYNTH (piła 45 % + sinus 70 %, RISE); obwiednia PUMP (release → półka → FADE) albo SWELL (CURVE, PEAK); DRIVE (soft ADAA) → TONE (LP 24 dB)
+→ LEVEL; SUB = czysty sinus równolegle z tą samą obwiednią; mono; razem z kickiem do clippera.
+Zasada: **bas ma własny generator, pitch, obwiednię i harmoniczne, ale bierze z silnika kicka przestery (`ge::stage` z BIAS / MIX / AUTO GAIN),
+filtry (`ge::filt`) i strojenie.**
+
+| # | Co | Uwagi |
+|---|---|---|
+| RB1 / RB14 | rysowana linia DRIVE / WARP basu na kroku | bas brudnieje i otwiera się razem z narastaniem |
+| RB2 | SUB jako crossover (czysty sinus poniżej X Hz) zamiast dokładania | low cut / przester nie ruszają subu |
+| RB3 / RB22 / RB23 | PRE FILTER (OFF / LP / HP / BP / NOTCH, reso) → przester (typ, drive, CLIP, ASYM, MIX) → POST: HP, LP (TONE), BELL, CLIP | bell 500–1000 Hz domyślnie łagodnie (+2–3 dB), > 2 kHz ciemno (FHSP: 1–2.5 kHz −16…−26 dB, za dużo = „nijaki”) |
+| RB4 | reset fazy SYNTH na każdym kroku | powtarzalność |
+| RB5 / RB9 | SOURCE: TAIL / SYNTH / SAMPLE; SYNTH: SAW ↔ PULSE, WIDTH, osobny LEVEL sinusa | |
+| RB10 / RB12 | PHASE WARP: BEND / SQUEEZE / SYNC / MIRROR + AMOUNT + ENV | BEND jest w `Shared` (INTENSITY BEND); najpierw tylko SYNTH |
+| RB6 / RB7 / RB8 | TRIGGER: WITH KICK / MIDI (+ KICK ON / OFF w instancji); nuta MIDI = GATE; opcja podziału klawiatury | w MIDI punch się nie generuje |
+| RB13 / RB16 / RB17 | jedna obwiednia: DELAY (IN) → INITIAL → SWELL ms + CURVE (lin / exp / S) → HOLD → DECAY + CURVE → GATE + FADE; INITIAL DUCK jako poziom; tryb DRAWN | PUMP / SWELL to jej ustawienia; FADE przed kickiem zawsze (bezpiecznik) |
+| RB18 / RB19 | TIMING: SYNC / MS (decay i gate w krokach albo ms, swell zawsze ms); szablony PUMP, SWELL, TIGHT, ROLL, PULSE | swell 5–300 ms, domyślnie ~60 ms (FHSP: powrót 50–80 ms) |
+| RB20 / RB21 | pitch: STABLE / DROP / RISE / BOUNCE / DRAWN + START OFFSET, AMOUNT, TIME, END NOTE; KEY TRACK | klasyczny reverse = RISE; w TAIL tylko małe ruchy (czytanie bufora = zmiana barwy) |
+| RB24 / RB25 / RB26 | OFFSET kroku (offbeat), maska kroków, GATE do następnego kicka (WITH KICK; w MIDI ewentualnie sidechain) | test: start / koniec ±1 ms przy 150 BPM, też po zmianie tempa |
+Zasada właściciela: **domyślnie nie ruszamy dołu w reverse bassie** (WITH KICK: low cut ~20 Hz, SUB pełny; MIDI: łagodnie 40–60 Hz;
+low cut tylko na przesterowanej części).
+
+---
 ## Wspólne wzorce (wszystkie analizy)
 - **Słuchanie różnicy**: delta / audition / unity gain (Pro-L 2, nasze MATCH) – producent od razu słyszy, co robi efekt.
 - **Rysowanie zamiast kręcenia**: EQ Sketch, krzywe Béziera w Kick 2, nasze obwiednie w Forge.

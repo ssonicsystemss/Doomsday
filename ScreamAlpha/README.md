@@ -34,7 +34,7 @@ CORE + HASH → OUTPUT: DRIVE 2 → TONE → LOW CUT → AMP (ADSR) → CHORUS (
 - **HOOVER - Hardstyle Scream** – ostrzejszy: FM, twardy przester, filtr grzebieniowy, krótki rzut nuty.
 - **SCREECH - Short Shot / Massive Dive / Loop Hash / Bright Talker / Classic Wail / Digital Rise** – dobrane automatem do twoich wzorców
   (FHSP 107, Massive 023, OPS loop 9, FHSP 069, Sylenth 008, Serum 018), na poprawionym silniku (bez „odkurzacza”), z przestrzenią, głośność wyrównana.
-- **SCREECH - Owner 6 / Owner 7** – twoje własne brzmienia (z RANDOM + FORTUNE). RANDOM losuje teraz najczęściej w podobnym klimacie.
+- **SCREECH - Owner 6 / Owner 7 / Owner 8** – twoje własne brzmienia (z RANDOM + FORTUNE). RANDOM losuje najczęściej w ich klimacie: 45 % „szeroki” (jak 6 / 7: dużo rozstrojonych pił, mocny drive), 30 % „wokalny” (jak 8: mało głosów, comb, mocny formant, FORTUNE na full), 25 % dziko.
 - **INIT** – punkt startowy.
 
 To wersja do testów: dźwięk i gałki będą się jeszcze zmieniać. Pisz, co brzmi źle.

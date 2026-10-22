@@ -92,6 +92,7 @@ namespace
     { "SCREECH - Digital Rise", { { "scoopSt", 3.0f }, { "scoopMs", 120.0f }, { "scoopCurve", 0.4f }, { "coreLevel", 0.10263f }, { "coreShape", 0.42512f }, { "hashLevel", 1.8588f }, { "hashDecayMs", 49.392f }, { "hashSustain", 0.76292f }, { "detuneCents", 55.596f }, { "carrierSaw", 0.67598f }, { "ratio", 3.6291f }, { "index", 4.0769f }, { "chaos", 0.92048f }, { "chaosHz", 2.4096f }, { "grit", 0.0457f }, { "hashHp", 397.67f }, { "drive1Db", 33.722f }, { "combMix", 0.5254f }, { "combFb", -0.31815f }, { "combRatio", 1.025f }, { "formHz", 863.09f }, { "formGainDb", 14.04f }, { "formQ", 0.77744f }, { "drive2Db", 22.558f }, { "toneHz", 16446.0f }, { "lowCut", 80.236f }, { "outDb", -3.1f }, { "ott", 0.3f }, { "dlyMix", 0.22f }, { "dlyDiv", 2.0f }, { "dlyFb", 0.4f }, { "revMix", 0.4f }, { "revSize", 0.78f }, { "revDamp", 0.45f } } },
     { "SCREECH - Owner 6", { { "attackMs", 4.59282f }, { "autoDiv", 4.0f }, { "autoOct", 6.0f }, { "autoShape", 4.0f }, { "carrierSaw", 0.74013f }, { "chaos", 0.57937f }, { "chaosHz", 10.68747f }, { "chorus", 0.0f }, { "combFb", 0.05527f }, { "combMix", 0.0f }, { "combRatio", 1.0f }, { "coreLevel", 0.59668f }, { "coreOct", 0.0f }, { "coreShape", 0.40122f }, { "cutoffHz", 20000.0f }, { "decayMs", 302.64859f }, { "detuneCents", 45.82917f }, { "dlyDiv", 1.0f }, { "dlyFb", 0.27968f }, { "dlyMix", 0.21476f }, { "drive1Curve", 3.0f }, { "drive1Db", 19.60166f }, { "drive2Curve", 2.0f }, { "drive2Db", 1.72554f }, { "filtMode", 0.0f }, { "formGainDb", 3.94618f }, { "formHz", 1331.17493f }, { "formQ", 4.55479f }, { "fortune", 0.44063f }, { "glideMs", 42.47207f }, { "grit", 0.0f }, { "hashDecayMs", 315.50885f }, { "hashHp", 114.47311f }, { "hashLevel", 1.23466f }, { "hashSustain", 0.96526f }, { "index", 0.13756f }, { "lowCut", 89.72073f }, { "ott", 0.46901f }, { "outDb", -1.13176f }, { "ratio", 3.0f }, { "releaseMs", 58.72669f }, { "reso", 0.0f }, { "revDamp", 0.30301f }, { "revMix", 0.27634f }, { "revSize", 0.58544f }, { "scoopCurve", 0.44061f }, { "scoopMs", 449.61313f }, { "scoopSt", -5.9746f }, { "sustain", 0.77724f }, { "toneHz", 6098.16113f }, { "tuneSt", 0.0f }, { "voices", 7.0f } } },
     { "SCREECH - Owner 7", { { "attackMs", 0.5f }, { "autoDiv", 4.0f }, { "autoOct", 6.0f }, { "autoShape", 4.0f }, { "carrierSaw", 0.89803f }, { "chaos", 0.33332f }, { "chaosHz", 10.05459f }, { "chorus", 0.28014f }, { "combFb", -0.63844f }, { "combMix", 0.0f }, { "combRatio", 1.0f }, { "coreLevel", 0.12919f }, { "coreOct", 0.0f }, { "coreShape", 0.24594f }, { "cutoffHz", 20000.0f }, { "decayMs", 637.70654f }, { "detuneCents", 52.27443f }, { "dlyDiv", 5.0f }, { "dlyFb", 0.36579f }, { "dlyMix", 0.20954f }, { "drive1Curve", 0.0f }, { "drive1Db", 23.04198f }, { "drive2Curve", 2.0f }, { "drive2Db", 11.03983f }, { "filtMode", 0.0f }, { "formGainDb", 1.09591f }, { "formHz", 1368.21545f }, { "formQ", 2.19943f }, { "fortune", 0.8625f }, { "glideMs", 545.9787f }, { "grit", 0.0f }, { "hashDecayMs", 571.54688f }, { "hashHp", 1241.60767f }, { "hashLevel", 0.43816f }, { "hashSustain", 0.63218f }, { "index", 0.49875f }, { "lowCut", 20.0f }, { "ott", 0.35033f }, { "outDb", 2.40181f }, { "ratio", 1.0f }, { "releaseMs", 75.70741f }, { "reso", 0.0f }, { "revDamp", 0.44691f }, { "revMix", 0.35393f }, { "revSize", 0.80465f }, { "scoopCurve", 0.15203f }, { "scoopMs", 278.01672f }, { "scoopSt", 2.99883f }, { "sustain", 0.66806f }, { "toneHz", 14912.3252f }, { "tuneSt", 0.0f }, { "voices", 4.0f } } },
+    { "SCREECH - Owner 8", { { "attackMs", 1.05805f }, { "autoDiv", 4.0f }, { "autoOct", 0.0f }, { "autoShape", 0.0f }, { "carrierSaw", 0.52441f }, { "chaos", 0.50878f }, { "chaosHz", 12.33119f }, { "chorus", 0.44114f }, { "combFb", 0.11437f }, { "combMix", 0.28136f }, { "combRatio", 2.0f }, { "coreLevel", 0.85072f }, { "coreOct", 0.0f }, { "coreShape", 0.77418f }, { "cutoffHz", 20000.0f }, { "decayMs", 417.39474f }, { "detuneCents", 13.8796f }, { "dlyDiv", 5.0f }, { "dlyFb", 0.34091f }, { "dlyMix", 0.29333f }, { "drive1Curve", 4.0f }, { "drive1Db", 6.1625f }, { "drive2Curve", 2.0f }, { "drive2Db", 9.75888f }, { "filtMode", 0.0f }, { "formGainDb", 10.13943f }, { "formHz", 1075.46289f }, { "formQ", 1.97028f }, { "fortune", 1.0f }, { "glideMs", 95.80713f }, { "grit", 0.0f }, { "hashDecayMs", 395.45511f }, { "hashHp", 738.13214f }, { "hashLevel", 0.55314f }, { "hashSustain", 0.50664f }, { "index", 0.66957f }, { "lowCut", 125.60382f }, { "ott", 0.00869f }, { "outDb", -6.77846f }, { "ratio", 3.0f }, { "releaseMs", 68.73552f }, { "reso", 0.0f }, { "revDamp", 0.36856f }, { "revMix", 0.35659f }, { "revSize", 0.82867f }, { "scoopCurve", 0.44212f }, { "scoopMs", 269.9816f }, { "scoopSt", 5.04457f }, { "sustain", 0.91591f }, { "toneHz", 5672.23193f }, { "tuneSt", 0.0f }, { "voices", 3.0f } } },
         };
         return p;
     }
@@ -258,9 +259,10 @@ void AlphaProcessor::randomize()
     auto pick = [&r] (std::initializer_list<float> o) { return *(o.begin() + r.nextInt ((int) o.size())); };
     auto chance = [&r] (float pr) { return r.nextFloat() < pr; };
 
-    if (chance (0.75f))
+    const float roll = r.nextFloat();
+    if (roll < 0.45f)
     {
-        // the owner's taste (his presets "6" / "7", 2026-10-22): wide detuned saws with chaos, soft / fold drive into a tube,
+        // the owner's taste A (his presets "6" / "7", 2026-10-22): wide detuned saws with chaos, soft / fold drive into a tube,
         // FORTUNE up, no grit, no comb, light formant around 1.3 kHz, OTT + delay + reverb
         set ("scoopSt", chance (0.6f) ? lin (2.f, 5.f) : lin (-7.f, -3.f)); set ("scoopMs", lin (220.f, 480.f)); set ("scoopCurve", lin (0.1f, 0.5f));
         set ("glideMs", chance (0.15f) ? lin (300.f, 600.f) : lg (30.f, 150.f)); set ("tuneSt", 0.f);
@@ -278,6 +280,28 @@ void AlphaProcessor::randomize()
         set ("ott", lin (0.3f, 0.5f)); set ("dlyMix", lin (0.15f, 0.25f)); set ("dlyDiv", pick ({ 1.f, 2.f, 5.f })); set ("dlyFb", lin (0.25f, 0.4f));
         set ("revMix", lin (0.25f, 0.38f)); set ("revSize", lin (0.55f, 0.82f)); set ("revDamp", lin (0.3f, 0.5f));
         set ("fortune", lin (0.35f, 0.9f));
+        set ("cutoffHz", 20000.f); set ("reso", 0.f); set ("autoShape", 0.f); set ("autoOct", 0.f);
+    }
+    else if (roll < 0.75f)
+    {
+        // the owner's taste B (his preset "8", 2026-10-22): "vocal" – few, tight voices, strong core, comb an octave up,
+        // a loud open formant ~1 kHz, gentle drive 1 + tube drive 2, FORTUNE full, almost no OTT, chorus, big reverb
+        set ("scoopSt", chance (0.75f) ? lin (3.f, 7.f) : lin (-6.f, -3.f)); set ("scoopMs", lin (200.f, 380.f)); set ("scoopCurve", lin (0.3f, 0.55f));
+        set ("glideMs", lg (50.f, 160.f)); set ("tuneSt", 0.f);
+        set ("coreLevel", lin (0.6f, 1.f)); set ("coreShape", lin (0.55f, 0.95f)); set ("coreOct", 1.f);
+        set ("hashLevel", lin (0.4f, 0.8f)); set ("hashDecayMs", lin (300.f, 500.f)); set ("hashSustain", lin (0.4f, 0.65f));
+        set ("voices", (float) (2 + r.nextInt (3))); set ("detuneCents", lin (8.f, 22.f)); set ("carrierSaw", lin (0.4f, 0.7f));
+        set ("ratio", pick ({ 2.f, 3.f })); set ("index", lin (0.4f, 0.9f));
+        set ("chaos", lin (0.35f, 0.6f)); set ("chaosHz", lin (9.f, 15.f)); set ("grit", 0.f); set ("hashHp", lg (400.f, 1000.f));
+        set ("drive1Db", lin (4.f, 10.f)); set ("drive1Curve", pick ({ 4.f, 3.f }));
+        set ("combMix", lin (0.15f, 0.4f)); set ("combFb", lin (0.f, 0.3f)); set ("combRatio", 2.f);
+        set ("formHz", lin (850.f, 1300.f)); set ("formGainDb", lin (7.f, 12.f)); set ("formQ", lin (1.5f, 2.6f));
+        set ("drive2Db", lin (7.f, 12.f)); set ("drive2Curve", 2.f); set ("toneHz", lg (4800.f, 7500.f)); set ("lowCut", lg (90.f, 160.f));
+        set ("attackMs", lin (0.5f, 2.f)); set ("decayMs", lin (300.f, 550.f)); set ("sustain", lin (0.8f, 0.95f)); set ("releaseMs", lin (55.f, 80.f));
+        set ("chorus", lin (0.3f, 0.55f));
+        set ("ott", lin (0.f, 0.1f)); set ("dlyMix", lin (0.2f, 0.32f)); set ("dlyDiv", pick ({ 5.f, 2.f })); set ("dlyFb", lin (0.28f, 0.4f));
+        set ("revMix", lin (0.3f, 0.4f)); set ("revSize", lin (0.7f, 0.85f)); set ("revDamp", lin (0.3f, 0.45f));
+        set ("fortune", lin (0.8f, 1.f));
         set ("cutoffHz", 20000.f); set ("reso", 0.f); set ("autoShape", 0.f); set ("autoOct", 0.f);
     }
     else

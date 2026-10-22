@@ -62,6 +62,7 @@ public:
 
     ForgeEngine& getEngine() { return engine; }
     ForgeParams gather() const;
+    ForgeParams gatherForGui() const;      // the GUI waits for the envelopes instead of reading the audio thread's copies
     const doomsday::PresetIO io { "Forge of Wrath", "fow" };
     int auditionNote = 31;          // G1 in FL (49 Hz)
 
@@ -72,6 +73,7 @@ private:
     int currentProgram = 0;
     juce::String presetName { "Forge Default" };
     mutable juce::SpinLock shapeLock;
+    juce::SpinLock prepareLock;            // prepareToPlay holds it; processBlock only try-locks (silence while FL re-prepares)
     std::array<doomsday::kick::Shape, 3> shapes;
     mutable doomsday::kick::Shape lastAmp, lastDrive, lastPitch;      // audio-thread copies when the lock is busy
     std::atomic<int> shapeSerial { 0 }, sampleSerial { 0 };

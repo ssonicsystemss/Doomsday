@@ -81,6 +81,7 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (f (rbLevel, "Reverse Bass Level", { -36.f, 6.f }, -4.f, fm::db, fm::num));
     l.add (b (punchInto, "Punch Into Distortion", false));
     l.add (b (headOn, "Fixed Head", false));
+    l.add (b (rbTail, "Reverse Bass From Tail", true));
     l.add (f (punchLen, "Punch Length", skew (0.f, 250.f, 80.f), 0.f, [] (float v, int) { return v < 0.5f ? String ("DECAY") : fm::ms (v, 0); }, fm::msIn));
     l.add (f (headLen, "Head Length", skew (20.f, 300.f, 110.f), 110.f, fm::ms, fm::msIn));
     l.add (f (headHz, "Head Pitch", skew (30.f, 120.f, 55.f), 49.f, [] (float v, int)
@@ -193,8 +194,19 @@ ForgeProcessor::ForgeProcessor()
 
 void ForgeProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    // FL may call this while an audio callback is still running (Replace, sample-rate change, loading a project):
+    // processBlock outputs silence instead of rendering into voices that are being re-prepared (sonic-toolbox bugs/fl-replace-crash.md)
+    const SpinLock::ScopedLockType l (prepareLock);
     engine.setParams (gather());
     engine.prepare (sampleRate, samplesPerBlock);
+}
+
+ForgeParams ForgeProcessor::gatherForGui() const
+{
+    auto e = gather();
+    const SpinLock::ScopedLockType l (shapeLock);
+    e.k.amp = shapes[0]; e.k.drive = shapes[1]; e.k.pitch = shapes[2];
+    return e;
 }
 
 ForgeParams ForgeProcessor::gather() const
@@ -221,7 +233,7 @@ ForgeParams ForgeProcessor::gather() const
     k.punchDriveDb = get (punchDrive);
     e.ott = get (ott); e.sampleDb = get (smpLevel); e.samplePitch = get (smpPitch); e.sampleStartMs = get (smpStart);
     e.clipDriveDb = get (clipDrive); e.clipSoft = get (clipSoft); e.velocitySens = get (velocity); e.outDb = get (output);
-    e.rbOn = get (rbOn) > 0.5f;
+    e.rbOn = get (rbOn) > 0.5f; e.rbTail = get (rbTail) > 0.5f;
     const int pat = jlimit (0, 2, (int) std::round (get (rbPattern)));
     e.rb.stepBeats = pat == 2 ? 0.25 : pat == 1 ? 0.5 : 1.0;
     e.rb.in = get (rbIn); e.rb.out = get (rbOut); e.rb.curve = get (rbCurve); e.rb.riseSt = get (rbRise);
@@ -233,6 +245,8 @@ void ForgeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
 {
     ScopedNoDenormals noDenormals;
     buffer.clear();
+    const SpinLock::ScopedTryLockType prepared (prepareLock);
+    if (! prepared.isLocked()) return;
     auto prm = gather();
     lastAmp = prm.k.amp; lastDrive = prm.k.drive; lastPitch = prm.k.pitch;
     engine.setParams (prm);

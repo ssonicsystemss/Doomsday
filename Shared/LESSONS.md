@@ -41,6 +41,14 @@ Dopisuj po każdej uwadze właściciela („brzmi źle”, „słabo działa”,
   + punch z własnym przesterem poza obwiednią AMP. Pomiar: `zero-crossing / DFT` w scratchpadzie, wzorce są właściciela (nie w git).
 - Wniosek: reverse w kicku to jego sposób pracy → sekcja REVERSE BASS (v2.1) jako uzupełnienie, nie zamiennik obwiedni.
 
+## Crash FL w Forge v2.1 (2026-10-22, raz, w wątku okna; po ponownym otwarciu brak)
+- Prawdopodobnie wyścig przy ponownym `prepareToPlay` (FL woła je np. przy wczytaniu projektu): bufory / pokój pogłosu realokowane,
+  a audio albo GUI je czyta. Poprawka: duże bufory raz w konstruktorze, `prepareLock` (prepare trzyma, processBlock tylko try-lock
+  → cisza), GUI czyta obwiednie pod blokadą (`gatherForGui`), nie kopie z wątku audio. CI Windows zapisuje teraz .pdb → następny
+  log FL („offset” w module) da się przełożyć na funkcję. Wzór: sonic-toolbox `bugs/fl-replace-crash.md`.
+- Toolbox Damiana (`ssonicsystemss/sonic-toolbox`) jest teraz bazą wiedzy: `INDEX.md`, `AVOID.md` (jedna zasada na linię), `bugs/`,
+  `dsp/`, `juce/`, `patterns/`, `snippets/` – czytać `AVOID.md` + `bugs/` przy każdej nowej wtyczce (tylko do czytania).
+
 ## Z dkd Damiana (`ssonicsystemss/dkd`, 2026-10-22) – technika, której nam brakowało (szczegóły: RESEARCH.md)
 - **Oversampler (i inne bufory) tworzyć RAZ w konstruktorze, w `prepare` tylko `reset` / `initProcessing`.** FL przy „Replace” /
   ponownym prepare potrafi mieć jeszcze callback audio w locie – `make_unique` w prepare zwalnia obiekt pod wątkiem audio (crash).

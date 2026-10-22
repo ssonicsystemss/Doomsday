@@ -77,7 +77,8 @@ namespace ParamIDs
     inline constexpr const char* headOn    = "head_on";      // v2.1: FIXED HEAD - the start of the kick is the same on every note
     inline constexpr const char* headLen   = "head_len";
     inline constexpr const char* headHz    = "head_hz";
-    inline constexpr const char* punchLen  = "punch_len";    // v2.1: TOK punch length (0 = old decaying punch)   // v2.1: the punch goes through the tail's distortion    // v2.1: fine pitch of the tail in cents
+    inline constexpr const char* punchLen  = "punch_len";
+    inline constexpr const char* rbTail    = "rb_tail";      // v2.1: REVERSE BASS from the kick's own tail played backwards    // v2.1: TOK punch length (0 = old decaying punch)   // v2.1: the punch goes through the tail's distortion    // v2.1: fine pitch of the tail in cents
 }
 
 namespace Choices

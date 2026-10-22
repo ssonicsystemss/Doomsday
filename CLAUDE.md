@@ -22,6 +22,8 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
    Saturn 2, Trash 2, Gross Beat, Maximus, Kickstart 2, Diva, Decapitator, Pro-C 2, Sytrus, Massive / Massive X, hardstyle kick technique (NI), dkd (Damian: kick + reverse bass, host handling);
    Serum 2 / Sylenth1 in LESSONS) + **the idea backlog per Doomsday plugin at its end** – check it when the owner asks "what next".
    `Shared/DESIGN.md` – chosen GUI look (Minimal / flat): colours, fonts, knob / graph / button patterns.
+   Damian's knowledge base (read only, clone `ssonicsystemss/sonic-toolbox`): `AVOID.md` (one rule per line) + `bugs/` (FL crashes,
+   install, Windows test traps) + `INDEX.md` – check before releasing a build.
 3. The plugin's `README.md` (features, presets) and its `Tests/RenderTest.cpp` (what is already checked).
 4. Analysis / matching tools (Python): `ForgeOfWrath/Tools` (kick matching vs references, A/B mp3, reference feature CSVs),
    `Tools/screech` (Prophecy of Scream screech matching), `Shared/Tools` (small band / f0 reports). Reference WAVs are the owner's – not in git.

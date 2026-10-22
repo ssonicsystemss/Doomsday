@@ -110,7 +110,7 @@ void AnvilDisplay::mouseUp (const MouseEvent&) { drag = -1; }
 // first touch on PITCH in CURVE mode: copy the knob curve into dots and switch to DRAWN (nothing jumps)
 void AnvilDisplay::convertCurveToDrawn()
 {
-    const auto prm = proc.gather();
+    const auto prm = proc.gatherForGui();
     Shape s; s.n = 0;
     for (float pm : { 0.f, 15.f, 40.f, 80.f, 150.f, 300.f, 600.f, 1000.f })
     {
@@ -130,7 +130,7 @@ void AnvilDisplay::mouseDoubleClick (const MouseEvent& e)
 
 void AnvilDisplay::renderPreview()
 {
-    auto prm = proc.gather();
+    auto prm = proc.gatherForGui();
     shape[0] = proc.getShape (0); shape[1] = proc.getShape (1); shape[2] = proc.getShape (2);
     prm.k.amp = shape[0]; prm.k.drive = shape[1]; prm.k.pitch = shape[2];
     prm.k.cook (96000.0);
@@ -288,7 +288,7 @@ void AnvilDisplay::paint (Graphics& g)
 // ======================================================================= REVERSE BASS lane
 void BassLane::tick()
 {
-    const auto p = proc.gather();
+    const auto p = proc.gatherForGui();
     const float sig = (float) p.rb.stepBeats * 7.f + p.rb.in * 3.f + p.rb.out * 5.f + p.rb.curve * 0.37f + p.rb.riseSt * 0.011f
                     + p.k.lengthMs * 0.001f + (p.rbOn ? 100.f : 0.f) + proc.getEngine().tempoNow.load() * 0.0001f;
     if (std::abs (sig - lastSig) > 1e-5f) { lastSig = sig; repaint(); }
@@ -298,7 +298,7 @@ void BassLane::paint (Graphics& g)
 {
     using namespace ForgeTheme;
     auto& lnf = dynamic_cast<doomsday::ui::StageLookAndFeel&> (getLookAndFeel());
-    const auto p = proc.gather();
+    const auto p = proc.gatherForGui();
     const double bpm = proc.getEngine().tempoNow.load(), beatMs = 60000.0 / bpm;
     auto r = getLocalBounds().toFloat();
     g.setColour (Colours::black.withAlpha (0.45f)); g.fillRoundedRectangle (r, 8.f);
@@ -518,7 +518,7 @@ Canvas::Canvas (ForgeProcessor& p)
         add (s, rbIn, "IN", false, "Where in each step the bass starts to swell");
         add (s, rbOut, "OUT", false, "Where it stops - the rest of the step is a clean gap before the next kick");
         add (s, rbCurve, "CURVE", false, "Swell shape: low = rises early and long, high = a late, hard suck-in");
-        add (s, rbRise, "RISE", false, "Pitch rise at the end of every swell (like a kick tail played backwards)");
+        add (s, rbRise, "RISE", false, "Pitch rise at the end of every swell (FROM TAIL off; with FROM TAIL the tail's own pitch drop is the rise)");
         add (s, rbTune, "TUNE", true, "Bass pitch against the kick note in semitones (12 = an octave up)");
         add (s, rbDrive, "DRIVE", false, "Distortion of the bass: from a clean sub to a buzzing saw");
         add (s, rbTone, "TONE", false, "Low-pass of the bass: low = round and deep, high = bright and present");
@@ -526,6 +526,10 @@ Canvas::Canvas (ForgeProcessor& p)
         rbOn = std::make_unique<Switch> (p.apvts, ParamIDs::rbOn, "ON", Switch::Power, 1);
         rbOn->setTooltip ("Reverse bass: every kick starts one beat of bass swells on the same note");
         addAndMakeVisible (*rbOn);
+        rbTail = std::make_unique<Switch> (p.apvts, ParamIDs::rbTail, "FROM TAIL", Switch::Chip, 1);
+        rbTail->setTooltip ("ON: the bass is the kick's own tail played backwards (its distortion, its pitch drop becomes the rise). "
+                            "OFF: a saw + sine bass with RISE");
+        addAndMakeVisible (*rbTail);
         addAndMakeVisible (bassLane);
     }
     setSize (W, H);
@@ -570,7 +574,12 @@ void Canvas::resized()
         punchInto->setBounds (h.removeFromRight (104));
     }
     headOn->setBounds (head (sections[13]).removeFromRight (100));
-    rbOn->setBounds (head (sections[14]).removeFromRight (100));
+    {
+        auto h = head (sections[14]);
+        rbOn->setBounds (h.removeFromRight (100));
+        h.removeFromRight (8);
+        rbTail->setBounds (h.removeFromRight (118));
+    }
     {
         auto h = head (sections[10]);
         clearBtn.setBounds (h.removeFromRight (30));

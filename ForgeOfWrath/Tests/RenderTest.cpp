@@ -277,20 +277,24 @@ int main (int argc, char** argv)
         const auto on = play (true, 8), off = play (false, 8);
         const double swellOn = rms (on, 2.6, 2.9), swellOff = rms (off, 2.6, 2.9), gap = rms (on, 2.965, 2.995);
         // strongest frequency 20..200 Hz in the swell (DFT scan)
-        double hz = 0, bestMag = 0;
+        auto domHz = [&] (double fromBeat, double lenS)
         {
-            const int a0 = (int) (2.45 * 0.4 * sr), n = (int) (0.1 * sr);
-            for (double f = 20.0; f <= 200.0; f += 0.25)
+            double hz = 0, bestMag = 0;
+            const int a0 = (int) (fromBeat * 0.4 * sr), n = (int) (lenS * sr);
+            for (double f = 20.0; f <= 300.0; f += 0.25)
             {
                 double re = 0, im = 0;
                 for (int i = 0; i < n; ++i) { const double w = 0.5 - 0.5 * std::cos (6.283185307 * i / n), v = on.getSample (0, a0 + i) * w;
                                              re += v * std::cos (6.283185307 * f * i / sr); im += v * std::sin (6.283185307 * f * i / sr); }
                 if (re * re + im * im > bestMag) { bestMag = re * re + im * im; hz = f; }
             }
-        }
-        check (swellOn > 0.05 && swellOn > swellOff * 20.0 && gap < swellOn * 0.15 && std::abs (hz - 49.0) < 4.0,
-               "REVERSE BASS: swell between kicks, on the note, gap before the kick",
-               "(swell " + String (swellOn, 3) + " vs off " + String (swellOff, 4) + ", gap " + String (gap, 3) + ", " + String (hz, 1) + " Hz)");
+            return hz;
+        };
+        // FROM TAIL: the reversed tail starts near the note and rises towards OUT (its pitch drop played backwards)
+        const double hz = domHz (2.42, 0.06), hzLate = domHz (2.84, 0.04);
+        check (swellOn > 0.05 && swellOn > swellOff * 20.0 && gap < swellOn * 0.15 && hz > 45.0 && hz < 75.0 && hzLate > hz * 1.3,
+               "REVERSE BASS (tail backwards): swell between kicks, rises to OUT, gap before the kick",
+               "(swell " + String (swellOn, 3) + " vs off " + String (swellOff, 4) + ", gap " + String (gap, 3) + ", " + String (hz, 1) + " -> " + String (hzLate, 1) + " Hz)");
         float pk = on.getMagnitude (0, 0, on.getNumSamples());
         check (std::isfinite (pk) && pk < 1.05f, "REVERSE BASS: output stays clean", "(peak " + String (pk, 2) + ")");
         // A/B for the owner: 8 beats kick only, then 8 beats kick + reverse bass

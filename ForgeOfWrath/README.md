@@ -2,6 +2,8 @@
 
 **v2.1 – REVERSE BASS** (pomysł z dkd Damiana): każdy kick odpala jeden beat basu na tej samej nucie, w tempie FL.
 Bas narasta między kickami, na końcu podjeżdża w górę (jak odwrócony ogon kicka), a przed następnym kickiem jest czysta przerwa.
+**FROM TAIL** (domyślnie włączony): bas to ogon twojego kicka puszczony od tyłu – ten sam przester i barwa, a opadanie
+wysokości ogona staje się podjazdem na końcu basu (RISE wtedy nie działa). Wyłączony = piła + sinus z RISE.
 Włącznik ON, kroki **1/4 / 1/8 / 1/16**, **IN / OUT** (gdzie w kroku zaczyna i kończy), **CURVE** (wcześnie / późno), **RISE** (podjazd),
 **TUNE** (względem nuty kicka), **DRIVE**, **TONE**, **LEVEL**. Okienko obok pokazuje jeden beat: kick (jego LENGTH) i bas –
 napis **OVERLAP**, gdy kick wchodzi na bas (skróć LENGTH albo przesuń IN). Presety: BASS - Euphoric Kick + Reverse Bass, BASS - Raw Kick + Dirty Reverse.

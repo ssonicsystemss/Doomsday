@@ -82,7 +82,7 @@ private:
     std::vector<Section> sections;
     Section& section (const juce::String& title, int accent);
     std::unique_ptr<doomsday::ui::Choice> distType, dist2Type, pitchMode, rbPattern;
-    std::unique_ptr<doomsday::ui::Switch> punchOn, roomInto, rbOn, punchInto, headOn;
+    std::unique_ptr<doomsday::ui::Switch> punchOn, roomInto, rbOn, punchInto, headOn, rbTail;
     BassLane bassLane;
     juce::TextButton loadBtn { "LOAD" }, clearBtn { "X" };
     std::unique_ptr<juce::FileChooser> chooser;

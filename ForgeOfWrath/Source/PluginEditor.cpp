@@ -462,6 +462,10 @@ Canvas::Canvas (ForgeProcessor& p)
         add (s, punchDrive, "DRIVE", false, "Distorts the punch: from a clean sine to a hard, modern 'tok'");
         punchOn = std::make_unique<Switch> (p.apvts, ParamIDs::punchOn, "ON", Switch::Power, 1);
         addAndMakeVisible (*punchOn);
+        punchInto = std::make_unique<Switch> (p.apvts, ParamIDs::punchInto, "INTO DIST", Switch::Chip, 1);
+        punchInto->setTooltip ("ON: the punch goes through the tail's distortion (STAGE 1 / 2, filters, scream) - it sounds like the start of the tail, "
+                               "but its pitch comes only from START / END, never from the note. OFF: a clean sine on top");
+        addAndMakeVisible (*punchInto);
     }
     {
         auto& s = section ("SAMPLE", 1);
@@ -549,7 +553,12 @@ void Canvas::resized()
     auto head = [] (const Section& s) { return Rectangle<int> (s.area.getX(), s.area.getY() + 9, s.area.getWidth() - 14, 26); };
     pitchMode->setBounds (head (sections[0]).removeFromRight (150));
     roomInto->setBounds (head (sections[7]).removeFromRight (104));
-    punchOn->setBounds (head (sections[9]).removeFromRight (100));
+    {
+        auto h = head (sections[9]);
+        punchOn->setBounds (h.removeFromRight (100));
+        h.removeFromRight (8);
+        punchInto->setBounds (h.removeFromRight (104));
+    }
     rbOn->setBounds (head (sections[13]).removeFromRight (100));
     {
         auto h = head (sections[10]);

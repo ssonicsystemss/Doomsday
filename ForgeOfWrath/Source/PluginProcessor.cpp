@@ -79,6 +79,7 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (f (rbDrive, "Reverse Bass Drive", { 0.f, 36.f }, 14.f, fm::db, fm::num));
     l.add (f (rbTone, "Reverse Bass Tone", skew (300.f, 6000.f, 1600.f), 1600.f, fm::hz, fm::hzIn));
     l.add (f (rbLevel, "Reverse Bass Level", { -36.f, 6.f }, -4.f, fm::db, fm::num));
+    l.add (b (punchInto, "Punch Into Distortion", false));
     l.add (f (tailFine, "Tail Fine Tune", { -100.f, 100.f }, 0.f, [] (float v, int) { return (v > 0.5f ? "+" : "") + String (roundToInt (v)) + " ct"; }, fm::num));
     return l;
 }
@@ -159,6 +160,7 @@ void ForgeProcessor::randomizeSound()
     set (scream, rng.nextFloat() < 0.4f ? between (0.2f, 0.8f) : 0.f); set (screamHz, logB (400.f, 2500.f));
     set (crunch, rng.nextFloat() < 0.5f ? between (0.2f, 0.9f) : 0.f); set (crunchDec, logB (40.f, 300.f));
     set (body, between (-2.f, 6.f)); set (grit, rng.nextFloat() < 0.5f ? between (0.05f, 0.5f) : 0.f);
+    set (punchInto, rng.nextFloat() < 0.7f ? 1.f : 0.f);
     set (punchLevel, between (-14.f, -2.f)); set (punchStart, logB (200.f, 900.f)); set (punchEnd, logB (60.f, 150.f)); set (punchDrop, logB (4.f, 30.f)); set (punchDecay, logB (15.f, 80.f));
     set (chaos, rng.nextFloat() < 0.7f ? between (0.2f, 0.8f) : 0.f); set (chaosDec, logB (20.f, 150.f)); set (chaosHz, logB (800.f, 6000.f));
     set (clickLevel, between (-30.f, -8.f)); set (clickHz, logB (2000.f, 10000.f));
@@ -196,6 +198,7 @@ ForgeParams ForgeProcessor::gather() const
     k.bodyDb = get (body); k.grit = get (grit); k.cleanSubHz = get (cleanSub);
     k.punchOn = get (punchOn) > 0.5f; k.punchDb = get (punchLevel); k.punchStartHz = get (punchStart); k.punchEndHz = get (punchEnd);
     k.punchDropMs = get (punchDrop); k.punchDecayMs = get (punchDecay);
+    k.punchIntoDist = get (punchInto) > 0.5f;
     k.chaos = get (chaos); k.chaosMs = get (chaosDec); k.chaosHz = get (chaosHz);
     k.clickDb = get (clickLevel); k.clickHz = get (clickHz); k.clickMs = get (clickLen);
     k.lengthMs = get (length);

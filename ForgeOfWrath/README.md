@@ -6,6 +6,8 @@ Włącznik ON, kroki **1/4 / 1/8 / 1/16**, **IN / OUT** (gdzie w kroku zaczyna i
 **TUNE** (względem nuty kicka), **DRIVE**, **TONE**, **LEVEL**. Okienko obok pokazuje jeden beat: kick (jego LENGTH) i bas –
 napis **OVERLAP**, gdy kick wchodzi na bas (skróć LENGTH albo przesuń IN). Presety: BASS - Euphoric Kick + Reverse Bass, BASS - Raw Kick + Dirty Reverse.
 **PITCH + FINE w sekcji TAIL** stroją sam ogon (półtony + centy); PUNCH i CLICK zostają na swoich wysokościach.
+**PUNCH → INTO DIST** (przełącznik w sekcji PUNCH, w INIT włączony): punch idzie przez ten sam przester co ogon, więc brzmi jak
+początek taila – ale jego wysokość ustawiają tylko START / END punchu, nie nuta. Wyłączony = czysty sinus na wierzchu (jak w v2.0).
 Twoje kicki: **OWNER - Nice / Nice 1 / Sgsdg** (dokładnie tak, jak je ustawiłeś; mają szczyt trochę ponad 0 dB – OUTPUT −1.5 dB, jeśli przeszkadza).
 
 **v2:** łańcuch STAGE 1 → MID EQ → STAGE 2, ROOM (INTO DIST), OTT, rysowany PITCH, PUNCH DRIVE, CHAOS, HOLD, własny SAMPLE (LOAD / przeciągnij WAV), **CLEAN SUB** (poniżej wybranej częstotliwości czysty sinus zamiast przesteru – ciasny dół, clipper go nie rusza).

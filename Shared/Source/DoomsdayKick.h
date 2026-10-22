@@ -40,6 +40,8 @@ namespace doomsday::kick
         // punch + click
         bool  punchOn = true;
         float punchDb = -6.f, punchStartHz = 400.f, punchEndHz = 90.f, punchDropMs = 12.f, punchDecayMs = 40.f, punchDriveDb = 0.f;
+        bool  punchIntoDist = false;                // true: the punch goes through the tail's distortion chain (sounds like the start of the
+                                                    // tail, but keeps its own pitch on every note - the owner's wish, 2026-10-22)
         float clickDb = -14.f, clickHz = 5000.f, clickMs = 4.f;
         // envelopes over LENGTH (time axis in per-mille: 0 = hit, 1000 = LENGTH)
         float lengthMs = 410.f;
@@ -185,6 +187,18 @@ namespace doomsday::kick
             hz = juce::jmin (hz, (float) rate * 0.2f);
             const bool inTail = ms <= endMs + 1.f;
             float y = 0.f;
+            // --- PUNCH: fast pitch drop in Hz (never follows the note), optionally driven
+            float punch = 0.f;
+            if (p.punchOn && ms < p.punchDecayMs * 4.f + 10.f)
+            {
+                const float ph = p.punchEndHz + (p.punchStartHz - p.punchEndHz) * std::exp (-ms / juce::jmax (0.5f, p.punchDropMs) * 3.f);
+                pphase += ph * inv; if (pphase >= 1.f) pphase -= 1.f;
+                const float pe = std::exp (-ms / juce::jmax (1.f, p.punchDecayMs) * 2.3f) * juce::jmin (1.f, ms / 0.3f + 0.2f);
+                float ps = std::sin (two * pphase);
+                if (p.punchDriveDb > 0.05f) ps = std::tanh (ps * c.punchNorm) / std::tanh (c.punchNorm);
+                punch = ps * pe * c.punchG;
+            }
+            const bool punchInChain = p.punchIntoDist && (inTail || roomAfter);
             const float dEnv = p.drive.eval (ms * toPm, driveSeg);
             if (inTail || roomAfter)
             {
@@ -195,6 +209,7 @@ namespace doomsday::kick
                 saw -= doomsday::dsp::polyBlep (phase, hz * inv);
                 const float w = p.wave;
                 float x = inTail ? (w < 0.5f ? s + (tri - s) * (w * 2.f) : tri + (saw - tri) * ((w - 0.5f) * 2.f)) : 0.f;
+                if (punchInChain) x += punch;           // PUNCH INTO DIST: distorted with the tail
                 // --- pre tone (tilt around ~400 Hz)
                 const float lp = pre.lp (x, c.preC);
                 x = lp * (1.f - 0.6f * p.tone) + (x - lp) * (1.f + 2.f * p.tone);
@@ -252,16 +267,7 @@ namespace doomsday::kick
                 if (roomAfter) y += room.process (y) * p.room * 1.6f;
             }
             float out = y;
-            // --- PUNCH: fast pitch drop, optionally driven
-            if (p.punchOn && ms < p.punchDecayMs * 4.f + 10.f)
-            {
-                const float ph = p.punchEndHz + (p.punchStartHz - p.punchEndHz) * std::exp (-ms / juce::jmax (0.5f, p.punchDropMs) * 3.f);
-                pphase += ph * inv; if (pphase >= 1.f) pphase -= 1.f;
-                const float pe = std::exp (-ms / juce::jmax (1.f, p.punchDecayMs) * 2.3f) * juce::jmin (1.f, ms / 0.3f + 0.2f);
-                float ps = std::sin (two * pphase);
-                if (p.punchDriveDb > 0.05f) ps = std::tanh (ps * c.punchNorm) / std::tanh (c.punchNorm);
-                out += ps * pe * c.punchG;
-            }
+            if (! punchInChain) out += punch;          // clean punch on top
             // --- CLICK: filtered noise burst
             if (p.clickDb > -59.f && ms < p.clickMs * 3.f)
             {

@@ -187,12 +187,29 @@ int main (int argc, char** argv)
     // 9) PUNCH keeps its pitch on any note (only its START / END knobs set it)
     {
         p.setCurrentProgram (0); sr = 48000.0;
-        set (p, ParamIDs::tailLevel, -24.f); set (p, ParamIDs::punchLevel, 0.f); set (p, ParamIDs::clickLevel, -60.f); set (p, ParamIDs::chaos, 0.f);
+        set (p, ParamIDs::punchInto, 0.f); set (p, ParamIDs::tailLevel, -24.f); set (p, ParamIDs::punchLevel, 0.f); set (p, ParamIDs::clickLevel, -60.f); set (p, ParamIDs::chaos, 0.f);
         auto lo = hit (p, 31, 0.1), hi = hit (p, 43, 0.1);
         double diff = 0, all = 0;
         for (int i = 0; i < (int) (0.03 * sr); ++i) { const double a = lo.getSample (0, i), b = hi.getSample (0, i); diff += (a - b) * (a - b); all += a * a; }
         // the tail is turned down, not off: allow a small rest
         check (diff < all * 0.1, "PUNCH: same pitch on G1 and G2", "(difference " + String (10.0 * std::log10 (diff / (all + 1e-12) + 1e-12), 1) + " dB)");
+    }
+    // 10) PUNCH INTO DIST: A/B for the owner (INIT, G1 then C2: punch off-chain, then into the distortion)
+    {
+        sr = 48000.0;
+        AudioBuffer<float> ab (2, (int) (sr * 0.5) * 4); ab.clear();
+        int at = 0;
+        for (float into : { 0.f, 1.f })
+            for (int note : { 31, 36 })
+            {
+                p.setCurrentProgram (0); set (p, ParamIDs::punchInto, into);
+                auto b = hit (p, note, 0.5);
+                for (int ch = 0; ch < 2; ++ch) ab.copyFrom (ch, at, b, ch, 0, b.getNumSamples());
+                at += b.getNumSamples();
+            }
+        bool finite = true; for (int i = 0; i < ab.getNumSamples(); ++i) finite &= std::isfinite (ab.getSample (0, i));
+        check (finite && ab.getMagnitude (0, 0, ab.getNumSamples()) < 1.05f, "PUNCH INTO DIST: clean output");
+        writeWav (outDir.getChildFile ("punch_into_ab.wav"), ab);
     }
     // 7) REVERSE BASS (v2.1): a kick on every beat at 150 BPM -> bass swells between them, on the note, clean gap before each kick
     {

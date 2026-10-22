@@ -86,6 +86,7 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (b (rbPump, "Reverse Bass Pump", true));
     l.add (f (rbRelease, "Reverse Bass Release", skew (5.f, 300.f, 70.f), 70.f, fm::ms, fm::msIn));
     l.add (f (rbFade, "Reverse Bass Fade", skew (2.f, 120.f, 25.f), 25.f, fm::ms, fm::msIn));
+    l.add (f (rbSub, "Reverse Bass Sub", { 0.f, 1.f }, 0.7f));
     l.add (f (punchLen, "Punch Length", skew (0.f, 250.f, 80.f), 0.f, [] (float v, int) { return v < 0.5f ? String ("DECAY") : fm::ms (v, 0); }, fm::msIn));
     l.add (f (headLen, "Head Length", skew (20.f, 300.f, 110.f), 110.f, fm::ms, fm::msIn));
     l.add (f (headHz, "Head Pitch", skew (30.f, 120.f, 55.f), 49.f, [] (float v, int)
@@ -241,7 +242,7 @@ ForgeParams ForgeProcessor::gather() const
     const int pat = jlimit (0, 2, (int) std::round (get (rbPattern)));
     e.rb.stepBeats = pat == 2 ? 0.25 : pat == 1 ? 0.5 : 1.0;
     e.rb.in = get (rbIn); e.rb.out = get (rbOut); e.rb.curve = get (rbCurve); e.rb.riseSt = get (rbRise); e.rb.peak = get (rbPeak);
-    e.rb.pump = get (rbPump) > 0.5f; e.rb.releaseMs = get (rbRelease); e.rb.fadeMs = get (rbFade);
+    e.rbSub = get (rbSub); e.rb.pump = get (rbPump) > 0.5f; e.rb.releaseMs = get (rbRelease); e.rb.fadeMs = get (rbFade);
     e.rbTuneSt = get (rbTune); e.rbDriveDb = get (rbDrive); e.rbToneHz = get (rbTone); e.rbLevelDb = get (rbLevel);
     return e;
 }

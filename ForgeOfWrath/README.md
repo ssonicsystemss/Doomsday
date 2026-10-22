@@ -7,6 +7,9 @@
 
 **REVERSE BASS → PUMP** (domyślnie, wzór: sample FHSP „reversed bass kicks”): kick wycina bas, bas wraca w **RELEASE**
 (jak sidechain), trzyma równą półkę i jest ucinany w **FADE** tuż przed kolejnym kickiem. PUMP wyłączony = stary SWELL z PEAK.
+**SUB** (domyślnie 70 %): czysty sinus na nucie pod reverse bassem, z tą samą obwiednią – to „pierdolnięcie” basu. W samplach FHSP
+najgłośniejsza jest sama nuta (30–60 Hz), a góry 1–2.5 kHz prawie nie ma. Kick w presetach BASS jest krótki (LENGTH ~170 ms),
+żeby jego przesterowany ogon nie grał na basie (okienko pokazuje wtedy OVERLAP).
 
 **v2.1 – REVERSE BASS** (pomysł z dkd Damiana): każdy kick odpala jeden beat basu na tej samej nucie, w tempie FL.
 Bas narasta między kickami, na końcu podjeżdża w górę (jak odwrócony ogon kicka), a przed następnym kickiem jest czysta przerwa.

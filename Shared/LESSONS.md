@@ -41,6 +41,13 @@ Dopisuj po każdej uwadze właściciela („brzmi źle”, „słabo działa”,
   + punch z własnym przesterem poza obwiednią AMP. Pomiar: `zero-crossing / DFT` w scratchpadzie, wzorce są właściciela (nie w git).
 - Wniosek: reverse w kicku to jego sposób pracy → sekcja REVERSE BASS (v2.1) jako uzupełnienie, nie zamiennik obwiedni.
 
+## Reverse bass „nijaki, brakuje pierdolnięcia basowego” (2026-10-22)
+- Pomiar pasm w strefie basu (240–360 ms beatu): FHSP – 30–60 Hz dominuje (~-1 dB względem całości), 60–120 ~-9, 1–2.5 kHz -16…-26,
+  crest 1.6–2.7, bas ≈ głośność kicka. Nasz: 2. harmoniczna = podstawa, 1–2.5 kHz -8…-12, crest 1.2 (zgnieciony).
+- Przyczyny: (1) kick w presetach BASS miał LENGTH ~490 ms > beat → jego raw ogon (crunch / grit) grał NA basie; (2) bas z samego
+  przesterowanego ogona + DRIVE 29 dB. Poprawki: SUB (czysty sinus na nucie, ta sama obwiednia), presety BASS: LENGTH 170 ms,
+  DRIVE 10 dB, TONE 900 Hz, SUB 0.8. Narzędzie: pasma + crest w strefie basu, porównanie z wzorcem (skrypt w scratchpadzie, opis tu).
+
 ## Reverse bass ma POMPOWAĆ jak sidechain (2026-10-22)
 - Właściciel: model „swell w okienku” mało responsywny. Sample FHSP „Reversed Bass Kicks” (beat ~0.4 s): kick → dołek do ~15–25 %
   → powrót w ~50–80 ms → równa półka (często głośniejsza od kicka) → ucięcie w ~20–40 ms przed kolejnym kickiem.

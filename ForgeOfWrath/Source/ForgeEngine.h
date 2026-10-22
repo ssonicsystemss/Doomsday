@@ -30,6 +30,7 @@ struct ForgeParams
     bool rbOn = false, rbTail = true;
     doomsday::rbass::Params rb;
     float rbTuneSt = 0.f, rbDriveDb = 14.f, rbToneHz = 1600.f, rbLevelDb = -4.f;
+    float rbSub = 0.f;      // SUB: a clean sine on the bass note under it, same pump envelope (the "bass punch" of the FHSP references)
 };
 
 // one loaded sample (mono), never freed while the plugin lives (old ones are kept, see ForgeEngine::setSample)
@@ -60,6 +61,7 @@ public:
         os->initProcessing ((size_t) maxBlockSize);
         rbass.prepare (sr); rbDrive.reset(); rbLp1 = {}; rbLp2 = {}; sinceKick = -1.0;
         rbLen = 0; rbVoice.prepare (sr);
+        subAmp = 0.f; subPh = 0.0; rbSubC = (float) (1.0 - std::exp (-1.0 / (0.0005 * sr)));
         mono.setSize (1, maxBlockSize);
         for (auto& v : voices) v.prepare (sr * osFactor);
         ott.prepare (sr);
@@ -93,7 +95,8 @@ public:
         v.trigger (440.f * std::pow (2.f, (float) (note - 69) / 12.f), vel);
         // REVERSE BASS: one beat of swells starts with this kick, on its note
         sinceKick = 0.0;
-        rbass.setNoteHz (440.0 * std::pow (2.0, ((double) note - 69.0 + p.k.tuneSemis + p.rbTuneSt) / 12.0));
+        rbHz = 440.0 * std::pow (2.0, ((double) note - 69.0 + p.k.tuneSemis + p.rbTuneSt) / 12.0);
+        rbass.setNoteHz (rbHz);
         if (p.rbOn && p.rbTail) renderReverseTail (note);
         playing = sample.load();
         if (playing != nullptr && ! playing->data.empty())
@@ -193,7 +196,13 @@ private:
             if (rbActive)
             {
                 const double beat = sinceKick >= 0.0 ? sinceKick * beatsPerSample : 1.0;
-                float b;
+                float b, env = 0.f;
+                if (sinceKick >= 0.0 && beat < 1.0)
+                {
+                    const double q = beat / p.rb.stepBeats;
+                    float riseU = 0.f;
+                    env = doomsday::rbass::swell (p.rb, q - std::floor (q), p.rb.stepBeats * 60.0 / bpm, riseU);
+                }
                 if (p.rbTail)
                 {
                     // the kick's tail backwards: u = 0 at IN -> 1 at OUT reads the tail from its end back to its start
@@ -216,7 +225,11 @@ private:
                 else b = rbass.next (p.rb, beat, bpm, sinceKick >= 0.0 && beat < 1.0);
                 b = rbDrive.process (b * rbG, doomsday::drive::Soft) * rbMk;
                 b = rbLp2.lp (rbLp1.lp (b, rbC1), rbC2);
-                x += b * rbOut;
+                // SUB: clean sine on the note with the same envelope (smoothed 0.5 ms), the drive / tone part sits on top
+                subAmp += (env - subAmp) * rbSubC;
+                subPh += rbHz / sr; if (subPh >= 1.0) subPh -= 1.0;
+                const float sub = (float) std::sin (subPh * juce::MathConstants<double>::twoPi) * subAmp;
+                x += (b * (1.f - 0.5f * p.rbSub) + sub * p.rbSub * 0.9f) * rbOut;
                 if (sinceKick >= 0.0) { sinceKick += 1.0; if (beat >= 1.0) sinceKick = -1.0; }
             }
             float y;
@@ -238,7 +251,8 @@ private:
         outPeak.store (juce::jmax (outPeak.load(), pk));
     }
 
-    double sr = 44100.0, smpPos = -1.0, bpm = 150.0, sinceKick = -1.0;
+    double sr = 44100.0, smpPos = -1.0, bpm = 150.0, sinceKick = -1.0, rbHz = 49.0, subPh = 0.0;
+    float subAmp = 0.f, rbSubC = 0.04f;
     doomsday::rbass::ReverseBass rbass;
     doomsday::kick::KickVoice rbVoice;
     doomsday::kick::KickParams rbParams;

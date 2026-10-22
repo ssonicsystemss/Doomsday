@@ -255,7 +255,7 @@ int main (int argc, char** argv)
         {
             p.setCurrentProgram (rbPreset);
             set (p, ParamIDs::length, 150.f); set (p, ParamIDs::headOn, 0.f); set (p, ParamIDs::rbTail, 1.f); set (p, ParamIDs::rbPump, 1.f);
-            set (p, ParamIDs::rbIn, 0.4f); set (p, ParamIDs::rbOut, 0.95f); set (p, ParamIDs::rbLevel, -4.f);
+            set (p, ParamIDs::rbIn, 0.4f); set (p, ParamIDs::rbOut, 0.95f); set (p, ParamIDs::rbLevel, -4.f); set (p, ParamIDs::rbSub, 0.f);   // the tail alone
             set (p, ParamIDs::rbOn, on ? 1.f : 0.f);
             p.prepareToPlay (sr, block);
             const int beat = (int) (sr * 0.4);

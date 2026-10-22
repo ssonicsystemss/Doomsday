@@ -549,6 +549,7 @@ Canvas::Canvas (ForgeProcessor& p) : proc (p), anvil (p), bassLane (p)
         knob (c, rbPeak, "Peak", "SWELL only: where the bass is loudest, then it fades to silence at OUT");
         knob (c, rbRise, "Rise", "SYNTH bass only (FROM TAIL off): pitch rise at the end of every swell");
         knob (c, rbTune, "Tune", "Bass pitch against the kick note in semitones (12 = an octave up)", true);
+        knob (c, rbSub, "Sub", "Clean sine on the bass note under the reverse bass - the bass punch (FHSP references: the note itself is the loudest part)");
         knob (c, rbDrive, "Drive", "Distortion of the bass: from a clean sub to a buzzing saw");
         knob (c, rbTone, "Tone", "Low-pass of the bass: low = round and deep, high = bright and present");
         knob (c, rbLevel, "Level", "Bass level against the kick (both go into the master clipper)");

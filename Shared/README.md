@@ -86,7 +86,31 @@ Spis dla kolejnych pluginów: przeczytaj ten plik, potem tylko potrzebne nagłó
 |---|---|
 | `ResonanceSuppressor` (`setDepth`, `setSharpness`, `setSelectivity`, `setTimes`, `setFocus`, `setMix`, `setDelta`, `cutDb()`, `latencySamples()` = 2047) | tłumik rezonansów jak soothe2: wycina tylko to, co wystaje (piszczące screeche, hihaty), DELTA = słyszysz co zabiera |
 
-Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, latencja, Shape, LFO, sync, macierz, ladder, unison SIDES, bitcrusher, drawn shaper, transient shaper, dynamic drive, auto-gain, chaos LFO, performer, skala, arp, oscylatory INTENSITY / FM / akordy / slop, onset, volume shaper, tape stop, stutter, reverser, resonance suppressor).
+Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, latencja, Shape, LFO, sync, macierz, ladder, unison SIDES, bitcrusher, drawn shaper, transient shaper, dynamic drive, auto-gain, chaos LFO, performer, skala, arp, oscylatory INTENSITY / FM / akordy / slop, onset, volume shaper, tape stop, stutter, reverser, resonance suppressor; z dkd: ParamCache, BeatClock, sanitizeState, FREEZE + RANDOM glide, reverse bass, OwnSound).
+
+## Source/DoomsdayHost.h  (`doomsday::host`) – rozmowa z hostem (z dkd Damiana)
+| Klocek | Do czego |
+|---|---|
+| `ParamCache (apvts)` → `get ("id")`, `find`, `param` | odczyt parametrów na wątku audio bez alokacji (APVTS po nazwie buduje `String`) |
+| `BeatClock` (`beginBlock (playing, ppq, bpm, sr)`, `startFree()`, `crossed (stepBeats)`, `advance()`, `now()`, `phase()`) | pozycja w beatach: z FL gdy gra, własny zegar od klawisza gdy stoi; skok pętli / przewinięcie nie gubi uderzenia |
+| `sanitizeState (xml)` | wyrzuca z wczytanego stanu wartości NaN / inf (zepsuty projekt nie wstrzyknie NaN) |
+
+## Source/DoomsdayParamMenu.h  (`doomsday::parammenu`) – prawy klik na gałce, FREEZE, RANDOM (z dkd Damiana)
+| Klocek | Do czego |
+|---|---|
+| `show (komponent, param, apvts.state, onStatus)` | menu: pozycje hosta (automation lane w Cubase / Reaper / Bitwig) + „Create automation clip” dla FL (last tweaked) + FREEZE + reset |
+| `isFrozen / toggleFrozen (state, id)`, `touchForHost (param)` | lista zamrożonych (`randomLocks` w stanie – zapisuje się z projektem) |
+| `RandomMover` (`glideTo (cele, snapshot)`, `undo()`, `finish()`) | RANDOM / UNDO jako 0.5 s jazda gałek w gestach hosta (FL może nagrać), wybory przeskakują raz, 20 kroków undo |
+
+## Source/DoomsdayOwnSound.h  (`doomsday::own`) – własny sample (z dkd Damiana)
+- `OwnSound` (`Config { mono, rootNote, reverse }`): `addParameters (layout, followNotes)` (ownLevel / ownTune / ownKey / ownMode – NA KOŃCU layoutu),
+  `attach (apvts)`, `prepare`, `loadFile (file)` → tekst błędu, `clear`, `restore()` po `replaceState`, `peaks (n)` do rysowania;
+  audio: `trigger (at, note, vel, semis, fit)`, `release`, `addMidi`, `render (buffer)`, `latency`, `replacing()`.
+  Sample trzymany **w stanie** (FLAC base64, ≤ 20 s) – projekt / preset ma go po skasowaniu pliku. LAYER / REPLACE, wstecz z „fit”.
+
+## Source/DoomsdayReverseBass.h  (`doomsday::rbass`) – reverse bass z tempem (z dkd Damiana)
+- `Params { stepBeats, in, out, curve, riseSt, saw, sine }`, `swell (p, s, stepSec, riseU)` (ta sama funkcja dla GUI),
+  `ReverseBass` (`prepare`, `setNoteHz`, `next (p, beat, bpm, held)`), `tailLenMs / tailDecayMs (tail, beatMs)` – ogon kicka w ułamku beatu.
 
 ## Source/DoomsdayParams.h  (`doomsday`)
 - `fmt::` formatery tekstu (hz, ms, db, pct, bip, oct, semi, cents, lfoHz, pan) + parsery (`num, hzIn, msIn, pctIn, panIn`).

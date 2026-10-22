@@ -244,6 +244,38 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
   wraca czysty; **BITCRUSH na ogonie** (rate + bity); **transient shaper w pasmach**; **ducking ogona od punchu** (sidechain wewnątrz kicka);
   **EXPORT WAV** (resampling to standard pracy).
 
+## dkd (Damian / sonicsystems, `ssonicsystemss/dkd`, v1.0.0, 2026-10-22) → Forge of Wrath, Ancient Drums, nowa wtyczka kick + reverse bass
+Analiza kodu (silnik `Source/RutherfordEngine.h`, procesor, `SONICSYSTEMS_shared/OwnSound.h`, `FISSION_shared/Fission.*`, test `Tools/RenderDemo.cpp`).
+Co robi: **jedna trzymana nuta = kick na każdą ćwierćnutę + reverse bass między kickami** (kroki 1/4, 1/8, 1/16), zablokowane z tempem FL.
+- **Silnik jest prosty** (~370 linii): kick = sinus z wykładniczym zjazdem wysokości (start → nuta ogona, `pow(1-x, 3)`), ogon liczony jako
+  **ułamek beatu** (TAIL 0.1–0.98 → długość idzie za tempem); bas = piła (PolyBLEP) + sinus, amplituda `x^CURVE` od IN do OUT kroku,
+  w ostatnich 40 % podjazd wysokości (odwrócony ogon kicka), krótkie wejście / wyjście 1 / 1.5 ms. Oba → 4x oversampling → przester
+  (kick: tanh / hard / foldback, bas: tanh) → 2× SVF LP 24 dB → suma + CLICK (szum przez HP 1.5 kHz, 5 ms) → DC → gain → clipper.
+  Nuty składane do E1–D#2 (każde F = F1 43.65 Hz) – kick zawsze w tym samym rejestrze.
+- **Mocne strony to nie DSP, tylko solidność i obsługa:**
+  1. **Zegar beatu**: z hostem, gdy gra; gdy stoi – własny zegar od pierwszego klawisza; **skok (pętla, przewinięcie, start) nie gubi
+     kicka, na który trafia**; klawisz wciśnięty dokładnie na beat od razu gra.
+  2. **Oversampler tworzony raz (konstruktor), w prepare tylko reset** – w FL „Replace” / ponowny prepare usuwał obiekt pod wątkiem audio
+     (crash). Do tego flaga `prepared` – processBlock bez prepare gra ciszę.
+  3. **Latencja zgłoszona hostowi** (`setLatencySamples`), a CLICK, który omija oversampler, opóźniony o tę samą latencję (równo z kickiem).
+  4. **Parametry bez alokacji** (ParamCache – APVTS po nazwie buduje `juce::String` przy każdym odczycie).
+  5. **Stan z NaN / inf odrzucany** przy wczytaniu projektu.
+  6. **OWN SOUND**: własny sample (WAV / AIFF / FLAC / MP3 / OGG, ≤ 20 s) **zapisany W stanie wtyczki** (FLAC 24-bit, base64) – projekt i preset
+     mają dźwięk nawet po skasowaniu pliku. LAYER / REPLACE, stała wysokość albo za nutą, odtwarzanie wstecz z „fit” (koniec dokładnie
+     na kicku), start przesunięty o latencję.
+  7. **Prawy klik na gałce**: menu hosta dla parametru (Cubase / Reaper / Bitwig: automation lane), a gdy host nie daje (FL) – „Create
+     automation clip” = parametr staje się „last tweaked” + podpowiedź gdzie w FL; **FREEZE** (RANDOM go nie rusza, zapisane w stanie); reset.
+  8. **RANDOM jako animacja**: gałki jadą 0.5 s (z przesunięciem), każda w jednym geście hosta → FL może to nagrać, użytkownik WIDZI zmianę;
+     20 kroków UNDO, „mignięcie” ekranu. Własne zakresy RANDOM per parametr (lo / hi / lista / skip).
+  9. **Test renderu sprawdza muzykę, nie tylko NaN**: kick na KAŻDY beat (14/14), cisza przed każdym kickiem, wysokość basu (F → 43.65 Hz),
+     tryb jednostrzałowy, zegar przy zatrzymanym transporcie, cisza po note-off, ID presetów, stan, okno 75 %, **głośność taka sama przy
+     44.1 / 48 / 96 kHz** (±0.5 dB) – z udawanym hostem (`FakeHost : AudioPlayHead`).
+  10. Budowa: VST3 + **CLAP** (clap-juce-extensions), statyczny runtime MSVC.
+- **Słabsze / inne niż u nas:** jeden prosty przester na kick (Forge ma łańcuch STAGE 1 → EQ → STAGE 2, ROOM, OTT, rysowany pitch);
+  brak warstwy PUNCH; bas bez filtra z obwiednią; GUI w innym stylu (FISSION: czarny, „komora mgłowa”).
+- **Wzięte do `Shared/`** (z podpisanym źródłem, z testami): `DoomsdayHost.h` (ParamCache, BeatClock, sanitizeState),
+  `DoomsdayParamMenu.h` (menu prawego kliku + FREEZE + RandomMover), `DoomsdayOwnSound.h` (OWN SOUND), `DoomsdayReverseBass.h` (reverse bass).
+
 ---
 ## Wspólne wzorce (wszystkie analizy)
 - **Słuchanie różnicy**: delta / audition / unity gain (Pro-L 2, nasze MATCH) – producent od razu słyszy, co robi efekt.
@@ -260,6 +292,8 @@ Krótkie, najważniejsze zasady trafiają też do `LESSONS.md`. Serum 2 i Sylent
 - **Auto-gain przy drive** (Decapitator, Pro-C 2, OTT out gain): słuchamy charakteru, nie głośności.
 - **Przewijana fala z krzywą redukcji** (Pro-L 2, Pro-C 2): najczytelniejszy podgląd dynamiki – do zrobienia jako klocek UI.
 - **Rozrzut między głosami** (Diva „slop”): tani sposób na analogowe życie.
+- **Sample w środku presetu / projektu** (dkd OWN SOUND, Kick 2): przenośność bez „brak pliku”.
+- **RANDOM widać i da się nagrać** (dkd): animowane gałki w geście hosta, FREEZE wybranych, UNDO.
 
 ---
 ## Klocki już zbudowane w `Shared/` (gotowe do wpięcia, z testami)
@@ -268,9 +302,16 @@ Modulacja: Shape z bend, LFO (sync, DRAWN, CHAOS), Performer, random-per-note, m
 Oscylatory: INTENSITY (SPECTRUM / BEND / FORMANT), oscylator modulujący (ring / PM / filter FM), FM operatory, unison ↔ akord, slop, MIX supersawa.
 Sidechain / czas: audio trigger, volume shaper z pasmami i 12 krzywymi, tape stop, stutter, reverser.
 Widmo: tłumik rezonansów (soothe) z DELTA. UI: przeglądarka presetów + UNDO, GainScope, pierścień modulacji na gałce.
+Host (z dkd): ParamCache, BeatClock (skoki pętli), sanitizeState, menu prawego kliku (automation / FREEZE), animowany RANDOM, OWN SOUND
+(sample w stanie), reverse bass zsynchronizowany z tempem.
 Do zrobienia przy wpinaniu: interfejsy tych funkcji w konkretnych wtyczkach (lista niżej).
 
 ## Lista pomysłów do zrobienia (z analiz, wg wtyczki)
+- **Z dkd (wszystkie wtyczki):** oversampler tworzony RAZ (nie w prepare) + flaga `prepared` (crash przy FL Replace); `setLatencySamples`
+  przy oversamplingu; `sanitizeState` w setStateInformation; prawy klik na gałce = automation clip / FREEZE; RANDOM animowany z FREEZE;
+  testy z udawanym hostem (gra transport) i test głośności 44.1 / 48 / 96 kHz; CLAP obok VST3.
+- **Forge of Wrath / Ancient Drums (z dkd):** sample warstwy **w stanie** (OwnSound zamiast ścieżki do pliku); tryb **kick + reverse bass
+  z jednej nuty** (BeatClock + ReverseBass) albo osobna mała wtyczka; ogon kicka w ułamku beatu (idzie za tempem).
 - **Forge of Wrath:** EXPORT WAV w tonacji; **PRE EQ przed STAGE 1** (cięcie dołu + podbicie 300–400 Hz); **BITCRUSH ogona**;
   transient shaper w pasmach; ducking ogona od punchu; DYNAMICS przesteru (Saturn); oś PITCH w nutach + przyciąganie; podgląd warstw
   osobno + zoom; 2–3 warstwy sampla; preset zapisuje swój sample; presety dopasowane do 38 kicków referencyjnych na silniku v2.

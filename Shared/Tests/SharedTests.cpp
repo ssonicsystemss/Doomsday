@@ -8,6 +8,11 @@
 #include "DoomsdayOsc.h"
 #include "DoomsdayShaper.h"
 #include "DoomsdaySpectral.h"
+#include "DoomsdayHost.h"
+#include "DoomsdayParamMenu.h"
+#include "DoomsdayOwnSound.h"
+#include "DoomsdayReverseBass.h"
+#include <juce_audio_formats/juce_audio_formats.h>
 #include <cstdio>
 #include <vector>
 #include <set>
@@ -32,8 +37,133 @@ static double aliasDb (const std::vector<float>& x, double sr, double f0)
     return 10.0 * std::log10 (other / (harm + other) + 1e-30);
 }
 
+// a tiny processor for the host / own-sound blocks (from dkd)
+struct TestProc : juce::AudioProcessor
+{
+    TestProc() : AudioProcessor (BusesProperties().withOutput ("Out", juce::AudioChannelSet::stereo(), true)), apvts (*this, nullptr, "T", layout()) {}
+    static juce::AudioProcessorValueTreeState::ParameterLayout layout()
+    {
+        juce::AudioProcessorValueTreeState::ParameterLayout l;
+        l.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "cut", 1 }, "Cut", 0.f, 1.f, 0.25f));
+        l.add (std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { "mode", 1 }, "Mode", juce::StringArray { "A", "B", "C" }, 0));
+        doomsday::own::OwnSound::addParameters (l, true);
+        return l;
+    }
+    const juce::String getName() const override { return "T"; }
+    void prepareToPlay (double, int) override {}
+    void releaseResources() override {}
+    void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override {}
+    double getTailLengthSeconds() const override { return 0; }
+    bool acceptsMidi() const override { return true; }
+    bool producesMidi() const override { return false; }
+    juce::AudioProcessorEditor* createEditor() override { return nullptr; }
+    bool hasEditor() const override { return false; }
+    int getNumPrograms() override { return 1; }
+    int getCurrentProgram() override { return 0; }
+    void setCurrentProgram (int) override {}
+    const juce::String getProgramName (int) override { return {}; }
+    void changeProgramName (int, const juce::String&) override {}
+    void getStateInformation (juce::MemoryBlock&) override {}
+    void setStateInformation (const void*, int) override {}
+    juce::AudioProcessorValueTreeState apvts;
+};
+
+static void testFromDkd()
+{
+    using namespace doomsday;
+    const double sr = 48000.0;
+    // ---------------------------------------------------------------- ParamCache
+    {
+        TestProc tp;
+        host::ParamCache pc (tp.apvts);
+        tp.apvts.getParameter ("cut")->setValueNotifyingHost (0.7f);
+        check (std::abs (pc.get ("cut") - 0.7f) < 1e-5f && std::abs (pc.get ("cut") - 0.7f) < 1e-5f && pc.param ("mode") != nullptr, "ParamCache: same values as APVTS");
+    }
+    // ---------------------------------------------------------------- BeatClock
+    {
+        host::BeatClock c;
+        const int blk = 512;
+        // host plays from 0: one hit per beat over 4 beats (incl. the very first sample)
+        int hits = 0; double ppq = 0.0;
+        const int total = (int) (sr * 60.0 / 150.0 * 4.0);
+        for (int pos = 0; pos < total; pos += blk)
+        {
+            c.beginBlock (true, ppq, 150.0, sr);
+            for (int i = 0; i < blk && pos + i < total; ++i) { if (c.crossed (1.0)) ++hits; c.advance(); }
+            ppq += blk * 150.0 / 60.0 / sr;
+        }
+        // loop restart: jump from 3.9 back to 0.0 -> the beat at 0 still fires
+        c.beginBlock (true, 3.9, 150.0, sr); for (int i = 0; i < 10; ++i) c.advance();
+        c.beginBlock (true, 0.0, 150.0, sr);
+        const bool loopHit = c.crossed (1.0);
+        // stopped: the free clock starts at the key with a hit
+        host::BeatClock f; f.beginBlock (false, 0.0, 150.0, sr); f.startFree();
+        const bool freeHit = f.crossed (1.0);
+        check (hits == 4 && loopHit && freeHit, "BeatClock: a hit every beat, after a loop jump and on the first key", "(" + String (hits) + "/4)");
+    }
+    // ---------------------------------------------------------------- sanitizeState
+    {
+        auto xml = parseXML ("<S><PARAM id=\"a\" value=\"0.5\"/><PARAM id=\"b\" value=\"nan\"/><PARAM id=\"c\" value=\"inf\"/></S>");
+        host::sanitizeState (*xml);
+        check (xml->getNumChildElements() == 1, "sanitizeState drops NaN / inf values");
+    }
+    // ---------------------------------------------------------------- FREEZE list + RandomMover
+    {
+        TestProc tp;
+        parammenu::toggleFrozen (tp.apvts.state, "cut");
+        const bool frozen = parammenu::isFrozen (tp.apvts.state, "cut") && ! parammenu::isFrozen (tp.apvts.state, "mode");
+        parammenu::toggleFrozen (tp.apvts.state, "cut");
+        auto* cut = tp.apvts.getParameter ("cut"); auto* mode = tp.apvts.getParameter ("mode");
+        parammenu::RandomMover mv;
+        mv.glideTo ({ { cut, 0.9f }, { mode, 1.f } }, { cut, mode });
+        mv.finish();
+        const bool moved = std::abs (cut->getValue() - 0.9f) < 1e-5f && mode->getValue() > 0.99f;
+        mv.undo(); mv.finish();
+        const bool back = std::abs (cut->getValue() - 0.25f) < 1e-5f && mode->getValue() < 0.01f;
+        check (frozen && ! parammenu::isFrozen (tp.apvts.state, "cut") && moved && back, "FREEZE list + RANDOM glide + undo");
+    }
+    // ---------------------------------------------------------------- reverse bass
+    {
+        rbass::Params p; p.stepBeats = 1.0; p.in = 0.4f; p.out = 0.9f; p.saw = 0.f;      // sine only: zero crossings = pitch
+        rbass::ReverseBass rb; rb.prepare (sr); rb.setNoteHz (43.65);
+        const double beatSamples = sr * 60.0 / 150.0;
+        double early = 0, mid = 0, gap = 0; int zc = 0; float prev = 0.f;
+        for (int i = 0; i < (int) beatSamples; ++i)
+        {
+            const double b = i / beatSamples;
+            const float y = rb.next (p, b, 150.0, true);
+            if (b < 0.35) early += y * y; else if (b > 0.45 && b < 0.68) { mid += y * y; if (prev < 0.f && y >= 0.f) ++zc; } else if (b > 0.93) gap += y * y;
+            prev = y;
+        }
+        const double hz = zc / (0.23 * beatSamples / sr);
+        check (early < 1e-9 && gap < 1e-6 && mid > 1e-3 && std::abs (hz - 43.65) < 6.0, "ReverseBass: silent gap, swell between, on the note",
+               "(" + String (hz, 1) + " Hz)");
+    }
+    // ---------------------------------------------------------------- OWN SOUND
+    {
+        TestProc tp;
+        own::OwnSound os; os.attach (tp.apvts); os.prepare (sr); os.latency = 7;
+        AudioBuffer<float> smp (1, 4800);
+        for (int i = 0; i < smp.getNumSamples(); ++i) smp.setSample (0, i, 0.5f * std::sin (MathConstants<float>::twoPi * 440.f * i / 48000.f) + (i == 0 ? 0.4f : 0.f));
+        os.setSound (smp, 48000.0, "test");
+        // the stored state brings it back after a fresh load
+        const auto stored = tp.apvts.state.getProperty ("ownSound").toString();
+        own::OwnSound os2; TestProc tp2; tp2.apvts.state.setProperty ("ownSound", stored, nullptr); tp2.apvts.state.setProperty ("ownSoundName", "test", nullptr);
+        os2.attach (tp2.apvts); os2.prepare (sr); os2.restore();
+        tp.apvts.getParameter ("ownKey")->setValueNotifyingHost (0.f);         // fixed pitch
+        AudioBuffer<float> out (2, 512); out.clear();
+        os.trigger (100, 60, 0.787f);
+        os.render (out);
+        int first = -1; for (int i = 0; i < 512; ++i) if (std::abs (out.getSample (0, i)) > 1e-4f) { first = i; break; }
+        check (os2.hasSound() && std::abs (os2.seconds() - 0.1) < 1e-3 && first == 107, "OwnSound: kept in the state, starts in time (+ latency)",
+               "(first sample at " + String (first) + ")");
+    }
+}
+
 int main()
 {
+    juce::ScopedJuceInitialiser_GUI gui;
+    testFromDkd();
     using namespace doomsday;
     const double sr = 48000.0;
     // ---------------------------------------------------------------- drive
@@ -293,10 +423,10 @@ int main()
         check (aligned, "OnsetDetector: 4 kicks -> 4 hits, on time, no false hits in the tails", "(" + String ((int) hits.size()) + ")");
 
         VolumeShaper vs; vs.prepare (sr); vs.setCurve (presetCurve (0)); vs.setDepth (1.f, 0.f, 0.f); vs.setCrossovers (150.f, 3500.f); vs.setSynced (true, 1.0);
-        std::vector<float> L (24000), R (24000);
-        for (int i = 0; i < 24000; ++i) L[(size_t) i] = R[(size_t) i] = 0.5f * std::sin (2.f * MathConstants<float>::pi * 50.f * i / (float) sr) + 0.3f * std::sin (2.f * MathConstants<float>::pi * 6000.f * i / (float) sr);
+        std::vector<float> L (32000), R (32000);      // was 24000: lowLater read past the end (found 2026-10-22)
+        for (int i = 0; i < 32000; ++i) L[(size_t) i] = R[(size_t) i] = 0.5f * std::sin (2.f * MathConstants<float>::pi * 50.f * i / (float) sr) + 0.3f * std::sin (2.f * MathConstants<float>::pi * 6000.f * i / (float) sr);
         auto Lin = L;
-        vs.process (L.data(), R.data(), 24000, 0.0, 150.0);
+        vs.process (L.data(), R.data(), 32000, 0.0, 150.0);
         // at the start of each beat (curve = 0): the 50 Hz is gone, 6 kHz stays
         auto bandPeak = [&] (const std::vector<float>& v, int a, int n, float hz)
         { double re = 0, im = 0; for (int i = a; i < a + n; ++i) { re += v[(size_t) i] * std::cos (2.0 * MathConstants<double>::pi * hz * i / sr); im += v[(size_t) i] * std::sin (2.0 * MathConstants<double>::pi * hz * i / sr); } return std::sqrt (re * re + im * im) / n * 2.0; };

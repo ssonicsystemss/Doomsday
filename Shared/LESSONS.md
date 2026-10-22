@@ -28,6 +28,25 @@ Dopisuj po każdej uwadze właściciela („brzmi źle”, „słabo działa”,
 - Interfejs po angielsku, krótkie podpowiedzi na ekranie (np. linia „TOO HOT – DISTORTION”); opisy w README po polsku, prosto.
 - „Bebechy” (DSP, UI) zawsze do `Shared/`, z opisem w `Shared/README.md` i testem w którejś wtyczce.
 
+## Z dkd Damiana (`ssonicsystemss/dkd`, 2026-10-22) – technika, której nam brakowało (szczegóły: RESEARCH.md)
+- **Oversampler (i inne bufory) tworzyć RAZ w konstruktorze, w `prepare` tylko `reset` / `initProcessing`.** FL przy „Replace” /
+  ponownym prepare potrafi mieć jeszcze callback audio w locie – `make_unique` w prepare zwalnia obiekt pod wątkiem audio (crash).
+  U nas tak robią: AlphaEngine, ForgeEngine, FortuneEngine, SerpentEngine, KickEngine (Ancient Drums), ScreechEngine (PoS), DoomsdayDrive
+  `OverSampler` – do poprawki. Do tego flaga `prepared` (atomic) – processBlock bez prepare = cisza.
+- **Latencja oversamplingu zgłaszana hostowi** (`setLatencySamples`) – u nas tylko Throne. Część sygnału omijająca oversampler
+  (np. CLICK) opóźniona o tę samą latencję.
+- `apvts.getRawParameterValue ("id")` w processBlock buduje `juce::String` (może alokować) → `host::ParamCache` albo wskaźniki zapisane raz.
+- `setStateInformation`: `host::sanitizeState (xml)` przed `replaceState` (NaN z zepsutego projektu = cisza / trzaski).
+- Zegar tempa: przy skoku pętli / przewinięciu ustaw „poprzednią pozycję” tuż przed beatem, na który host skoczył, inaczej pierwszy kick
+  po pętli znika (`host::BeatClock`).
+- FL nie daje wtyczce pozycji „automation” w menu parametru → „last tweaked” (pusty gest) + podpowiedź „Tools > Last tweaked > Create
+  automation clip”. RANDOM jako animacja w gestach = FL może nagrać zmianę.
+- Testy renderu z **udawanym hostem** (`AudioPlayHead`, transport gra) i **sprawdzające muzykę** (uderzenie na każdy beat, cisza przed
+  kickiem, wysokość nuty), plus **głośność niezależna od sample rate** (44.1 / 48 / 96 kHz ±0.5 dB; współczynniki DC / wygładzania liczone
+  od sample rate). Nasze testy prawie nie ustawiają playheada.
+- Przy okazji: test `VolumeShaper` w `Shared/Tests` czytał poza wektorem (przechodził przypadkiem) – poprawione. Przy `juce_dsp`
+  w tym samym pliku `juce::jmin<juce::int64>` się nie kompiluje (SIMDRegister) – użyć `std::min`.
+
 ## Z toolboxa Damiana (ssonicsystemss/sonic-toolbox, `screens/CLAUDE.md`) – do stosowania u nas
 - Ekrany / wyświetlacze: **trzy warstwy** – statyczne tło w cache'owanym obrazie (ramka, szkło, skale), warstwa „live”
   (tylko to, co się rusza) i nakładka (odbicia, scanlines). U nas tak robi już tło canvasu; THE ANVIL / spektrum mogą też.

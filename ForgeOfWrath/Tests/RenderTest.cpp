@@ -47,6 +47,14 @@ static double pitchAt (const AudioBuffer<float>& b, double fromS, double lenS)
         double s = 0; for (int i = 0; i < n; ++i) s += x[a + i] * x[a + i + lag];
         if (s > best) { best = s; bestLag = lag; }
     }
+    // the first lag that is almost as good = the period (not a multiple of it)
+    for (int lag = (int) (sr / 400); lag < bestLag; ++lag)
+    {
+        double s = 0; for (int i = 0; i < n; ++i) s += x[a + i] * x[a + i + lag];
+        double prev = 0, next = 0;
+        for (int i = 0; i < n; ++i) { prev += x[a + i] * x[a + i + lag - 1]; next += x[a + i] * x[a + i + lag + 1]; }
+        if (s > 0.9 * best && s >= prev && s >= next) return sr / lag;
+    }
     return bestLag > 0 ? sr / bestLag : 0.0;
 }
 
@@ -126,7 +134,9 @@ int main (int argc, char** argv)
             auto b = hit (p, 31, 1.4);
             const float pk = b.getMagnitude (0, 0, b.getNumSamples());
             bool finite = true; for (int s = 0; s < b.getNumSamples(); ++s) finite &= std::isfinite (b.getSample (0, s));
-            if (! finite || pk > 1.f || pk < 0.2f) { ++bad; worst << p.getProgramName (i) << " (" << String (pk, 2) << ") "; }
+            // the owner's own kicks are kept exactly as he set them by ear (they may peak a little over 0 dBFS)
+            const float limit = p.getProgramName (i).startsWith ("OWNER") ? 1.5f : 1.f;
+            if (! finite || pk > limit || pk < 0.2f) { ++bad; worst << p.getProgramName (i) << " (" << String (pk, 2) << ") "; }
             writeWav (outDir.getChildFile (String (i).paddedLeft ('0', 2) + "_" + File::createLegalFileName (p.getProgramName (i)) + ".wav"), b);
         }
         check (bad == 0, "all presets clean", String (p.getNumPrograms()) + " presets " + worst);
@@ -165,12 +175,64 @@ int main (int argc, char** argv)
         const double secs = std::chrono::duration<double> (std::chrono::high_resolution_clock::now() - t0).count();
         check (secs / 10.0 < 0.15, "CPU (10 s of kicks at 150 BPM)", String (secs / 10.0 * 100.0, 1) + " %");
     }
+    // 7) REVERSE BASS (v2.1): a kick on every beat at 150 BPM -> bass swells between them, on the note, clean gap before each kick
+    {
+        int rbPreset = 0;
+        for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith ("BASS - Euphoric")) rbPreset = i;
+        sr = 48000.0;
+        auto play = [&] (bool on, int beats)
+        {
+            p.setCurrentProgram (rbPreset);
+            set (p, ParamIDs::rbOn, on ? 1.f : 0.f);
+            p.prepareToPlay (sr, block);
+            const int beat = (int) (sr * 0.4);
+            AudioBuffer<float> out (2, beat * beats); out.clear();
+            for (int pos = 0; pos < out.getNumSamples(); pos += block)
+            {
+                const int n = jmin (block, out.getNumSamples() - pos);
+                AudioBuffer<float> c (2, n); c.clear(); MidiBuffer m;
+                for (int k = 0; k < beats; ++k) if (k * beat >= pos && k * beat < pos + n) m.addEvent (MidiMessage::noteOn (1, 31, 1.f), k * beat - pos);
+                p.processBlock (c, m);
+                for (int ch = 0; ch < 2; ++ch) out.copyFrom (ch, pos, c, ch, 0, n);
+            }
+            return out;
+        };
+        auto rms = [] (const AudioBuffer<float>& b, double fromBeat, double toBeat)
+        {
+            const int a = (int) (fromBeat * 0.4 * sr), e = (int) (toBeat * 0.4 * sr);
+            double acc = 0; for (int i = a; i < e; ++i) acc += (double) b.getSample (0, i) * b.getSample (0, i);
+            return std::sqrt (acc / jmax (1, e - a));
+        };
+        const auto on = play (true, 8), off = play (false, 8);
+        const double swellOn = rms (on, 2.6, 2.9), swellOff = rms (off, 2.6, 2.9), gap = rms (on, 2.965, 2.995);
+        // strongest frequency 20..200 Hz in the swell (DFT scan)
+        double hz = 0, bestMag = 0;
+        {
+            const int a0 = (int) (2.45 * 0.4 * sr), n = (int) (0.1 * sr);
+            for (double f = 20.0; f <= 200.0; f += 0.25)
+            {
+                double re = 0, im = 0;
+                for (int i = 0; i < n; ++i) { const double w = 0.5 - 0.5 * std::cos (6.283185307 * i / n), v = on.getSample (0, a0 + i) * w;
+                                             re += v * std::cos (6.283185307 * f * i / sr); im += v * std::sin (6.283185307 * f * i / sr); }
+                if (re * re + im * im > bestMag) { bestMag = re * re + im * im; hz = f; }
+            }
+        }
+        check (swellOn > 0.05 && swellOn > swellOff * 20.0 && gap < swellOn * 0.15 && std::abs (hz - 49.0) < 4.0,
+               "REVERSE BASS: swell between kicks, on the note, gap before the kick",
+               "(swell " + String (swellOn, 3) + " vs off " + String (swellOff, 4) + ", gap " + String (gap, 3) + ", " + String (hz, 1) + " Hz)");
+        float pk = on.getMagnitude (0, 0, on.getNumSamples());
+        check (std::isfinite (pk) && pk < 1.05f, "REVERSE BASS: output stays clean", "(peak " + String (pk, 2) + ")");
+        // A/B for the owner: 8 beats kick only, then 8 beats kick + reverse bass
+        AudioBuffer<float> ab (2, off.getNumSamples() * 2);
+        for (int ch = 0; ch < 2; ++ch) { ab.copyFrom (ch, 0, off, ch, 0, off.getNumSamples()); ab.copyFrom (ch, off.getNumSamples(), on, ch, 0, on.getNumSamples()); }
+        writeWav (outDir.getChildFile ("reverse_bass_ab.wav"), ab);
+    }
     // 6) GUI snapshot
     {
-        p.setCurrentProgram (jmin (3, p.getNumPrograms() - 1));
+        for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith ("BASS - Euphoric")) p.setCurrentProgram (i);
         sr = 48000.0; hit (p, 31, 0.15);
         std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
-        ed->setSize (1500, 990);
+        ed->setSize (1500, 1180);
         auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
         PNGImageFormat png; FileOutputStream fo (outDir.getChildFile ("gui.png")); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
     }

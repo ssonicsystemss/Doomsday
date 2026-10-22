@@ -61,6 +61,17 @@ namespace ParamIDs
     inline constexpr const char* clipSoft = "clip_soft";
     inline constexpr const char* velocity = "velocity";
     inline constexpr const char* output   = "output";
+    // REVERSE BASS (v2.1)
+    inline constexpr const char* rbOn      = "rb_on";
+    inline constexpr const char* rbPattern = "rb_pattern";
+    inline constexpr const char* rbIn      = "rb_in";
+    inline constexpr const char* rbOut     = "rb_out";
+    inline constexpr const char* rbCurve   = "rb_curve";
+    inline constexpr const char* rbRise    = "rb_rise";
+    inline constexpr const char* rbTune    = "rb_tune";
+    inline constexpr const char* rbDrive   = "rb_drive";
+    inline constexpr const char* rbTone    = "rb_tone";
+    inline constexpr const char* rbLevel   = "rb_level";
 }
 
 namespace Choices
@@ -68,4 +79,5 @@ namespace Choices
     inline const juce::StringArray distTypes { "SOFT", "TUBE", "HARD", "FOLD", "RAW" };
     inline const juce::StringArray dist2Types { "OFF", "SOFT", "TUBE", "HARD", "FOLD", "RAW" };
     inline const juce::StringArray pitchModes { "CURVE", "DRAWN" };
+    inline const juce::StringArray rbPatterns { "1/4", "1/8", "1/16" };
 }

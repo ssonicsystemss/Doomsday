@@ -46,10 +46,22 @@ private:
     void convertCurveToDrawn();
 };
 
+// REVERSE BASS lane: one beat - the kick (its LENGTH at the FL tempo) and the bass swells; warns when they overlap
+class BassLane : public juce::Component
+{
+public:
+    explicit BassLane (ForgeProcessor& p) : proc (p) {}
+    void paint (juce::Graphics&) override;
+    void tick();
+private:
+    ForgeProcessor& proc;
+    float lastSig = -1.f;
+};
+
 class Canvas : public juce::Component, public juce::FileDragAndDropTarget, private juce::Timer
 {
 public:
-    static constexpr int W = 1500, H = 990;
+    static constexpr int W = 1500, H = 1180;
     bool isInterestedInFileDrag (const juce::StringArray&) override;
     void filesDropped (const juce::StringArray&, int, int) override;
     void paintOverChildren (juce::Graphics&) override;
@@ -68,8 +80,9 @@ private:
     struct Section { juce::String title; std::vector<std::unique_ptr<doomsday::ui::Knob>> knobs; juce::Component* side = nullptr; int sideW = 0; int accent = 0; juce::Rectangle<int> area; };
     std::vector<Section> sections;
     Section& section (const juce::String& title, int accent);
-    std::unique_ptr<doomsday::ui::Choice> distType, dist2Type, pitchMode;
-    std::unique_ptr<doomsday::ui::Switch> punchOn, roomInto;
+    std::unique_ptr<doomsday::ui::Choice> distType, dist2Type, pitchMode, rbPattern;
+    std::unique_ptr<doomsday::ui::Switch> punchOn, roomInto, rbOn;
+    BassLane bassLane;
     juce::TextButton loadBtn { "LOAD" }, clearBtn { "X" };
     std::unique_ptr<juce::FileChooser> chooser;
     juce::Rectangle<int> sampleNameArea;

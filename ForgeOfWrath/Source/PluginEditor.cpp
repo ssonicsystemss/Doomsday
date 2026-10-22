@@ -285,6 +285,79 @@ void AnvilDisplay::paint (Graphics& g)
     g.setColour (ForgeTheme::magma.withAlpha (0.25f)); g.drawRoundedRectangle (b.reduced (0.5f), 9.f, 1.f);
 }
 
+// ======================================================================= REVERSE BASS lane
+void BassLane::tick()
+{
+    const auto p = proc.gather();
+    const float sig = (float) p.rb.stepBeats * 7.f + p.rb.in * 3.f + p.rb.out * 5.f + p.rb.curve * 0.37f + p.rb.riseSt * 0.011f
+                    + p.k.lengthMs * 0.001f + (p.rbOn ? 100.f : 0.f) + proc.getEngine().tempoNow.load() * 0.0001f;
+    if (std::abs (sig - lastSig) > 1e-5f) { lastSig = sig; repaint(); }
+}
+
+void BassLane::paint (Graphics& g)
+{
+    using namespace ForgeTheme;
+    auto& lnf = dynamic_cast<doomsday::ui::StageLookAndFeel&> (getLookAndFeel());
+    const auto p = proc.gather();
+    const double bpm = proc.getEngine().tempoNow.load(), beatMs = 60000.0 / bpm;
+    auto r = getLocalBounds().toFloat();
+    g.setColour (Colours::black.withAlpha (0.45f)); g.fillRoundedRectangle (r, 8.f);
+    g.setColour (magma.withAlpha (0.25f)); g.drawRoundedRectangle (r.reduced (0.5f), 8.f, 1.f);
+    auto plot = r.reduced (12.f, 10.f).withTrimmedTop (16.f);
+    const float kickH = plot.getHeight() * 0.42f;
+    auto kickLane = plot.removeFromTop (kickH);
+    plot.removeFromTop (6.f);
+    auto bassLaneR = plot;
+    // grid: the steps of the pattern
+    const int steps = (int) std::round (1.0 / p.rb.stepBeats);
+    for (int i = 1; i < steps; ++i)
+    {
+        const float x = r.getX() + 12.f + (r.getWidth() - 24.f) * (float) i / (float) steps;
+        g.setColour (lnf.theme.dim.withAlpha (0.5f)); g.drawVerticalLine ((int) x, kickLane.getY(), bassLaneR.getBottom());
+    }
+    // the kick: its LENGTH against the beat
+    const float kickFrac = (float) jmin (1.0, (double) p.k.lengthMs / beatMs);
+    {
+        Path k; k.startNewSubPath (kickLane.getX(), kickLane.getBottom());
+        for (int i = 0; i <= 60; ++i)
+        {
+            const float t = (float) i / 60.f, x = kickLane.getX() + kickLane.getWidth() * kickFrac * t;
+            k.lineTo (x, kickLane.getBottom() - kickLane.getHeight() * (t < 0.03f ? t / 0.03f : 1.f - 0.6f * t * t));
+        }
+        k.lineTo (kickLane.getX() + kickLane.getWidth() * kickFrac, kickLane.getBottom()); k.closeSubPath();
+        g.setColour (magmaHot.withAlpha (0.35f)); g.fillPath (k);
+        g.setColour (magmaHot); g.strokePath (k, PathStrokeType (1.2f));
+    }
+    // the bass swells
+    Path bp; bool started = false;
+    float firstIn = 2.f;
+    for (int i = 0; i <= 400; ++i)
+    {
+        const double beat = (double) i / 400.0;
+        const double q = beat / p.rb.stepBeats;
+        float riseU = 0.f;
+        const float a = doomsday::rbass::swell (p.rb, q - std::floor (q), p.rb.stepBeats * 60.0 / bpm, riseU);
+        if (a > 0.001f) firstIn = jmin (firstIn, (float) beat);
+        const float x = bassLaneR.getX() + bassLaneR.getWidth() * (float) beat, y = bassLaneR.getBottom() - bassLaneR.getHeight() * a;
+        if (! started) { bp.startNewSubPath (x, y); started = true; } else bp.lineTo (x, y);
+    }
+    const Colour bc = p.rbOn ? magma : lnf.theme.dim;
+    Path bf (bp); bf.lineTo (bassLaneR.getRight(), bassLaneR.getBottom()); bf.lineTo (bassLaneR.getX(), bassLaneR.getBottom()); bf.closeSubPath();
+    g.setColour (bc.withAlpha (0.3f)); g.fillPath (bf);
+    g.setColour (bc); g.strokePath (bp, PathStrokeType (1.6f));
+    // labels + overlap warning
+    g.setFont (lnf.labelFont (11.f, 0.2f));
+    g.setColour (lnf.theme.label);
+    g.drawText ("ONE BEAT AT " + String (roundToInt (bpm)) + " BPM", r.reduced (12.f, 4.f).withHeight (14.f), Justification::topLeft);
+    g.drawText ("KICK", kickLane.reduced (4.f, 0.f), Justification::topRight);
+    g.drawText ("BASS", bassLaneR.reduced (4.f, 0.f), Justification::topRight);
+    if (p.rbOn && kickFrac > firstIn)
+    {
+        g.setColour (ember);
+        g.drawText ("OVERLAP - SHORTEN THE KICK (LENGTH) OR MOVE IN", r.reduced (12.f, 4.f).withHeight (14.f), Justification::topRight);
+    }
+}
+
 // ======================================================================= canvas
 Canvas::Section& Canvas::section (const String& title, int accent)
 {
@@ -294,7 +367,7 @@ Canvas::Section& Canvas::section (const String& title, int accent)
 }
 
 Canvas::Canvas (ForgeProcessor& p)
-    : proc (p), lnf (ForgeTheme::make()), anvil (p), presets (p, true)
+    : proc (p), lnf (ForgeTheme::make()), anvil (p), presets (p, true), bassLane (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -420,6 +493,26 @@ Canvas::Canvas (ForgeProcessor& p)
         add (s, output, "OUTPUT", true, "Output level");
         s.sideW = -30;      // room for the meter on the right
     }
+    // ---- row D: REVERSE BASS (v2.1, from Damian's dkd)
+    {
+        auto& s = section ("REVERSE BASS", 1);
+        rbPattern = std::make_unique<Choice> (p.apvts, ParamIDs::rbPattern, Choices::rbPatterns, 1, true);
+        rbPattern->setTooltip ("How many bass swells per beat: 1/4 = one, 1/8 = two, 1/16 = four (locked to the FL tempo)");
+        addAndMakeVisible (*rbPattern);
+        s.side = rbPattern.get(); s.sideW = 70;
+        add (s, rbIn, "IN", false, "Where in each step the bass starts to swell");
+        add (s, rbOut, "OUT", false, "Where it stops - the rest of the step is a clean gap before the next kick");
+        add (s, rbCurve, "CURVE", false, "Swell shape: low = rises early and long, high = a late, hard suck-in");
+        add (s, rbRise, "RISE", false, "Pitch rise at the end of every swell (like a kick tail played backwards)");
+        add (s, rbTune, "TUNE", true, "Bass pitch against the kick note in semitones (12 = an octave up)");
+        add (s, rbDrive, "DRIVE", false, "Distortion of the bass: from a clean sub to a buzzing saw");
+        add (s, rbTone, "TONE", false, "Low-pass of the bass: low = round and deep, high = bright and present");
+        add (s, rbLevel, "LEVEL", false, "Bass level against the kick (both go into the master clipper)");
+        rbOn = std::make_unique<Switch> (p.apvts, ParamIDs::rbOn, "ON", Switch::Power, 1);
+        rbOn->setTooltip ("Reverse bass: every kick starts one beat of bass swells on the same note");
+        addAndMakeVisible (*rbOn);
+        addAndMakeVisible (bassLane);
+    }
     setSize (W, H);
     timerCallback();
     startTimerHz (30);
@@ -432,7 +525,7 @@ void Canvas::resized()
     presets.setBounds (W - m - 300, 34, 300, 90);
     anvil.setBounds (m, 150, W - 2 * m, 250);
     // widths per row (sum + gaps = W - 2m)
-    const std::vector<std::vector<int>> rows { { 560, 320, 262, 276 }, { 340, 392, 286, 220, 166 }, { 480, 300, 236, 402 } };
+    const std::vector<std::vector<int>> rows { { 560, 320, 262, 276 }, { 340, 392, 286, 220, 166 }, { 480, 300, 236, 402 }, { W - 2 * m } };
     size_t si = 0;
     int y = 414;
     for (auto& r : rows)
@@ -447,6 +540,7 @@ void Canvas::resized()
         if (sec.side != nullptr) { sec.side->setBounds (a.removeFromLeft (sec.sideW).withSizeKeepingCentre (sec.sideW, jmin (a.getHeight(), 128))); a.removeFromLeft (8); }
         if (sec.sideW < 0) { meter.setBounds (a.removeFromRight (22).reduced (0, 6)); a.removeFromRight (8); }
         if (sec.title == "SAMPLE") { sampleNameArea = a.removeFromBottom (18); }
+        if (sec.title == "REVERSE BASS") { bassLane.setBounds (a.removeFromRight (470).reduced (0, 2)); a.removeFromRight (12); }
         const float cw = (float) a.getWidth() / (float) jmax<size_t> (1, sec.knobs.size());
         for (size_t i = 0; i < sec.knobs.size(); ++i)
             sec.knobs[i]->setBounds (Rectangle<int> (a.getX() + (int) (cw * (float) i), a.getY(), (int) cw, a.getHeight()).withSizeKeepingCentre (jmin ((int) cw - 2, 100), a.getHeight()));
@@ -455,6 +549,7 @@ void Canvas::resized()
     pitchMode->setBounds (head (sections[0]).removeFromRight (150));
     roomInto->setBounds (head (sections[7]).removeFromRight (104));
     punchOn->setBounds (head (sections[9]).removeFromRight (100));
+    rbOn->setBounds (head (sections[13]).removeFromRight (100));
     {
         auto h = head (sections[10]);
         clearBtn.setBounds (h.removeFromRight (30));
@@ -552,7 +647,7 @@ void Canvas::renderBackground()
     }
     const int tx = (int) doomsday::brand::headerTextX (ui);
     g.setFont (lnf.titleFont (10.f, 0.25f)); g.setColour (lnf.theme.text.withAlpha (0.75f));
-    g.drawText ("V2.0", tx, 40, 300, 14, Justification::left);
+    g.drawText ("V2.1", tx, 40, 300, 14, Justification::left);
     g.setFont (lnf.labelFont (12.f, 0.28f)); g.setColour (lnf.theme.label);
     g.drawText ("PUNCH  /  TAIL  /  DISTORTION  /  CLIP", tx, 58, 340, 16, Justification::left);
     g.setColour (magma);
@@ -564,6 +659,7 @@ void Canvas::renderBackground()
 void Canvas::timerCallback()
 {
     anvil.tick();
+    bassLane.tick();
     presets.refresh();
     meter.setLevel (proc.getEngine().outPeak.exchange (0.f));
     if (proc.getSampleSerial() != lastSampleSerial) { lastSampleSerial = proc.getSampleSerial(); repaint (sampleNameArea.expanded (4)); }
@@ -578,7 +674,7 @@ ForgeEditor::ForgeEditor (ForgeProcessor& p) : AudioProcessorEditor (p), canvas 
 {
     addAndMakeVisible (canvas);
     setResizable (true, true);
-    setResizeLimits (900, 594, 2250, 1485);
+    setResizeLimits (900, 708, 2250, 1770);
     getConstrainer()->setFixedAspectRatio ((double) Canvas::W / (double) Canvas::H);
-    setSize (1200, 792);
+    setSize (1200, 944);
 }

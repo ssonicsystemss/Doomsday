@@ -1,4 +1,11 @@
-# FORGE OF WRATH v2.0
+# FORGE OF WRATH v2.1
+
+**v2.1 – REVERSE BASS** (pomysł z dkd Damiana): każdy kick odpala jeden beat basu na tej samej nucie, w tempie FL.
+Bas narasta między kickami, na końcu podjeżdża w górę (jak odwrócony ogon kicka), a przed następnym kickiem jest czysta przerwa.
+Włącznik ON, kroki **1/4 / 1/8 / 1/16**, **IN / OUT** (gdzie w kroku zaczyna i kończy), **CURVE** (wcześnie / późno), **RISE** (podjazd),
+**TUNE** (względem nuty kicka), **DRIVE**, **TONE**, **LEVEL**. Okienko obok pokazuje jeden beat: kick (jego LENGTH) i bas –
+napis **OVERLAP**, gdy kick wchodzi na bas (skróć LENGTH albo przesuń IN). Presety: BASS - Euphoric Kick + Reverse Bass, BASS - Raw Kick + Dirty Reverse.
+Twoje kicki: **OWNER - Nice / Nice 1 / Sgsdg** (dokładnie tak, jak je ustawiłeś; mają szczyt trochę ponad 0 dB – OUTPUT −1.5 dB, jeśli przeszkadza).
 
 **v2:** łańcuch STAGE 1 → MID EQ → STAGE 2, ROOM (INTO DIST), OTT, rysowany PITCH, PUNCH DRIVE, CHAOS, HOLD, własny SAMPLE (LOAD / przeciągnij WAV), **CLEAN SUB** (poniżej wybranej częstotliwości czysty sinus zamiast przesteru – ciasny dół, clipper go nie rusza).
 Syntezator kicków hardstyle (instrument VST3, FL Studio). Kick wychodzi gotowy prosto z wtyczki – bez dokładania

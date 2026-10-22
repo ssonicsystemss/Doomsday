@@ -28,6 +28,12 @@ Dopisuj po każdej uwadze właściciela („brzmi źle”, „słabo działa”,
 - Interfejs po angielsku, krótkie podpowiedzi na ekranie (np. linia „TOO HOT – DISTORTION”); opisy w README po polsku, prosto.
 - „Bebechy” (DSP, UI) zawsze do `Shared/`, z opisem w `Shared/README.md` i testem w którejś wtyczce.
 
+## Forge of Wrath – kicki właściciela (2026-10-22: „nice”, „nice1”, „sgsdg”)
+- Wszystkie trzy robią „reverse” obwiednią AMP w samym kicku (spadek do ~0 po 170–420 ms, potem narasta do 0.9–1.0 i znika na końcu),
+  LENGTH ~460 ms (= cały beat przy 130 BPM), DRIVE env z dołkiem i powrotem. Lubi: SCREAM wysoko (0.55–1.0, 0.9–1.35 kHz), TONE na skrajach,
+  CLIP ~3.5–4.6 dB. Szczyt ~1.16 (ponad 0 dBFS) – zostawione jak ustawił, test dopuszcza dla OWNER.
+- Wniosek: reverse w kicku to jego sposób pracy → sekcja REVERSE BASS (v2.1) jako uzupełnienie, nie zamiennik obwiedni.
+
 ## Z dkd Damiana (`ssonicsystemss/dkd`, 2026-10-22) – technika, której nam brakowało (szczegóły: RESEARCH.md)
 - **Oversampler (i inne bufory) tworzyć RAZ w konstruktorze, w `prepare` tylko `reset` / `initProcessing`.** FL przy „Replace” /
   ponownym prepare potrafi mieć jeszcze callback audio w locie – `make_unique` w prepare zwalnia obiekt pod wątkiem audio (crash).

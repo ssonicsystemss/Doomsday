@@ -39,7 +39,7 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (f (smpLevel, "Sample Level", { -36.f, 6.f }, 0.f, fm::db, fm::num));
     l.add (f (smpPitch, "Sample Pitch", { -24.f, 24.f }, 0.f, fm::semi, fm::num));
     l.add (f (smpStart, "Sample Start", { 0.f, 200.f }, 0.f, fm::ms, fm::msIn));
-    l.add (f (drive, "Drive", { 0.f, 48.f }, 18.f, fm::db, fm::num));
+    l.add (f (ParamIDs::drive, "Drive", { 0.f, 48.f }, 18.f, fm::db, fm::num));
     l.add (f (tone, "Tone", { -1.f, 1.f }, 0.f, fm::bip, fm::pctIn));
     l.add (f (lowCut, "Low Cut", skew (10.f, 300.f, 40.f), 25.f, fm::hz, fm::hzIn));
     l.add (f (highCut, "High Cut", skew (500.f, 20000.f, 5000.f), 12000.f, fm::hz, fm::hzIn));
@@ -68,6 +68,17 @@ AudioProcessorValueTreeState::ParameterLayout ForgeProcessor::createLayout()
     l.add (f (clipSoft, "Clip Softness", { 0.f, 1.f }, 0.3f));
     l.add (f (velocity, "Velocity Sensitivity", { 0.f, 1.f }, 0.f));
     l.add (f (output, "Output", { -24.f, 24.f }, 0.f, fm::db, fm::num));
+    // REVERSE BASS (v2.1, appended - new IDs only)
+    l.add (b (rbOn, "Reverse Bass On", false));
+    l.add (c (rbPattern, "Reverse Bass Pattern", Choices::rbPatterns, 0));
+    l.add (f (rbIn, "Reverse Bass In", { 0.02f, 0.9f }, 0.38f));
+    l.add (f (rbOut, "Reverse Bass Out", { 0.12f, 1.f }, 0.95f));
+    l.add (f (rbCurve, "Reverse Bass Curve", { 0.8f, 6.f }, 2.6f, fmtNum, fm::num));
+    l.add (f (rbRise, "Reverse Bass Rise", { 0.f, 24.f }, 12.f, fm::semi, fm::num));
+    l.add (f (rbTune, "Reverse Bass Tune", { -24.f, 24.f }, 0.f, fm::semi, fm::num));
+    l.add (f (rbDrive, "Reverse Bass Drive", { 0.f, 36.f }, 14.f, fm::db, fm::num));
+    l.add (f (rbTone, "Reverse Bass Tone", skew (300.f, 6000.f, 1600.f), 1600.f, fm::hz, fm::hzIn));
+    l.add (f (rbLevel, "Reverse Bass Level", { -36.f, 6.f }, -4.f, fm::db, fm::num));
     return l;
 }
 
@@ -142,7 +153,7 @@ void ForgeProcessor::randomizeSound()
     auto between = [this] (float a, float b) { return a + rng.nextFloat() * (b - a); };
     auto logB = [this] (float a, float b) { return a * std::pow (b / a, rng.nextFloat()); };
     set (tailStart, logB (2.f, 6.f)); set (tailDrop, logB (25.f, 160.f)); set (tailCurve, between (2.f, 7.f)); set (tailWave, rng.nextFloat() < 0.6f ? 0.f : between (0.f, 0.6f));
-    set (distType, (float) rng.nextInt (5)); set (drive, between (10.f, 40.f)); set (tone, between (-0.5f, 0.8f));
+    set (distType, (float) rng.nextInt (5)); set (ParamIDs::drive, between (10.f, 40.f)); set (tone, between (-0.5f, 0.8f));
     set (lowCut, logB (20.f, 60.f)); set (highCut, logB (3000.f, 16000.f));
     set (scream, rng.nextFloat() < 0.4f ? between (0.2f, 0.8f) : 0.f); set (screamHz, logB (400.f, 2500.f));
     set (crunch, rng.nextFloat() < 0.5f ? between (0.2f, 0.9f) : 0.f); set (crunchDec, logB (40.f, 300.f));
@@ -179,7 +190,7 @@ ForgeParams ForgeProcessor::gather() const
     ForgeParams e;
     auto& k = e.k;
     k.tailDb = get (tailLevel); k.startRatio = get (tailStart); k.dropMs = get (tailDrop); k.curve = get (tailCurve); k.holdMs = get (tailHold); k.wave = get (tailWave); k.tuneSemis = get (tune);
-    k.distType = jlimit (0, 4, (int) std::round (get (distType))); k.driveDb = get (drive); k.tone = get (tone); k.lowCutHz = get (lowCut); k.highCutHz = get (highCut);
+    k.distType = jlimit (0, 4, (int) std::round (get (distType))); k.driveDb = get (ParamIDs::drive); k.tone = get (tone); k.lowCutHz = get (lowCut); k.highCutHz = get (highCut);
     k.scream = get (scream); k.screamHz = get (screamHz); k.crunch = get (crunch); k.crunchDecayMs = get (crunchDec);
     k.bodyDb = get (body); k.grit = get (grit); k.cleanSubHz = get (cleanSub);
     k.punchOn = get (punchOn) > 0.5f; k.punchDb = get (punchLevel); k.punchStartHz = get (punchStart); k.punchEndHz = get (punchEnd);
@@ -195,6 +206,11 @@ ForgeParams ForgeProcessor::gather() const
     k.punchDriveDb = get (punchDrive);
     e.ott = get (ott); e.sampleDb = get (smpLevel); e.samplePitch = get (smpPitch); e.sampleStartMs = get (smpStart);
     e.clipDriveDb = get (clipDrive); e.clipSoft = get (clipSoft); e.velocitySens = get (velocity); e.outDb = get (output);
+    e.rbOn = get (rbOn) > 0.5f;
+    const int pat = jlimit (0, 2, (int) std::round (get (rbPattern)));
+    e.rb.stepBeats = pat == 2 ? 0.25 : pat == 1 ? 0.5 : 1.0;
+    e.rb.in = get (rbIn); e.rb.out = get (rbOut); e.rb.curve = get (rbCurve); e.rb.riseSt = get (rbRise);
+    e.rbTuneSt = get (rbTune); e.rbDriveDb = get (rbDrive); e.rbToneHz = get (rbTone); e.rbLevelDb = get (rbLevel);
     return e;
 }
 
@@ -205,6 +221,11 @@ void ForgeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     auto prm = gather();
     lastAmp = prm.k.amp; lastDrive = prm.k.drive; lastPitch = prm.k.pitch;
     engine.setParams (prm);
+    double bpmNow = 150.0;
+    if (auto* ph = getPlayHead())
+        if (auto pos = ph->getPosition())
+            if (auto bp = pos->getBpm()) bpmNow = *bp;
+    engine.setTempo (bpmNow);
     if (pendingAudition.exchange (false)) engine.audition (true, auditionNote);
     engine.process (buffer, midi);
 }

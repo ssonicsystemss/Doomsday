@@ -23,9 +23,11 @@ jobs:
       - name: Remove build leftovers (.lib / .exp), keep the symbols (.pdb) aside
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
           New-Item -ItemType Directory -Force build/symbols | Out-Null
-          Get-ChildItem build -Recurse -Include *.pdb | Where-Object { $_.Name -like 'Forge of Wrath*' } | Copy-Item -Destination build/symbols
-          Get-ChildItem build/ForgeOfWrath_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp,*.pdb | Remove-Item
+          Get-ChildItem build/ForgeOfWrath_artefacts -Recurse -Filter *.pdb -ErrorAction SilentlyContinue | Copy-Item -Destination build/symbols -Force -ErrorAction SilentlyContinue
+          Get-ChildItem build/ForgeOfWrath_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp,*.pdb -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          exit 0
       - name: Upload VST3
         uses: actions/upload-artifact@v5
         with:

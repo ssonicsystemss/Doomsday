@@ -85,6 +85,29 @@ static int batch (const File& jobs, const File& dir)
 int main (int argc, char** argv)
 {
     ScopedJuceInitialiser_GUI gui;
+    if (argc >= 2 && String (argv[1]) == "guistress")
+    {
+        // the editor with its timer + paint running while every parameter is moved (FL crash hunt, 2026-10-22)
+        ForgeProcessor p; p.prepareToPlay (48000.0, 512);
+        std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
+        ed->setSize (1200, 944);
+        Random r (7);
+        for (int it = 0; it < 400; ++it)
+        {
+            if (it % 50 == 0) p.setCurrentProgram (r.nextInt (p.getNumPrograms()));
+            for (int k = 0; k < 6; ++k)
+            {
+                auto* prm = p.getParameters()[r.nextInt (p.getParameters().size())];
+                prm->setValueNotifyingHost (r.nextFloat());
+            }
+            AudioBuffer<float> b (2, 512); b.clear(); MidiBuffer m; if (it % 7 == 0) m.addEvent (MidiMessage::noteOn (1, 24 + r.nextInt (24), 1.f), 0);
+            p.processBlock (b, m);
+            dynamic_cast<ForgeEditor&> (*ed).getCanvas().tickForTest();
+            ed->createComponentSnapshot (ed->getLocalBounds(), true, 0.5f);
+        }
+        printf ("guistress done\n");
+        return 0;
+    }
     if (argc >= 4 && String (argv[1]) == "batch") return batch (File::getCurrentWorkingDirectory().getChildFile (argv[2]), File::getCurrentWorkingDirectory().getChildFile (argv[3]));
     const File outDir = File::getCurrentWorkingDirectory().getChildFile (argc > 1 ? argv[1] : "forge_out");
     outDir.createDirectory();

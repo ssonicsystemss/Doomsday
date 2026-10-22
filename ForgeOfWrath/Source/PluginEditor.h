@@ -69,6 +69,7 @@ public:
     ~Canvas() override;
     void paint (juce::Graphics&) override;
     void resized() override;
+    void tickForTest() { timerCallback(); }      // tests: one UI update without the message loop
 private:
     void timerCallback() override;
     void renderBackground();
@@ -99,6 +100,7 @@ class ForgeEditor : public juce::AudioProcessorEditor
 public:
     explicit ForgeEditor (ForgeProcessor&);
     void resized() override { doomsday::ui::scaleCanvas (*this, canvas, Canvas::W, Canvas::H); }
+    Canvas& getCanvas() { return canvas; }
 private:
     Canvas canvas;
 };

@@ -184,6 +184,16 @@ int main (int argc, char** argv)
         check (std::abs (hz - want) < 3.0, "PITCH +5 st, FINE +50 ct -> tail on 66.7 Hz", String (hz, 1) + " Hz");
         set (p, ParamIDs::tune, 0.f); set (p, ParamIDs::tailFine, 0.f);
     }
+    // 9) PUNCH keeps its pitch on any note (only its START / END knobs set it)
+    {
+        p.setCurrentProgram (0); sr = 48000.0;
+        set (p, ParamIDs::tailLevel, -24.f); set (p, ParamIDs::punchLevel, 0.f); set (p, ParamIDs::clickLevel, -60.f); set (p, ParamIDs::chaos, 0.f);
+        auto lo = hit (p, 31, 0.1), hi = hit (p, 43, 0.1);
+        double diff = 0, all = 0;
+        for (int i = 0; i < (int) (0.03 * sr); ++i) { const double a = lo.getSample (0, i), b = hi.getSample (0, i); diff += (a - b) * (a - b); all += a * a; }
+        // the tail is turned down, not off: allow a small rest
+        check (diff < all * 0.1, "PUNCH: same pitch on G1 and G2", "(difference " + String (10.0 * std::log10 (diff / (all + 1e-12) + 1e-12), 1) + " dB)");
+    }
     // 7) REVERSE BASS (v2.1): a kick on every beat at 150 BPM -> bass swells between them, on the note, clean gap before each kick
     {
         int rbPreset = 0;

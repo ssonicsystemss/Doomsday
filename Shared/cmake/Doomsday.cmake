@@ -84,6 +84,14 @@ function(doomsday_plugin TARGET)
     target_link_libraries(${TARGET}
         PRIVATE ${data} juce::juce_audio_utils juce::juce_dsp
         PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags juce::juce_recommended_warning_flags)
+    # Windows: debug symbols (.pdb) next to the release build - the same code, but a crash address from FL's log
+    # (module offset) can be turned into the function / line. CI uploads the .pdb as its own artifact (not in the plugin).
+    if(MSVC)
+        target_compile_options(${TARGET} PRIVATE /Zi)
+        if(TARGET ${TARGET}_VST3)
+            target_link_options(${TARGET}_VST3 PRIVATE /DEBUG /OPT:REF /OPT:ICF)
+        endif()
+    endif()
 
     option(PROPHECY_BUILD_TESTS "Build offline render test" OFF)
     if(PROPHECY_BUILD_TESTS AND D_TEST)

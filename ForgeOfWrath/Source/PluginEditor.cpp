@@ -312,7 +312,25 @@ void BassLane::paint (Graphics& g)
     const double bpm = proc.getEngine().tempoNow.load(), beatMs = 60000.0 / bpm;
     auto r = getLocalBounds().toFloat();
     g.setColour (doomsday::flat::tokens().surface); g.fillRoundedRectangle (r, 12.f);
-    auto plot = r.reduced (12.f, 10.f).withTrimmedTop (16.f);
+    auto plot = r.reduced (12.f, 10.f).withTrimmedTop (16.f).withTrimmedBottom (16.f);    // bottom: the ms scale
+    // ms scale: a line every 10 ms, longer every 50 ms with the number (every 100 ms when the beat is long)
+    {
+        const float x0 = plot.getX(), w = plot.getWidth();
+        const double labelEvery = beatMs > 700.0 ? 100.0 : 50.0;
+        g.setFont (lnf.valueFont (10.5f));
+        for (double ms = 0.0; ms <= beatMs + 0.01; ms += 10.0)
+        {
+            const float x = x0 + w * (float) (ms / beatMs);
+            const bool major = std::fmod (ms + 0.01, labelEvery) < 0.1;
+            g.setColour (lnf.theme.dim.withAlpha (major ? 0.22f : 0.08f));
+            g.drawVerticalLine ((int) x, plot.getY(), plot.getBottom() + (major ? 4.f : 2.f));
+            if (major)
+            {
+                g.setColour (lnf.theme.dim);
+                g.drawText (String ((int) std::round (ms)) + " ms", Rectangle<float> (x - 30.f, plot.getBottom() + 3.f, 60.f, 13.f), Justification::centred);
+            }
+        }
+    }
     const float kickH = plot.getHeight() * 0.42f;
     auto kickLane = plot.removeFromTop (kickH);
     plot.removeFromTop (6.f);

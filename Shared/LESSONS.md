@@ -115,7 +115,10 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - Preset „8” (2026-10-22) to drugi, „wokalny” klimat: 3 głosy, detune 14 ct, mocny CORE (0.85, shape 0.77), COMB 0.28 ×2,
   formant mocny i otwarty (~1.08 kHz, +10 dB, Q 2), DRIVE 1 łagodny (6 dB) → DRIVE 2 TUBE ~10 dB, FORTUNE 1.0, OTT ~0, chorus 0.44, low cut 125 Hz.
   Wniosek: nie ma jednego „jego” brzmienia – są (na razie) dwa kierunki; RANDOM musi losować kierunek, a nie uśredniać zakresy.
-- RANDOM: 45 % kierunek A (6 / 7), 30 % kierunek B (8), 25 % „dziko”. Uwaga: Wobble z Cutoff 20 kHz i Depth + nic nie robi (filtr i tak otwarty).
+- RANDOM: 45 % kierunek A (6 / 7), 30 % kierunek B (8), 25 % „dziko”.
+- Filtr ladder (doomsday::filter) NIE jest przezroczysty nawet na 20 kHz – ma własne nasycenie (~2.5 dB mniej szczytów).
+  Presety 6 / 7 grały przez niego (Wobble + Depth na otwartym filtrze), więc MOD na CUTOFF zawsze trzyma ladder włączony.
+  Przy zmianach toru: porównać RMS / peak fabrycznych presetów przed i po (RenderTest wypisuje je). Uwaga: Wobble z Cutoff 20 kHz i Depth + nic nie robi (filtr i tak otwarty).
 
 ## Technika (pułapki)
 - **RANDOMIZE bez wyrównania głośności** (PoS do v3.1): losowe brzmienia wychodziły 10–20 dB ciszej niż presety (filtr BAND, formant,

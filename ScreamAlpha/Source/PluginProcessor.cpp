@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <cstring>
 
 using namespace juce;
 
@@ -71,7 +72,8 @@ namespace
     const StringArray dlyNames { "1/16", "1/8", "1/8D", "1/4", "1/4D", "1/2" };
     const float dlyBeats[] { 0.25f, 0.5f, 0.75f, 1.f, 1.5f, 2.f };
     const StringArray filtModes { "LP 24", "LP 12", "BAND", "HIGH" };
-    const StringArray autoShapes { "OFF", "RISE", "FALL", "UP-DOWN", "WOBBLE", "STEPS" };
+    // MOD shapes (MOD 1 = the old "Auto Shape", CUSTOM appended in v0.4)
+    const StringArray autoShapes { "OFF", "RISE", "FALL", "UP-DOWN", "WOBBLE", "STEPS", "CUSTOM" };
     // cutoff automation cycle (owner: max 1 bar, short rhythmic values) - 1/8T = FL's "1/3 beat"
     const StringArray autoDivs { "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1 BAR" };
     const float autoBeatsOf[] { 0.25f, 1.f / 3.f, 0.5f, 2.f / 3.f, 1.f, 2.f, 4.f };
@@ -115,8 +117,23 @@ AudioProcessorValueTreeState::ParameterLayout AlphaProcessor::createLayout()
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { "drive2Curve", 1 }, "Drive 2 Curve", curves, 0));
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { "dlyDiv", 1 }, "Delay Time", dlyNames, 2));
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { "filtMode", 1 }, "Filter Mode", filtModes, 0));
-    l.add (std::make_unique<AudioParameterChoice> (ParameterID { "autoShape", 1 }, "Auto Shape", autoShapes, 0));
-    l.add (std::make_unique<AudioParameterChoice> (ParameterID { "autoDiv", 1 }, "Auto Rate", autoDivs, 4));
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { "autoShape", 1 }, "MOD 1 Shape", autoShapes, 0));
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { "autoDiv", 1 }, "MOD 1 Rate", autoDivs, 4));
+    // MOD 1 / MOD 2 (v0.4): target knob, range end, + / -
+    StringArray targetNames { "NONE" };
+    for (int i = 0; i < alpha::mod::numTargets; ++i)
+        for (auto& d : floats) if (std::strcmp (d.id, alpha::mod::targets[i]) == 0) targetNames.add (d.name);
+    jassert (targetNames.size() == alpha::mod::numTargets + 1);
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { "m2Shape", 1 }, "MOD 2 Shape", autoShapes, 0));
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { "m2Div", 1 }, "MOD 2 Rate", autoDivs, 4));
+    for (int m = 0; m < alpha::mod::numMods; ++m)
+    {
+        const String n = "MOD " + String (m + 1);
+        l.add (std::make_unique<AudioParameterChoice> (ParameterID { alpha::mod::targetPid (m), 1 }, n + " Target", targetNames, 0));
+        l.add (std::make_unique<AudioParameterFloat> (ParameterID { alpha::mod::rangeId (m), 1 }, n + " Range", NormalisableRange<float> (0.f, 1.f), 1.f,
+                   AudioParameterFloatAttributes().withStringFromValueFunction (fmtPct).withValueFromStringFunction (parsePct)));
+        l.add (std::make_unique<AudioParameterChoice> (ParameterID { alpha::mod::polId (m), 1 }, n + " Direction", StringArray { "+", "-" }, 0));
+    }
     return l;
 }
 
@@ -124,13 +141,75 @@ AlphaProcessor::AlphaProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", AudioChannelSet::stereo(), true)),
       apvts (*this, &undo, "SCREAMALPHA", createLayout())
 {
+    targets.push_back (nullptr);
+    for (int i = 0; i < alpha::mod::numTargets; ++i) targets.push_back (apvts.getParameter (alpha::mod::targets[i]));
+    for (auto& k : modKnob) k.store (-1.f);
+    resetCustomShapes();
     setCurrentProgram (1);      // start on the classic hoover
 }
 
-alpha::Params AlphaProcessor::gather() const
+// ------------------------------------------------------------ MOD 1 / MOD 2
+doomsday::mod::Shape AlphaProcessor::getCustom (int m) const
+{
+    const SpinLock::ScopedLockType l (customLock);
+    return custom[(size_t) jlimit (0, numMods - 1, m)];
+}
+
+void AlphaProcessor::setCustom (int m, const doomsday::mod::Shape& s)
+{
+    m = jlimit (0, numMods - 1, m);
+    { const SpinLock::ScopedLockType l (customLock); custom[(size_t) m] = s; }
+    apvts.state.setProperty (alpha::mod::customKey (m), s.toString(), nullptr);
+    customSer.fetch_add (1);
+}
+
+void AlphaProcessor::resetCustomShapes()
+{
+    for (int m = 0; m < numMods; ++m) setCustom (m, alpha::mod::defaultCustom());
+}
+
+int AlphaProcessor::modTarget (int m) const
+{
+    return jlimit (0, alpha::mod::numTargets, roundToInt (apvts.getRawParameterValue (alpha::mod::targetPid (m))->load()));
+}
+
+RangedAudioParameter* AlphaProcessor::targetParam (int index) const
+{
+    return isPositiveAndBelow (index, (int) targets.size()) ? targets[(size_t) index] : nullptr;
+}
+
+double AlphaProcessor::modBeats (int m) const
+{
+    return autoBeatsOf[jlimit (0, 6, roundToInt (apvts.getRawParameterValue (alpha::mod::divId (m))->load()))];
+}
+
+void AlphaProcessor::migrateLegacyAuto()
+{
+    auto* depth = apvts.getParameter ("autoOct");
+    const float oct = depth->convertFrom0to1 (depth->getValue());
+    if (std::abs (oct) < 0.01f) return;
+    auto set = [this] (const char* id, float v) { if (auto* q = apvts.getParameter (id)) q->setValueNotifyingHost (q->convertTo0to1 (v)); };
+    if (roundToInt (apvts.getRawParameterValue ("autoShape")->load()) != 0 && modTarget (0) == 0)
+    {
+        auto* cut = apvts.getParameter ("cutoffHz");
+        const float base = cut->convertFrom0to1 (cut->getValue());
+        set ("m1Target", (float) alpha::mod::targetIndex ("cutoffHz"));
+        set ("m1Pol", oct > 0.f ? 0.f : 1.f);
+        set ("m1Range", cut->convertTo0to1 (jlimit (20.f, 20000.f, base * std::pow (2.f, oct))));
+    }
+    set ("autoOct", 0.f);
+}
+
+float AlphaProcessor::pv (const char* id, const Ov* ov, int numOv) const
+{
+    for (int k = 0; k < numOv; ++k) if (ov[k].id != nullptr && std::strcmp (ov[k].id, id) == 0) return ov[k].val;
+    return apvts.getRawParameterValue (id)->load();
+}
+
+alpha::Params AlphaProcessor::gather (const Ov* ov, int numOv) const
 {
     alpha::Params p;
-    auto v = [this] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
+    auto v = [this, ov, numOv] (const char* id) { return pv (id, ov, numOv); };
     p.scoopSt = v ("scoopSt"); p.scoopMs = v ("scoopMs"); p.scoopCurve = v ("scoopCurve"); p.glideMs = v ("glideMs"); p.tuneSt = v ("tuneSt");
     p.coreLevel = v ("coreLevel"); p.coreShape = v ("coreShape"); p.coreOct = roundToInt (v ("coreOct")) - 1;
     p.hashLevel = v ("hashLevel"); p.hashDecayMs = v ("hashDecayMs"); p.hashSustain = v ("hashSustain");
@@ -143,7 +222,6 @@ alpha::Params AlphaProcessor::gather() const
     p.attackMs = v ("attackMs"); p.decayMs = v ("decayMs"); p.sustain = v ("sustain"); p.releaseMs = v ("releaseMs");
     p.chorus = v ("chorus"); p.outDb = v ("outDb");
     p.cutoffHz = v ("cutoffHz"); p.reso = v ("reso"); p.filtMode = roundToInt (v ("filtMode"));
-    p.autoShape = roundToInt (v ("autoShape")); p.autoBeats = autoBeatsOf[jlimit (0, 6, roundToInt (v ("autoDiv")))]; p.autoOct = v ("autoOct");
 
     // FORTUNE (from Fortune of Seekers): one big knob pushes everything that makes a screech scream, level kept steady
     const float f = jlimit (0.f, 1.f, v ("fortune"));
@@ -177,6 +255,8 @@ void AlphaProcessor::setCurrentProgram (int i)
     for (auto& [id, val] : presets()[(size_t) i].values)
         if (auto* rp = apvts.getParameter (id))
             rp->setValueNotifyingHost (rp->convertTo0to1 (String (id) == "coreOct" ? val + 1.f : val));   // octave stored as -1 / 0 / +1
+    resetCustomShapes();
+    migrateLegacyAuto();
     undo.clearUndoHistory();
 }
 
@@ -194,36 +274,97 @@ void AlphaProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
 {
     ScopedNoDenormals nd;
     buffer.clear();
-    double bpmNow = 150.0, ppq = 0.0; bool playing = false;
+    double bpm = 150.0, ppq = 0.0; bool playing = false;
     if (auto* ph = getPlayHead())
         if (auto pos = ph->getPosition())
         {
-            if (auto b = pos->getBpm()) bpmNow = *b;
+            if (auto b = pos->getBpm()) bpm = jlimit (20.0, 400.0, *b);
             if (auto q = pos->getPpqPosition()) ppq = *q;
             playing = pos->getIsPlaying();
         }
-    engine.setParams (gather());
-    engine.setTransport (ppq, bpmNow, playing);
-    engine.process (buffer, midi);
+    { const SpinLock::ScopedTryLockType l (customLock); if (l.isLocked()) customAudio = custom; }
+
+    // short chunks: MOD 1 / MOD 2 move their knob between them (and the clock restarts with a phrase when FL is stopped)
+    const int n = buffer.getNumSamples();
+    const double beatsPerSample = bpm / 60.0 / getSampleRate();
+    for (int start = 0; start < n; start += modChunk)
+    {
+        const int len = jmin (modChunk, n - start);
+        if (! playing && ! engine.isSounding())
+            for (const auto meta : midi)
+            {
+                if (meta.samplePosition >= start + len) break;
+                if (meta.samplePosition >= start && meta.getMessage().isNoteOn()) { freeBeat = 0.0; break; }
+            }
+        const double beat = playing ? ppq + (double) start * beatsPerSample : freeBeat;
+        processChunk (buffer, start, len, midi, bpm, beat);
+        freeBeat += (double) len * beatsPerSample;
+    }
+    if (playing) freeBeat = ppq + (double) n * beatsPerSample;
+
+    const float* L = buffer.getReadPointer (0);
+    const float* R = buffer.getReadPointer (1);
+    int w = scopeWrite.load (std::memory_order_relaxed);
+    for (int i = 0; i < n; ++i) { scope[(size_t) w] = 0.5f * (L[i] + R[i]); w = (w + 1) & (scopeSize - 1); }
+    scopeWrite.store (w, std::memory_order_release);
+}
+
+void AlphaProcessor::processChunk (AudioBuffer<float>& buffer, int start, int len, const MidiBuffer& midi, double bpm, double beat)
+{
+    namespace am = alpha::mod;
+    auto raw = [this] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
+
+    // MOD 1 / MOD 2 -> overrides of their knobs (two MODs on one knob add up)
+    Ov ov[numMods]; int numOv = 0;
+    bool cutoffMoved = false;
+    int targetOf[numMods] {}; float knob01[numMods] {};
+    for (int m = 0; m < numMods; ++m)
+    {
+        const int type = roundToInt (raw (am::shapeId (m)));
+        const double len = modBeats (m);
+        if (type == am::Off) { modKnob[(size_t) m].store (-1.f); continue; }
+        const float s = am::valueAt (type, beat, len, m, customAudio[(size_t) m], modSeg[(size_t) m]);
+        modVal[(size_t) m].store (s);
+        modPh[(size_t) m].store ((float) (beat / len - std::floor (beat / len)));
+        const int t = modTarget (m);
+        auto* prm = targetParam (t);
+        if (prm == nullptr) { modKnob[(size_t) m].store (-1.f); continue; }
+        const float base = prm->getValue();
+        const float range = raw (am::rangeId (m));
+        const float end = roundToInt (raw (am::polId (m))) == 0 ? jmax (range, base) : jmin (range, base);
+        float delta = s * (end - base);
+        for (int k = 0; k < m; ++k) if (targetOf[k] == t) delta += knob01[k] - base;   // the other MOD on the same knob
+        const float v01 = jlimit (0.f, 1.f, base + delta);
+        targetOf[m] = t; knob01[m] = v01;
+        modKnob[(size_t) m].store (v01);
+        int slot = numOv;
+        for (int k = 0; k < numOv; ++k) if (std::strcmp (ov[k].id, am::targetId (t)) == 0) slot = k;
+        ov[slot] = { am::targetId (t), prm->convertFrom0to1 (v01) };
+        if (slot == numOv) ++numOv;
+        // a MOD on the cutoff keeps the ladder running (also with an open range: the ladder has its own colour,
+        // and the owner's presets 6 / 7 were made with it on - see LESSONS)
+        cutoffMoved |= std::strcmp (am::targetId (t), "cutoffHz") == 0;
+    }
+    if (numOv == 2 && targetOf[0] == targetOf[1]) modKnob[0].store (knob01[1]);
+
+    auto p = gather (ov, numOv);
+    p.filterForce = cutoffMoved;
+    engine.setParams (p);
+    engine.processRange (buffer, start, len, midi);
 
     // FX: OTT -> delay (tempo synced, ping-pong) -> reverb
-    double bpm = 150.0;
-    if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) if (auto b = pos->getBpm()) bpm = *b;
-    auto v = [this] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
-    float* L = buffer.getWritePointer (0);
-    float* R = buffer.getWritePointer (1);
+    auto v = [this, &ov, numOv] (const char* id) { return pv (id, ov, numOv); };
+    float* L = buffer.getWritePointer (0, start);
+    float* R = buffer.getWritePointer (1, start);
     const float ottAmt = v ("ott");
-    if (ottAmt > 0.001f) for (int i = 0; i < buffer.getNumSamples(); ++i) ott.process (L[i], R[i], ottAmt);
+    if (ottAmt > 0.001f) for (int i = 0; i < len; ++i) ott.process (L[i], R[i], ottAmt);
     doomsday::dsp::FxParams fp;
     fp.dlyMix = v ("dlyMix"); fp.dlyOn = fp.dlyMix > 0.001f; fp.dlyFb = v ("dlyFb"); fp.dlyPP = true;
     fp.dlyBeats = dlyBeats[jlimit (0, 5, roundToInt (v ("dlyDiv")))];
     const float fort = v ("fortune");
     fp.revMix = jmin (1.f, v ("revMix") + 0.15f * fort); fp.revOn = fp.revMix > 0.001f; fp.revSize = v ("revSize"); fp.revDamp = v ("revDamp");
     fx.setup (fp, bpm);
-    fx.process (L, R, buffer.getNumSamples(), -1.0, 0);
-    int w = scopeWrite.load (std::memory_order_relaxed);
-    for (int i = 0; i < buffer.getNumSamples(); ++i) { scope[(size_t) w] = 0.5f * (L[i] + R[i]); w = (w + 1) & (scopeSize - 1); }
-    scopeWrite.store (w, std::memory_order_release);
+    fx.process (L, R, len, -1.0, 0);
 }
 
 // ------------------------------------------------------------ RANDOM + user presets
@@ -326,6 +467,10 @@ void AlphaProcessor::randomize()
         set ("fortune", chance (0.5f) ? lin (0.f, 0.6f) : 0.f);
     }
 
+    // a new sound starts without MODs
+    for (int m = 0; m < numMods; ++m) { set (alpha::mod::shapeId (m), 0.f); set (alpha::mod::targetPid (m), 0.f); }
+    set ("autoOct", 0.f);
+
     // level: every random sound about as loud as the presets (2 passes: the drives are not linear)
     set ("outDb", 0.f);
     for (int pass = 0; pass < 2; ++pass)
@@ -369,6 +514,13 @@ bool AlphaProcessor::loadUserPreset (const File& f)
     for (auto* c : xml->getChildWithTagNameIterator ("PARAM"))
         if (auto* rp = apvts.getParameter (c->getStringAttribute ("id")))
             rp->setValueNotifyingHost (rp->convertTo0to1 ((float) c->getDoubleAttribute ("value")));
+    for (int m = 0; m < numMods; ++m)
+    {
+        auto sh = alpha::mod::defaultCustom();
+        doomsday::mod::Shape::fromString (xml->getStringAttribute (alpha::mod::customKey (m)), sh);
+        setCustom (m, sh);
+    }
+    migrateLegacyAuto();
     currentName = f.getFileNameWithoutExtension(); currentProgram = -1;
     undo.clearUndoHistory();
     return true;
@@ -393,6 +545,13 @@ void AlphaProcessor::setStateInformation (const void* data, int size)
             currentProgram = vt.getProperty ("program", 0);
             currentName = vt.getProperty ("presetName", "INIT").toString();
             apvts.replaceState (vt);
+            for (int m = 0; m < numMods; ++m)
+            {
+                auto sh = alpha::mod::defaultCustom();
+                doomsday::mod::Shape::fromString (vt.getProperty (alpha::mod::customKey (m)).toString(), sh);
+                setCustom (m, sh);
+            }
+            migrateLegacyAuto();
         }
 }
 

@@ -56,10 +56,10 @@ struct Params
     float lowCut = 150.f;                                      // final high-pass: light bottom
     float attackMs = 2.f, decayMs = 300.f, sustain = 0.9f, releaseMs = 80.f;
     float chorus = 0.f;                                        // stereo chorus (hoover width), 0 = mono
-    // FILTER (analog ladder, after drive 2) + built-in CUTOFF AUTOMATION locked to the host tempo
+    // FILTER (analog ladder, after drive 2). The cutoff (or any knob) is moved by MOD 1 / MOD 2 in the processor
+    // (AlphaMod.h); the engine glides the cutoff smoothly between the values it gets every few samples.
     float cutoffHz = 20000.f, reso = 0.f; int filtMode = 0;    // 0 LP24, 1 LP12, 2 BP, 3 HP
-    int   autoShape = 0;                                       // 0 off, 1 rise, 2 fall, 3 up-down, 4 wobble (sine), 5 steps (16ths)
-    float autoBeats = 16.f, autoOct = 0.f;                     // length of one cycle in beats, depth in octaves (+ up, - down)
+    bool  filterForce = false;                                 // keep the filter running (a MOD moves the cutoff)
     float outDb = -6.f;
 };
 
@@ -87,7 +87,7 @@ public:
         for (auto& p : carPh) p = 0.f;
         modPh = 0.f; corePh = 0.f; noiseLp = 0.f; noiseLp2 = 0.f;
         hp1 = {}; hp2 = {}; form = {}; tone1 = {}; tone2 = {}; outHp1 = {}; outHp2 = {};
-        d1.reset(); d2.reset(); dc.reset(); ladder.reset();
+        d1.reset(); d2.reset(); dc.reset(); ladder.reset(); cutNow = 0.f;
         std::fill (comb.begin(), comb.end(), 0.f); combW = 0;
         std::fill (chL.begin(), chL.end(), 0.f); std::fill (chR.begin(), chR.end(), 0.f); chW = 0; chPh = 0.f;
         if (oversampler) oversampler->reset();
@@ -95,28 +95,25 @@ public:
 
     void setParams (const Params& np) { p = np; }
 
-    // call once per block before process(): host position (quarter notes) when playing, otherwise a free-running clock
-    void setTransport (double ppqAtBlockStart, double bpm, bool playing)
-    {
-        tempo = juce::jlimit (20.0, 400.0, bpm);
-        if (playing) beatPos = ppqAtBlockStart;
-        hostPlaying = playing;
-    }
-    // where the cutoff automation is now (0..1 shape value) - for the editor's preview
-    float autoNow() const { return autoVal.load(); }
-    double autoPhaseNow() const { return autoPh.load(); }
+    bool isSounding() const { return stage != Idle; }
 
-    void process (juce::AudioBuffer<float>& buffer, const juce::MidiBuffer& midi)
+    void process (juce::AudioBuffer<float>& buffer, const juce::MidiBuffer& midi) { processRange (buffer, 0, buffer.getNumSamples(), midi); }
+
+    // render [start, start + len) of the buffer, handling only the MIDI events inside that range
+    // (the processor calls this in short chunks so MOD 1 / MOD 2 can move the parameters in between)
+    void processRange (juce::AudioBuffer<float>& buffer, int start, int len, const juce::MidiBuffer& midi)
     {
-        const int n = buffer.getNumSamples();
-        int pos = 0;
+        const int n = buffer.getNumSamples(), end = start + len;
+        int pos = start;
         for (const auto meta : midi)
         {
-            const int ev = juce::jlimit (0, n, meta.samplePosition);
+            const int ev = juce::jlimit (0, juce::jmax (0, n - 1), meta.samplePosition);
+            if (ev < start) continue;
+            if (ev >= end) break;
             if (ev > pos) { render (buffer, pos, ev - pos); pos = ev; }
             handle (meta.getMessage());
         }
-        if (pos < n) render (buffer, pos, n - pos);
+        if (pos < end) render (buffer, pos, end - pos);
     }
 
 private:
@@ -148,7 +145,6 @@ private:
         if (! sounding || p.glideMs < 1.f) cur = target;
         scoopPos = 0.f;                                   // the gesture fires on EVERY note, legato included
         hashEnv = 1.f;
-        if (! sounding && ! hostPlaying) { beatPos = 0.0; lastStep = -1; }   // transport stopped: the automation starts with the phrase
         if (! gate || ! sounding) { stage = Attack; if (! sounding) env = 0.f; }
         gate = true;
     }
@@ -199,8 +195,10 @@ private:
         const int lmode = p.filtMode == 1 ? doomsday::filter::LP12 : p.filtMode == 2 ? doomsday::filter::BP12
                         : p.filtMode == 3 ? doomsday::filter::HP12 : doomsday::filter::LP24;
         ladder.setMode (lmode); ladder.setResonance (p.reso * 0.95f); ladder.setDrive (0.f);
-        const bool filterOn = p.cutoffHz < 19900.f || p.filtMode != 0 || (p.autoShape != 0 && p.autoOct != 0.f);
-        const double beatInc = tempo / 60.0 / osr;
+        const bool filterOn = p.cutoffHz < 19900.f || p.filtMode != 0 || p.filterForce;
+        const float cutTo = juce::jlimit (20.f, (float) osr * 0.45f, p.cutoffHz);
+        if (! filterOn || cutNow <= 0.f) cutNow = cutTo;
+        const float cutLogA = std::log (cutNow), cutLogStep = (std::log (cutTo) - cutLogA) / (float) juce::jmax (1, N);
         const float g1 = juce::Decibels::decibelsToGain (p.drive1Db), g2 = juce::Decibels::decibelsToGain (p.drive2Db);
         const float mk1 = doomsday::drive::makeup (p.drive1Curve, g1), mk2 = doomsday::drive::makeup (p.drive2Curve, g2);
         const int nv = juce::jlimit (1, maxVoices, p.voices);
@@ -291,21 +289,16 @@ private:
             float y = core + hash * p.hashLevel * hashAmt;
             y = d2.process (y * g2, p.drive2Curve) * mk2;
             y = tone2.lp (tone1.lp (y, toneC), toneC);
-            // FILTER with the built-in cutoff automation (coefficients every 16 samples)
-            beatPos += beatInc;
+            // FILTER: the cutoff glides (log) from the last value to the new one across the chunk, coefficients every 16 samples
             if (filterOn)
             {
-                if ((i & 15) == 0)
-                {
-                    const float s = shapeAt (beatPos);
-                    const float hz = juce::jlimit (20.f, (float) osr * 0.45f, p.cutoffHz * std::pow (2.f, p.autoOct * s));
-                    ladder.setCutoff (hz);
-                }
+                if ((i & 15) == 0) ladder.setCutoff (std::exp (cutLogA + cutLogStep * (float) (i + 16)));
                 y = ladder.process (y);
             }
             x[i] = y * env;
         }
 
+        cutNow = cutTo;
         oversampler->processSamplesDown (block);
         float* outR = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1, start) : nullptr;
         for (int i = 0; i < len; ++i)
@@ -356,36 +349,7 @@ private:
     doomsday::dsp::Svf hp1, hp2, form, tone1, tone2, outHp1, outHp2;
     doomsday::drive::Adaa1 d1, d2;
     doomsday::drive::DcBlock dc;
-    // automation shape 0..1 at a beat position
-    float shapeAt (double beat)
-    {
-        if (p.autoShape == 0) return 0.f;
-        const double len = juce::jmax (0.25, (double) p.autoBeats);
-        const double ph = beat / len - std::floor (beat / len);
-        autoPh.store (ph);
-        float v = 0.f;
-        switch (p.autoShape)
-        {
-            case 1:  v = (float) ph; break;                                                  // RISE
-            case 2:  v = 1.f - (float) ph; break;                                            // FALL
-            case 3:  v = 1.f - std::abs (2.f * (float) ph - 1.f); break;                     // UP-DOWN
-            case 4:  v = 0.5f + 0.5f * std::sin ((float) ph * juce::MathConstants<float>::twoPi - 1.5707963f); break;   // WOBBLE
-            default:                                                                        // STEPS: a new random level every 16th
-            {
-                const int step = (int) std::floor (beat * 4.0);
-                if (step != lastStep) { lastStep = step; uint32_t h = (uint32_t) step * 2654435761u; h ^= h >> 13; stepVal = (float) (h & 0xffff) / 65535.f; }
-                v = stepVal;
-            }
-        }
-        autoVal.store (v);
-        return v;
-    }
-
-    double tempo = 150.0, beatPos = 0.0;
-    bool hostPlaying = false;
-    int lastStep = -1; float stepVal = 0.f;
-    std::atomic<float> autoVal { 0.f };
-    std::atomic<double> autoPh { 0.0 };
+    float cutNow = 0.f;
     doomsday::filter::Ladder ladder;
     std::vector<float> comb;
     std::vector<float> chL, chR;

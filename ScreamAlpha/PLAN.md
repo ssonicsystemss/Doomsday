@@ -35,7 +35,7 @@ Mono / legato voice, 4x oversampled core, everything per note:
 Step by step with A/B against the references (same note, level matched) before anything goes into the plugin.
 First milestone: the source + note gesture + scream chain offline (render tool), A/B vs FHSP 107, Massive 023 and loop 9.
 
-## Owner's ideas – next steps (2026-10-22, after testing v0.3)
+## Owner's ideas – next steps (2026-10-22, after testing v0.3) – 1–4 DONE in v0.4 (2026-10-22)
 1. **Preset 8** from the owner (coming) → factory preset; tune RANDOM "owner taste" ranges on presets 6 / 7 / 8.
 2. **Bigger automation window**: the cutoff-automation preview much larger (full card width).
 3. **Custom shape**: besides the ready shapes (rise / fall / up-down / wobble / steps) a CUSTOM shape drawn with points

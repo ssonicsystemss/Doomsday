@@ -12,7 +12,7 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
 | Mirror of Souls | `MirrorOfSouls/` | 8-band EQ |
 | Abyss of Echoes | `AbyssOfEchoes/` | reverb / delay / stereo |
 | Throne of Titans | `ThroneOfTitans/` | multiband master + limiter + LUFS (LEARN) |
-| 5CR34M 4LPH4 | `ScreamAlpha/` | new screech synth (successor of PoS) – **v0.1 test build** (engine `Source/AlphaEngine.h`, flat UI, 3 hoover presets); plan `PLAN.md`, offline prototype `Proto/`, reference analysis + matcher `Tools/` |
+| 5CR34M 4LPH4 | `ScreamAlpha/` | new screech synth (successor of PoS) – **v0.4 test build** (engine `Source/AlphaEngine.h`, MOD 1/2 with ASSIGN + drawn shapes `Source/AlphaMod.h`, flat UI, owner presets 6/7/8); plan `PLAN.md`, offline prototype `Proto/`, reference analysis + matcher `Tools/` |
 | Forge of Wrath | `ForgeOfWrath/` | hardstyle kick synth (v2: dist chain, room, OTT, drawn pitch, sample layer); preset tuning tools in `Tools/` |
 
 ## Start every task here

@@ -70,10 +70,14 @@ int main (int argc, char** argv)
         printf ("random x12 level %.1f .. %.1f dB (target %.1f): %s\n", lo, hi, AlphaProcessor::randomTargetDb, good ? "OK" : "FAIL");
         ok &= good;
     }
-    {   // cutoff automation: RISE over 1 bar, 4 octaves -> the last quarter of the bar is clearly brighter than the first
+    auto setP = [&proc] (const char* id, float v) { if (auto* q = proc.apvts.getParameter (id)) q->setValueNotifyingHost (q->convertTo0to1 (v)); };
+    auto setN = [&proc] (const char* id, float v01) { if (auto* q = proc.apvts.getParameter (id)) q->setValueNotifyingHost (v01); };
+    const float cutIdx = (float) alpha::mod::targetIndex ("cutoffHz");
+    {   // MOD 1 -> CUTOFF: RISE over 1 bar, from 400 Hz up to 6.4 kHz -> the last quarter of the bar is clearly brighter than the first
         proc.setCurrentProgram (1);
-        auto setP = [&proc] (const char* id, float v) { if (auto* q = proc.apvts.getParameter (id)) q->setValueNotifyingHost (q->convertTo0to1 (v)); };
-        setP ("cutoffHz", 400.f); setP ("autoShape", 1); setP ("autoDiv", 6); setP ("autoOct", 4.f); setP ("revMix", 0.f); setP ("dlyMix", 0.f);
+        setP ("cutoffHz", 400.f); setP ("autoShape", 1); setP ("autoDiv", 6); setP ("revMix", 0.f); setP ("dlyMix", 0.f);
+        setP ("m1Target", cutIdx); setP ("m1Pol", 0.f);
+        setN ("m1Range", proc.apvts.getParameter ("cutoffHz")->convertTo0to1 (6400.f));
         AudioBuffer<float> rec (2, beat * 4); rec.clear();
         for (int pos = 0; pos < beat * 4; pos += block)
         {
@@ -90,9 +94,49 @@ int main (int argc, char** argv)
         };
         const double early = hiShare (beat / 4, beat / 2), late = hiShare (beat * 3, beat / 2);
         const bool good = late > early * 2.0;
-        printf ("cutoff automation (rise): brightness %.4f -> %.4f %s\n", early, late, good ? "OK" : "FAIL");
+        printf ("MOD 1 -> cutoff (rise): brightness %.4f -> %.4f %s\n", early, late, good ? "OK" : "FAIL");
         ok &= good;
         proc.setCurrentProgram (0);
+    }
+    {   // old presets / projects: "Depth" (autoOct) becomes MOD 1 -> CUTOFF
+        int owner6 = -1;
+        for (int i = 0; i < proc.getNumPrograms(); ++i) if (proc.getProgramName (i) == "SCREECH - Owner 6") owner6 = i;
+        proc.setCurrentProgram (owner6);
+        const bool good = proc.modTarget (0) == (int) cutIdx && std::abs (proc.apvts.getRawParameterValue ("autoOct")->load()) < 1e-4f;
+        // and an old state with cutoff 2 kHz, wobble, depth -2 oct -> MOD 1 -> cutoff, "-", range end 500 Hz
+        proc.setCurrentProgram (1);
+        setP ("cutoffHz", 2000.f); setP ("autoShape", 4); setP ("autoOct", -2.f); setP ("m1Target", 0.f);
+        proc.migrateLegacyAuto();
+        const float endHz = proc.apvts.getParameter ("cutoffHz")->convertFrom0to1 (proc.apvts.getParameter ("m1Range")->getValue());
+        const bool good2 = proc.modTarget (0) == (int) cutIdx && roundToInt (proc.apvts.getRawParameterValue ("m1Pol")->load()) == 1 && std::abs (endHz - 500.f) < 5.f;
+        printf ("old cutoff automation -> MOD 1: %s (end %.0f Hz)\n", good && good2 ? "OK" : "FAIL", endHz);
+        ok &= good && good2;
+    }
+    {   // MOD 2 CUSTOM on the formant + MOD 1 STEPS on the drive, both on one knob too: no NaN, sound stays sane
+        proc.setCurrentProgram (11);
+        proc.setCustom (1, doomsday::mod::Shape::make ({ { 0.f, 0.f }, { 250.f, 1.f, -0.6f }, { 500.f, 0.2f }, { 500.f, 0.9f }, { 1000.f, 0.f } }));
+        setP ("m2Shape", (float) alpha::mod::Custom); setP ("m2Div", 4); setP ("m2Target", (float) alpha::mod::targetIndex ("formHz")); setP ("m2Pol", 1.f); setN ("m2Range", 0.1f);
+        setP ("autoShape", (float) alpha::mod::Steps); setP ("autoDiv", 2); setP ("m1Target", (float) alpha::mod::targetIndex ("formHz")); setP ("m1Pol", 0.f); setN ("m1Range", 1.f);
+        float peak = 0.f; bool nan = false; float lo = 2.f, hi = -1.f;
+        for (int b = 0; b < 200; ++b)
+        {
+            AudioBuffer<float> buf (2, block); buf.clear(); MidiBuffer m;
+            if (b % 25 == 0) m.addEvent (MidiMessage::noteOn (1, 62 + (b / 25) % 3 * 5, (uint8) 110), 7);
+            if (b % 25 == 20) m.addEvent (MidiMessage::allNotesOff (1), 0);
+            proc.processBlock (buf, m);
+            for (int i = 0; i < block; ++i) { const float v = buf.getSample (0, i); nan |= ! std::isfinite (v); peak = jmax (peak, std::abs (v)); }
+            lo = jmin (lo, proc.modKnob01 (1)); hi = jmax (hi, proc.modKnob01 (1));
+        }
+        const bool good = ! nan && peak > 0.02f && peak < 1.5f && hi - lo > 0.2f;
+        printf ("MOD 2 custom + MOD 1 steps on one knob: peak %.3f, knob moves %.2f .. %.2f %s\n", peak, lo, hi, good ? "OK" : "FAIL");
+        ok &= good;
+        // the drawn shape survives the project state
+        MemoryBlock mb; proc.getStateInformation (mb);
+        const auto before = proc.getCustom (1);
+        proc.setCurrentProgram (0);
+        proc.setStateInformation (mb.getData(), (int) mb.getSize());
+        const bool same = proc.getCustom (1) == before && roundToInt (proc.apvts.getRawParameterValue ("m2Shape")->load()) == alpha::mod::Custom;
+        printf ("custom shape in the project: %s\n", same ? "OK" : "FAIL"); ok &= same;
     }
     {   // user preset save / load
         proc.setCurrentProgram (3);
@@ -117,13 +161,26 @@ int main (int argc, char** argv)
     }
     {
         proc.setCurrentProgram (1);
-        auto setP = [&proc] (const char* id, float v) { if (auto* q = proc.apvts.getParameter (id)) q->setValueNotifyingHost (q->convertTo0to1 (v)); };
-        setP ("autoShape", 3); setP ("autoOct", 3.f); setP ("cutoffHz", 1500.f); setP ("reso", 0.4f); setP ("fortune", 0.45f);
+        setP ("cutoffHz", 1500.f); setP ("reso", 0.4f); setP ("fortune", 0.45f);
+        proc.setCustom (0, doomsday::mod::Shape::make ({ { 0.f, 0.f }, { 125.f, 1.f, 0.5f }, { 375.f, 0.3f }, { 500.f, 0.8f, -0.5f }, { 750.f, 0.1f }, { 1000.f, 0.6f } }));
+        setP ("autoShape", (float) alpha::mod::Custom); setP ("autoDiv", 6); setP ("m1Target", cutIdx); setN ("m1Range", 0.9f);
+        setP ("m2Shape", (float) alpha::mod::Wobble); setP ("m2Target", (float) alpha::mod::targetIndex ("formHz")); setP ("m2Pol", 1.f); setN ("m2Range", 0.2f);
         for (int b = 0; b < 30; ++b) { AudioBuffer<float> buf (2, block); buf.clear(); MidiBuffer m; if (b == 0) m.addEvent (MidiMessage::noteOn (1, 62, (uint8) 110), 0); proc.processBlock (buf, m); }
         std::unique_ptr<AudioProcessorEditor> ed (proc.createEditor());
-        auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
-        auto f = outDir.getChildFile ("scream_alpha_gui.png"); f.deleteFile();
-        FileOutputStream os (f); PNGImageFormat().writeImageToStream (img, os);
+        auto& canvas = dynamic_cast<AlphaEditor&> (*ed).canvas;
+        auto snap = [&] (const char* name)
+        {
+            canvas.refreshNow();
+            auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
+            auto f = outDir.getChildFile (name); f.deleteFile();
+            FileOutputStream os (f); PNGImageFormat().writeImageToStream (img, os);
+        };
+        snap ("scream_alpha_gui.png");
+        canvas.beginAssign (1);
+        snap ("scream_alpha_gui_assign.png");
+        canvas.endAssign();
+        canvas.modPanel().select (1);
+        snap ("scream_alpha_gui_mod2.png");
     }
     printf (ok ? "ALL OK\n" : "SOME CHECKS FAILED\n");
     return ok ? 0 : 1;

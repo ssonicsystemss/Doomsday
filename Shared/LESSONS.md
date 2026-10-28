@@ -204,6 +204,14 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   z pomiarów FHSP („ciemno powyżej 2 kHz”): jemu podoba się obecność ~2 kHz. Szablony / RANDOM nie mają przyciemniać na siłę.
 - Mały PHASE WARP (SYNC 0.17 / BEND 0.28).
 
+## 4GE / RE4GE „drętwe” (2026-10-28)
+- Właściciel: „scream alpha ma taki pełny dźwięk, a te kicki i basy są takie drętwe; na ten moment wolałbym używać sampli niż tych 2 wtyczek”.
+- Różnica w silnikach: 5CR34M 4LPH4 = unison z detune, CHAOS (pływanie wysokości głosów), kilka przesterów, formant, OTT, chorus / delay / reverb, stereo.
+  4GE / RE4GE = jeden oscylator, mono, statyczna barwa (identyczne uderzenia, zero ruchu), jeden-dwa przestery, brak „kleju”; ogon w RE4GE
+  liczony bez oversamplingu (aliasing). Sample z paczek przechodzą przez długie łańcuchy (resampling, OTT, saturacja wielopasmowa, pogłos).
+- Wniosek: sama poprawność (pitch, obwiednie, testy) nie wystarcza – brakuje gęstości i ruchu w średnicy / górze (dół zostaje mono i czysty).
+  Najpierw prototyp offline + A/B z jego samplami, dopiero potem zmiany we wtyczkach.
+
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
   odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:

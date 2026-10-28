@@ -122,6 +122,12 @@ AudioProcessorValueTreeState::ParameterLayout GeProcessor::createLayout()
     l.add (c (busType, "Bus Distortion", Choices::dist2Types, 0));
     l.add (f (busDrive, "Bus Drive", { 0.f, 30.f }, 6.f, fm::db, fm::num));
     l.add (f (busMix, "Bus Mix", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
+    l.add (f (uniVoices, "Unison Voices", { 1.f, 7.f, 1.f }, 1.f, [] (float v, int) { return v < 1.5f ? String ("OFF") : String (roundToInt (v)); }, fm::num));
+    l.add (f (uniDetune, "Unison Detune", { 0.f, 60.f }, 18.f, fm::cents, fm::num));
+    l.add (f (uniDrift, "Unison Drift", { 0.f, 30.f }, 6.f, fm::cents, fm::num));
+    l.add (f (uniMix, "Unison Mix", { 0.f, 1.f }, 0.6f, fm::pct, fm::pctIn));
+    l.add (f (width, "Width", { 0.f, 1.f }, 0.4f, fm::pct, fm::pctIn));
+    l.add (f (widthSplit, "Width From", skew (80.f, 1500.f, 350.f), 350.f, fm::hz, fm::hzIn));
     return l;
 }
 
@@ -274,6 +280,8 @@ GeParams GeProcessor::gather() const
     k.texSource = ch (texSource, 3); k.texDb = get (texLevel); k.texHz = get (texHz); k.texReso = get (texReso); k.texDecayMs = get (texDecay);
     k.texDriveDb = get (texDrive); k.texSemis = get (texSemis); k.texHpHz = get (texHp);
     k.busType = ch (busType, 6); k.busDriveDb = get (busDrive); k.busMix = get (busMix);
+    k.uniVoices = roundToInt (get (uniVoices)); k.uniDetuneCt = get (uniDetune); k.driftCt = get (uniDrift); k.uniMix = get (uniMix);
+    e.width = get (width); e.splitHz = get (widthSplit);
     k.mute = effectiveMute();
     e.ott = get (ott); e.sampleDb = get (smpLevel); e.samplePitch = get (smpPitch); e.sampleStartMs = get (smpStart);
     e.clipDriveDb = get (clipDrive); e.clipSoft = get (clipSoft); e.velocitySens = get (velocity); e.outDb = get (output);

@@ -211,6 +211,14 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   liczony bez oversamplingu (aliasing). Sample z paczek przechodzą przez długie łańcuchy (resampling, OTT, saturacja wielopasmowa, pogłos).
 - Wniosek: sama poprawność (pitch, obwiednie, testy) nie wystarcza – brakuje gęstości i ruchu w średnicy / górze (dół zostaje mono i czysty).
   Najpierw prototyp offline + A/B z jego samplami, dopiero potem zmiany we wtyczkach.
+- Pomiar jego „pełnych” sampli (kick_hardstyle_28 / 84, Attack07, Bass_15 / 16) vs nasze: (1) **stereo od ~400 Hz w górę** (side 9–15 dB pod
+  mid, dół mono), my 100 % mono; (2) kicki **oddychają** (crest 2.3–3.0, ogon opada), nasz QL = crest 1.2 (kwadrat od clippera + OUTPUT +5.5);
+  (3) pełne **150–400 Hz** (u nas CLEAN SUB 209 Hz zamieniał je w sinus), mniej 1–2.5 kHz niż u nas; (4) basy **jasne i gęste** do 8 kHz
+  (2.5–6 kHz ~−20 dB, płaskość widma 0.18–0.30), nasze ciemne (HIGH CUT 900 Hz, 2.5–6 kHz −45…−65 dB, płaskość ~0.00);
+  (5) RE4GE: przy TUNE +12 sub szedł oktawę w górę i crossover go wycinał (OWNER - 1 bez dołu).
+- Zrobione (właściciel po A/B prototypu: „wprowadźmy to do wtyczek”): UNISON (detune + drift, kopie L / R, środek bez nich → dół mono,
+  stabilny) + WIDTH od 350 Hz w 4GE i RE4GE, presety FULL w 4GE (clean sub 70 Hz, lżejszy clip), w RE4GE sub zostaje na nucie (oktawy z TUNE
+  pomijane), ROOM na ogonie przed odwróceniem, presety ogonów z otwartą górą (HIGH CUT 9 kHz).
 
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)

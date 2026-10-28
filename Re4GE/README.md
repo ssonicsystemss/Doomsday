@@ -1,7 +1,14 @@
-# RE4GE v0.1
+# RE4GE v0.2
 
 **Reverse bass** jako osobny instrument VST3 (FL Studio). Wydzielony z 4GE i zbudowany według analizy architektury reverse bassu
 (`Shared/RESEARCH.md`, „Reverse bass”). Przester, filtry i ogon kicka są te same co w 4GE (wspólny silnik `Shared/Source/GeKick.h`).
+
+## v0.2: PEŁNIEJSZY BAS
+- **STEREO**: środek gra czysty (dół i SUB mono, stabilne), a lewo i prawo dostają rozstrojone, „pływające” kopie (SYNTH: dodatkowe oscylatory,
+  TAIL / SAMPLE: dodatkowe głowice czytające). Karta **UNISON / WIDTH** (zakładka Tone): Voices (domyślnie 5), Detune, Drift, Mix, Width, From.
+- **SUB zostaje na nucie**: przy TUNE +12 bas jest oktawę wyżej, a sub dalej gra na granej nucie (wcześniej szedł w górę i filtr go wycinał).
+- **ROOM / SIZE w KICK TAIL**: pogłos na ogonie **przed** odwróceniem. Od tyłu narasta w bas, jak w odwróconych kickach z paczek.
+- Presety z ogonami mają otwartą górę (HIGH CUT 9 kHz), bo Twoje sample basów są jasne i gęste aż do 8 kHz.
 
 ## Instalacja (Windows)
 GitHub → **Actions** → *Build RE4GE VST3* → **Artifacts** → `RE4GE-VST3-Windows`.

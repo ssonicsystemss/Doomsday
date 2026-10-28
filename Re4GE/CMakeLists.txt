@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(Re4GE VERSION 0.1.0)
+project(Re4GE VERSION 0.2.0)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../Shared/cmake/Doomsday.cmake)
 
 # RE4GE - reverse bass instrument (split out of 4GE, shares its kick voice / stages / filters: Shared/Source/GeKick.h)

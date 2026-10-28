@@ -446,11 +446,14 @@ Canvas::Canvas (GeProcessor& p) : proc (p), anvil (p), layers (p)
         knob (c, lowCut, "Low cut", "Removes rumble under the tail");
     }
     {
-        auto& c = card ("Glue", hot, 4); cSGlue = (int) cards.size() - 1;
+        auto& c = card ("Glue + width", hot, 4); cSGlue = (int) cards.size() - 1;
         knob (c, busDrive, "Bus", "Distortion on the sum of all layers: one kick instead of layers (choose the type on the right)");
         knob (c, ott, "OTT", "Upward + downward compression: dense, loud");
         knob (c, room, "Room", "Small room");
         knob (c, highCut, "High cut", "Darkens the distortion");
+        knob (c, uniVoices, "Unison", "Detuned, slowly drifting copies of the tail: a full, moving kick (OFF = one plain oscillator). The low end stays mono");
+        knob (c, uniDetune, "Detune", "How far the unison copies are detuned");
+        knob (c, width, "Width", "Stereo width of the mids / highs (the lows below WIDTH FROM stay mono). Your samples: about 30 - 45%");
         c.head.push_back (seg (busType, { "Off", "Soft", "Tube", "Hard", "Fold", "Raw", "Crush" }, hot, "BUS distortion type (OFF = the layers stay separate)"));
     }
     // ---- page 0: PUNCH
@@ -603,6 +606,15 @@ Canvas::Canvas (GeProcessor& p) : proc (p), anvil (p), layers (p)
         knob (c, roomSize, "Size", "Room size: small = thick, big = long tail");
         knob (c, roomLowCut, "Low cut", "The room has no low end below this (keeps the bass clean)");
         c.head.push_back (toggle (roomInto, "Into dist", Toggle::Chip, cool, "ON: the room goes INTO the distortion. OFF: the room comes after (space)"));
+    }
+    {
+        auto& c = card ("Unison / width", hot, 3); cUni = (int) cards.size() - 1;
+        knob (c, uniVoices, "Voices", "Unison copies of the tail (OFF = one oscillator, mono)");
+        knob (c, uniDetune, "Detune", "Spread of the copies in cents");
+        knob (c, uniDrift, "Drift", "Slow pitch wander of each copy: the kick never sounds frozen");
+        knob (c, uniMix, "Mix", "How loud the copies are against the main oscillator");
+        knob (c, width, "Width", "Stereo width of the mids / highs");
+        knob (c, widthSplit, "From", "Below this the kick stays mono (the plain centre): sub and body never phase in a club");
     }
     {
         auto& c = card ("Sample", n, 3); cSample = (int) cards.size() - 1;
@@ -791,7 +803,7 @@ void Canvas::resized()
     if (page == 4)
     {
         place ({ { cSPunch, kws (6) }, { cSTail, kws (5) }, { cSDist, 0 } }, y1);
-        place ({ { cSChar, kws (5) }, { cSLow, kws (4) }, { cSGlue, 0 } }, y2);
+        place ({ { cSChar, kws (5) }, { cSLow, kws (4) }, { cSGlue, 0 } }, y2);     // GLUE: bus, OTT, room, high cut + unison / width
     }
     else if (page == 0)
     {
@@ -811,7 +823,7 @@ void Canvas::resized()
     else
     {
         place ({ { cBus, 440 }, { cOtt, 170 }, { cRoom, 0 } }, y1);
-        place ({ { cSample, 0 } }, y2);
+        place ({ { cUni, kws (6) }, { cSample, 0 } }, y2);
     }
     for (auto& c : cards) if (! c.area.isEmpty()) layoutCard (c, c.page < 0 ? 96 : kw);
     // MASTER: 5 knobs in one row + the meter

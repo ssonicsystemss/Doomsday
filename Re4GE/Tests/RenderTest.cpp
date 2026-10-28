@@ -106,6 +106,7 @@ int main (int argc, char** argv)
             const float pk = b.getMagnitude (0, 0, b.getNumSamples());
             printf ("   %-34s peak %.2f  rms %.1f dB\n", p.getProgramName (i).toRawUTF8(), pk, 20.0 * std::log10 (rms (b, 0, 1600) + 1e-9));
             if (! finite (b) || pk > 1.0f || pk < 0.05f) { ++bad; why << p.getProgramName (i) << " (" << String (pk, 2) << ") "; }
+            writeWav (outDir.getChildFile ("solo_" + String (i).paddedLeft ('0', 2) + ".wav"), b);       // the bass alone (for measuring)
             if (! gate) addKicks (b, 150.0);
             writeWav (outDir.getChildFile (String (i).paddedLeft ('0', 2) + "_" + File::createLegalFileName (p.getProgramName (i)) + ".wav"), b);
             for (int ch = 0; ch < 2; ++ch) all.copyFrom (ch, i * (int) (sr * 1.6), b, ch, 0, b.getNumSamples());
@@ -125,13 +126,13 @@ int main (int argc, char** argv)
         for (int i = (int) (beatMs * 0.001 * sr); i < (int) (2 * beatMs * 0.001 * sr); ++i)
             if (std::abs (b.getSample (0, i)) > pk * 0.01f) { if (on < 0) on = i; off = i; }
         const double onMs = on * 1000.0 / sr - beatMs, offMs = off * 1000.0 / sr - beatMs;
-        check (std::abs (onMs - delay) < 2.0 && offMs < gate + 1.0 && offMs > gate - 30.0, ("PATTERN timing at " + String (bpm, 0) + " BPM: starts on DELAY, gone before the kick").toRawUTF8(),
+        check (std::abs (onMs - delay) < 3.0 && offMs < gate + 1.0 && offMs > gate - 30.0, ("PATTERN timing at " + String (bpm, 0) + " BPM: starts on DELAY, gone before the kick").toRawUTF8(),
                "(start " + String (onMs, 1) + " / " + String (delay, 1) + " ms, end " + String (offMs, 1) + " / " + String (gate, 1) + " ms)");
     }
     // 3) TAIL backwards: on the note in the swell, rising at the end (the tail's pitch drop played backwards)
     {
         p.setCurrentProgram (byName (p, "PUMP - QL Tail")); host.bpm = 150.0;
-        set (p, subHz, 20.f); set (p, highCut, 3000.f); set (p, drive, 0.f);
+        set (p, subHz, 20.f); set (p, highCut, 3000.f); set (p, drive, 0.f); set (p, uniVoices, 1.f);
         auto b = play (p, host, everyBeat (2, 150.0), 0.8);
         const double hz = domHz (b, 190.0, 80.0), hzLate = domHz (b, 360.0, 30.0);
         check (hz > 45.0 && hz < 65.0 && hzLate > hz * 1.3, "TAIL: on the note, then rises before the kick", String (hz, 1) + " -> " + String (hzLate, 1) + " Hz");

@@ -1,4 +1,4 @@
-# 4GE v0.3
+# 4GE v0.4
 
 Syntezator kicków hardstyle (instrument VST3, FL Studio), **następca Forge of Wrath** (Forge jest zamrożony na v2.1).
 Silnik to Forge plus nowe moduły, zbudowane według analizy architektury kicka (`Shared/RESEARCH.md`, „Architektura hardstyle kicka”):
@@ -14,6 +14,16 @@ Swoje presety zapisujesz w `Dokumenty\4GE\Presets` (przycisk **Folder**).
 GitHub → zakładka **Actions** → *Build 4GE VST3* → **Artifacts** → `4GE-VST3-Windows`.
 Folder `4GE.vst3` skopiuj do `C:\Program Files\Common Files\VST3\`, a w FL: *Options → Manage plugins → Find installed plugins*.
 Wstaw jako **instrument** (Channel Rack).
+
+## v0.4: PEŁNIEJSZY DŹWIĘK (UNISON / WIDTH)
+Po porównaniu z Twoimi samplami (kick_hardstyle_28 / 84) ogon kicka może grać **kilkoma lekko rozstrojonymi, „pływającymi” kopiami**
+po lewej i prawej. Dół poniżej **FROM** (domyślnie 350 Hz) zostaje mono i stabilny, z czystego środka.
+- **GLUE + WIDTH** na głównym ekranie: **UNISON** (OFF / 2–7), **DETUNE**, **WIDTH**.
+- W ADVANCED (Bus / FX): **UNISON / WIDTH**: Voices, Detune, **Drift** (powolne pływanie), Mix, Width, From.
+- Nowe presety **FULL - QL / QL 1 / QL 2 / Nice / Nice 2 / Sgsdg / Volcanic / Undertow**. To Twoje kicki z unisonem, CLEAN SUB na 70 Hz
+  (150–400 Hz zostaje „mięsiste”, nie zamienia się w sinus) i lżejszym clipem: kick oddycha zamiast być kwadratem.
+  Oryginały OWNER zostały bez zmian. INIT startuje z UNISON 5.
+- UNISON trzy razy liczy kicka (środek + lewo + prawo), więc zużywa więcej CPU.
 
 ## Ekran
 **v0.3: EKRAN GŁÓWNY bez zakładek** (bo było ich za dużo i robiło się nieczytelnie). Najważniejsze gałki są na jednym ekranie:

@@ -3,7 +3,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.3";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.4";      // keep in step with CMakeLists.txt
     // TAIL
     inline constexpr const char* tailLevel = "tail_level";
     inline constexpr const char* tailStart = "tail_start";    // start pitch = START x note
@@ -109,6 +109,13 @@ namespace ParamIDs
     inline constexpr const char* busType       = "bus_type";
     inline constexpr const char* busDrive      = "bus_drive";
     inline constexpr const char* busMix        = "bus_mix";
+    // ---- v0.4 UNISON / WIDTH (owner: "drętwe" next to 5CR34M 4LPH4)
+    inline constexpr const char* uniVoices     = "uni_voices";
+    inline constexpr const char* uniDetune     = "uni_detune";
+    inline constexpr const char* uniDrift      = "uni_drift";
+    inline constexpr const char* uniMix        = "uni_mix";
+    inline constexpr const char* width         = "width";
+    inline constexpr const char* widthSplit    = "width_split";
 }
 
 namespace Choices

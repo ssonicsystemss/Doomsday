@@ -72,6 +72,8 @@ AudioProcessorValueTreeState::ParameterLayout ReProcessor::createLayout()
     l.add (f (tailScream, "Tail Scream", { 0.f, 1.f }, 0.3f, fm::pct, fm::pctIn));
     l.add (f (tailScreamHz, "Tail Scream Freq", skew (150.f, 5000.f, 900.f), 1200.f, fm::hz, fm::hzIn));
     l.add (f (tailLen, "Tail Length (Gate)", skew (40.f, 2000.f, 300.f), 300.f, fm::ms, fm::msIn));
+    l.add (f (tailRoom, "Tail Room", { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
+    l.add (f (tailRoomSize, "Tail Room Size", { 0.f, 1.f }, 0.5f, fm::pct, fm::pctIn));
     l.add (b (smpReverse, "Sample Reverse", true));
     l.add (f (smpRoot, "Sample Root", { 0.f, 127.f, 1.f }, 31.f, noteName, fm::num));
     l.add (f (smpStart, "Sample Start", { 0.f, 500.f }, 0.f, fm::ms, fm::msIn));
@@ -102,6 +104,12 @@ AudioProcessorValueTreeState::ParameterLayout ReProcessor::createLayout()
     l.add (f (clip, "Clip", { 0.f, 1.f }, 0.2f, fm::pct, fm::pctIn));
     l.add (f (level, "Level", { -36.f, 6.f }, -3.f, fm::db, fm::num));
     l.add (f (velocity, "Velocity Sensitivity", { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
+    l.add (f (uniVoices, "Unison Voices", { 1.f, 7.f, 1.f }, 5.f, [] (float v, int) { return v < 1.5f ? String ("OFF") : String (roundToInt (v)); }, fm::num));
+    l.add (f (uniDetune, "Unison Detune", { 0.f, 60.f }, 18.f, fm::cents, fm::num));
+    l.add (f (uniDrift, "Unison Drift", { 0.f, 30.f }, 6.f, fm::cents, fm::num));
+    l.add (f (uniMix, "Unison Mix", { 0.f, 1.f }, 0.6f, fm::pct, fm::pctIn));
+    l.add (f (stereoWidth, "Stereo Width", { 0.f, 1.f }, 0.4f, fm::pct, fm::pctIn));
+    l.add (f (widthSplit, "Width From", skew (80.f, 1500.f, 350.f), 350.f, fm::hz, fm::hzIn));
     return l;
 }
 
@@ -142,7 +150,7 @@ namespace
     PresetValues undertowTail() { return { { "source", 1.f }, { "tail_start", 3.81f }, { "tail_drop", 87.8f }, { "tail_curve", 2.2f }, { "tail_wave", 0.17f }, { "tail_dist", 1.f },
                                            { "tail_drive", 46.4f }, { "tail_tone", 0.952f }, { "tail_highcut", 6336.f }, { "tail_scream", 0.624f }, { "tail_scream_hz", 1500.f } }; }
     PresetValues plus (PresetValues a, const PresetValues& b) { for (auto& x : b) a.push_back (x); return a; }
-    const PresetValues forgeBass { { "step", 0.f }, { "drive", 10.f }, { "high_cut", 900.f }, { "level", -3.f }, { "sub_hz", 90.f }, { "sub_level", 0.f }, { "fade", 25.f }, { "swell", 60.f } };
+    const PresetValues forgeBass { { "step", 0.f }, { "drive", 10.f }, { "high_cut", 9000.f }, { "tail_room", 0.35f }, { "tail_room_size", 0.5f }, { "level", -4.f }, { "sub_hz", 90.f }, { "sub_level", 0.f }, { "fade", 25.f }, { "swell", 60.f } };
 
     std::vector<BassPreset> buildPresets()
     {
@@ -152,8 +160,8 @@ namespace
         L.push_back ({ "OWNER - 1", { { "beats", 0.f }, { "bell_gain", 8.3146f }, { "bell_hz", 1959.1f }, { "bell_q", 1.2366f }, { "bias", 0.31818f }, { "blend", 0.069694f }, { "clip", 0.64545f }, { "curve", -0.65455f }, { "decay_curve", 6.f }, { "decay_ms", 0.f }, { "decay_pct", 46.364f }, { "delay_ms", 120.f }, { "delay_pct", 25.864f }, { "dist_type", 1.f }, { "drive", 14.858f }, { "drive_env", 0.18953f }, { "duck", 0.f }, { "fade", 30.948f }, { "fine", 0.f }, { "fixed_note", 34.f }, { "gate_ms", 380.f }, { "gate_pct", 100.f }, { "high_cut", 16000.f }, { "hold_ms", 400.f }, { "hold_pct", 0.f }, { "initial", 0.f }, { "key_track", 1.f }, { "level", -0.65454f }, { "low_cut", 21.622f }, { "mix", 1.f }, { "offset", 0.f }, { "pitch_amt", -24.f }, { "pitch_mode", 3.f }, { "pitch_time", 8.4857f }, { "pre_hz", 13931.f }, { "pre_reso", 0.65455f }, { "pre_type", 1.f }, { "sine", -6.f }, { "smp_reverse", 1.f }, { "smp_root", 31.f }, { "smp_start", 0.f }, { "source", 0.f }, { "step", 0.f }, { "step1", 1.f }, { "step2", 1.f }, { "step3", 1.f }, { "step4", 1.f }, { "sub_hz", 85.537f }, { "sub_level", 0.9f }, { "sustain", 0.4f }, { "swell", 140.f }, { "tail_curve", 2.6405f }, { "tail_dist", 3.f }, { "tail_drive", 29.349f }, { "tail_drop", 56.132f }, { "tail_highcut", 8557.f }, { "tail_len", 300.f }, { "tail_scream", 0.f }, { "tail_scream_hz", 684.79f }, { "tail_start", 6.4963f }, { "tail_tone", 0.30015f }, { "tail_wave", 0.f }, { "timing", 0.f }, { "trigger", 0.f }, { "tune", 12.f }, { "velocity", 0.69091f }, { "warp", 1.f }, { "warp_amt", 0.28198f }, { "warp_env", 0.1422f }, { "width", 0.84203f } } });
         L.push_back ({ "OWNER - 2", { { "beats", 0.f }, { "bell_gain", 8.3146f }, { "bell_hz", 1959.1f }, { "bell_q", 1.2366f }, { "bias", 0.31818f }, { "blend", 0.f }, { "clip", 0.64545f }, { "curve", -1.f }, { "decay_curve", 6.f }, { "decay_ms", 0.f }, { "decay_pct", 25.909f }, { "delay_ms", 120.f }, { "delay_pct", 24.136f }, { "dist_type", 1.f }, { "drive", 14.858f }, { "drive_env", 0.18953f }, { "duck", 0.f }, { "fade", 95.397f }, { "fine", 0.f }, { "fixed_note", 34.f }, { "gate_ms", 380.f }, { "gate_pct", 100.f }, { "high_cut", 16000.f }, { "hold_ms", 400.f }, { "hold_pct", 11.818f }, { "initial", 0.f }, { "key_track", 1.f }, { "level", -0.65454f }, { "low_cut", 21.622f }, { "mix", 1.f }, { "offset", 0.f }, { "pitch_amt", -24.f }, { "pitch_mode", 3.f }, { "pitch_time", 79.335f }, { "pre_hz", 13931.f }, { "pre_reso", 0.65455f }, { "pre_type", 1.f }, { "sine", -6.f }, { "smp_reverse", 1.f }, { "smp_root", 31.f }, { "smp_start", 0.f }, { "source", 0.f }, { "step", 0.f }, { "step1", 1.f }, { "step2", 1.f }, { "step3", 1.f }, { "step4", 1.f }, { "sub_hz", 85.537f }, { "sub_level", 0.9f }, { "sustain", 0.4f }, { "swell", 145.16f }, { "tail_curve", 5.2746f }, { "tail_dist", 2.f }, { "tail_drive", 35.24f }, { "tail_drop", 194.21f }, { "tail_highcut", 8557.f }, { "tail_len", 300.f }, { "tail_scream", 0.090909f }, { "tail_scream_hz", 684.79f }, { "tail_start", 6.0979f }, { "tail_tone", 0.51834f }, { "tail_wave", 0.77727f }, { "timing", 0.f }, { "trigger", 0.f }, { "tune", 12.f }, { "velocity", 0.69091f }, { "warp", 3.f }, { "warp_amt", 0.17273f }, { "warp_env", 0.21947f }, { "width", 0.84203f } } });
         L.push_back ({ "PUMP - QL Tail", withTemplate (0, plus (qlTail(), forgeBass)) });
-        L.push_back ({ "PUMP - Volcanic Tail [F]", withTemplate (0, plus (volcanicTail(), plus (forgeBass, { { "level", -6.f } }))) });
-        L.push_back ({ "PUMP - Undertow Tail [G]", withTemplate (0, plus (undertowTail(), plus (forgeBass, { { "level", -4.5f } }))) });
+        L.push_back ({ "PUMP - Volcanic Tail [F]", withTemplate (0, plus (volcanicTail(), plus (forgeBass, { { "level", -9.f } }))) });
+        L.push_back ({ "PUMP - Undertow Tail [G]", withTemplate (0, plus (undertowTail(), plus (forgeBass, { { "level", -8.f } }))) });
         L.push_back ({ "SWELL - QL Tail", withTemplate (1, plus (qlTail(), { { "drive", 12.f }, { "high_cut", 1100.f }, { "drive_env", 0.6f }, { "level", -6.f } })) });
         L.push_back ({ "SWELL - Synth Bend", withTemplate (1, { { "source", 0.f }, { "warp", 1.f }, { "warp_amt", 0.55f }, { "warp_env", 0.8f }, { "blend", 0.2f },
                                                                  { "drive", 14.f }, { "dist_type", 1.f }, { "drive_env", 0.5f }, { "high_cut", 1400.f }, { "bell_gain", 2.5f } }) });
@@ -273,7 +281,7 @@ re::Params ReProcessor::gather() const
     t.startRatio = get (tailStart); t.dropMs = get (tailDrop); t.curve = get (tailCurve); t.wave = get (tailWave);
     t.distType = ch (tailDist, 5); t.driveDb = get (tailDrive); t.tone = get (tailTone); t.highCutHz = get (tailHighCut);
     t.scream = get (tailScream); t.screamHz = get (tailScreamHz); t.lowCutHz = 20.f; t.dist2Type = 0; t.autoGain = false;
-    p.tailLenMs = get (tailLen);
+    p.tailLenMs = get (tailLen); p.tailRoom = get (tailRoom); p.tailRoomSize = get (tailRoomSize);
     p.sampleReverse = get (smpReverse) > 0.5f; p.root = roundToInt (get (smpRoot)); p.sampleStartMs = get (smpStart);
     p.pitchMode = ch (pitchMode, 3); p.pitchSt = get (pitchAmt); p.pitchMs = get (pitchTime); p.tuneSt = get (tune); p.fineCt = get (fine);
     p.keyTrack = get (keyTrack) > 0.5f; p.fixedNote = roundToInt (get (fixedNote));
@@ -281,6 +289,8 @@ re::Params ReProcessor::gather() const
     p.distType = ch (distType, 5); p.driveDb = get (drive); p.driveEnv = get (driveEnv); p.bias = get (bias); p.mix = get (mix);
     p.lowCutHz = get (lowCut); p.highCutHz = get (highCut); p.bellHz = get (bellHz); p.bellDb = get (bellGain); p.bellQ = get (bellQ);
     p.subHz = get (subHz); p.subDb = get (subLevel); p.clip = get (clip); p.levelDb = get (level); p.velocitySens = get (velocity);
+    p.uniVoices = roundToInt (get (uniVoices)); p.uniDetuneCt = get (uniDetune); p.driftCt = get (uniDrift); p.uniMix = get (uniMix);
+    p.stereoWidth = get (stereoWidth); p.splitHz = get (widthSplit);
     return p;
 }
 

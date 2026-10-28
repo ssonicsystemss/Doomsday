@@ -69,7 +69,7 @@ private:
     StepView view;
     std::unique_ptr<doomsday::flat::TabStrip> tabs;
     int page = 0;
-    int cMaster = 0, cSource = 0, cWarp = 0, cTail = 0, cSample = 0, cTrig = 0, cPitch = 0, cEnv = 0, cTimeSync = 0, cTimeMs = 0,
+    int cUni = 0, cMaster = 0, cSource = 0, cWarp = 0, cTail = 0, cSample = 0, cTrig = 0, cPitch = 0, cEnv = 0, cTimeSync = 0, cTimeMs = 0,
         cPre = 0, cDrive = 0, cPost = 0;
     juce::ComboBox presetBox;
     juce::TextButton prev { "<" }, next { ">" }, randomB { "Random" }, saveB { "Save" }, folderB { "Folder" },

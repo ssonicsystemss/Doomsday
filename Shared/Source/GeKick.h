@@ -74,6 +74,10 @@ namespace ge
         bool  startFixed = false; float startHz = 250.f;       // START as a fixed Hz on every note (the drop is longer on low notes)
         float oscADb = 0.f, oscBDb = -60.f, oscBWidth = 0.5f; int oscBType = 0;   // 0 SAW, 1 PULSE, 2 TRI
         float tailPhase = 0.f, tailAttackMs = 0.f, duck = 0.f;
+        // UNISON (2026-10-28, "drętwe" vs 5CR34M 4LPH4): extra detuned copies of OSC A that drift slowly. The distortion after them
+        // turns the beating into a dense, moving spectrum. side 0 = centre (the engine keeps it plain: the low band comes from it),
+        // 1 / 2 = left / right copies with their own detune pattern and phases (the stereo width of the mids / highs).
+        int   uniVoices = 1; float uniDetuneCt = 0.f, uniMix = 0.6f, driftCt = 0.f; int side = 0;
         bool  headFixed = false; float headMs = 110.f, headHz = 49.f, headGlideMs = 8.f;
         bool  pitchDrawn = false;
         // pre filter (before STAGE 1)
@@ -162,6 +166,16 @@ namespace ge
         {
             active = true; t = 0.0; vel = velocity; baseHz = noteHz;
             phase = phaseB = juce::jlimit (0.f, 1.f, p.tailPhase / 360.f); if (phase >= 1.f) phase = phaseB = 0.f;
+            {
+                uCount = 0;
+                uint32_t h = 0x51ed270bu * (uint32_t) (p.side + 1);                  // fixed per side: every hit is the same
+                for (size_t i = 0; i < uph.size(); ++i)
+                {
+                    h ^= h << 13; h ^= h >> 17; h ^= h << 5; uph[i] = (float) (h & 0xffff) / 65536.f;
+                    h ^= h << 13; h ^= h >> 17; h ^= h << 5; driftHz[i] = 0.4f + 1.9f * (float) (h & 0xffff) / 65536.f;
+                    h ^= h << 13; h ^= h >> 17; h ^= h << 5; driftPh[i] = (float) (h & 0xffff) / 65536.f;
+                }
+            }
             pphase = juce::jlimit (0.f, 0.999f, p.punchPhase / 360.f); tphase = 0.f;
             ampSeg = driveSeg = pitchSeg = 0; fade = 1.f; fadeStep = 0.f;
             pre = {}; lc = {}; hc1 = {}; hc2 = {}; sc = {}; crHp = {}; dcx = dcy = 0.f; ck = {};
@@ -277,6 +291,30 @@ namespace ge
                         else if (p.oscBType == 2) b = 1.f - 4.f * std::abs (phaseB - 0.5f);
                         else b = 2.f * phaseB - 1.f - polyBlep (phaseB, dt);
                         x += b * c.oscBG;
+                    }
+                    if (p.uniVoices > 1 && p.side != 0 && p.uniDetuneCt + p.driftCt > 0.01f)
+                    {
+                        const int nu = juce::jmin (6, p.uniVoices - 1);
+                        float xu = 0.f;
+                        const bool refresh = (uCount++ & 31) == 0;          // detune + drift move slowly: new ratios every 32 samples
+                        const float w = p.wave;
+                        for (int i = 0; i < nu; ++i)
+                        {
+                            if (refresh)
+                            {
+                                // spread -1..+1, a different pattern per side; slow drift (0.4 - 2.3 Hz) per voice
+                                const float spread = nu == 1 ? (p.side == 1 ? -1.f : 1.f) : (2.f * (float) i / (float) (nu - 1) - 1.f) * (p.side == 1 ? 1.f : -0.83f);
+                                const float cents = spread * p.uniDetuneCt + p.driftCt * std::sin (two * (driftHz[(size_t) i] * (float) t + driftPh[(size_t) i]));
+                                uRatio[(size_t) i] = std::exp2 (cents / 1200.f);
+                            }
+                            const float udt = dt * uRatio[(size_t) i];
+                            float& up = uph[(size_t) i];
+                            up += udt; if (up >= 1.f) up -= 1.f;
+                            const float utri = 1.f - 4.f * std::abs (up - 0.5f);
+                            if (w < 0.5f) { const float us = fastSin01 (up); xu += us + (utri - us) * (w * 2.f); }
+                            else          { const float usaw = 2.f * up - 1.f - polyBlep (up, udt); xu += utri + (usaw - utri) * ((w - 0.5f) * 2.f); }
+                        }
+                        x += xu * c.oscAG * p.uniMix / std::sqrt ((float) nu);
                     }
                     if (p.tailAttackMs > 0.02f) x *= juce::jmin (1.f, ms / p.tailAttackMs);
                 }
@@ -410,6 +448,8 @@ namespace ge
         doomsday::dsp::Svf subY1, subY2, subS1, subS2;
         doomsday::kick::KickRoom room;
         std::array<float, 3> pink {};
+        std::array<float, 6> uph {}, driftHz {}, driftPh {}, uRatio { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
+        uint32_t uCount = 0;
         uint32_t noise = 0x12345678u, gnoise = 0x9e3779b9u, cnoise = 0x7f4a7c15u, pnoise = 0x2545f491u, tnoise = 0x68e31da4u;
     };
 }

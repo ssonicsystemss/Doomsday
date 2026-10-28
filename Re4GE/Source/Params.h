@@ -3,7 +3,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.1";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.2";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trigger";
     inline constexpr const char* timing    = "timing";
@@ -49,6 +49,8 @@ namespace ParamIDs
     inline constexpr const char* tailScream = "tail_scream";
     inline constexpr const char* tailScreamHz = "tail_scream_hz";
     inline constexpr const char* tailLen   = "tail_len";
+    inline constexpr const char* tailRoom  = "tail_room";
+    inline constexpr const char* tailRoomSize = "tail_room_size";
     inline constexpr const char* smpReverse = "smp_reverse";
     inline constexpr const char* smpRoot   = "smp_root";
     inline constexpr const char* smpStart  = "smp_start";
@@ -79,6 +81,13 @@ namespace ParamIDs
     inline constexpr const char* clip      = "clip";
     inline constexpr const char* level     = "level";
     inline constexpr const char* velocity  = "velocity";
+    // UNISON / WIDTH (v0.2)
+    inline constexpr const char* uniVoices = "uni_voices";
+    inline constexpr const char* uniDetune = "uni_detune";
+    inline constexpr const char* uniDrift  = "uni_drift";
+    inline constexpr const char* uniMix    = "uni_mix";
+    inline constexpr const char* stereoWidth = "stereo_width";     // ("width" is the pulse width)
+    inline constexpr const char* widthSplit = "width_split";
 }
 
 namespace Choices

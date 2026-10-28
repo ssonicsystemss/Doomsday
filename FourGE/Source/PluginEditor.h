@@ -110,7 +110,7 @@ private:
     std::unique_ptr<doomsday::flat::TabStrip> tabs;
     int page = 4, lastAdvanced = 0;          // 4 = MAIN (simple), 0..3 = ADVANCED tabs
     juce::TextButton advB { "Advanced >" };
-    int cSPunch = 0, cSTail = 0, cSDist = 0, cSChar = 0, cSLow = 0, cSGlue = 0;
+    int cUni = 0, cSPunch = 0, cSTail = 0, cSDist = 0, cSChar = 0, cSLow = 0, cSGlue = 0;
     juce::ComboBox presetBox;
     juce::TextButton prev { "<" }, next { ">" }, randomB { "Random" }, saveB { "Save" }, folderB { "Folder" },
                      undoB { "Undo" }, redoB { "Redo" }, loadBtn { "Load" }, clearBtn { "x" };

@@ -82,6 +82,57 @@ static int batch (const File& jobs, const File& dir)
     }
     return 0;
 }
+// PROTOTYPE (2026-10-28, "drętwe"): a preset rendered as centre + left + right voices at 4x, low band from the plain centre,
+// mids / highs from the detuned L / R copies -> stereo, dense. Writes <name>.wav at 4x (resample outside).
+//   RenderTest proto <outdir> <name> <preset prefix> <note> <seconds> uni=5 det=12 drift=4 split=180 [param=value ...]
+static int proto (int argc, char** argv)
+{
+    const File dir = File::getCurrentWorkingDirectory().getChildFile (argv[2]); dir.createDirectory();
+    GeProcessor p;
+    for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith (argv[4])) { p.setCurrentProgram (i); break; }
+    const int note = atoi (argv[5]); const double secs = atof (argv[6]);
+    int uni = 1; float det = 0.f, drift = 0.f, split = 180.f, mix = 0.6f, width = 1.f;
+    for (int a = 7; a < argc; ++a)
+    {
+        const String t (argv[a]); const auto id = t.upToFirstOccurrenceOf ("=", false, false); const float v = t.fromFirstOccurrenceOf ("=", false, false).getFloatValue();
+        if (id == "uni") uni = (int) v; else if (id == "det") det = v; else if (id == "drift") drift = v; else if (id == "split") split = v; else if (id == "umix") mix = v; else if (id == "width") width = v;
+        else set (p, id, v);
+    }
+    const double rate = 44100.0 * 4;
+    auto prm = p.gatherForGui();
+    ge::Params pc = prm.k, pl = prm.k, pr = prm.k;
+    for (auto* q : { &pl, &pr }) { q->uniVoices = uni; q->uniDetuneCt = det; q->driftCt = drift; q->uniMix = mix; }
+    pl.side = 1; pr.side = 2;
+    for (auto* q : { &pc, &pl, &pr }) q->cook (rate);
+    ge::Voice vc, vl, vr;
+    for (auto* v : { &vc, &vl, &vr }) v->prepare (rate);
+    vc.setRoom (pc.roomSize); vl.setRoom (pl.roomSize); vr.setRoom (pr.roomSize);
+    const float hz = 440.f * std::pow (2.f, (note - 69) / 12.f);
+    vc.trigger (hz, 1.f, pc); vl.trigger (hz, 1.f, pl); vr.trigger (hz, 1.f, pr);
+    const auto sc = doomsday::dsp::svfCoefs (split, 1.f / 0.707f, rate);
+    doomsday::dsp::Svf c1, c2, c3, c4, l1, l2, r1, r2;
+    const float g = std::pow (10.f, prm.clipDriveDb / 20.f), outG = std::pow (10.f, prm.outDb / 20.f);
+    const int n = (int) (secs * rate);
+    AudioBuffer<float> out (2, n);
+    for (int i = 0; i < n; ++i)
+    {
+        const float c = vc.render (pc), l = vl.render (pl), r = vr.render (pr);
+        const float low = c2.lp (c1.lp (c, sc), sc);
+        const float hc = c4.hp (c3.hp (c, sc), sc);
+        const float hl0 = l2.hp (l1.hp (l, sc), sc), hr0 = r2.hp (r1.hp (r, sc), sc);
+        const float hm = 0.5f * (hl0 + hr0), hs = 0.5f * (hl0 - hr0);                // mid / side of the detuned copies
+        juce::ignoreUnused (hc);
+        const float hl = hm + width * hs, hr = hm - width * hs;
+        out.setSample (0, i, ge::masterClip (low + hl, g, prm.clipSoft) * outG);
+        out.setSample (1, i, ge::masterClip (low + hr, g, prm.clipSoft) * outG);
+    }
+    const File f = dir.getChildFile (String (argv[3]) + ".wav"); f.deleteFile();
+    WavAudioFormat wav;
+    std::unique_ptr<AudioFormatWriter> w (wav.createWriterFor (new FileOutputStream (f), rate, 2, 24, {}, 0));
+    if (w) w->writeFromAudioSampleBuffer (out, 0, n);
+    return 0;
+}
+
 int main (int argc, char** argv)
 {
     ScopedJuceInitialiser_GUI gui;
@@ -109,6 +160,7 @@ int main (int argc, char** argv)
         printf ("guistress done\n");
         return 0;
     }
+    if (argc >= 7 && String (argv[1]) == "proto") return proto (argc, argv);
     if (argc >= 4 && String (argv[1]) == "batch") return batch (File::getCurrentWorkingDirectory().getChildFile (argv[2]), File::getCurrentWorkingDirectory().getChildFile (argv[3]));
     const File outDir = File::getCurrentWorkingDirectory().getChildFile (argc > 1 ? argv[1] : "fourge_out");
     outDir.createDirectory();
@@ -143,9 +195,9 @@ int main (int argc, char** argv)
             return 20.0 * std::log10 ((at (98.0) + at (147.0)) / at (49.0));
         };
         p.setCurrentProgram (0);
-        set (p, distType, 2.f); set (p, drive, 30.f); set (p, length, 600.f); set (p, clipDrive, 0.f);
+        set (p, distType, 2.f); set (p, drive, 30.f); set (p, length, 600.f); set (p, clipDrive, 0.f); set (p, uniVoices, 1.f);
         const double off = harmDb (hit (p, 31, 0.6));
-        set (p, cleanSub, 250.f);
+        set (p, cleanSub, 250.f); set (p, uniVoices, 1.f);
         const double on = harmDb (hit (p, 31, 0.6));
         check (on < off - 10.0, "CLEAN SUB: low harmonics of the distortion removed", "(" + String (off, 1) + " -> " + String (on, 1) + " dB)");
     }
@@ -188,16 +240,17 @@ int main (int argc, char** argv)
         GeProcessor q; q.setStateInformation (mb.getData(), (int) mb.getSize());
         check (q.getShape (1).n == 4 && std::abs (q.getShape (1).pts[2].v - 0.9f) < 1e-3f, "drive envelope saved with the session");
     }
-    // 5) CPU
+    // 5) CPU: plain (one voice set) and with UNISON (three voice sets: centre + left + right)
+    for (int uni : { 1, 5 })
     {
-        p.setCurrentProgram (0);
+        p.setCurrentProgram (0); set (p, uniVoices, (float) uni);
         p.prepareToPlay (48000.0, block);
         AudioBuffer<float> b (2, block);
         const int blocks = (int) (48000.0 * 10 / block);
         auto t0 = std::chrono::high_resolution_clock::now();
         for (int k = 0; k < blocks; ++k) { b.clear(); MidiBuffer m; if (k % 18 == 0) m.addEvent (MidiMessage::noteOn (1, 31, 1.f), 0); p.processBlock (b, m); }
         const double secs = std::chrono::duration<double> (std::chrono::high_resolution_clock::now() - t0).count();
-        check (secs / 10.0 < 0.15, "CPU (10 s of kicks at 150 BPM)", String (secs / 10.0 * 100.0, 1) + " %");
+        check (secs / 10.0 < (uni > 1 ? 0.30 : 0.15), uni > 1 ? "CPU with UNISON 5 (10 s of kicks)" : "CPU plain (10 s of kicks at 150 BPM)", String (secs / 10.0 * 100.0, 1) + " %");
     }
     // 8) PITCH / FINE move the tail only
     {
@@ -290,7 +343,7 @@ int main (int argc, char** argv)
     // 14) START in Hz: the tail starts on the same pitch on G1 and D2
     {
         sr = 48000.0;
-        p.setCurrentProgram (0); set (p, headOn, 0.f); set (p, punchOn, 0.f); set (p, clickLevel, -60.f); set (p, chaos, 0.f);
+        p.setCurrentProgram (0); set (p, headOn, 0.f); set (p, punchOn, 0.f); set (p, clickLevel, -60.f); set (p, chaos, 0.f); set (p, uniVoices, 1.f);
         set (p, tailStartMode, 1.f); set (p, tailStartHz, 300.f); set (p, tailDrop, 200.f); set (p, tailCurve, 1.f); set (p, ParamIDs::drive, 0.f); set (p, clipDrive, 0.f);
         set (p, distType, 0.f);
         const double g = pitchAt (hit (p, 31, 0.3), 0.003, 0.012), d = pitchAt (hit (p, 38, 0.3), 0.003, 0.012);
@@ -359,6 +412,29 @@ int main (int argc, char** argv)
             at += b.getNumSamples();
         }
         writeWav (outDir.getChildFile ("4ge_modules_ab.wav"), ab);
+    }
+    // 19) UNISON / WIDTH: stereo above WIDTH FROM, mono below it, the tail stays on the note
+    {
+        sr = 48000.0;
+        p.setCurrentProgram (0); set (p, uniVoices, 5.f); set (p, width, 0.5f); set (p, widthSplit, 350.f);
+        auto b = hit (p, 31, 0.5);
+        AudioBuffer<float> s (1, b.getNumSamples()), m (1, b.getNumSamples());
+        for (int i = 0; i < b.getNumSamples(); ++i) { s.setSample (0, i, 0.5f * (b.getSample (0, i) - b.getSample (1, i))); m.setSample (0, i, 0.5f * (b.getSample (0, i) + b.getSample (1, i))); }
+        auto bandE = [&] (const AudioBuffer<float>& x, double lo, double hi)
+        {
+            const int nfft = 1 << 15, a = (int) (0.1 * sr);
+            std::vector<float> w ((size_t) nfft * 2, 0.f);
+            for (int i = 0; i < nfft && a + i < x.getNumSamples(); ++i) w[(size_t) i] = x.getSample (0, a + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * i / nfft));
+            dsp::FFT fft (15); fft.performFrequencyOnlyForwardTransform (w.data());
+            double e = 0; for (int k = (int) (lo * nfft / sr); k < (int) (hi * nfft / sr); ++k) e += (double) w[(size_t) k] * w[(size_t) k];
+            return e;
+        };
+        const double lowSide = 10.0 * std::log10 (bandE (s, 20, 150) / (bandE (m, 20, 150) + 1e-20) + 1e-20);
+        const double highSide = 10.0 * std::log10 (bandE (s, 1000, 6000) / (bandE (m, 1000, 6000) + 1e-20) + 1e-20);
+        const double hz = pitchAt (m, 0.3, 0.08);
+        check (lowSide < -30.0 && highSide > -20.0 && highSide < -3.0 && std::abs (hz - 49.0) < 3.0, "4GE: WIDTH - mids / highs stereo, lows mono, on the note",
+               "(side/mid: lows " + String (lowSide, 1) + " dB, 1-6 kHz " + String (highSide, 1) + " dB, " + String (hz, 1) + " Hz)");
+        set (p, uniVoices, 1.f);
     }
     // 6) GUI snapshot
     {

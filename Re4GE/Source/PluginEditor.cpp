@@ -197,7 +197,18 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
         knob (c, tailScream, "Scream", "TAIL: the resonant 'yell' of raw kicks");
         knob (c, tailScreamHz, "Scream Hz", "TAIL: where the scream sits");
         knob (c, tailLen, "Length", "TAIL in GATE mode: how much tail is played backwards (in PATTERN mode it fits the step)");
+        knob (c, tailRoom, "Room", "TAIL: a room on the kick tail BEFORE it is reversed - backwards it swells up into the bass: dense, like the reversed kicks in sample packs");
+        knob (c, tailRoomSize, "Size", "TAIL: size of that room");
         c.head.push_back (seg (tailDist, { "Soft", "Tube", "Hard", "Fold", "Raw", "Crush" }, hot, "TAIL: the kick's distortion type"));
+    }
+    {
+        auto& c = card ("Unison / width", hot, 2); cUni = (int) cards.size() - 1;
+        knob (c, uniVoices, "Voices", "Detuned, slowly drifting copies on the left / right: a full, moving bass (OFF = plain mono). The lows stay mono");
+        knob (c, uniDetune, "Detune", "Spread of the copies in cents");
+        knob (c, uniDrift, "Drift", "Slow pitch wander of each copy");
+        knob (c, uniMix, "Mix", "Level of the copies");
+        knob (c, stereoWidth, "Width", "Stereo width of the mids / highs (your reference basses: about 30 - 45%)");
+        knob (c, widthSplit, "From", "Below this the bass stays mono");
     }
     // ---- page 1: SHAPE
     {
@@ -447,7 +458,7 @@ void Canvas::resized()
     else
     {
         place ({ { cPre, 440 }, { cDrive, 0 } }, y1);
-        place ({ { cPost, 0 } }, y2);
+        place ({ { cPost, 5 * kw + 32 }, { cUni, 0 } }, y2);
     }
     for (auto& c : cards) if (! c.area.isEmpty() && cardOn (c)) layoutCard (c, c.page < 0 ? 96 : kw);
     {

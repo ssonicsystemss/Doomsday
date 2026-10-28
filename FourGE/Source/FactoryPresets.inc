@@ -29,6 +29,31 @@ namespace
                         "0:0.81;60:0.668;150:0.747;300:0.916;500:0.737;700:0.71;850:0.46;960:0.062;1000:0", "0:0.826;80:0.925;180:0.943;300:0.74;450:0.808;600:0.929;800:0.74;1000:0.157" });
         L.push_back ({ "REVERSE - Undertow [G]", { { "auto_gain", 0.f }, { "room_lowcut", 20.f }, { "tail_level", 3.44f }, { "tail_start", 3.81f }, { "tail_drop", 87.8f }, { "tail_curve", 2.2f }, { "tail_wave", 0.17f }, { "dist_type", 1.0f }, { "drive", 46.4f }, { "tone", 0.952f }, { "low_cut", 102.0f }, { "high_cut", 6336.0f }, { "body", 7.25f }, { "grit", 0.108f }, { "scream", 0.624f }, { "scream_hz", 1500.0f }, { "crunch", 0.604f }, { "crunch_dec", 42.3f }, { "punch_level", -15.5f }, { "punch_start", 397.0f }, { "punch_end", 44.2f }, { "punch_drop", 8.74f }, { "punch_decay", 46.4f }, { "click_level", -29.2f }, { "click_hz", 3587.0f }, { "click_len", 19.1f }, { "length", 409.0f }, { "clip_drive", 0.0f }, { "clip_soft", 0.678f }, { "output", -0.368f } },
                         "0:0.758;60:0.105;150:0.51;300:0.641;500:0.675;700:0.693;850:0.784;960:0.523;1000:0", "0:0.528;80:0.653;180:0.093;300:0.227;450:0.189;600:0.978;800:0.457;1000:0.574" });
+        // FULL (v0.4, owner 2026-10-28: "drętwe" next to his samples; prototype A/B "wprowadźmy to"): the same kicks with UNISON + WIDTH
+        // (mids / highs from detuned, drifting copies, the lows mono), CLEAN SUB lower (70 Hz: the 150 - 400 Hz body stays distorted)
+        // and less clipping (his samples breathe: crest 2.3 - 3.0, ours was 1.2 = a square)
+        const std::vector<std::pair<String, String>> full {
+            { "OWNER - QL", "FULL - QL" }, { "OWNER - QL 1", "FULL - QL 1" }, { "OWNER - QL 2", "FULL - QL 2" }, { "OWNER - Nice", "FULL - Nice" },
+            { "OWNER - Nice 2", "FULL - Nice 2" }, { "OWNER - Sgsdg", "FULL - Sgsdg" }, { "RAW - Volcanic Eruption [F]", "FULL - Volcanic [F]" },
+            { "REVERSE - Undertow [G]", "FULL - Undertow [G]" } };
+        const size_t base = L.size();
+        for (auto& [from, to] : full)
+            for (size_t i = 0; i < base; ++i)
+                if (L[i].name == from)
+                {
+                    auto k = L[i];
+                    k.name = to;
+                    float sub = 0.f, clip = 6.f;
+                    for (auto& [id, v] : k.v) { if (id == "clean_sub") sub = v; if (id == "clip_drive") clip = v; }
+                    k.v.push_back ({ "uni_voices", 5.f }); k.v.push_back ({ "uni_detune", 18.f }); k.v.push_back ({ "uni_drift", 6.f });
+                    k.v.push_back ({ "uni_mix", 0.6f }); k.v.push_back ({ "width", 0.4f }); k.v.push_back ({ "width_split", 350.f });
+                    if (sub > 100.f) k.v.push_back ({ "clean_sub", 70.f });
+                    k.v.push_back ({ "clip_drive", juce::jmin (clip, 6.f) }); k.v.push_back ({ "output", 0.f });
+                    if (from == "OWNER - QL") { k.v.push_back ({ "mid_hz", 1800.f }); k.v.push_back ({ "mid_gain", -5.f }); }
+                    L.push_back (k);
+                }
+        // INIT gets the unison too (new kicks start full)
+        L[0].v.push_back ({ "uni_voices", 5.f });
         return L;
     }
 }

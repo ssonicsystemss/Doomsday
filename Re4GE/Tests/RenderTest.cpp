@@ -48,6 +48,7 @@ static double rms (const AudioBuffer<float>& b, double fromMs, double toMs)
     double acc = 0; for (int i = a; i < e; ++i) acc += (double) b.getSample (0, i) * b.getSample (0, i);
     return std::sqrt (acc / jmax (1, e - a));
 }
+static int byName (ReProcessor& p, const char* start) { for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith (start)) return i; return 0; }
 static bool finite (const AudioBuffer<float>& b) { for (int i = 0; i < b.getNumSamples(); ++i) if (! std::isfinite (b.getSample (0, i))) return false; return true; }
 static void writeWav (const File& f, const AudioBuffer<float>& b)
 {
@@ -129,7 +130,7 @@ int main (int argc, char** argv)
     }
     // 3) TAIL backwards: on the note in the swell, rising at the end (the tail's pitch drop played backwards)
     {
-        p.setCurrentProgram (1); host.bpm = 150.0;
+        p.setCurrentProgram (byName (p, "PUMP - QL Tail")); host.bpm = 150.0;
         set (p, subHz, 20.f); set (p, highCut, 3000.f); set (p, drive, 0.f);
         auto b = play (p, host, everyBeat (2, 150.0), 0.8);
         const double hz = domHz (b, 190.0, 80.0), hzLate = domHz (b, 360.0, 30.0);
@@ -165,7 +166,7 @@ int main (int argc, char** argv)
         double lv[3]; int k = 0;
         for (double rate : { 44100.0, 48000.0, 96000.0 })
         {
-            sr = rate; p.setCurrentProgram (1); host.bpm = 150.0;
+            sr = rate; p.setCurrentProgram (byName (p, "PUMP - QL Tail")); host.bpm = 150.0;
             lv[k++] = 20.0 * std::log10 (rms (play (p, host, everyBeat (2, 150.0), 0.8), 400.0, 800.0) + 1e-9);
         }
         sr = 48000.0;
@@ -173,7 +174,7 @@ int main (int argc, char** argv)
     }
     // 8) bit-identical renders (phase reset per step, the tail rendered the same way)
     {
-        p.setCurrentProgram (5);
+        p.setCurrentProgram (byName (p, "SWELL - Synth Bend"));
         auto a = play (p, host, everyBeat (2, 150.0), 0.8), b = play (p, host, everyBeat (2, 150.0), 0.8);
         double d = 0; for (int i = 0; i < a.getNumSamples(); ++i) d += std::abs (a.getSample (0, i) - b.getSample (0, i));
         check (d == 0.0, "two renders are bit-identical", String (d, 8));
@@ -182,7 +183,7 @@ int main (int argc, char** argv)
     {
         int bad = 0; String why;
         auto render = [&] () { return play (p, host, everyBeat (2, 150.0), 0.8); };
-        p.setCurrentProgram (5); set (p, warp, 0.f);
+        p.setCurrentProgram (byName (p, "SWELL - Synth Bend")); set (p, warp, 0.f);
         const auto off = render();
         for (int w = 1; w <= 4; ++w)
         {
@@ -197,12 +198,12 @@ int main (int argc, char** argv)
             auto b = render();
             if (! finite (b) || b.getMagnitude (0, 0, b.getNumSamples()) > 1.f || rms (b, 0, 800) < 0.01) { ++bad; why << "pitch " << pm << "/" << src << " "; }
         }
-        for (int t = 0; t < 5; ++t) { p.setCurrentProgram (5); p.applyTemplate (t); auto b = render(); if (! finite (b) || rms (b, 0, 800) < 0.01) { ++bad; why << "template " << t << " "; } }
+        for (int t = 0; t < 5; ++t) { p.setCurrentProgram (byName (p, "SWELL - Synth Bend")); p.applyTemplate (t); auto b = render(); if (! finite (b) || rms (b, 0, 800) < 0.01) { ++bad; why << "template " << t << " "; } }
         check (bad == 0, "warp modes, pitch modes, sources, templates: clean", why);
     }
     // 10) CPU
     {
-        p.setCurrentProgram (1); host.bpm = 150.0;
+        p.setCurrentProgram (byName (p, "PUMP - QL Tail")); host.bpm = 150.0;
         auto t0 = std::chrono::high_resolution_clock::now();
         play (p, host, everyBeat (25, 150.0), 10.0);
         const double secs = std::chrono::duration<double> (std::chrono::high_resolution_clock::now() - t0).count();
@@ -210,7 +211,7 @@ int main (int argc, char** argv)
     }
     // 11) GUI: editor stress + snapshots of the three pages
     {
-        p.setCurrentProgram (1);
+        p.setCurrentProgram (byName (p, "PUMP - QL Tail"));
         std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
         ed->setSize (Canvas::W, Canvas::H);
         Random r (3);
@@ -223,7 +224,7 @@ int main (int argc, char** argv)
             dynamic_cast<ReEditor&> (*ed).getCanvas().tickForTest();
             if (it % 10 == 0) ed->createComponentSnapshot (ed->getLocalBounds(), true, 0.5f);
         }
-        p.setCurrentProgram (1);
+        p.setCurrentProgram (byName (p, "PUMP - QL Tail"));
         play (p, host, everyBeat (1, 150.0), 0.3);
         for (int pg : { 0, 1, 2 })
         {

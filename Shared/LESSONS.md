@@ -196,6 +196,14 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - Smaczki z Forge, które mają zostać w 4GE: tok jak początek taila (INTO DIST), FIXED HEAD, reverse bass z odwróconego taila z wczesnym
   szczytem / PUMP + SUB, krótki kick (~170 ms) pod reverse bassem.
 
+## RE4GE – pierwsze basy właściciela (2026-10-28: „w miarę spoko”, presety OWNER - 1 / 2)
+- Wybrał **SYNTH, nie TAIL**; bas **oktawę wyżej** (TUNE +12) z czystym **SUB ~85 Hz** pod spodem (dół z subu, charakter oktawę wyżej).
+- Pitch **BOUNCE −24 st** (start z dołu, szybki podjazd 8–80 ms + zjazd na końcu); 1/4; narastanie wolne (~140 ms, krzywa „późna”),
+  opadanie do ~40 % krzywą „trzyma, potem spada” (dec curve 6).
+- TUBE ~15 dB + ASYM ~0.3 + CLIP ~65 %; **jasny BELL +8 dB przy ~2 kHz, góra otwarta** (high cut 16 kHz) – czyli wbrew założeniu
+  z pomiarów FHSP („ciemno powyżej 2 kHz”): jemu podoba się obecność ~2 kHz. Szablony / RANDOM nie mają przyciemniać na siłę.
+- Mały PHASE WARP (SYNC 0.17 / BEND 0.28).
+
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
   odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:

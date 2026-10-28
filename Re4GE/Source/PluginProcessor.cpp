@@ -232,7 +232,7 @@ void ReProcessor::randomizeSound()
         set (warp, (float) rng.nextInt (5)); set (warpAmt, between (0.2f, 0.8f)); set (warpEnv, between (0.f, 1.f)); set (blend, between (0.f, 0.8f)); set (width, between (0.2f, 0.6f));
     }
     set (distType, (float) rng.nextInt (6)); set (ParamIDs::drive, between (6.f, 20.f)); set (driveEnv, between (0.f, 0.8f)); set (bias, rng.nextFloat() < 0.3f ? between (-0.5f, 0.5f) : 0.f);
-    set (highCut, logB (700.f, 2200.f)); set (bellGain, between (0.f, 3.f));            // dark-ish, a little presence (FHSP: 1-2.5 kHz is quiet)
+    set (highCut, logB (1500.f, 16000.f)); set (bellHz, logB (1200.f, 2500.f)); set (bellGain, between (0.f, 8.f));   // the owner likes presence ~2 kHz (OWNER - 1 / 2)
     set (subHz, between (70.f, 120.f)); set (subLevel, 0.f); set (lowCut, 20.f);       // the low end stays (owner's rule)
     presetName = "Random #" + String (1000 + rng.nextInt (9000));
 }

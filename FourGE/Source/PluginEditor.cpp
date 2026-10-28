@@ -400,6 +400,59 @@ Canvas::Canvas (GeProcessor& p) : proc (p), anvil (p), layers (p)
         knob (c, output, "Output", "Output level", true);
         c.head.push_back (toggle (autoGain, "Auto gain", Toggle::Chip, n, "ON: turning a DRIVE up changes the character, not the volume (you judge the sound, not the loudness)"));
     }
+    // ---- MAIN (simple) screen: the knobs that matter most, no tabs (owner, 2026-10-28: too many tabs, hard to read)
+    {
+        auto& c = card ("Punch", gold, 4); cSPunch = (int) cards.size() - 1;
+        knob (c, punchLevel, "Level", "The punch / tok on top of the tail");
+        knob (c, punchStart, "Start", "Punch pitch at the hit in Hz (never follows the note)");
+        knob (c, punchEnd, "End", "Punch pitch after the drop (higher than START = a rising tok)");
+        knob (c, punchAmount, "Amount", "How much of the START -> END move happens");
+        knob (c, punchLen, "Length", "TOK: holds this long, then cut (100 - 150 ms like tok samples). DECAY = a fading punch");
+        knob (c, punchDrive, "Drive", "Distorts the punch (when INTO DIST is off)");
+        c.head.push_back (toggle (punchOn, "On", Toggle::Pill, gold, "Punch on / off"));
+        c.head.push_back (toggle (punchInto, "Into dist", Toggle::Chip, gold, "ON: the punch goes through the tail's distortion - it sounds like the start of the tail"));
+        c.head.push_back (seg (punchType, { "Sine", "Tri", "Saw", "Noise", "Reso" }, gold, "Punch source"));
+    }
+    {
+        auto& c = card ("Tail", hot, 4); cSTail = (int) cards.size() - 1;
+        knob (c, tailLevel, "Level", "Level of the distorted tail");
+        knob (c, tailStart, "Start", "Pitch at the hit = START x the note");
+        knob (c, tailDrop, "Drop", "How long the pitch falls to the note");
+        knob (c, tune, "Pitch", "Pitch of the tail in semitones", true);
+        knob (c, tailFine, "Fine", "Fine pitch of the tail in cents", true);
+        c.head.push_back (seg (pitchMode, { "Curve", "Drawn" }, hot, "CURVE = pitch from the knobs, DRAWN = the PITCH envelope on the screen"));
+    }
+    {
+        auto& c = card ("Distortion", hot, 4); cSDist = (int) cards.size() - 1;
+        knob (c, ParamIDs::drive, "Drive", "How hard the tail hits the distortion");
+        knob (c, tone, "Tone", "Before the distortion: left = more low end, right = more mids", true);
+        knob (c, bias1, "Bias", "Asymmetry: a raw, uneven edge", true);
+        knob (c, drive2, "Stage 2", "Second distortion (choose its type under ADVANCED > Tail; OFF there = not used)");
+        c.head.push_back (seg (distType, { "Soft", "Tube", "Hard", "Fold", "Raw", "Crush" }, hot, "Distortion character"));
+    }
+    {
+        auto& c = card ("Character", cool, 4); cSChar = (int) cards.size() - 1;
+        knob (c, scream, "Scream", "A resonant peak pushed into saturation: the 'yell' of raw kicks");
+        knob (c, screamHz, "Scream Hz", "Where the scream sits");
+        knob (c, crunch, "Crunch", "Extra high distortion at the start of the tail");
+        knob (c, grit, "Grit", "Noisy texture riding on the tail");
+        knob (c, chaos, "Chaos", "Noise burst into the distortion at the start: the dense, messy impact");
+    }
+    {
+        auto& c = card ("Low end", cool, 4); cSLow = (int) cards.size() - 1;
+        knob (c, cleanSub, "Clean sub", "Below this the distortion is replaced by a clean sine: a tight sub (OFF = all distorted)");
+        knob (c, subLevel, "Sub level", "Level of the clean sub");
+        knob (c, body, "Body", "More or less fundamental", true);
+        knob (c, lowCut, "Low cut", "Removes rumble under the tail");
+    }
+    {
+        auto& c = card ("Glue", hot, 4); cSGlue = (int) cards.size() - 1;
+        knob (c, busDrive, "Bus", "Distortion on the sum of all layers: one kick instead of layers (choose the type on the right)");
+        knob (c, ott, "OTT", "Upward + downward compression: dense, loud");
+        knob (c, room, "Room", "Small room");
+        knob (c, highCut, "High cut", "Darkens the distortion");
+        c.head.push_back (seg (busType, { "Off", "Soft", "Tube", "Hard", "Fold", "Raw", "Crush" }, hot, "BUS distortion type (OFF = the layers stay separate)"));
+    }
     // ---- page 0: PUNCH
     {
         auto& c = card ("Punch", gold, 0); cPunch = (int) cards.size() - 1;
@@ -604,7 +657,10 @@ Canvas::Canvas (GeProcessor& p) : proc (p), anvil (p), layers (p)
         addAndMakeVisible (c);
 
     setSize (W, H);
-    showPage (0);
+    advB.setTooltip ("MAIN: the most important knobs on one screen. ADVANCED: every knob, in tabs");
+    advB.onClick = [this] { showPage (page == 4 ? lastAdvanced : 4); };
+    addAndMakeVisible (advB);
+    showPage (4);
     timerCallback();
     startTimerHz (30);
 }
@@ -665,8 +721,10 @@ void Canvas::showSave()
 
 void Canvas::showPage (int pg)
 {
-    page = jlimit (0, 3, pg);
-    if (tabs != nullptr && tabs->getSelected() != page) tabs->setSelected (page);
+    page = jlimit (0, 4, pg);
+    if (page < 4) lastAdvanced = page;
+    if (tabs != nullptr) { tabs->setVisible (page < 4); if (page < 4 && tabs->getSelected() != page) tabs->setSelected (page); }
+    advB.setButtonText (page < 4 ? "< Main" : "Advanced >");
     for (auto& c : cards)
     {
         const bool on = c.page < 0 || c.page == page;
@@ -718,8 +776,9 @@ void Canvas::resized()
     auto& master = cards[0];
     master.area = { W - m - 430, 68, 430, 200 };
     anvil.setBounds (m, 68, master.area.getX() - gap - m, 200);
-    tabs->setBounds (m, 280, 420, 30);
-    layers.setBounds (m + 440, 278, W - 2 * m - 440, 34);
+    advB.setBounds (m, 280, 120, 30);
+    tabs->setBounds (m + 132, 280, 400, 30);
+    layers.setBounds (m + 548, 278, W - 2 * m - 548, 34);
     // pages
     const int y1 = 318, rowH = 134, y2 = y1 + rowH + gap;
     auto place = [&] (std::initializer_list<std::pair<int, int>> list, int y)
@@ -729,7 +788,12 @@ void Canvas::resized()
     };
     for (auto& c : cards) if (c.page >= 0) c.area = {};
     auto kws = [kw] (int k) { return k * kw + 32; };
-    if (page == 0)
+    if (page == 4)
+    {
+        place ({ { cSPunch, kws (6) }, { cSTail, kws (5) }, { cSDist, 0 } }, y1);
+        place ({ { cSChar, kws (5) }, { cSLow, kws (4) }, { cSGlue, 0 } }, y2);
+    }
+    else if (page == 0)
     {
         place ({ { cPunch, kws (9) }, { cHead, 270 }, { cClick, 0 } }, y1);
         place ({ { cPFilt, 420 }, { cPDrive, 420 }, { cHand, 0 } }, y2);

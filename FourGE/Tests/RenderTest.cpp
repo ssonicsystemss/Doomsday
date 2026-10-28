@@ -367,11 +367,11 @@ int main (int argc, char** argv)
         std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
         ed->setSize (Canvas::W, Canvas::H);
         p.muteMask.store (ge::LTexture); p.soloMask.store (0);
-        for (int pg : { 0, 1, 2, 3 })
+        for (int pg : { 4, 0, 1, 2, 3 })
         {
             dynamic_cast<GeEditor&> (*ed).getCanvas().showPageForTest (pg);
             auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
-            const char* names[] { "gui_punch.png", "gui_tail.png", "gui_texture.png", "gui_bus.png" };
+            const char* names[] { "gui_punch.png", "gui_tail.png", "gui_texture.png", "gui_bus.png", "gui_main.png" };
             PNGImageFormat png; FileOutputStream fo (outDir.getChildFile (names[pg])); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
         }
         p.muteMask.store (0);

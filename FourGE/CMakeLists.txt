@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(FourGE VERSION 0.2.0)
+project(FourGE VERSION 0.3.0)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../Shared/cmake/Doomsday.cmake)
 
 # 4GE - hardstyle kick synth, successor of Forge of Wrath (frozen at v2.1)

@@ -108,7 +108,9 @@ private:
     int cPunch = 0, cHead = 0, cClick = 0, cPFilt = 0, cPDrive = 0, cHand = 0, cTail = 0, cOscA = 0, cOscB = 0, cPre = 0, cS1 = 0, cMid = 0, cS2 = 0,
         cTex = 0, cChar = 0, cImpact = 0, cFilter = 0, cBus = 0, cOtt = 0, cRoom = 0, cSample = 0;
     std::unique_ptr<doomsday::flat::TabStrip> tabs;
-    int page = 0;
+    int page = 4, lastAdvanced = 0;          // 4 = MAIN (simple), 0..3 = ADVANCED tabs
+    juce::TextButton advB { "Advanced >" };
+    int cSPunch = 0, cSTail = 0, cSDist = 0, cSChar = 0, cSLow = 0, cSGlue = 0;
     juce::ComboBox presetBox;
     juce::TextButton prev { "<" }, next { ">" }, randomB { "Random" }, saveB { "Save" }, folderB { "Folder" },
                      undoB { "Undo" }, redoB { "Redo" }, loadBtn { "Load" }, clearBtn { "x" };

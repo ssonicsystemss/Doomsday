@@ -1,4 +1,4 @@
-# 4GE v0.2
+# 4GE v0.3
 
 Syntezator kicków hardstyle (instrument VST3, FL Studio), **następca Forge of Wrath** (Forge jest zamrożony na v2.1).
 Silnik to Forge plus nowe moduły, zbudowane według analizy architektury kicka (`Shared/RESEARCH.md`, „Architektura hardstyle kicka”):
@@ -16,6 +16,16 @@ Folder `4GE.vst3` skopiuj do `C:\Program Files\Common Files\VST3\`, a w FL: *Opt
 Wstaw jako **instrument** (Channel Rack).
 
 ## Ekran
+**v0.3: EKRAN GŁÓWNY bez zakładek** (bo było ich za dużo i robiło się nieczytelnie). Najważniejsze gałki są na jednym ekranie:
+- **PUNCH**: typ, On, Into dist, Level, Start, End, Amount, Length, Drive;
+- **TAIL**: Level, Start, Drop, Pitch, Fine, Curve / Drawn;
+- **DISTORTION**: typ, Drive, Tone, Bias, Stage 2;
+- **CHARACTER**: Scream, Scream Hz, Crunch, Grit, Chaos;
+- **LOW END**: Clean sub, Sub level, Body, Low cut;
+- **GLUE**: typ BUS, Bus, OTT, Room, High cut.
+
+Przycisk **Advanced >** otwiera wszystkie gałki w zakładkach (opisane niżej), a **< Main** wraca.
+
 Na górze presety (< lista > Random Save Folder Play Undo Redo), pod spodem **THE ANVIL** (podgląd + rysowane obwiednie AMP / DRIVE / PITCH)
 i **MASTER** (Length, Clip, Soft, Velocity, Output, przełącznik **AUTO GAIN**). Niżej cztery zakładki i pasek **SOLO / MUTE**.
 

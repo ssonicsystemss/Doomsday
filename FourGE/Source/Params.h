@@ -3,7 +3,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.2";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.3";      // keep in step with CMakeLists.txt
     // TAIL
     inline constexpr const char* tailLevel = "tail_level";
     inline constexpr const char* tailStart = "tail_start";    // start pitch = START x note

@@ -343,6 +343,18 @@ Zasada właściciela: **domyślnie nie ruszamy dołu w reverse bassie** (WITH KI
 low cut tylko na przesterowanej części).
 
 ---
+## RE4GE – specyfikacja właściciela (2026-11-01) → `Re4GE/PLAN.md`
+Pełny dokument architektury reverse bassu (17 modułów, 3 tryby CLASSIC / MODERN / EXPERIMENTAL, 2 silniki, RE4GE + RE4GE FX, matrix,
+sekwencer, gate, EQ, dynamika, eksport, testy, struktura kodu) – rozpisany i porównany z v0.2 w `Re4GE/PLAN.md`.
+Pięć funkcji-znaków: Reverse Shape Designer, Kick-to-Reverse, Advanced Distortion Lab, Full Modulation Matrix, Reverse Bass Randomizer.
+Gotowe klocki do wzięcia (z innych naszych wtyczek): MOD + ASSIGN (5CR34M 4LPH4), Ladder / COMB / FORMANT (5CR34M 4LPH4), EQ + analizator
+(Mirror of Souls), limiter + LUFS (Throne of Titans), OTT / transient shaper / ADAA / bitcrusher / rysowany waveshaper / LFO (Shared),
+BeatClock / OWN SOUND / sanitizeState / menu prawego kliku (dkd), WSOLA (Ancient Drums), edytor krzywych (4GE).
+Nowe do napisania: wejście audio + wykrywanie uderzeń, ekstrakcja sekcji kicka, sekwencer z wartościami na krok, ogon kicka liczony na żywo,
+Diode / Foldback / Rectifier, Reverse Shape Designer z ANCHOR END, matrix 16 wierszy (VIA / CURVE / POLARITY), morph A/B.
+Narzędzia do zbadania: **pluginval** (Tracktion, walidacja hosta w CI). Przed sprzedażą: aktualne warunki licencji JUCE.
+
+---
 ## Wspólne wzorce (wszystkie analizy)
 - **Słuchanie różnicy**: delta / audition / unity gain (Pro-L 2, nasze MATCH) – producent od razu słyszy, co robi efekt.
 - **Rysowanie zamiast kręcenia**: EQ Sketch, krzywe Béziera w Kick 2, nasze obwiednie w Forge.

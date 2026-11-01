@@ -15,7 +15,7 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
 | 5CR34M 4LPH4 | `ScreamAlpha/` | new screech synth (successor of PoS) – **v0.4 test build** (engine `Source/AlphaEngine.h`, MOD 1/2 with ASSIGN + drawn shapes `Source/AlphaMod.h`, flat UI, owner presets 6/7/8); plan `PLAN.md`, offline prototype `Proto/`, reference analysis + matcher `Tools/` |
 | Forge of Wrath | `ForgeOfWrath/` | hardstyle kick synth – **frozen at v2.1** (owner, 2026-10-23); its successor is 4GE |
 | 4GE | `FourGE/` | new kick synth (successor of Forge) – **v0.4** (MAIN screen + ADVANCED tabs, UNISON / WIDTH: centre + L / R voices, lows mono, FULL presets): engine `Shared/Source/GeKick.h` (PUNCH types / filter / drive, TAIL osc A + B, pre filter + sweep, stage BIAS / MIX / AUTO GAIN, TEXTURE layer, SUB level, BUS dist, SOLO / MUTE), owner's Forge kicks ported as factory presets; reverse bass moved out to RE4GE |
-| RE4GE | `Re4GE/` | reverse bass instrument (split from 4GE) – **v0.2**: `Source/ReEngine.h` (stereo: centre + L / R chains with UNISON / WIDTH, sub on the note, tail ROOM; PATTERN / GATE trigger, SYNTH + PHASE WARP / kick TAIL backwards / SAMPLE, one envelope with templates, pitch modes, tone chain with 4GE stages, SUB crossover); plan `Shared/RESEARCH.md` "Reverse bass" (RB1–RB26) |
+| RE4GE | `Re4GE/` | reverse bass instrument (split from 4GE) – **v0.2**: `Source/ReEngine.h` (stereo: centre + L / R chains with UNISON / WIDTH, sub on the note, tail ROOM; PATTERN / GATE trigger, SYNTH + PHASE WARP / kick TAIL backwards / SAMPLE, one envelope with templates, pitch modes, tone chain with 4GE stages, SUB crossover); **v0.3+ plan = `Re4GE/PLAN.md`** (owner's full spec, build order, 5 signature features; synthesis first, reversing is one source) |
 
 ## Start every task here
 1. `Shared/README.md` – catalogue of reusable DSP / UI / params blocks. Reuse before writing new code.
@@ -42,6 +42,8 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
 - New plugin: `doomsday_plugin(...)` from `Shared/cmake/Doomsday.cmake`, fixed-size canvas scaled by the editor, logo via
   `doomsday::brand::drawHeaderBadge (g, defaultW / W, 0.55f)` top-left, version text at `headerTextX`, `PresetBar`, English UI text + tooltips.
 - Real-time safe audio thread (no alloc / locks / IO); coefficients per block, not per sample.
+- **DSP, GUI and file / preset management never in one component** (owner, 2026-11-01): DSP knows no GUI or files, GUI does no DSP
+  (previews in a background thread), files never on the audio thread. Every visible control must change the sound (test min vs max).
 - Never change existing parameter IDs (saved projects); new params get new IDs.
 - After sound changes give the owner an A/B file (reference vs plugin) and ask what sounds wrong.
 

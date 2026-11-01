@@ -220,6 +220,21 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   stabilny) + WIDTH od 350 Hz w 4GE i RE4GE, presety FULL w 4GE (clean sub 70 Hz, lżejszy clip), w RE4GE sub zostaje na nucie (oktawy z TUNE
   pomijane), ROOM na ogonie przed odwróceniem, presety ogonów z otwartą górą (HIGH CUT 9 kHz).
 
+## RE4GE – dokument architektury właściciela (2026-11-01) – wnioski ogólne
+- **Specjalizacja > rozmiar.** Wartością wtyczki jest kilka dopracowanych funkcji-znaków rozpoznawczych, nie liczba modułów
+  („lepiej pięć naprawdę dobrych modułów niż dwadzieścia niedopracowanych”). Kolejny moduł dopiero, gdy poprzedni brzmi – bramka uchem + A/B.
+- **Klasyka łatwa, ale nie klatka.** Gotowy klasyczny brzmienie jednym kliknięciem, a cała reszta ma pozwalać zrobić coś nowego.
+- **Brzmienie gatunkowe ≠ trik techniczny.** Reverse bass to ruch (narastanie, podjazd, reset fazy, otwierające się harmoniczne, cisza przed
+  kickiem), a nie odwrócony sampel – odwracanie to jedno ze źródeł. Ten sam błąd groził w RE4GE v0.1 / v0.2 (INIT i presety na TAIL).
+- **Każda widoczna gałka musi zmieniać dźwięk** – sprawdzać testem min vs max dla każdego parametru (atrapy w GUI = błąd produktu).
+- **Przewidywalność**: ten sam preset / MIDI / tempo = ten sam wynik co do próbki; losowość ze stałym zarodkiem, domyślnie wyłączona;
+  wynik nie zależy od rozmiaru bufora (stałe kawałki wewnętrzne) ani od SR.
+- **Kierunek obwiedni**: klasyczny ruch reverse bassu jest PRZED kickiem – obwiednie potrzebują ANCHOR END (liczone wstecz od końca kroku),
+  zwykłe AHDSR od startu nuty tego nie zrobi.
+- **Wartości z dokumentu sprawdzać fizyką**: PITCH / PHASE sterują oscylatorami (nie obrabiają gotowego dźwięku), PRE EQ musi być przed
+  przesterem, odwrócenie audio na żywo wymaga przeszłości (ogon poprzedniego kicka / CAPTURE), lookahead = opóźnienie, szeroki sub = dziury w mono.
+- **Zbyt wiele zakładek = nieczytelne** (4GE): główny ekran z makrami + szybkie gałki musi wystarczyć do większości pracy.
+
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
   odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:

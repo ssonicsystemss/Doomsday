@@ -81,7 +81,8 @@ szablon MULTIBAND; automatyczne wyrównanie opóźnień między torami. Domyśln
 zmiany), działają **na wierzch** gałek (0 = to, co w modułach), automatyzowalne. Obok szybkie gałki: BASS TAIL, CLICK, TAIL SHAPE, BASS GATE,
 KICK INTERACTION. **MAIN wystarcza do 80 % pracy** (lekcja z 4GE: za dużo zakładek = nieczytelne).
 Nawigacja: pionowy pasek po lewej w 5 blokach – SOUND (OSC · KICK · SUB), MOTION (PITCH · ENVELOPE · SHAPE), TONE (FILTER · DISTORT · FX),
-RHYTHM & MOD (SEQ · MOD), OUT (OUTPUT); PRESETS jako wysuwana przeglądarka (do potwierdzenia przez właściciela: ten układ vs 14 zakładek).
+RHYTHM & MOD (SEQ · MOD), OUT (OUTPUT); PRESETS jako wysuwana przeglądarka. **Potwierdzone przez właściciela (2026-11-01): 14 zakładek
+= przeładowany interfejs i brak miejsca na kontrolki przy mniejszych rozdzielczościach.**
 Wygląd: styl flat z `Shared/DESIGN.md`, akcent **czerwony**, grafit / czerń, białe opisy, duże pokrętła makr, animowany oscyloskop,
 podświetlenie włączonych modułów; skalowanie 75–200 % zapamiętywane; każda gałka: nazwa, wartość, tooltip, wpisywanie, automacja, MIDI Learn,
 menu (reset, learn, copy / paste, FREEZE); copy / paste modułów. Makieta przed kodowaniem GUI (do potwierdzenia).

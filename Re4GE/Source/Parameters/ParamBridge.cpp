@@ -38,6 +38,18 @@ re::Params gatherParams (const AudioProcessorValueTreeState& apvts)
     p.subHz = get (subHz); p.subDb = get (subLevel); p.clip = get (clip); p.levelDb = get (level); p.velocitySens = get (velocity);
     p.uniVoices = roundToInt (get (uniVoices)); p.uniDetuneCt = get (uniDetune); p.driftCt = get (uniDrift); p.uniMix = get (uniMix);
     p.stereoWidth = get (stereoWidth); p.splitHz = get (widthSplit);
+    p.osc1Db = get (osc1Level);
+    for (int o = 2; o <= 4; ++o)
+    {
+        auto& x = p.osc[(size_t) (o - 2)];
+        x.wave = ch (oscId (o, "wave"), 5); x.levelDb = get (oscId (o, "level")); x.oct = get (oscId (o, "oct")); x.semi = get (oscId (o, "semi"));
+        x.fineCt = get (oscId (o, "fine")); x.phaseDeg = get (oscId (o, "phase")); x.width = get (oscId (o, "width"));
+        x.sync = get (oscId (o, "sync")) > 0.5f; x.pm = get (oscId (o, "pm"));
+    }
+    p.phaseFree = get (phaseMode) > 0.5f;
+    p.preEnvOct = get (preEnv); p.preKey = get (preKey);
+    p.dist2Type = ch (dist2Type, 5); p.dist2Db = get (dist2Drive); p.dist2Mix = get (dist2Mix);
+    for (int k = 0; k < 8; ++k) p.macro[(size_t) k] = get (macros[k]);
     return p;
 }
 }

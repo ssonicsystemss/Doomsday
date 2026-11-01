@@ -52,6 +52,13 @@ namespace re
             const double r = juce::jlimit (0.0, 1.0, (t - startAt) / T);
             st += (p.pitchMode == Bounce ? 0.5 : 1.0) * p.pitchSt * r * r;
         }
+        if (p.extraDropSt != 0.f) st += p.extraDropSt * std::exp (-3.0 * juce::jmax (0.0, t - tm.delay) / T);          // PITCH macro
+        if (p.extraRiseSt != 0.f)                                                                                         // REVERSE macro: a rise into the kick
+        {
+            const double R = juce::jmax (60.0, T), startAt = p.gate ? tm.delay : tm.gateEnd - R;
+            const double r = juce::jlimit (0.0, 1.0, (t - startAt) / R);
+            st += p.extraRiseSt * r * r;
+        }
         return st;
     }
 }

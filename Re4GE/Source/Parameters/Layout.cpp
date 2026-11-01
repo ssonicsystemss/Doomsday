@@ -112,6 +112,28 @@ namespace
         l.add (f (uniMix, "UNISON Mix", { 0.f, 1.f }, 0.6f, fm::pct, fm::pctIn));
         l.add (f (stereoWidth, "STEREO Width", { 0.f, 1.f }, 0.4f, fm::pct, fm::pctIn));
         l.add (f (widthSplit, "STEREO Width From", skew (80.f, 1500.f, 350.f), 350.f, fm::hz, fm::hzIn));
+        // ---- v0.4: step 1 (appended: the order of Tests/param_ids.txt)
+        l.add (f (osc1Level, "OSC1 Level", { -60.f, 6.f }, 0.f, offDb, fm::num));
+        for (int o = 2; o <= 4; ++o)
+        {
+            const String n = "OSC" + String (o) + " ";
+            l.add (c (oscId (o, "wave"), n + "Wave", Choices::oscWaves, 2));
+            l.add (f (oscId (o, "level"), n + "Level", { -60.f, 6.f }, -60.f, offDb, fm::num));
+            l.add (f (oscId (o, "oct"), n + "Octave", { -2.f, 3.f, 1.f }, 0.f, [] (float v, int) { return (v > 0.f ? "+" : "") + String (roundToInt (v)) + " oct"; }, fm::num));
+            l.add (f (oscId (o, "semi"), n + "Semi", { -12.f, 12.f, 1.f }, 0.f, fm::semi, fm::num));
+            l.add (f (oscId (o, "fine"), n + "Fine", { -100.f, 100.f }, 0.f, fm::cents, fm::num));
+            l.add (f (oscId (o, "phase"), n + "Phase", { 0.f, 360.f }, 0.f, [] (float v, int) { return String (roundToInt (v)) + String (CharPointer_UTF8 ("\xc2\xb0")); }, fm::num));
+            l.add (f (oscId (o, "width"), n + "Width", { 0.f, 1.f }, 0.5f, fm::pct, fm::pctIn));
+            l.add (b (oscId (o, "sync"), n + "Sync", false));
+            l.add (f (oscId (o, "pm"), n + "PM", { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
+        }
+        l.add (c (phaseMode, "PHASE Mode", Choices::phaseModes, 0));
+        l.add (f (preEnv, "FILTER Pre Env", { -4.f, 4.f }, 0.f, [] (float v, int) { return (v > 0.f ? "+" : "") + String (v, 1) + " oct"; }, fm::num));
+        l.add (f (preKey, "FILTER Pre Key Track", { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
+        l.add (c (dist2Type, "DIST2 Type", Choices::distTypes, 1));
+        l.add (f (dist2Drive, "DIST2 Drive", { 0.f, 40.f }, 0.f, [] (float v, int) { return v < 0.05f ? String ("OFF") : fm::db (v, 0); }, fm::num));
+        l.add (f (dist2Mix, "DIST2 Mix", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
+        for (int k = 0; k < 8; ++k) l.add (f (macros[k], "MACRO " + macroNames[k], { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
         return l;
     }
 }

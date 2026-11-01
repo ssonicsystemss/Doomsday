@@ -99,6 +99,23 @@ int main (int argc, char** argv)
     outDir.createDirectory();
     using namespace ParamIDs;
     ReProcessor p; Host host;
+    // RenderTest <outdir> --render <settings.txt> <out.wav> [bpm] [beats]: 'preset <name>' / '<id> <value>' lines -> a WAV (for matching)
+    if (argc > 4 && String (argv[2]) == "--render")
+    {
+        StringArray lines; lines.addLines (File::getCurrentWorkingDirectory().getChildFile (argv[3]).loadFileAsString());
+        for (auto& ln : lines)
+        {
+            auto t = StringArray::fromTokens (ln.trim(), " ", ""); if (t.size() < 2) continue;
+            if (t[0] == "preset") p.setCurrentProgram (byName (p, ln.fromFirstOccurrenceOf ("preset ", false, false).trim().toRawUTF8()));
+            else set (p, t[0], t[1].getFloatValue());
+        }
+        host.bpm = argc > 5 ? String (argv[5]).getDoubleValue() : 147.0;
+        const int beatsN = argc > 6 ? String (argv[6]).getIntValue() : 4;
+        auto b = play (p, host, everyBeat (beatsN, host.bpm), beatsN * 60.0 / host.bpm);
+        writeWav (File::getCurrentWorkingDirectory().getChildFile (argv[4]), b);
+        printf ("peak %.2f\n", b.getMagnitude (0, 0, b.getNumSamples()));
+        return 0;
+    }
 
     // 1) every preset: clean, audible, not over 0 dBFS; render with kicks for listening
     {
@@ -292,6 +309,10 @@ int main (int argc, char** argv)
             { "INIT", { { timing, 1.f }, { sustain, 0.f }, { decayMs, 150.f }, { holdMs, 50.f } } },
             { "INIT", { { keyTrack, 0.f }, { pitchMode, 3.f } } },
             { "PULSE", {} },
+            { "INIT", { { source, 0.f }, { dist2Drive, 14.f }, { dist2Type, 2.f },
+                        { oscId (2, "level"), 0.f }, { oscId (2, "wave"), 4.f }, { oscId (2, "semi"), 7.f },
+                        { oscId (3, "level"), 0.f }, { oscId (3, "wave"), 4.f }, { oscId (3, "semi"), 5.f },
+                        { oscId (4, "level"), 0.f }, { oscId (4, "wave"), 4.f }, { oscId (4, "semi"), 3.f } } },
             { "GATE", {}, false, true },
             { "GATE", { { source, 1.f } }, false, true } };
         String dead; int tested = 0;
@@ -309,6 +330,8 @@ int main (int argc, char** argv)
                 rp->setValueNotifyingHost (0.f); const auto a = play (p, host, notes, 0.8);
                 rp->setValueNotifyingHost (1.f); const auto b = play (p, host, notes, 0.8);
                 if (diff (a, b) > 1.0e-4) { moves = true; break; }
+                rp->setValueNotifyingHost (0.5f);                                   // circular knobs (PHASE 0 = 360): min vs the middle
+                if (diff (a, play (p, host, notes, 0.8)) > 1.0e-4) { moves = true; break; }
             }
             if (! moves) dead << rp->paramID << " ";
         }

@@ -1,6 +1,7 @@
 #pragma once
 // RE4GE - the engine's settings (filled from the parameters by Parameters/ParamBridge; DSP knows no APVTS / GUI / files)
 #include "GeKick.h"       // (Shared) ge::Params: the kick tail settings
+#include <array>
 
 namespace re
 {
@@ -39,5 +40,17 @@ namespace re
         // UNISON / WIDTH: the centre chain is plain (its lows below SPLIT + the SUB stay mono and stable),
         // the left / right chains add detuned, drifting copies (SYNTH: oscillators, TAIL / SAMPLE: extra read heads) for the mids / highs
         int uniVoices = 1; float uniDetuneCt = 18.f, driftCt = 6.f, uniMix = 0.6f, stereoWidth = 0.4f, splitHz = 350.f;
+
+        // ---- v0.4 (step 1: the core) ----
+        float osc1Db = 0.f;                     // OSC 1 = the source above (SYNTH / TAIL / SAMPLE)
+        struct Osc { int wave = 2; float levelDb = -60.f, oct = 0.f, semi = 0.f, fineCt = 0.f, phaseDeg = 0.f, width = 0.5f, pm = 0.f; bool sync = false; };
+        std::array<Osc, 3> osc {};              // OSC 2 / 3 / 4 (levelDb <= -59 = off)
+        bool phaseFree = false;                 // PHASE: RESET (lock, every step the same) / FREE
+        float preEnvOct = 0.f, preKey = 0.f;    // PRE FILTER: cutoff follows the envelope (octaves; the knob = cutoff at the peak) + key track
+        int dist2Type = 1; float dist2Db = 0.f, dist2Mix = 1.f;   // STAGE 2 after the bell (0 dB = off)
+        std::array<float, 8> macro {};          // BODY / WEIGHT / REVERSE / PITCH / GRIT / BITE / MOVEMENT / SPACE (0 = the modules as set)
+        // set by the macros (not knobs): extra pitch movement, the BODY / BITE bells
+        float extraRiseSt = 0.f, extraDropSt = 0.f, bodyDb = 0.f, biteDb = 0.f;
     };
+    enum OscWave { WSine = 0, WTri = 1, WSaw = 2, WSquare = 3, WPulse = 4, WNoise = 5 };
 }

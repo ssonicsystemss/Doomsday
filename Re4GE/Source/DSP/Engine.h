@@ -2,7 +2,8 @@
 // =====================================================================
 //  RE4GE - the engine: puts the DSP components together (no APVTS, no GUI, no files - those live in Parameters/, GUI/, Presets/)
 //
-//  TRIGGER (Trigger.h) -> SOURCE: SYNTH (Oscillator.h) / KICK TAIL backwards (KickTail.h) / SAMPLE (readBuf)
+//  TRIGGER (Trigger.h) -> OSC 1: SYNTH (Oscillator.h) / KICK TAIL backwards (KickTail.h) / SAMPLE (readBuf) + OSC 2-4 (OscBank.h)
+//  (MACROS (Macros.h) move the settings on top of the knobs, once per grid point)
 //  -> x ENVELOPE (Envelope.h) -> TONE (ToneChain.h) per chain -> SUB on the centre (LowEnd.h) -> STEREO (LowEnd.h) -> OUTPUT
 //  Three chains: centre (0), left (1), right (2); left / right only with UNISON + WIDTH.
 //  Rendered 4x oversampled (the oversampler and every buffer are made once, in the constructor).
@@ -19,6 +20,8 @@
 #include "KickTail.h"
 #include "ToneChain.h"
 #include "LowEnd.h"
+#include "OscBank.h"
+#include "Macros.h"
 #include <atomic>
 
 namespace re
@@ -39,7 +42,7 @@ namespace re
             tail.prepare (sr);
             guiCap = juce::jmin ((int) gui.size(), (int) (sr * 2.0));
             clock = 0;
-            p = pending;
+            p = applyMacros (pending);
             cook();
             stop();
         }
@@ -82,18 +85,21 @@ namespace re
             sub.cook (p, osr);
             stereo.cook (p, osr);
             sineG = p.sineDb <= -59.f ? 0.0 : std::pow (10.0, p.sineDb / 20.0);
+            osc1G = p.osc1Db <= -59.f ? 0.f : std::pow (10.f, p.osc1Db / 20.f);
+            OscBank::cook (p, osr, oscG, oscMult, oscNoise);
+            oscOn = OscBank::any (p);
             levelG = std::pow (10.f, p.levelDb / 20.f);
             ampC = (float) (1.0 - std::exp (-1.0 / (0.0005 * osr)));        // 0.5 ms smoothing: no clicks between steps
         }
         void noteOn (int note, float velocity, bool isAudition)
         {
-            if (clock % grid == 0) { p = pending; cook(); }       // a note on a grid point already gets this block's settings
+            if (clock % grid == 0) { p = applyMacros (pending); cook(); }       // a note on a grid point already gets this block's settings
             trig.noteOn (note, isAudition);
             playNote = p.keyTrack ? note : p.fixedNote;
             hz = 440.0 * std::pow (2.0, (playNote - 69 + p.tuneSt + p.fineCt * 0.01) / 12.0);
             subHzNote = Sub::noteHz (playNote, p);
             vel = 1.f - p.velocitySens * (1.f - velocity);
-            uCount = 0;
+            uCount = 0; preCount = 0;
             if (p.source == SrcTail) { beginTail(); if (p.gate) tail.finish(); }
             playing = sample.load();
             guiWrite = 0; hitSerial.fetch_add (1);
@@ -106,7 +112,7 @@ namespace re
         {
             while (len > 0)
             {
-                if (clock % grid == 0) { p = pending; cook(); }
+                if (clock % grid == 0) { p = applyMacros (pending); cook(); }
                 const int n = juce::jmin (len, grid - (int) (clock % grid));
                 renderChunk (buffer, start, n);
                 start += n; len -= n; clock += (uint64_t) n;
@@ -118,6 +124,7 @@ namespace re
             double phase = 0.0, readPos = 0.0;
             std::array<double, 6> uph {}, upos {};
             ToneChain tone;
+            OscBank::State ob;
             void clear() { *this = Chain(); }
         };
         // the start of a new step (or of the note in GATE mode): phases reset, the backwards read starts
@@ -125,12 +132,12 @@ namespace re
         {
             const Times& tm = trig.stepTimes();
             if (p.source == SrcTail && ! p.gate) { beginTail(); tail.pace (trig.msUntilAudible (p) * 0.001 * sr, grid); }   // live knobs: re-render if they changed
-            sub.resetPhase();
+            const bool lock = ! p.phaseFree;              // PHASE RESET (lock): every step starts the same; FREE: the phases run on
+            if (lock) sub.resetPhase();
             for (int sd = 0; sd < 3; ++sd)
             {
                 auto& c = ch[(size_t) sd];
-                c.phase = 0.0;
-                uniSeed (c.uph, sd);
+                if (lock) { c.phase = 0.0; uniSeed (c.uph, sd); OscBank::reset (p, c.ob, sd); }
                 if (p.source == SrcTail) c.readPos = p.gate ? (double) tail.length() - 2.0 : tm.gateEnd * 0.001 * sr;   // reaches the tail's start on the gate end
                 else if (p.source == SrcSample && playing != nullptr)
                 {
@@ -145,6 +152,17 @@ namespace re
 
         // one source sample of chain sd at the oversampled rate; e = envelope (warp ENV), ratio = pitch movement
         inline float source (int sd, double e, double ratio, bool refresh)
+        {
+            float y = osc1G > 0.f ? osc1G * sourceMain (sd, e, ratio, refresh) : (sourceMain (sd, e, ratio, refresh), 0.f);
+            if (oscOn)
+            {
+                const double det = sd == 0 ? 1.0 : std::exp2 (0.7 * uniCents (p, 0, 1, sd, trig.timeMs()) / 1200.0);
+                y += OscBank::render (p, ch[(size_t) sd].ob, hz * ratio, osr, det, oscG, oscMult, oscNoise);
+            }
+            return y;
+        }
+        // OSC 1 (the read heads / phases move on even when it is silent)
+        inline float sourceMain (int sd, double e, double ratio, bool refresh)
         {
             auto& c = ch[(size_t) sd];
             const int nu = sd > 0 && p.uniVoices > 1 ? juce::jmin (6, p.uniVoices - 1) : 0;
@@ -215,9 +233,13 @@ namespace re
                     const bool refresh = (uCount++ & 31) == 0;
                     const double ratio = std::pow (2.0, k.st / 12.0);
                     const float g = std::pow (10.f, p.driveDb * (1.f - p.driveEnv + p.driveEnv * amp) / 20.f);
+                    if (tone.dynPre && (preCount++ & 15) == 0)       // PRE FILTER ENV / KEY: the cutoff follows the envelope and the note
+                        preNow = doomsday::dsp::svfCoefs ((float) (p.preHz * std::exp2 (p.preEnvOct * (amp - 1.f)) * std::pow (hz / 65.406, (double) p.preKey)),
+                                                          ge::resoToK (p.preReso), osr);
+                    const auto& preC = tone.dynPre ? preNow : tone.pre;
                     float out[3] = { 0.f, 0.f, 0.f };
                     for (int sd = 0; sd < (w ? 3 : 1); ++sd)
-                        out[sd] = ch[(size_t) sd].tone.process (source (sd, amp, ratio, refresh) * amp, g, p, tone);
+                        out[sd] = ch[(size_t) sd].tone.process (source (sd, amp, ratio, refresh) * amp, g, p, tone, preC);
                     const float centre = sub.process (out[0], subHzNote, ratio, amp);
                     if (w) stereo.process (centre, out[1], out[2], yl, yr);
                     else yl = yr = centre;
@@ -255,7 +277,12 @@ namespace re
         Stereo stereo;
         std::array<Chain, 3> ch;
         std::array<std::array<double, 6>, 3> uRatio {};
-        uint32_t uCount = 0;
+        uint32_t uCount = 0, preCount = 0;
+        doomsday::dsp::SvfCoefs preNow;
+        float osc1G = 1.f;
+        std::array<float, 3> oscG {}, oscNoise {};
+        std::array<double, 3> oscMult {};
+        bool oscOn = false;
         int playNote = 31, guiCap = 0, guiWrite = 0;
         float vel = 1.f, amp = 0.f, postGate = 0.f, levelG = 1.f, ampC = 0.01f;
         std::unique_ptr<juce::dsp::Oversampling<float>> os;

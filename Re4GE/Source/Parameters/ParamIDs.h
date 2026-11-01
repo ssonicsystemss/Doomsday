@@ -4,7 +4,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.3";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.4";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";
@@ -90,6 +90,27 @@ namespace ParamIDs
     inline constexpr const char* stereoWidth = "st_width";     // ("width" is the pulse width)
     inline constexpr const char* widthSplit = "st_split";
 
+    // ---- v0.4: step 1 (the core) - new IDs only ever appended (Tests/param_ids.txt)
+    inline constexpr const char* osc1Level = "osc1_level";
+    inline const char* oscId (int osc, const char* what)      // osc 2..4: "osc2_wave", "osc3_level", ...
+    {
+        static const char* ids[3][9] {
+            { "osc2_wave", "osc2_level", "osc2_oct", "osc2_semi", "osc2_fine", "osc2_phase", "osc2_width", "osc2_sync", "osc2_pm" },
+            { "osc3_wave", "osc3_level", "osc3_oct", "osc3_semi", "osc3_fine", "osc3_phase", "osc3_width", "osc3_sync", "osc3_pm" },
+            { "osc4_wave", "osc4_level", "osc4_oct", "osc4_semi", "osc4_fine", "osc4_phase", "osc4_width", "osc4_sync", "osc4_pm" } };
+        static const char* names[9] { "wave", "level", "oct", "semi", "fine", "phase", "width", "sync", "pm" };
+        for (int k = 0; k < 9; ++k) if (std::strcmp (names[k], what) == 0) return ids[juce::jlimit (2, 4, osc) - 2][k];
+        jassertfalse; return ids[0][0];
+    }
+    inline constexpr const char* phaseMode = "phase_mode";
+    inline constexpr const char* preEnv    = "flt_pre_env";
+    inline constexpr const char* preKey    = "flt_pre_key";
+    inline constexpr const char* dist2Type = "dist2_type";
+    inline constexpr const char* dist2Drive = "dist2_drive";
+    inline constexpr const char* dist2Mix  = "dist2_mix";
+    inline constexpr const char* macros[8] { "mac_body", "mac_weight", "mac_reverse", "mac_pitch", "mac_grit", "mac_bite", "mac_movement", "mac_space" };
+    inline const juce::StringArray macroNames { "BODY", "WEIGHT", "REVERSE", "PITCH", "GRIT", "BITE", "MOVEMENT", "SPACE" };
+
     // v0.1 / v0.2 IDs -> v0.3 (old user presets still load); the v0.3 IDs are FROZEN: never rename (Tests/param_ids.txt)
     inline const char* legacy (const char* old)
     {
@@ -163,5 +184,7 @@ namespace Choices
     inline const juce::StringArray warps { "OFF", "BEND", "SQUEEZE", "SYNC", "MIRROR" };
     inline const juce::StringArray distTypes { "SOFT", "TUBE", "HARD", "FOLD", "RAW", "CRUSH" };
     inline const juce::StringArray filterTypes { "OFF", "LP", "HP", "BP", "NOTCH" };
+    inline const juce::StringArray oscWaves { "SINE", "TRI", "SAW", "SQUARE", "PULSE", "NOISE" };
+    inline const juce::StringArray phaseModes { "RESET", "FREE" };
     inline const juce::StringArray pitchModes { "STABLE", "DROP", "RISE", "BOUNCE" };
 }

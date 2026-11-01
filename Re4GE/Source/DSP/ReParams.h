@@ -1,0 +1,43 @@
+#pragma once
+// RE4GE - the engine's settings (filled from the parameters by Parameters/ParamBridge; DSP knows no APVTS / GUI / files)
+#include "GeKick.h"       // (Shared) ge::Params: the kick tail settings
+
+namespace re
+{
+    enum Source { SrcSynth = 0, SrcTail = 1, SrcSample = 2 };
+    enum PitchMode { Stable = 0, Drop = 1, Rise = 2, Bounce = 3 };
+    enum Warp { WarpOff = 0, Bend = 1, Squeeze = 2, Sync = 3, Mirror = 4 };
+
+    struct Params
+    {
+        // trigger / timing
+        bool gate = false, sync = true;
+        double stepBeats = 1.0;                 // 1 = 1/4, 0.5 = 1/8, 0.25 = 1/16
+        int mask = 15, beats = 1;               // MASK bit i = step i of each beat plays
+        float offsetPct = 0.f;                  // shifts the steps (0..50 % of a step)
+        // envelope
+        float delayPct = 36.f, holdPct = 100.f, decayPct = 0.f, gatePct = 98.f;
+        float delayMs = 120.f, holdMs = 400.f, decayMs = 0.f, gateMs = 380.f;
+        float duck = 0.f, initial = 0.f, swellMs = 60.f, curve = 0.6f, sustain = 1.f, decayCurve = 1.5f, fadeMs = 25.f;
+        // source
+        int source = SrcTail;
+        float blend = 0.3f, width = 0.5f, sineDb = -6.f;
+        int warp = WarpOff; float warpAmt = 0.f, warpEnv = 0.f;
+        ge::Params tail;                        // the kick tail (only the tail / distortion part is used)
+        float tailLenMs = 300.f;                // GATE mode: how much tail is played backwards
+        float tailRoom = 0.f, tailRoomSize = 0.5f;   // a room on the tail BEFORE it is reversed: backwards it swells up
+        bool sampleReverse = true; int root = 31; float sampleStartMs = 0.f;
+        // pitch
+        int pitchMode = Stable; float pitchSt = 12.f, pitchMs = 60.f, tuneSt = 0.f, fineCt = 0.f;
+        bool keyTrack = true; int fixedNote = 29;
+        // tone
+        int preType = 0; float preHz = 800.f, preReso = 0.2f;
+        int distType = 0; float driveDb = 10.f, driveEnv = 0.f, bias = 0.f, mix = 1.f;
+        float lowCutHz = 20.f, highCutHz = 900.f, bellHz = 700.f, bellDb = 0.f, bellQ = 1.f;
+        float subHz = 90.f, subDb = 0.f;        // SUB: below subHz the bass is a clean sine (20 = off)
+        float clip = 0.2f, levelDb = -3.f, velocitySens = 0.f;
+        // UNISON / WIDTH: the centre chain is plain (its lows below SPLIT + the SUB stay mono and stable),
+        // the left / right chains add detuned, drifting copies (SYNTH: oscillators, TAIL / SAMPLE: extra read heads) for the mids / highs
+        int uniVoices = 1; float uniDetuneCt = 18.f, driftCt = 6.f, uniMix = 0.6f, stereoWidth = 0.4f, splitHz = 350.f;
+    };
+}

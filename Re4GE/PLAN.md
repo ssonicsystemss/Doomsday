@@ -126,7 +126,9 @@ próbki), stop / start / pętla / przeskok, SR 44.1–192, bufory 1…4096 i zmi
 Ostateczny test: **ucho właściciela + A/B z jego samplami** (Bass_15 / 16, FHSP, kick_hardstyle_28 / 84).
 
 ## Kolejność budowy (propozycja)
-0. Przebudowa bez nowych funkcji: podział na komponenty, kawałki 32 próbki, ID uporządkowane, ogon kicka liczony na żywo, testy podstawowe.
+0. ✅ **(v0.3, 2026-11-01)** Przebudowa bez nowych funkcji: podział na komponenty, kawałki 32 próbki, ID uporządkowane i zamrożone, ogon kicka bez skoków CPU
+   + gałki na żywo (render rozłożony na ciszę przed basem, 2 bufory; „generowanie wstecz w czasie” odrzucone, bo ROOM i dzwonienie filtrów
+   potrzebują przyszłości ogona), testy podstawowe. Brzmienie identyczne z v0.2 (±1 LSB).
 1. Rdzeń brzmienia: OSC 1–4 + unison / sync, pitch, phase (LOCK), AMP + Reverse Amount, filtr, 2 × przester + ADAA, sub, stereo, 8 makr,
    MAIN. **Bramka: A/B z jego samplami, aż powie „jest”.**
 2. Reverse Shape Designer.

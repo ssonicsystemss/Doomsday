@@ -1,7 +1,7 @@
 // Offline checks for RE4GE (reverse bass)
 //   RenderTest <outdir>       tests, preset renders (with a short kick on top, for listening), GUI snapshots
 #include "../Source/PluginProcessor.h"
-#include "../Source/PluginEditor.h"
+#include "../Source/GUI/PluginEditor.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <chrono>
 
@@ -20,20 +20,22 @@ struct Host : AudioPlayHead
 };
 
 // notes: (start ms, length ms, note); renders `seconds`
-struct Note { double at, len; int note; };
-static AudioBuffer<float> play (ReProcessor& p, Host& h, std::vector<Note> notes, double seconds)
+struct Note { double at, len; int note; float vel = 1.f; };
+// bufferSize < 0 = random sizes 1..1500 (seeded)
+static AudioBuffer<float> play (ReProcessor& p, Host& h, std::vector<Note> notes, double seconds, int bufferSize = block)
 {
     p.setPlayHead (&h);
-    p.prepareToPlay (sr, block);
+    p.prepareToPlay (sr, bufferSize > 0 ? bufferSize : 1500);
     AudioBuffer<float> out (2, (int) (sr * seconds)); out.clear();
-    for (int pos = 0; pos < out.getNumSamples(); pos += block)
+    Random rnd (77);
+    for (int pos = 0, n = 0; pos < out.getNumSamples(); pos += n)
     {
-        const int n = jmin (block, out.getNumSamples() - pos);
+        n = jmin (bufferSize > 0 ? bufferSize : 1 + rnd.nextInt (1500), out.getNumSamples() - pos);
         AudioBuffer<float> b (2, n); b.clear(); MidiBuffer m;
         for (auto& nt : notes)
         {
             const int on = (int) (nt.at * 0.001 * sr), off = (int) ((nt.at + nt.len) * 0.001 * sr);
-            if (on >= pos && on < pos + n) m.addEvent (MidiMessage::noteOn (1, nt.note, 1.f), on - pos);
+            if (on >= pos && on < pos + n) m.addEvent (MidiMessage::noteOn (1, nt.note, nt.vel), on - pos);
             if (off >= pos && off < pos + n) m.addEvent (MidiMessage::noteOff (1, nt.note), off - pos);
         }
         p.processBlock (b, m);
@@ -49,6 +51,11 @@ static double rms (const AudioBuffer<float>& b, double fromMs, double toMs)
     return std::sqrt (acc / jmax (1, e - a));
 }
 static int byName (ReProcessor& p, const char* start) { for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith (start)) return i; return 0; }
+static double diff (const AudioBuffer<float>& a, const AudioBuffer<float>& b)
+{
+    double d = 0; for (int ch = 0; ch < 2; ++ch) for (int i = 0; i < jmin (a.getNumSamples(), b.getNumSamples()); ++i) d = jmax (d, (double) std::abs (a.getSample (ch, i) - b.getSample (ch, i)));
+    return d;
+}
 static bool finite (const AudioBuffer<float>& b) { for (int i = 0; i < b.getNumSamples(); ++i) if (! std::isfinite (b.getSample (0, i))) return false; return true; }
 static void writeWav (const File& f, const AudioBuffer<float>& b)
 {
@@ -210,7 +217,105 @@ int main (int argc, char** argv)
         const double secs = std::chrono::duration<double> (std::chrono::high_resolution_clock::now() - t0).count();
         check (secs / 10.0 < 0.15, "CPU (10 s at 150 BPM, TAIL source)", String (secs / 10.0 * 100.0, 1) + " %");
     }
-    // 11) GUI: editor stress + snapshots of the three pages
+    // 12) the result never depends on the host's buffer size (internal 32-sample grid): 1, 7, 64, 333, 4096 and random sizes
+    {
+        double worst = 0; String why;
+        for (const char* pre : { "PUMP - QL Tail", "SWELL - Synth Bend", "GATE", "PULSE" })
+        {
+            p.setCurrentProgram (byName (p, pre)); host.bpm = 150.0;
+            const bool gate = String (pre) == "GATE";
+            auto notes = gate ? std::vector<Note> { { 30.0, 300.0, 31 }, { 500.0, 200.0, 34 } } : everyBeat (2, 150.0);
+            const auto ref = play (p, host, notes, 0.8, 512);
+            for (int bs : { 1, 7, 64, 333, 4096, -1 })
+            {
+                const double d = diff (ref, play (p, host, notes, 0.8, bs));
+                if (d > worst) { worst = d; why = String (pre) + " @ " + String (bs); }
+            }
+        }
+        // (block 1: the oversampler's float rounding differs by ~1e-8 = -160 dB; everything else is bit-identical)
+        check (worst < 1.0e-6, "buffer size 1 / 7 / 64 / 333 / 4096 / random: the same samples", "max diff " + String (worst, 9) + (worst > 0 ? " (" + why + ")" : String()));
+    }
+    // 13) parameter IDs are frozen since v0.3: the layout must match Tests/param_ids.txt exactly (add new IDs at the end, never rename)
+    {
+        StringArray now; for (auto* prm : p.getParameters()) if (auto* rp = dynamic_cast<RangedAudioParameter*> (prm)) now.add (rp->paramID);
+        const File list = File (__FILE__).getSiblingFile ("param_ids.txt");
+        if (SystemStats::getEnvironmentVariable ("RE4GE_WRITE_IDS", {}).isNotEmpty()) list.replaceWithText (now.joinIntoString ("\n") + "\n");
+        StringArray frozen; frozen.addLines (list.loadFileAsString()); frozen.removeEmptyStrings();
+        String missing; for (auto& id : frozen) if (! now.contains (id)) missing << id << " ";
+        String extra; for (auto& id : now) if (! frozen.contains (id)) extra << id << " ";
+        check (frozen.size() > 0 && missing.isEmpty() && extra.isEmpty(), "parameter IDs = Tests/param_ids.txt (frozen)",
+               String (now.size()) + " IDs" + (missing.isNotEmpty() ? " MISSING: " + missing : String()) + (extra.isNotEmpty() ? " NOT IN LIST: " + extra : String()));
+        int legacyOk = 0; for (auto* old : { "drive", "high_cut", "trigger", "width", "tail_highcut", "stereo_width" }) legacyOk += now.contains (ParamIDs::legacy (old)) ? 1 : 0;
+        check (legacyOk == 6, "old v0.2 IDs map to v0.3 IDs (old user presets load)");
+    }
+    // 14b) KICK TAIL: knobs work live (PATTERN, one note for 4 beats: a TAIL DRIVE change after beat 1 is heard from beat 2 on),
+    //      and no CPU spike on the note (the tail renders over the silent DELAY, not in one block)
+    {
+        p.setCurrentProgram (byName (p, "PUMP - QL Tail")); host.bpm = 150.0; set (p, beats, 2.f);       // BEATS 4
+        p.setPlayHead (&host); p.prepareToPlay (sr, block);
+        const int beatS = (int) (0.4 * sr);
+        AudioBuffer<float> out (2, beatS * 4); out.clear();
+        double worstMs = 0.0;
+        for (int pos = 0; pos < out.getNumSamples(); pos += block)
+        {
+            const int n = jmin (block, out.getNumSamples() - pos);
+            if (pos >= beatS && pos - block < beatS) set (p, tailDrive, 6.f);
+            AudioBuffer<float> b (2, n); b.clear(); MidiBuffer m; if (pos == 0) m.addEvent (MidiMessage::noteOn (1, 31, 1.f), 0);
+            const auto t0 = std::chrono::high_resolution_clock::now();
+            p.processBlock (b, m);
+            worstMs = jmax (worstMs, std::chrono::duration<double, std::milli> (std::chrono::high_resolution_clock::now() - t0).count());
+            for (int ch = 0; ch < 2; ++ch) out.copyFrom (ch, pos, b, ch, 0, n);
+        }
+        // beat 1 vs beat 3: different tails (drive 29.5 -> 6 dB)
+        double d = 0; for (int i = 0; i < beatS; ++i) d += std::abs (out.getSample (0, i) - out.getSample (0, i + 2 * beatS));
+        const double blockMs = 1000.0 * block / sr;
+        check (d > 1.0, "KICK TAIL knobs work live (a change mid-note is heard on the next step)", "diff " + String (d, 2));
+        check (worstMs < blockMs * 0.25, "KICK TAIL: no CPU spike on the note (worst block)", String (worstMs, 2) + " ms of " + String (blockMs, 1) + " ms");
+    }
+    // 14) every knob changes the sound: min vs max, in at least one of the contexts where it matters
+    {
+        // a short reversed-kick-like WAV for the SAMPLE source
+        const File wav = outDir.getChildFile ("test_sample.wav");
+        {
+            AudioBuffer<float> k (2, (int) (sr * 0.6)); double ph = 0;
+            for (int i = 0; i < k.getNumSamples(); ++i) { const double t = i / sr; ph += (50.0 + 250.0 * std::exp (-t * 25.0)) / sr; const float v = (float) (std::tanh (3.0 * std::sin (6.2831853 * ph)) * std::exp (-t * 3.0)) * 0.7f; k.setSample (0, i, v); k.setSample (1, i, v); }
+            writeWav (wav, k);
+        }
+        struct Ctx { const char* preset; std::vector<std::pair<const char*, float>> extra; bool sample = false; bool gate = false; };
+        const std::vector<Ctx> ctxs {
+            { "PUMP - QL Tail", {} },
+            { "SWELL - Synth Bend", {} },
+            { "OWNER - 1", {} },
+            { "INIT", { { source, 0.f }, { warp, 0.f } } },
+            { "INIT", { { source, 2.f } }, true },
+            { "INIT", { { timing, 1.f } } },
+            { "INIT", { { timing, 1.f }, { sustain, 0.f }, { decayMs, 150.f }, { holdMs, 50.f } } },
+            { "INIT", { { keyTrack, 0.f }, { pitchMode, 3.f } } },
+            { "PULSE", {} },
+            { "GATE", {}, false, true },
+            { "GATE", { { source, 1.f } }, false, true } };
+        String dead; int tested = 0;
+        for (auto* prm : p.getParameters())
+        {
+            auto* rp = dynamic_cast<RangedAudioParameter*> (prm); if (rp == nullptr) continue;
+            ++tested;
+            bool moves = false;
+            for (auto& cx : ctxs)
+            {
+                p.setCurrentProgram (byName (p, cx.preset)); host.bpm = 150.0;
+                for (auto& [id, v] : cx.extra) set (p, id, v);
+                if (cx.sample) p.loadSample (wav); else p.clearSample();
+                auto notes = cx.gate ? std::vector<Note> { { 30.0, 500.0, 31, 0.6f } } : std::vector<Note> { { 0.0, 100.0, 31, 0.6f } };
+                rp->setValueNotifyingHost (0.f); const auto a = play (p, host, notes, 0.8);
+                rp->setValueNotifyingHost (1.f); const auto b = play (p, host, notes, 0.8);
+                if (diff (a, b) > 1.0e-4) { moves = true; break; }
+            }
+            if (! moves) dead << rp->paramID << " ";
+        }
+        p.clearSample();
+        check (dead.isEmpty(), "every parameter changes the sound (min vs max)", String (tested) + " params" + (dead.isNotEmpty() ? " DEAD: " + dead : String()));
+    }
+    // 15) GUI: editor stress + snapshots of the three pages
     {
         p.setCurrentProgram (byName (p, "PUMP - QL Tail"));
         std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());

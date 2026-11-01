@@ -1,5 +1,5 @@
 #pragma once
-#include "PluginProcessor.h"
+#include "../PluginProcessor.h"
 #include "DoomsdayUI.h"
 #include "DoomsdayFlat.h"
 #include <map>

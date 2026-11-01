@@ -1,7 +1,18 @@
-# RE4GE v0.2
+# RE4GE v0.3
 
 **Reverse bass** jako osobny instrument VST3 (FL Studio). Wydzielony z 4GE i zbudowany według analizy architektury reverse bassu
 (`Shared/RESEARCH.md`, „Reverse bass”). Przester, filtry i ogon kicka są te same co w 4GE (wspólny silnik `Shared/Source/GeKick.h`).
+
+## v0.3 (krok 0 planu): PRZEBUDOWA W ŚRODKU, BRZMIENIE BEZ ZMIAN
+Fundament pod dalszą budowę (`PLAN.md`). Twoje presety i ustawienia grają tak samo jak w v0.2, sprawdzone próbka po próbce (różnica najwyżej −140 dB).
+- **Silnik podzielony na klocki** (`Source/DSP/`: trigger, obwiednia, oscylator, ogon kicka, ton, sub / stereo). Osobno parametry (`Parameters/`),
+  presety i pliki (`Presets/`) i GUI (`GUI/`). Dźwięk, wygląd i pliki nigdy nie są w jednym miejscu.
+- **Wynik nie zależy od bufora FL**: silnik liczy w kawałkach po 32 próbki. Bufor 1, 64, 512, 4096 albo zmienny daje ten sam dźwięk.
+- **Ogon kicka bez skoków CPU**: ogon liczy się po kawałku w ciszy przed basem, a nie cały naraz w chwili nuty.
+  **Gałki KICK TAIL działają na żywo**: przy BEATS 2–8 zmiana słychać od następnego kroku (wcześniej dopiero od nowej nuty).
+- **Nowe nazwy parametrów** z przedrostkami modułów (w FL na liście automacji: ENV Swell, DIST Drive, EQ High Cut…). Od teraz są **zamrożone na zawsze**
+  (lista w `Tests/param_ids.txt`, test pilnuje). Twoje zapisane presety `.re4ge` z v0.1 / v0.2 dalej się wczytują.
+- Nowe testy: każda gałka zmienia dźwięk (78 z 78), bufor bez wpływu na wynik, ID zamrożone, ogon na żywo, brak skoku CPU.
 
 ## v0.2: PEŁNIEJSZY BAS
 - **STEREO**: środek gra czysty (dół i SUB mono, stabilne), a lewo i prawo dostają rozstrojone, „pływające” kopie (SYNTH: dodatkowe oscylatory,

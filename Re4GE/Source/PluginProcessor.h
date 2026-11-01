@@ -2,8 +2,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "DoomsdayParams.h"
 #include "DoomsdayUI.h"
-#include "ReEngine.h"
-#include "Params.h"
+#include "DSP/Engine.h"
+#include "Parameters/ParamIDs.h"
 
 class ReProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost
 {
@@ -31,7 +31,6 @@ public:
     void getStateInformation (juce::MemoryBlock& d) override;
     void setStateInformation (const void* data, int size) override;
 
-    static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     juce::UndoManager undo { 300000, 50 };      // Ctrl+Z (declared before apvts)
     juce::AudioProcessorValueTreeState apvts;
 

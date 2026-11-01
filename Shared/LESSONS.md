@@ -246,6 +246,14 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   CLEAN SUB w Forge podbijał 3. harmoniczną o +6 dB. → Zawsze **Linkwitz-Riley 24 dB** (2x Butterworth LP / HP, `Svf lp / hp`).
 - **Clipper za czystym subem zjada efekt** (sub znów robi się kwadratem). → Przy CLEAN SUB clipper dostaje tylko górę, sub idzie obok
   (miękkie kolano tuż pod 0 dBFS jako zabezpieczenie).
+- **Odwracany ogon renderowany przy nucie = skok CPU** (RE4GE v0.2: ~0.4 s ogona liczone w jednym bloku, ~2 ms; przy buforze 64 próbek
+  to trzask). → Render rozłożony na kawałki w ciszy przed basem (DELAY) do drugiego bufora, zamiana, gdy gotowy (`Re4GE/Source/DSP/KickTail.h`).
+  Pułapka przy tym: **głowica czytająca musi iść dalej, nawet gdy bufor jest jeszcze pusty**. W pierwszej wersji `return 0` przed
+  `readPos += inc` przesunął cały pierwszy bas (test porównania próbka po próbce ze starą wersją to złapał).
+- **Wynik zależny od bufora hosta**: ustawienia i współczynniki brane co blok hosta = inny dźwięk przy innym buforze. → Stała siatka
+  32 próbek w silniku (ustawienia tylko na niej), test: bufory 1 / 7 / 64 / 333 / 4096 / losowe = te same próbki.
+- **Przebudowa „bez zmiany brzmienia”**: najpierw zrzut renderów starej wersji (solo WAV-y z RenderTest), potem porównanie próbka po próbce.
+  Bez tego drobne błędy (jak ten z głowicą) przechodzą testy ogólne („czy gra”, „czy głośność OK”).
 - `juce::AudioBuffer` po utworzeniu ma śmieci → zawsze `clear()` (niestabilne testy).
 - W pluginach z `using namespace doomsday` niektóre `jmin / jmax<int64>` łapią przeciążenia z `juce::dsp::SIMDRegister` → użyj `std::min`.
 - Nazwa składowej klasy = nazwa z `ParamIDs` (np. `band`, `distType`) przesłania ID → pisz `ParamIDs::...`.

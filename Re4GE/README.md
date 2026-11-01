@@ -1,4 +1,19 @@
-# RE4GE v0.3
+# RE4GE v0.4
+
+## v0.4 (krok 1 planu, część 1): RDZEŃ BRZMIENIA + NOWY EKRAN
+- **Nowy ekran** według makiety. Po lewej pasek z blokami **01 SOUND / 02 PROCESS / 03 MODULATION / 04 SOURCE** (klik rozwija listę modułów,
+  moduł zajmuje prawą stronę), na dole oddzielony **05 SYSTEM** (Save, Folder, Random, Play). **Makra i MASTER zawsze na dole**, preset i BPM u góry.
+  Czerwona kropka przy module = moduł coś teraz robi. Na liście są tylko moduły, które już działają (MODULATION dojdzie w kroku 4).
+- **MAIN**: podgląd beatu + SOURCE (poziomy OSC 1–4, Tune), ENVELOPE, TONE (Drive, Stage 2, Filter, High cut), LOW END (Sub Hz, Sub, Width).
+- **OSC 2 / 3 / 4** obok OSC 1 (SYNTH / TAIL / SAMPLE): SINE / TRI / SAW / SQR / PULSE / NOISE, LEVEL (OFF), OCT, SEMI, FINE, PHASE, WIDTH
+  (PULSE: szerokość, NOISE: jasność), **SYNC** (twardy do nuty), **PM**. Wszystkie warstwy idą razem przez przester, stąd gęstość.
+- **PHASE**: RESET (każdy krok startuje tak samo) / FREE.
+- **FILTER**: Env (filtr otwiera się z narastaniem basu) i Key (wyższe nuty jaśniej).
+- **DISTORTION**: Stage 2 po EQ (z podbitej prezencji robi gęstą górę).
+- **8 MAKR**: BODY (220 Hz), WEIGHT (sub), REVERSE (późniejsze narastanie + podjazd + późne otwarcie), PITCH (odbicie z góry), GRIT (przester),
+  BITE (2 kHz + góra), MOVEMENT (unison), SPACE (szerokość). 0 = to, co ustawione w modułach.
+- Preset **CLASSIC - Dense Rise**: synteza dopasowana pomiarem do Twoich Bass_15 / 16.
+
 
 **Reverse bass** jako osobny instrument VST3 (FL Studio). Wydzielony z 4GE i zbudowany według analizy architektury reverse bassu
 (`Shared/RESEARCH.md`, „Reverse bass”). Przester, filtry i ogon kicka są te same co w 4GE (wspólny silnik `Shared/Source/GeKick.h`).

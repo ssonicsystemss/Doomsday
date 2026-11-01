@@ -353,15 +353,16 @@ int main (int argc, char** argv)
             dynamic_cast<ReEditor&> (*ed).getCanvas().tickForTest();
             if (it % 10 == 0) ed->createComponentSnapshot (ed->getLocalBounds(), true, 0.5f);
         }
-        p.setCurrentProgram (byName (p, "PUMP - QL Tail"));
+        p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise"));
         play (p, host, everyBeat (1, 150.0), 0.3);
-        for (int pg : { 0, 1, 2 })
+        const std::pair<int, const char*> pages[] { { 0, "gui_main.png" }, { 1, "gui_osc.png" }, { 3, "gui_envelope.png" }, { 4, "gui_shape.png" },
+                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 11, "gui_stereo.png" } };
+        for (auto [pg, name] : pages)
         {
             dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (pg);
             dynamic_cast<ReEditor&> (*ed).getCanvas().tickForTest();
             auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
-            const char* names[] { "gui_source.png", "gui_shape.png", "gui_tone.png" };
-            PNGImageFormat png; FileOutputStream fo (outDir.getChildFile (names[pg])); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
+            PNGImageFormat png; FileOutputStream fo (outDir.getChildFile (name)); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
         }
         p.setPlayHead (nullptr);
     }

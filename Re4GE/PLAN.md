@@ -137,6 +137,8 @@ Ostateczny test: **ucho właściciela + A/B z jego samplami** (Bass_15 / 16, FHS
    OSC 1 = obecne źródło (SYNTH / TAIL / SAMPLE) + osc1_level; OSC 2–4: SINE / TRI / SAW / SQUARE / PULSE / NOISE, LEVEL (OFF), OCT, SEMI,
    FINE, PHASE, WIDTH, SYNC (do fazy nuty), PM; w kanałach L / R po jednej rozstrojonej kopii (tanio). PHASE RESET / FREE.
    8 makr na stałych mapowaniach (matrix w kroku 4). Nowe ID tylko dopisywane na końcu `Tests/param_ids.txt`.
+   **Zrobione (v0.4, 2026-11-01):** to wszystko + nowy ekran (NAV / MAIN / makra + MASTER) + preset CLASSIC - Dense Rise (pasma ±2–4 dB,
+   gęstość 0,08 vs 0,18–0,30). Czeka na ucho właściciela (A/B). Dalej w kroku 1: ADAA, transient / click, sub OCT / HARMONICS, glide.
 2. Reverse Shape Designer.
 3. Distortion Lab (waveshaper rysowany, typy, oversampling 1–16×).
 4. Modulation Matrix + LFO 1–4.

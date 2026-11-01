@@ -5,13 +5,14 @@
 #include <map>
 
 // =====================================================================
-//  RE4GE - flat UI (the 5CR34M 4LPH4 / 4GE look) with a deep violet accent
-//  top: presets | THE STEP (one beat: the envelope of every step, pitch, the ms scale, the last note's output) + MASTER
-//  pages SOURCE / SHAPE / TONE
+//  RE4GE - flat UI (Shared/DESIGN.md), red accent, the owner's layout (Re4GE/Design mockup, PLAN.md "Nawigacja"):
+//  top: presets + BPM + undo | left: NAV - 01 SOUND / 02 PROCESS / 03 MODULATION / 04 SOURCE + SYSTEM at the bottom
+//  (a click on a block opens its list, a module fills the work area) | bottom, always: 8 MACROS + MASTER.
+//  Only modules that already work are listed (every visible control changes the sound).
 // =====================================================================
 namespace ReTheme
 {
-    const juce::Colour violet { 0xff9b6bff }, violetHot { 0xffd2b8ff }, violetDeep { 0xff2a1452 }, kick { 0xffff5a1f };
+    const juce::Colour accent { 0xffff3b3b }, bass { 0xff4ea1ff }, bassHot { 0xffa9d0ff }, bassDeep { 0xff10243d }, kick { 0xffff3b3b };
 }
 
 class StepView : public juce::Component
@@ -26,10 +27,30 @@ private:
     int lastHit = -1, lastLen = -1;
 };
 
+// the left navigation: blocks with their modules; SYSTEM (buttons) is drawn by the canvas below it
+class NavBar : public juce::Component
+{
+public:
+    struct Item { juce::String name; int page; std::function<bool()> lit; };
+    struct Block { juce::String num, name; std::vector<Item> items; juce::String later; };
+    std::vector<Block> blocks;
+    std::function<void (int)> onSelect;
+    int page = 0, open = 0;
+    void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseMove (const juce::MouseEvent& e) override { const int h = hit (e.position); if (h != hover) { hover = h; repaint(); } }
+    void mouseExit (const juce::MouseEvent&) override { hover = -1; repaint(); }
+private:
+    // hit codes: block b -> 1000 + b, item -> page
+    int hit (juce::Point<float>) const;
+    std::vector<std::pair<juce::Rectangle<float>, int>> zones;
+    int hover = -1;
+};
+
 class Canvas : public juce::Component, public juce::FileDragAndDropTarget, private juce::Timer
 {
 public:
-    static constexpr int W = 1400, H = 612;
+    static constexpr int W = 1280, H = 800;
     explicit Canvas (ReProcessor&);
     ~Canvas() override;
     void paint (juce::Graphics&) override;
@@ -67,10 +88,12 @@ private:
     std::vector<Card> cards;
     std::map<juce::Component*, int> segW;
     StepView view;
-    std::unique_ptr<doomsday::flat::TabStrip> tabs;
+    NavBar nav;
     int page = 0;
-    int cUni = 0, cMaster = 0, cSource = 0, cWarp = 0, cTail = 0, cSample = 0, cTrig = 0, cPitch = 0, cEnv = 0, cTimeSync = 0, cTimeMs = 0,
-        cPre = 0, cDrive = 0, cPost = 0;
+    enum Page { PMain = 0, POsc, PPitch, PEnv, PShape, PFilter, PDist, PEq, PTail, PSample, PSub, PStereo, NumPages };
+    int cUni = 0, cMaster = 0, cMacros = 0, cSource = 0, cWarp = 0, cPhase = 0, cOsc[3] {}, cTail = 0, cSample = 0, cTrig = 0, cSteps = 0, cPitch = 0, cEnv = 0,
+        cTimeSync = 0, cTimeMs = 0, cPre = 0, cDrive = 0, cDrive2 = 0, cPost = 0, cSub = 0, cMSource = 0, cMEnv = 0, cMTone = 0, cMLow = 0;
+    juce::Rectangle<int> navArea, sysArea, workArea;
     juce::ComboBox presetBox;
     juce::TextButton prev { "<" }, next { ">" }, randomB { "Random" }, saveB { "Save" }, folderB { "Folder" },
                      undoB { "Undo" }, redoB { "Redo" }, loadBtn { "Load" }, clearBtn { "x" };

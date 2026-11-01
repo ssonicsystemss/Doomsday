@@ -84,9 +84,9 @@ void StepView::paint (Graphics& g)
         if (c == 0) pitchP.startNewSubPath (x, py); else pitchP.lineTo (x, py);
     }
     env.lineTo (plot.getRight(), plot.getBottom()); env.closeSubPath();
-    ColourGradient fill (violet.withAlpha (0.45f), 0.f, plot.getY(), violetDeep.withAlpha (0.25f), 0.f, plot.getBottom(), false);
+    ColourGradient fill (bass.withAlpha (0.40f), 0.f, plot.getY(), bassDeep.withAlpha (0.25f), 0.f, plot.getBottom(), false);
     g.setGradientFill (fill); g.fillPath (env);
-    g.setColour (violetHot); g.strokePath (env, PathStrokeType (1.6f));
+    g.setColour (bass); g.strokePath (env, PathStrokeType (1.8f));
     if (p.pitchMode != re::Stable)
     {
         g.setColour (Colours::white.withAlpha (0.45f));
@@ -106,7 +106,7 @@ void StepView::paint (Graphics& g)
     else { g.setColour (tk.textMute); g.drawVerticalLine ((int) xOf (600.0), plot.getY(), plot.getBottom()); }
     g.setFont (lf.font (11.f, SemiBold)); g.setColour (tk.textDim);
     g.drawText (p.gate ? String ("GATE  -  one note of 600 ms (note off = the line), then FADE")
-                       : "ONE BEAT AT " + String (roundToInt (bpm)) + " BPM  -  orange = the kick (your note), violet = the bass" + (p.pitchMode != re::Stable ? String ("  -  dashed = pitch") : String()),
+                       : "ONE BEAT AT " + String (roundToInt (bpm)) + " BPM  -  red = the kick (your note), blue = the bass" + (p.pitchMode != re::Stable ? String ("  -  dashed = pitch") : String()),
                 r.reduced (16.f, 6.f).withHeight (14.f), Justification::topLeft);
 }
 
@@ -130,8 +130,8 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
-    const Colour vio = ReTheme::violet, hot = tokens().hot, cool = tokens().cool, n { 0xffb4bac3 };
-    cards.reserve (20);
+    const Colour acc = ReTheme::accent, hot = ReTheme::accent, cool = tokens().cool, n { 0xffb4bac3 };
+    cards.reserve (40);
     auto seg = [this] (const char* id, StringArray labels, Colour c, const char* tip)
     {
         auto s = std::make_unique<Segmented> (proc.apvts, id, labels, c);
@@ -145,31 +145,206 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
         s->setTooltip (tip);
         auto* sp = s.get(); addAndMakeVisible (*sp); owned.push_back (std::move (s)); return (Component*) sp;
     };
-    // ---- MASTER
+    auto templButtons = [this] (Card& c)
+    {
+        std::vector<Component*> made;
+        for (int i = 0; i < ReProcessor::templateNames().size(); ++i)
+        {
+            auto b = std::make_unique<TextButton> (ReProcessor::templateNames()[i]);
+            b->setTooltip ("Template: sets the envelope (and the step for PULSE), the sound stays");
+            b->onClick = [this, i] { proc.applyTemplate (i); };
+            addAndMakeVisible (*b); made.push_back (b.get());
+            templ.push_back (std::move (b));
+        }
+        for (int i = (int) made.size() - 1; i >= 0; --i) c.head.push_back (made[(size_t) i]);
+    };
+    const char* srcTip = "OSC 1 source. SYNTH: saw / pulse / sine with PHASE WARP. TAIL: a kick tail played backwards (the classic). SAMPLE: your own WAV";
+    const char* distTip = "Distortion type";
+    // ---- always: MASTER + MACROS
     {
         auto& c = card ("Master", n, -1); cMaster = (int) cards.size() - 1;
-        knob (c, level, "Level", "Level of the bass");
+        knob (c, level, "Output", "Level of the bass");
         knob (c, clip, "Clip", "Soft clip at the end: evens out the peaks of the bass");
-        knob (c, subHz, "Sub Hz", "Below this the bass is a clean sine on the note (never cut, never distorted). OFF = all from the source");
-        knob (c, subLevel, "Sub level", "Level of the clean sub - the 'bass punch'");
         knob (c, velocity, "Velocity", "0 = every note full level, 1 = MIDI velocity sets the level");
     }
-    // ---- page 0: SOURCE
     {
-        auto& c = card ("Source", vio, 0); cSource = (int) cards.size() - 1;
+        auto& c = card ("Macros", acc, -1); cMacros = (int) cards.size() - 1;
+        const char* tips[8] {
+            "BODY: +6 dB at 220 Hz - the 150-400 Hz 'meat'",
+            "WEIGHT: the clean SUB louder (+6 dB) and higher (+40 Hz)",
+            "REVERSE: the reverse-bass set - a later, slower swell, a rise into the kick (+7 st), harmonics opening late",
+            "PITCH: a drop from +12 st at the start of every step (bounce)",
+            "GRIT: more distortion (DRIVE +18 dB, STAGE 2 +12 dB)",
+            "BITE: presence at 2 kHz (+8 dB) and a brighter top",
+            "MOVEMENT: unison detune and drift - the bass moves and breathes",
+            "SPACE: stereo width of the mids / highs (the lows stay mono)" };
+        for (int k = 0; k < 8; ++k) knob (c, macros[k], macroNames[k].toRawUTF8(), tips[k]);
+    }
+    // ---- MAIN: the 80 % screen
+    {
+        auto& c = card ("Source", acc, PMain); cMSource = (int) cards.size() - 1;
+        knob (c, osc1Level, "OSC 1", "Level of OSC 1 (the source on the left)");
+        knob (c, oscId (2, "level"), "OSC 2", "Level of OSC 2 (OFF = not playing) - its wave / pitch on the OSC page");
+        knob (c, oscId (3, "level"), "OSC 3", "Level of OSC 3");
+        knob (c, oscId (4, "level"), "OSC 4", "Level of OSC 4");
+        knob (c, tune, "Tune", "Bass pitch against the note (12 = an octave up; the SUB stays on the note)", true);
+        c.head.push_back (seg (source, { "Synth", "Tail", "Sample" }, acc, srcTip));
+    }
+    {
+        auto& c = card ("Envelope", acc, PMain); cMEnv = (int) cards.size() - 1;
+        knob (c, initial, "Initial", "Where the swell starts (0 = from silence)");
+        knob (c, swell, "Swell", "How long the bass takes to come up (ms)");
+        knob (c, curve, "Curve", "+ = fast, then landing (sidechain release), - = slow start, late swell", true);
+        knob (c, sustain, "Sustain", "Where DECAY ends (100% = a level shelf like PUMP)");
+        knob (c, gatePct, "Gate", "% of a step where the bass is gone (SYNC timing)");
+    }
+    {
+        auto& c = card ("Tone", hot, PMain); cMTone = (int) cards.size() - 1;
+        knob (c, drive, "Drive", "Distortion of the bass (stage 1)");
+        knob (c, dist2Drive, "Stage 2", "A second distortion after the EQ - turns the presence into a dense, bright top (OFF = none)");
+        knob (c, preHz, "Filter", "The filter before the distortion (type on the FILTER page)");
+        knob (c, highCut, "High cut", "Darkness of the top");
+    }
+    {
+        auto& c = card ("Low end", n, PMain); cMLow = (int) cards.size() - 1;
+        knob (c, subHz, "Sub Hz", "Below this the bass is a clean sine on the note (never cut, never distorted). OFF = all from the source");
+        knob (c, subLevel, "Sub", "Level of the clean sub - the 'bass punch'");
+        knob (c, stereoWidth, "Width", "Stereo width of the mids / highs (your reference basses: about 25 - 45%)");
+    }
+    // ---- OSC
+    {
+        auto& c = card ("OSC 1", acc, POsc); cSource = (int) cards.size() - 1;
+        knob (c, osc1Level, "Level", "Level of OSC 1 (OFF = only OSC 2-4 play)");
         knob (c, blend, "Saw/Pulse", "SYNTH: 0 = saw, 100% = pulse");
         knob (c, width, "Width", "SYNTH: pulse width (50% = square)");
         knob (c, sine, "Sine", "SYNTH: a sine on the note for the body (OFF = none)");
-        c.head.push_back (seg (source, { "Synth", "Tail", "Sample" }, vio, "SYNTH: saw / pulse / sine with PHASE WARP. TAIL: a kick tail played backwards (the classic). SAMPLE: your own WAV"));
+        c.head.push_back (seg (source, { "Synth", "Tail", "Sample" }, acc, srcTip));
     }
     {
-        auto& c = card ("Phase warp", vio, 0); cWarp = (int) cards.size() - 1;
+        auto& c = card ("Phase warp", acc, POsc); cWarp = (int) cards.size() - 1;
         knob (c, warpAmt, "Amount", "SYNTH: how much the phase is bent - other harmonics than drive, the 'springy' bass");
-        knob (c, warpEnv, "Env", "0 = the warp is constant, 100% = it opens with the envelope (the bass opens as it swells)");
-        c.head.push_back (seg (warp, { "Off", "Bend", "Squeeze", "Sync", "Mirror" }, vio, "BEND: sine -> saw. SQUEEZE: nasal, square-ish. SYNC: talking, like hard sync. MIRROR: even harmonics, metallic"));
+        knob (c, warpEnv, "Env", "0 = the warp is constant, 100% = it opens with the envelope");
+        c.head.push_back (seg (warp, { "Off", "Bend", "Squeeze", "Sync", "Mirror" }, acc, "BEND: sine -> saw. SQUEEZE: nasal, square-ish. SYNC: talking. MIRROR: even harmonics, metallic"));
     }
     {
-        auto& c = card ("Sample", vio, 0); cSample = (int) cards.size() - 1;
+        auto& c = card ("Phase", acc, POsc); cPhase = (int) cards.size() - 1;
+        c.head.push_back (seg (phaseMode, { "Reset", "Free" }, acc, "RESET (phase lock): every step starts from the same phase - every hit sounds the same. FREE: the phases run on (each hit a bit different)"));
+    }
+    for (int o = 2; o <= 4; ++o)
+    {
+        auto& c = card ("OSC " + String (o), acc, POsc); cOsc[o - 2] = (int) cards.size() - 1;
+        knob (c, oscId (o, "level"), "Level", "Level of this oscillator (OFF = not playing). All oscillators go through the distortion together - that makes the density");
+        knob (c, oscId (o, "oct"), "Oct", "Octaves up / down (your basses: synth + an octave up + sub)", true);
+        knob (c, oscId (o, "semi"), "Semi", "Semitones", true);
+        knob (c, oscId (o, "fine"), "Fine", "Cents - a few cents against OSC 1 = beating, movement", true);
+        knob (c, oscId (o, "phase"), "Phase", "Start phase on every step (PHASE RESET)");
+        knob (c, oscId (o, "width"), "Width", "PULSE: pulse width. NOISE: brightness");
+        knob (c, oscId (o, "pm"), "PM", "Phase modulation by the note's sine - metallic, talking harmonics");
+        c.head.push_back (toggle (oscId (o, "sync"), "Sync", Toggle::Chip, acc, "Hard sync to the note: tune it up (SEMI / OCT) and it 'talks'"));
+        c.head.push_back (seg (oscId (o, "wave"), { "Sine", "Tri", "Saw", "Sqr", "Pulse", "Noise" }, acc, "Wave of this oscillator"));
+    }
+    // ---- PITCH / ENVELOPE / SHAPE
+    {
+        auto& c = card ("Pitch", acc, PPitch); cPitch = (int) cards.size() - 1;
+        knob (c, pitchAmt, "Amount", "How far the pitch moves (semitones): DROP from it down, RISE up to it at the end", true);
+        knob (c, pitchTime, "Time", "How long the move takes");
+        knob (c, tune, "Tune", "Bass pitch against the note (12 = an octave up)", true);
+        knob (c, fine, "Fine", "Fine tune in cents", true);
+        knob (c, fixedNote, "Note", "KEY TRACK off: the bass always plays this note (the notes only give the rhythm)");
+        c.head.push_back (toggle (keyTrack, "Key track", Toggle::Chip, acc, "ON: the bass plays the note you play. OFF: always on NOTE"));
+        c.head.push_back (seg (pitchMode, { "Stable", "Drop", "Rise", "Bounce" }, acc, "STABLE on the note, DROP from above at the start, RISE at the end (the classic reverse), BOUNCE both"));
+    }
+    {
+        auto& c = card ("Envelope", acc, PEnv); cEnv = (int) cards.size() - 1;
+        knob (c, duck, "Duck", "Level before DELAY (0 = silent while the kick plays)");
+        knob (c, initial, "Initial", "Where the swell starts (0 = from silence)");
+        knob (c, swell, "Swell", "How long the bass takes to come up (always ms)");
+        knob (c, curve, "Curve", "+ = fast, then landing (sidechain release), - = slow start, late swell, 0 = straight", true);
+        knob (c, sustain, "Sustain", "Where DECAY ends (100% = no decay, a level shelf like PUMP)");
+        knob (c, decayCurve, "Dec curve", "Shape of the decay: low = fast drop then a long tail, high = holds then falls");
+        knob (c, fade, "Fade", "The cut at the end of the gate (smooth, no click before the kick)");
+        templButtons (c);
+    }
+    {
+        auto& c = card ("Times (sync)", acc, PEnv); cTimeSync = (int) cards.size() - 1;
+        knob (c, delayPct, "Delay", "% of a step before the bass starts (the kick plays here)");
+        knob (c, holdPct, "Hold", "% of a step the bass stays at the top after the swell");
+        knob (c, decayPct, "Decay", "% of a step it falls to SUSTAIN (OFF = stays)");
+        knob (c, gatePct, "Gate", "% of a step where the bass is gone (FADE ends here)");
+        c.shown = [this] { return raw (proc, ParamIDs::timing) < 0.5f; };
+    }
+    {
+        auto& c = card ("Times (ms)", acc, PEnv); cTimeMs = (int) cards.size() - 1;
+        knob (c, delayMs, "Delay", "ms before the bass starts");
+        knob (c, holdMs, "Hold", "ms at the top after the swell");
+        knob (c, decayMs, "Decay", "ms to fall to SUSTAIN (OFF = stays)");
+        knob (c, gateMs, "Gate", "PATTERN: ms where the bass is gone (never past the next step). GATE mode: the note-off ends it");
+        c.shown = [this] { return raw (proc, ParamIDs::timing) > 0.5f; };
+    }
+    {
+        auto& c = card ("Trigger", acc, PShape); cTrig = (int) cards.size() - 1;
+        knob (c, offset, "Offset", "PATTERN: shifts the steps later (50% of a step = exactly between the grid lines)");
+        knob (c, beats, "Beats", "PATTERN: how many beats of bass one note plays");
+        c.head.push_back (seg (ParamIDs::step, { "1/4", "1/8", "1/16" }, acc, "PATTERN: the steps on the FL tempo"));
+        c.head.push_back (seg (timing, { "Sync", "Ms" }, acc, "SYNC: delay / hold / decay / gate in % of a step (follows the tempo). MS: in milliseconds"));
+        c.head.push_back (seg (trigger, { "Pattern", "Gate" }, acc, "PATTERN: a note = the kick, the bass plays the steps between. GATE: a note = one bass note"));
+    }
+    {
+        auto& c = card ("Steps", acc, PShape); cSteps = (int) cards.size() - 1;
+        const char* ids[] { step1, step2, step3, step4 };
+        for (int i = 0; i < 4; ++i)
+            c.knobs.push_back (toggle (ids[i], String (i + 1).toRawUTF8(), Toggle::Chip, acc, "This step of the beat plays (1/4: always step 1, 1/8: 1 + 2, 1/16: 1 - 4)"));
+    }
+    // ---- PROCESS
+    {
+        auto& c = card ("Pre filter", cool, PFilter); cPre = (int) cards.size() - 1;
+        knob (c, preHz, "Cutoff", "Before the distortion: decides what it bites into. With ENV this is the cutoff at the peak of the swell");
+        knob (c, preReso, "Reso", "Resonance: a peak the drive turns into a voice");
+        knob (c, preEnv, "Env", "+ = the filter opens as the bass swells (harmonics open late - the reverse feel), - = it closes", true);
+        knob (c, preKey, "Key", "Key track: higher notes open the filter more");
+        c.head.push_back (seg (preType, { "Off", "LP", "HP", "BP", "Notch" }, cool, "Type of the pre filter"));
+    }
+    {
+        auto& c = card ("Stage 1", hot, PDist); cDrive = (int) cards.size() - 1;
+        knob (c, drive, "Drive", "Distortion of the bass (the same stages as 4GE)");
+        knob (c, driveEnv, "Env", "0 = the same dirt all the time, 100% = clean at the start, dirtiest at the peak");
+        knob (c, bias, "Asym", "Asymmetry: even harmonics, a raw edge", true);
+        knob (c, mix, "Mix", "Clean / distorted (harmonic mix)");
+        c.head.push_back (seg (distType, { "Soft", "Tube", "Hard", "Fold", "Raw", "Crush" }, hot, distTip));
+    }
+    {
+        auto& c = card ("Stage 2", hot, PDist); cDrive2 = (int) cards.size() - 1;
+        knob (c, dist2Drive, "Drive", "The second distortion, after the EQ bell (OFF = none): the presence you boost gets dense and bright");
+        knob (c, dist2Mix, "Mix", "Clean / distorted");
+        c.head.push_back (seg (dist2Type, { "Soft", "Tube", "Hard", "Fold", "Raw", "Crush" }, hot, distTip));
+    }
+    {
+        auto& c = card ("EQ", cool, PEq); cPost = (int) cards.size() - 1;
+        knob (c, lowCut, "Low cut", "Cuts the DISTORTED part only (the clean SUB is never cut). OFF by default - the low end stays");
+        knob (c, highCut, "High cut", "Darkness of the top (after stage 2)");
+        knob (c, bellHz, "Bell Hz", "A bell for presence or to cut a ringing / boxy area (before stage 2)");
+        knob (c, bellGain, "Bell", "Boost / cut of the bell", true);
+        knob (c, bellQ, "Q", "Width of the bell");
+    }
+    // ---- SOURCE
+    {
+        auto& c = card ("Kick tail", hot, PTail); cTail = (int) cards.size() - 1;
+        knob (c, tailStart, "Start", "TAIL: pitch at the start of the kick tail = START x the note. Backwards it becomes the rise at the end");
+        knob (c, tailDrop, "Drop", "TAIL: how long the tail's pitch falls");
+        knob (c, tailCurve, "Curve", "TAIL: shape of the fall");
+        knob (c, tailWave, "Wave", "TAIL: sine > triangle > saw before the distortion");
+        knob (c, tailDrive, "Drive", "TAIL: distortion of the kick tail");
+        knob (c, tailTone, "Tone", "TAIL: before the distortion - left = more low end, right = more mids", true);
+        knob (c, tailHighCut, "High cut", "TAIL: darkens the tail's distortion");
+        knob (c, tailScream, "Scream", "TAIL: the resonant 'yell' of raw kicks");
+        knob (c, tailScreamHz, "Scream Hz", "TAIL: where the scream sits");
+        knob (c, tailLen, "Length", "TAIL in GATE mode: how much tail is played backwards (in PATTERN mode it fits the step)");
+        knob (c, tailRoom, "Room", "TAIL: a room on the kick tail BEFORE it is reversed - backwards it swells up into the bass");
+        knob (c, tailRoomSize, "Size", "TAIL: size of that room");
+        c.head.push_back (seg (tailDist, { "Soft", "Tube", "Hard", "Fold", "Raw", "Crush" }, hot, "TAIL: the kick's distortion type"));
+    }
+    {
+        auto& c = card ("Sample", acc, PSample); cSample = (int) cards.size() - 1;
         knob (c, smpRoot, "Root", "SAMPLE: the note of your WAV (with KEY TRACK it is played on the note you play)");
         knob (c, smpStart, "Start", "SAMPLE: skips the start of the WAV");
         loadBtn.setTooltip ("SAMPLE source: load a WAV (e.g. a kick from 4GE). You can also drag a file onto the plugin");
@@ -183,120 +358,36 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
         clearBtn.onClick = [this] { proc.clearSample(); };
         addAndMakeVisible (loadBtn); addAndMakeVisible (clearBtn);
         c.head.push_back (&clearBtn); c.head.push_back (&loadBtn);
-        c.head.push_back (toggle (smpReverse, "Reverse", Toggle::Chip, vio, "ON: the WAV plays backwards and ends on the gate. OFF: forwards from the swell"));
+        c.head.push_back (toggle (smpReverse, "Reverse", Toggle::Chip, acc, "ON: the WAV plays backwards and ends on the gate. OFF: forwards from the swell"));
     }
     {
-        auto& c = card ("Kick tail", hot, 0); cTail = (int) cards.size() - 1;
-        knob (c, tailStart, "Start", "TAIL: pitch at the start of the kick tail = START x the note. Backwards it becomes the rise at the end");
-        knob (c, tailDrop, "Drop", "TAIL: how long the tail's pitch falls");
-        knob (c, tailCurve, "Curve", "TAIL: shape of the fall");
-        knob (c, tailWave, "Wave", "TAIL: sine > triangle > saw before the distortion");
-        knob (c, tailDrive, "Drive", "TAIL: distortion of the kick tail");
-        knob (c, tailTone, "Tone", "TAIL: before the distortion - left = more low end, right = more mids", true);
-        knob (c, tailHighCut, "High cut", "TAIL: darkens the tail's distortion");
-        knob (c, tailScream, "Scream", "TAIL: the resonant 'yell' of raw kicks");
-        knob (c, tailScreamHz, "Scream Hz", "TAIL: where the scream sits");
-        knob (c, tailLen, "Length", "TAIL in GATE mode: how much tail is played backwards (in PATTERN mode it fits the step)");
-        knob (c, tailRoom, "Room", "TAIL: a room on the kick tail BEFORE it is reversed - backwards it swells up into the bass: dense, like the reversed kicks in sample packs");
-        knob (c, tailRoomSize, "Size", "TAIL: size of that room");
-        c.head.push_back (seg (tailDist, { "Soft", "Tube", "Hard", "Fold", "Raw", "Crush" }, hot, "TAIL: the kick's distortion type"));
+        auto& c = card ("Sub", n, PSub); cSub = (int) cards.size() - 1;
+        knob (c, subHz, "Sub Hz", "Below this the bass is a clean sine on the note (never cut, never distorted). OFF = all from the source");
+        knob (c, subLevel, "Level", "Level of the clean sub - the 'bass punch'");
     }
     {
-        auto& c = card ("Unison / width", hot, 2); cUni = (int) cards.size() - 1;
+        auto& c = card ("Unison / width", acc, PStereo); cUni = (int) cards.size() - 1;
         knob (c, uniVoices, "Voices", "Detuned, slowly drifting copies on the left / right: a full, moving bass (OFF = plain mono). The lows stay mono");
         knob (c, uniDetune, "Detune", "Spread of the copies in cents");
         knob (c, uniDrift, "Drift", "Slow pitch wander of each copy");
         knob (c, uniMix, "Mix", "Level of the copies");
-        knob (c, stereoWidth, "Width", "Stereo width of the mids / highs (your reference basses: about 30 - 45%)");
-        knob (c, widthSplit, "From", "Below this the bass stays mono");
-    }
-    // ---- page 1: SHAPE
-    {
-        auto& c = card ("Trigger", vio, 1); cTrig = (int) cards.size() - 1;
-        knob (c, offset, "Offset", "PATTERN: shifts the steps later (50% of a step = exactly between the grid lines)");
-        knob (c, beats, "Beats", "PATTERN: how many beats of bass one note plays (write a note on every kick, or one long pattern)");
-        c.head.push_back (seg (ParamIDs::step, { "1/4", "1/8", "1/16" }, vio, "PATTERN: the steps on the FL tempo"));
-        c.head.push_back (seg (timing, { "Sync", "Ms" }, vio, "SYNC: delay / hold / decay / gate in % of a step (follows the tempo). MS: in milliseconds. SWELL is always in ms"));
-        c.head.push_back (seg (trigger, { "Pattern", "Gate" }, vio, "PATTERN: a note = the kick, the bass plays the steps between. GATE: a note = one bass note (a bass line in the piano roll)"));
-    }
-    {
-        auto& c = card ("Steps", vio, 1);
-        const char* ids[] { step1, step2, step3, step4 };
-        for (int i = 0; i < 4; ++i)
-            c.knobs.push_back (toggle (ids[i], String (i + 1).toRawUTF8(), Toggle::Chip, vio, "This step of the beat plays (1/4: always step 1, 1/8: 1 + 2, 1/16: 1 - 4)"));
-    }
-    {
-        auto& c = card ("Pitch", vio, 1); cPitch = (int) cards.size() - 1;
-        knob (c, pitchAmt, "Amount", "How far the pitch moves (semitones): DROP from it down, RISE up to it at the end", true);
-        knob (c, pitchTime, "Time", "How long the move takes");
-        knob (c, tune, "Tune", "Bass pitch against the note (12 = an octave up)", true);
-        knob (c, fine, "Fine", "Fine tune in cents", true);
-        knob (c, fixedNote, "Note", "KEY TRACK off: the bass always plays this note (the notes only give the rhythm)");
-        c.head.push_back (toggle (keyTrack, "Key track", Toggle::Chip, vio, "ON: the bass plays the note you play. OFF: always on NOTE"));
-        c.head.push_back (seg (pitchMode, { "Stable", "Drop", "Rise", "Bounce" }, vio, "STABLE on the note, DROP from above at the start, RISE at the end (the classic reverse), BOUNCE both"));
-    }
-    {
-        auto& c = card ("Envelope", vio, 1); cEnv = (int) cards.size() - 1;
-        knob (c, duck, "Duck", "Level before DELAY (0 = silent while the kick plays)");
-        knob (c, initial, "Initial", "Where the swell starts (0 = from silence)");
-        knob (c, swell, "Swell", "How long the bass takes to come up (always ms; FHSP references: 50 - 80 ms)");
-        knob (c, curve, "Curve", "+ = fast, then landing (sidechain release), - = slow start, late swell, 0 = straight", true);
-        knob (c, sustain, "Sustain", "Where DECAY ends (100% = no decay, a level shelf like PUMP)");
-        knob (c, decayCurve, "Dec curve", "Shape of the decay: low = fast drop then a long tail, high = holds then falls");
-        knob (c, fade, "Fade", "The cut at the end of the gate (smooth, no click before the kick)");
-        for (int i = 0; i < ReProcessor::templateNames().size(); ++i)
-        {
-            auto b = std::make_unique<TextButton> (ReProcessor::templateNames()[i]);
-            b->setTooltip ("Template: sets the envelope (and the step for PULSE), the sound stays");
-            b->onClick = [this, i] { proc.applyTemplate (i); };
-            addAndMakeVisible (*b);
-            templ.push_back (std::move (b));
-        }
-        for (int i = (int) templ.size() - 1; i >= 0; --i) c.head.push_back (templ[(size_t) i].get());
-    }
-    {
-        auto& c = card ("Times (sync)", vio, 1); cTimeSync = (int) cards.size() - 1;
-        knob (c, delayPct, "Delay", "% of a step before the bass starts (the kick plays here)");
-        knob (c, holdPct, "Hold", "% of a step the bass stays at the top after the swell");
-        knob (c, decayPct, "Decay", "% of a step it falls to SUSTAIN (OFF = stays)");
-        knob (c, gatePct, "Gate", "% of a step where the bass is gone (FADE ends here)");
-        c.shown = [this] { return raw (proc, ParamIDs::timing) < 0.5f; };
-    }
-    {
-        auto& c = card ("Times (ms)", vio, 1); cTimeMs = (int) cards.size() - 1;
-        knob (c, delayMs, "Delay", "ms before the bass starts");
-        knob (c, holdMs, "Hold", "ms at the top after the swell");
-        knob (c, decayMs, "Decay", "ms to fall to SUSTAIN (OFF = stays)");
-        knob (c, gateMs, "Gate", "PATTERN: ms where the bass is gone (never past the next step). GATE mode: the note-off ends it");
-        c.shown = [this] { return raw (proc, ParamIDs::timing) > 0.5f; };
-    }
-    // ---- page 2: TONE
-    {
-        auto& c = card ("Pre filter", cool, 2); cPre = (int) cards.size() - 1;
-        knob (c, preHz, "Cutoff", "Before the drive: decides what the distortion bites into (HP = it bites the mids, not the low end)");
-        knob (c, preReso, "Reso", "Resonance: a peak the drive turns into a voice");
-        c.head.push_back (seg (preType, { "Off", "LP", "HP", "BP", "Notch" }, cool, "Type of the pre filter"));
-    }
-    {
-        auto& c = card ("Drive", hot, 2); cDrive = (int) cards.size() - 1;
-        knob (c, drive, "Drive", "Distortion of the bass (the same stages as 4GE)");
-        knob (c, driveEnv, "Env", "0 = the same dirt all the time, 100% = clean at the start, dirtiest at the peak");
-        knob (c, bias, "Asym", "Asymmetry: even harmonics, a raw edge", true);
-        knob (c, mix, "Mix", "Clean / distorted (harmonic mix)");
-        c.head.push_back (seg (distType, { "Soft", "Tube", "Hard", "Fold", "Raw", "Crush" }, hot, "Distortion type"));
-    }
-    {
-        auto& c = card ("Post EQ", cool, 2); cPost = (int) cards.size() - 1;
-        knob (c, lowCut, "Low cut", "Cuts the DISTORTED part only (the clean SUB is never cut). OFF by default - the low end stays");
-        knob (c, highCut, "High cut", "Darkness: the FHSP basses have little above 1 - 2.5 kHz");
-        knob (c, bellHz, "Bell Hz", "A bell for presence (500 - 1000 Hz) or to cut a ringing peak");
-        knob (c, bellGain, "Bell", "Boost / cut of the bell (gently: too much 1 - 2.5 kHz sounds 'flat')", true);
-        knob (c, bellQ, "Q", "Width of the bell");
+        knob (c, stereoWidth, "Width", "Stereo width of the mids / highs (your reference basses: about 25 - 45%)");
+        knob (c, widthSplit, "Mono below", "Below this the bass stays mono");
     }
     addAndMakeVisible (view);
-    tabs = std::make_unique<TabStrip> (StringArray { "Source", "Shape", "Tone" }, vio);
-    tabs->onSelect = [this] (int i) { showPage (i); };
-    addAndMakeVisible (*tabs);
+
+    // ---- navigation (the owner's 5 blocks; only working modules are listed)
+    auto on = [this] (const char* id, float above) { return [this, id, above] { return raw (proc, id) > above; }; };
+    auto oscOn = [this] { for (int o = 2; o <= 4; ++o) if (raw (proc, ParamIDs::oscId (o, "level")) > -59.f) return true; return raw (proc, ParamIDs::osc1Level) > -59.f; };
+    nav.blocks = {
+        { "01", "SOUND",      { { "Main", PMain, {} }, { "Osc", POsc, oscOn }, { "Pitch", PPitch, [this] { return raw (proc, ParamIDs::pitchMode) > 0.5f; } },
+                                { "Envelope", PEnv, [] { return true; } }, { "Shape", PShape, [] { return true; } } }, {} },
+        { "02", "PROCESS",    { { "Filter", PFilter, on (preType, 0.5f) }, { "Distortion", PDist, on (drive, 0.05f) }, { "EQ", PEq, [this] { return std::abs (raw (proc, ParamIDs::bellGain)) > 0.05f || raw (proc, ParamIDs::lowCut) > 20.5f; } } }, {} },
+        { "03", "MODULATION", {}, "LFO / matrix: step 4" },
+        { "04", "SOURCE",     { { "Kick Tail", PTail, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 1; } }, { "Sample", PSample, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 2; } },
+                                { "Sub", PSub, on (subHz, 20.5f) }, { "Stereo", PStereo, on (uniVoices, 1.5f) } }, {} } };
+    nav.onSelect = [this] (int pg) { showPage (pg); };
+    addAndMakeVisible (nav);
 
     refreshList();
     presetBox.onChange = [this]
@@ -324,7 +415,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
                      (Component*) &playB, (Component*) &undoB, (Component*) &redoB })
         addAndMakeVisible (c);
     setSize (W, H);
-    showPage (0);
+    showPage (PMain);
     timerCallback();
     startTimerHz (30);
 }
@@ -383,8 +474,11 @@ void Canvas::showSave()
 
 void Canvas::showPage (int pg)
 {
-    page = jlimit (0, 2, pg);
-    if (tabs != nullptr && tabs->getSelected() != page) tabs->setSelected (page);
+    page = jlimit (0, NumPages - 1, pg);
+    nav.page = page;
+    for (int bI = 0; bI < (int) nav.blocks.size(); ++bI) for (auto& it : nav.blocks[(size_t) bI].items) if (it.page == page) nav.open = bI;
+    nav.repaint();
+    view.setVisible (page == PMain || page == PPitch || page == PEnv || page == PShape);
     for (auto& c : cards)
     {
         const bool on = cardOn (c);
@@ -410,7 +504,7 @@ void Canvas::layoutCard (Card& c, int kw)
     a.removeFromTop (4);
     const int cols = jmax (1, (int) c.knobs.size());
     const int perRow = jmax (1, jmin (cols, a.getWidth() / kw));
-    for (int i = 0; i < cols; ++i)
+    for (int i = 0; i < (int) c.knobs.size(); ++i)
     {
         const int row = i / perRow, col = i % perRow;
         Rectangle<int> r (a.getX() + col * kw, a.getY() + row * (kh + 4), kw, kh);
@@ -421,55 +515,77 @@ void Canvas::layoutCard (Card& c, int kw)
 
 void Canvas::resized()
 {
-    const int m = 20, gap = 12, kw = 74;
+    const int m = 16, gap = 12, kw = 74, top = 57, bottomH = 150;
+    // top bar: presets centred-right, undo / redo at the right
     const int bx = W - m;
-    redoB.setBounds (bx - 62, 14, 62, 30);
-    undoB.setBounds (bx - 130, 14, 62, 30);
-    playB.setBounds (bx - 206, 14, 70, 30);
-    folderB.setBounds (bx - 284, 14, 72, 30);
-    saveB.setBounds (bx - 362, 14, 72, 30);
-    randomB.setBounds (bx - 454, 14, 86, 30);
-    next.setBounds (bx - 498, 14, 34, 30);
-    presetBox.setBounds (bx - 504 - 270, 14, 270, 30);
-    prev.setBounds (presetBox.getX() - 40, 14, 34, 30);
-    auto& master = cards[(size_t) cMaster];
-    master.area = { W - m - 430, 68, 430, 200 };
-    view.setBounds (m, 68, master.area.getX() - gap - m, 200);
-    tabs->setBounds (m, 280, 330, 30);
-    const int y1 = 318, rowH = 134, y2 = y1 + rowH + gap;
-    auto place = [&] (std::initializer_list<std::pair<int, int>> list, int y)
+    redoB.setBounds (bx - 62, 13, 62, 30);
+    undoB.setBounds (bx - 130, 13, 62, 30);
+    next.setBounds (bx - 250, 13, 34, 30);
+    presetBox.setBounds (next.getX() - 6 - 300, 13, 300, 30);
+    prev.setBounds (presetBox.getX() - 40, 13, 34, 30);
+    // left: NAV + SYSTEM; right: the work area; bottom: MACROS + MASTER
+    navArea = { 0, top, 200, H - top - bottomH };
+    sysArea = navArea.removeFromBottom (128);
+    nav.setBounds (navArea);
     {
-        int x = m;
-        for (auto [idx, w] : list) { cards[(size_t) idx].area = { x, y, w == 0 ? W - m - x : w, rowH }; x += cards[(size_t) idx].area.getWidth() + gap; }
+        auto s = sysArea.reduced (12, 0).withTrimmedTop (34);
+        const int bw = (s.getWidth() - 6) / 2;
+        auto r1 = s.removeFromTop (34); s.removeFromTop (6);
+        saveB.setBounds (r1.removeFromLeft (bw)); r1.removeFromLeft (6); folderB.setBounds (r1);
+        auto r2 = s.removeFromTop (34);
+        randomB.setBounds (r2.removeFromLeft (bw)); r2.removeFromLeft (6); playB.setBounds (r2);
+    }
+    workArea = { 200 + m, top + 12, W - 200 - 2 * m, H - top - bottomH - 24 };
+    for (auto& c : cards) c.area = {};
+    // bottom row
+    {
+        const int y = H - bottomH + 6, h = bottomH - 18;
+        cards[(size_t) cMacros].area = { m, y, W - 2 * m - 360 - gap, h };
+        cards[(size_t) cMaster].area = { W - m - 360, y, 360, h };
+    }
+    auto wa = workArea;
+    if (view.isVisible()) { view.setBounds (wa.removeFromTop (page == PMain ? 260 : 220)); wa.removeFromTop (gap); }
+    const int rowH = 134;
+    auto row = [&] (std::initializer_list<std::pair<int, int>> list)
+    {
+        auto r = wa.removeFromTop (rowH); wa.removeFromTop (gap);
+        int x = r.getX();
+        for (auto [idx, w] : list) { cards[(size_t) idx].area = { x, r.getY(), w == 0 ? r.getRight() - x : w, rowH }; x += cards[(size_t) idx].area.getWidth() + gap; }
     };
-    for (auto& c : cards) if (c.page >= 0) c.area = {};
-    const int cSteps = cTrig + 1;
-    if (page == 0)
+    switch (page)
     {
-        place ({ { cSource, 340 }, { cWarp, 420 }, { cSample, 0 } }, y1);
-        place ({ { cTail, 0 } }, y2);
+        case PMain:   { const int half = (wa.getWidth() - gap) / 2 + 40; row ({ { cMSource, half }, { cMEnv, 0 } }); row ({ { cMTone, half }, { cMLow, 0 } }); break; }
+        case POsc:    row ({ { cSource, 400 }, { cWarp, 400 }, { cPhase, 0 } }); row ({ { cOsc[0], 0 } }); row ({ { cOsc[1], 0 } }); break;
+        case PPitch:  row ({ { cPitch, 0 } }); break;
+        case PEnv:    row ({ { cEnv, 0 } }); row ({ { raw (proc, ParamIDs::timing) < 0.5f ? cTimeSync : cTimeMs, 420 } }); break;
+        case PShape:  row ({ { cTrig, 520 }, { cSteps, 0 } }); break;
+        case PFilter: row ({ { cPre, 520 } }); break;
+        case PDist:   row ({ { cDrive, 0 } }); row ({ { cDrive2, 0 } }); break;
+        case PEq:     row ({ { cPost, 520 } }); break;
+        case PTail:   row ({ { cTail, 0 } }); break;
+        case PSample: row ({ { cSample, 0 } }); break;
+        case PSub:    row ({ { cSub, 300 } }); break;
+        case PStereo: row ({ { cUni, 560 } }); break;
+        default: break;
     }
-    else if (page == 1)
+    if (page == POsc) { auto r = wa.removeFromTop (rowH); cards[(size_t) cOsc[2]].area = r; }
+    for (auto& c : cards) if (! c.area.isEmpty() && cardOn (c) && c.page >= 0) layoutCard (c, kw);
+    // MACROS: 8 big knobs
     {
-        place ({ { cTrig, 440 }, { cSteps, 340 }, { cPitch, 0 } }, y1);
-        const int tCard = raw (proc, ParamIDs::timing) < 0.5f ? cTimeSync : cTimeMs;
-        place ({ { cEnv, W - 2 * m - 340 - gap }, { tCard, 0 } }, y2);
+        auto a = cards[(size_t) cMacros].area.reduced (16, 8).withTrimmedTop (22);
+        auto& k = cards[(size_t) cMacros].knobs;
+        const int w = a.getWidth() / 8;
+        for (int i = 0; i < 8; ++i) k[(size_t) i]->setBounds (a.getX() + i * w, a.getY(), w, a.getHeight());
     }
-    else
     {
-        place ({ { cPre, 440 }, { cDrive, 0 } }, y1);
-        place ({ { cPost, 5 * kw + 32 }, { cUni, 0 } }, y2);
-    }
-    for (auto& c : cards) if (! c.area.isEmpty() && cardOn (c)) layoutCard (c, c.page < 0 ? 96 : kw);
-    {
-        auto a = master.area.reduced (16, 10);
-        a.removeFromTop (32);
+        auto a = cards[(size_t) cMaster].area.reduced (16, 8).withTrimmedTop (22);
         meterArea = a.removeFromRight (14).reduced (0, 4);
         a.removeFromRight (8);
-        const int w = a.getWidth() / 5;
-        for (int i = 0; i < 5; ++i) master.knobs[(size_t) i]->setBounds (a.getX() + i * w, a.getY() + 20, w, Knob::heightFor (44));
+        auto& k = cards[(size_t) cMaster].knobs;
+        const int w = a.getWidth() / 3;
+        for (int i = 0; i < 3; ++i) k[(size_t) i]->setBounds (a.getX() + i * w, a.getY(), w, a.getHeight());
     }
-    if (page == 0) sampleNameArea = cards[(size_t) cSample].area.reduced (16, 10).removeFromTop (28).withTrimmedLeft (90).withTrimmedRight (210);
+    if (page == PSample) sampleNameArea = cards[(size_t) cSample].area.reduced (16, 10).removeFromTop (28).withTrimmedLeft (90).withTrimmedRight (210);
     else sampleNameArea = {};
 }
 
@@ -484,7 +600,71 @@ void Canvas::paint (Graphics& g)
     g.drawText ("RE4GE", Rectangle<float> (tx, 0.f, 240.f, 56.f), Justification::centredLeft);
     g.setFont (lnf.font (12.f, Medium)); g.setColour (t.textMute);
     g.drawText ("v" + String (ParamIDs::versionText) + dotSep + "reverse bass", Rectangle<float> (tx + 80.f, 0.f, 240.f, 56.f), Justification::centredLeft);
+    // NAV / SYSTEM / work area dividers
+    g.setColour (t.divider);
+    g.fillRect (200, 57, 1, H - 57 - 150);
+    g.fillRect (0, H - 150, W, 1);
+    g.fillRect (12, sysArea.getY(), 176, 1);
+    g.setFont (lnf.font (11.f, Bold, 0.15f)); g.setColour (t.textDim);
+    g.drawText ("05  SYSTEM", Rectangle<int> (22, sysArea.getY() + 8, 160, 20), Justification::centredLeft);
+    // BPM (from FL)
+    g.setFont (lnf.font (12.f, Medium)); g.setColour (t.textMute);
+    g.drawText ("BPM " + String (roundToInt (proc.getEngine().tempoNow.load())), Rectangle<int> (W - 16 - 240, 13, 100, 30), Justification::centred);
     for (auto& c : cards) if (! c.area.isEmpty() && cardOn (c)) doomsday::flat::card (g, lnf, c.area, c.title, c.dot);
+}
+
+// ======================================================================= NAV
+int NavBar::hit (Point<float> p) const { for (auto& [r, code] : zones) if (r.contains (p)) return code; return -1; }
+void NavBar::mouseDown (const MouseEvent& e)
+{
+    const int h = hit (e.position);
+    if (h >= 1000) { const int b = h - 1000; open = b; auto& items = blocks[(size_t) b].items; repaint(); if (! items.empty()) { bool inside = false; for (auto& it : items) inside |= it.page == page; if (! inside && onSelect) onSelect (items.front().page); } }
+    else if (h >= 0 && onSelect) onSelect (h);
+}
+void NavBar::paint (Graphics& g)
+{
+    auto& lf = lnfOf (*this);
+    const auto& tk = tokens();
+    zones.clear();
+    float y = 12.f;
+    const float x = 12.f, w = (float) getWidth() - 24.f;
+    for (int b = 0; b < (int) blocks.size(); ++b)
+    {
+        const auto& bl = blocks[(size_t) b];
+        const bool isOpen = b == open, empty = bl.items.empty();
+        Rectangle<float> r (x, y, w, 34.f);
+        zones.push_back ({ r, 1000 + b });
+        if (isOpen && ! empty) { g.setColour (tk.control); g.fillRoundedRectangle (r, 8.f); }
+        else if (hover == 1000 + b && ! empty) { g.setColour (tk.control.withAlpha (0.5f)); g.fillRoundedRectangle (r, 8.f); }
+        g.setFont (lf.font (12.f, Bold, 0.12f));
+        g.setColour (isOpen && ! empty ? ReTheme::accent : tk.textMute);
+        g.drawText (bl.num, r.withTrimmedLeft (10.f).withWidth (24.f), Justification::centredLeft);
+        g.setColour (empty ? tk.textMute.withAlpha (0.6f) : isOpen ? tk.text : tk.textDim);
+        g.drawText (bl.name, r.withTrimmedLeft (36.f), Justification::centredLeft);
+        if (! empty) { g.setColour (tk.textMute); g.drawText (isOpen ? "v" : ">", r.withTrimmedRight (10.f), Justification::centredRight); }
+        y += 38.f;
+        if (empty && bl.later.isNotEmpty())
+        {
+            g.setFont (lf.font (10.5f, Medium)); g.setColour (tk.textMute.withAlpha (0.7f));
+            g.drawText (bl.later, Rectangle<float> (x + 36.f, y - 8.f, w - 36.f, 14.f), Justification::centredLeft);
+            y += 10.f;
+        }
+        if (isOpen)
+            for (auto& it : bl.items)
+            {
+                Rectangle<float> ir (x + 26.f, y, w - 26.f, 28.f);
+                zones.push_back ({ ir, it.page });
+                const bool act = it.page == page;
+                if (act) { g.setColour (tk.surface); g.fillRect (ir); }
+                g.setColour (act ? ReTheme::accent : tk.divider); g.fillRect (ir.withWidth (2.f));
+                g.setFont (lf.font (12.5f, act ? SemiBold : Medium));
+                g.setColour (act ? tk.text : hover == it.page ? tk.textDim : tk.textMute);
+                g.drawText (it.name, ir.withTrimmedLeft (12.f), Justification::centredLeft);
+                if (it.lit) { g.setColour (it.lit() ? ReTheme::accent : tk.border); g.fillEllipse (ir.getRight() - 14.f, ir.getCentreY() - 3.f, 6.f, 6.f); }
+                y += 30.f;
+            }
+        y += 4.f;
+    }
 }
 
 void Canvas::paintOverChildren (Graphics& g)
@@ -495,18 +675,18 @@ void Canvas::paintOverChildren (Graphics& g)
         auto r = meterArea.toFloat();
         g.setColour (t.control); g.fillRoundedRectangle (r, 4.f);
         const float lv = jlimit (0.f, 1.f, (Decibels::gainToDecibels (meterLevel, -48.f) + 48.f) / 50.f);
-        g.setColour (meterLevel > 0.99f ? t.hot : ReTheme::violet); g.fillRoundedRectangle (r.withTop (r.getBottom() - r.getHeight() * lv), 4.f);
+        g.setColour (meterLevel > 0.99f ? t.hot : Colour (0xffb4bac3)); g.fillRoundedRectangle (r.withTop (r.getBottom() - r.getHeight() * lv), 4.f);
     }
     if (! sampleNameArea.isEmpty())
     {
         const String name = proc.sampleName();
         g.setFont (lnf.font (11.5f, Medium));
-        g.setColour (name.isEmpty() ? t.textMute : ReTheme::violetHot);
+        g.setColour (name.isEmpty() ? t.textMute : ReTheme::bassHot);
         g.drawText (name.isEmpty() ? "No WAV - Load or drop one" : name, sampleNameArea, Justification::centredLeft, true);
     }
     if (dragHover)
     {
-        g.setColour (ReTheme::violet.withAlpha (0.10f)); g.fillRect (getLocalBounds());
+        g.setColour (ReTheme::accent.withAlpha (0.10f)); g.fillRect (getLocalBounds());
         g.setColour (t.text); g.setFont (lnf.font (22.f, Bold));
         g.drawText ("Drop to use it as the SAMPLE source", getLocalBounds(), Justification::centred);
     }
@@ -535,6 +715,8 @@ void Canvas::timerCallback()
     view.tick();
     const int mode = raw (proc, ParamIDs::timing) > 0.5f ? 1 : 0;
     if (mode != lastMode) { lastMode = mode; showPage (page); }
+    nav.repaint();   // the module dots follow the knobs
+    repaint (Rectangle<int> (W - 16 - 240, 13, 100, 30));
     if (proc.currentPresetName() != lastName)
     {
         lastName = proc.currentPresetName();

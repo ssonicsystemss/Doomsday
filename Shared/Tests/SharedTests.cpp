@@ -9,6 +9,7 @@
 #include "DoomsdayShaper.h"
 #include "DoomsdaySpectral.h"
 #include "DoomsdayHost.h"
+#include "DoomsdayLab.h"
 #include "DoomsdayParamMenu.h"
 #include "DoomsdayOwnSound.h"
 #include "DoomsdayReverseBass.h"
@@ -321,6 +322,38 @@ int main()
         ds.setShape (doomsday::mod::Shape::make ({ { 0, 0.5f }, { 500, 0.5f }, { 600, 1.f }, { 1000, 1.f } }), true);
         check (std::abs (ds.process (0.5f) - 1.f) < 1e-3f && std::abs (ds.process (-0.5f) + 1.f) < 1e-3f && std::abs (ds.process (0.05f)) < 0.6f,
                "DrawnShaper symmetric hard curve");
+        // DISTORTION LAB (DoomsdayLab.h): the antiderivative matches each curve (slow ramp through ADAA = the curve), and ADAA aliases less
+        {
+            using namespace doomsday;
+            lab::CustomTable ct; ct.build (mod::Shape::make ({ { 0.f, 0.f }, { 400.f, 0.1f, -0.5f }, { 600.f, 0.9f }, { 1000.f, 1.f } }), false);
+            float worst = 0.f; String which;
+            for (int a : { lab::Saturation, lab::Diode, lab::Wavefold, lab::Rectifier, lab::Custom })
+                for (float h : { 0.f, 0.5f, 1.f })
+                {
+                    lab::Shaper sh; sh.reset();
+                    for (int i = 0; i <= 4000; ++i)
+                    {
+                        const double x = -3.0 + 6.0 * i / 4000.0;
+                        const float y = sh.process ((float) x, a, h, &ct);
+                        if (i > 2) { const float e = std::abs (y - (float) lab::curve (x - 0.5 * 6.0 / 4000.0, a, h, &ct)); if (e > worst) { worst = e; which = String (a) + "/" + String (h); } }
+                    }
+                }
+            check (worst < 0.01f, "LAB curves: ADAA of a slow ramp = the curve (antiderivatives right)", "(max err " + String (worst, 4) + " " + which + ")");
+            // aliasing (the same measure as the drive test above): E7 driven x8 through every lab curve
+            const double f0 = 2637.0, srL = 48000.0; const int len = 512 * 94;
+            String worstA; double minGain = 1e9;
+            for (int a : { lab::Saturation, lab::Diode, lab::Wavefold, lab::Rectifier, lab::Custom })
+            {
+                std::vector<float> naive ((size_t) len), adaa ((size_t) len); lab::Shaper sh; sh.reset();
+                for (int i = 0; i < len; ++i) { const float x = 8.f * 0.9f * (float) std::sin (2.0 * 3.14159265358979 * f0 * i / srL);
+                                                naive[(size_t) i] = (float) lab::curve (x, a, 0.5f, &ct); adaa[(size_t) i] = sh.process (x, a, 0.5f, &ct); }
+                const double gain = aliasDb (naive, srL, f0) - aliasDb (adaa, srL, f0);
+                if (gain < minGain) { minGain = gain; worstA = String (a); }
+            }
+            const double plainA = 0.0, adaaA = -minGain;
+            check (adaaA < plainA - 5.0, "LAB ADAA aliases less than the plain curves (worst curve)", "(-" + String (minGain, 1) + " dB, curve " + worstA + ")");
+        }
+
 
         // kick-like burst: silence, a hit, a ring-out
         std::vector<float> kick (24000, 0.f);

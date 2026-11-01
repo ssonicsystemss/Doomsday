@@ -156,6 +156,21 @@ namespace
             if (i == 1) l.add (f (laneId (i, "depth"), n + "Range", { 0.f, 24.f }, 12.f, fm::semi, fm::num));
             else        l.add (f (laneId (i, "depth"), n + "Depth", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
         }
+        // ---- v0.7: DISTORTION LAB + QUALITY
+        for (int s = 0; s < 2; ++s)
+        {
+            const String n = "DIST" + String (s + 1) + " ";
+            l.add (c (labId (s, "lab"), n + "Lab", Choices::labAlgos, 0));
+            l.add (f (labId (s, "hard"), n + "Hardness", { 0.f, 1.f }, 0.5f, fm::pct, fm::pctIn));
+            l.add (f (labId (s, "tone"), n + "Tone", { -1.f, 1.f }, 0.f, fm::bip, fm::pctIn));
+            l.add (c (labId (s, "tone_post"), n + "Tone Position", Choices::tonePos, 0));
+            l.add (f (labId (s, "out"), n + "Output", { -24.f, 12.f }, 0.f, fm::db, fm::num));
+            l.add (b (labId (s, "sym"), n + "Custom Symmetric", true));
+        }
+        l.add (f (dist2Bias, "DIST2 Asymmetry", { -1.f, 1.f }, 0.f, fm::bip, fm::pctIn));
+        l.add (b (autoGain, "DIST Auto Gain", true));
+        l.add (c (qualityRt, "QUALITY Realtime", Choices::qualities, 1));
+        l.add (c (qualityExport, "QUALITY Export", Choices::qualities, 2));
         return l;
     }
 }

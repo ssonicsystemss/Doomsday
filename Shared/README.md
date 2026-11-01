@@ -151,3 +151,4 @@ górny róg nagłówka, zawsze 70 x 36 px przy domyślnym rozmiarze okna (niezal
 linie wersji / opisu zaczynają się od `headerTextX (ta sama skala)`. Rysować raz, w cache'owanym tle. Na jasnych wtyczkach (Ancient Drums) biel jest przemalowana na ciemny kolor.
 Używają go wszystkie wtyczki Doomsday (stare włączają go ścieżką względną `../../Shared/Source/DoomsdayBrand.h`).
 Przy zmianie logo: podmień PNG i wygeneruj nagłówek od nowa; Prophecy of Scream przebudowuje się sam (od v3 jego workflow obserwuje też Shared/).
+| `DoomsdayLab.h` | DISTORTION LAB curves with 1st-order ADAA: SATURATION / DIODE / WAVEFOLD / RECTIFIER (+ HARDNESS), BITCRUSH, CUSTOM drawn table with its integral; TILT tone | RE4GE v0.7 |

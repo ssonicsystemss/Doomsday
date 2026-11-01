@@ -30,21 +30,31 @@ namespace re
     class Engine
     {
     public:
-        static constexpr int osLog2 = 2, osFactor = 1 << osLog2, grid = 32;
-        Engine() : os (std::make_unique<juce::dsp::Oversampling<float>> (2, osLog2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false))
+        static constexpr int grid = 32;
+        // QUALITY: 2x / 4x / 8x / 16x oversampling, every factor made once here (switching never allocates);
+        // EXPORT uses its own factor when the host renders offline
+        Engine()
         {
+            for (int i = 0; i < 4; ++i)
+            {
+                osArr[(size_t) i] = std::make_unique<juce::dsp::Oversampling<float>> (2, (size_t) (i + 1), juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false);
+                osArr[(size_t) i]->initProcessing ((size_t) grid);
+            }
             gui.assign ((size_t) (192000 * 2.1), 0.f);
         }
+        void setNonRealtime (bool b) { offline = b; }
         void prepare (double sampleRate, int /*maxBlock*/)
         {
-            sr = sampleRate; osr = sr * osFactor;
-            os->reset(); os->initProcessing ((size_t) grid);
+            sr = sampleRate;
+            osIdx = juce::jlimit (0, 3, offline ? pending.qualityExport : pending.qualityRt);
+            osr = sr * (1 << (osIdx + 1));
+            for (auto& o : osArr) o->reset();
             work.setSize (2, grid);
             tail.prepare (sr);
             guiCap = juce::jmin ((int) gui.size(), (int) (sr * 2.0));
             clock = 0;
-            p = applyMacros (pending);
-            cook();
+            builtCurves = -1;
+            latch();
             stop();
         }
         // the settings for the next grid point (the audio thread, once per host block)
@@ -72,17 +82,39 @@ namespace re
         void audition (int note) { noteOn (note, 1.f, true); }
 
         std::atomic<float> tempoNow { 150.f }, outPeak { 0.f };
+        std::array<std::atomic<float>, 2> drivePeak {};      // the stages' input level for the live dot (the GUI takes and resets it)
         std::atomic<int> hitSerial { 0 }, guiLength { 0 };
         std::vector<float> gui;                 // the output since the last note (GUI playhead / meter)
 
     private:
-        // ---- per grid point: settings + coefficients
+        // ---- per grid point: the settings (+ the oversampling factor and the drawn distortion curves)
+        void latch()
+        {
+            p = applyMacros (pending);
+            const int want = juce::jlimit (0, 3, offline ? p.qualityExport : p.qualityRt);
+            if (want != osIdx)
+            {
+                osIdx = want; osr = sr * (1 << (osIdx + 1));
+                osArr[(size_t) osIdx]->reset();
+                stop();                                         // a short silence: every filter changes its rate
+            }
+            const int curveKey = p.curveSerial * 4 + (p.lab[0].symmetric ? 1 : 0) + (p.lab[1].symmetric ? 2 : 0);
+            if (curveKey != builtCurves)
+            {
+                builtCurves = curveKey;
+                for (int s = 0; s < 2; ++s) customTab[(size_t) s].build (p.driveCurve[(size_t) s], p.lab[(size_t) s].symmetric);
+                for (auto& c : ch) for (auto& sh : c.tone.shaper) sh.customChanged();
+            }
+            cook();
+        }
         void cook()
         {
             bpm = bpmPending;
             stepMs = p.stepBeats * 60000.0 / bpm;
             trig.cook (p, stepMs);
             tone.cook (p, osr);
+            for (int s = 0; s < 2; ++s) tone.table[(size_t) s] = &customTab[(size_t) s];
+            for (auto& c : ch) c.tone.setTilt (p, osr);
             sub.cook (p, osr);
             stereo.cook (p, osr);
             for (int sd = 0; sd < 3; ++sd) ch[(size_t) sd].smear.cook (p, osr, sd);
@@ -101,7 +133,7 @@ namespace re
         }
         void noteOn (int note, float velocity, bool isAudition)
         {
-            if (clock % grid == 0) { p = applyMacros (pending); cook(); }       // a note on a grid point already gets this block's settings
+            if (clock % grid == 0) latch();       // a note on a grid point already gets this block's settings
             trig.noteOn (note, isAudition);
             const double prevHz = hz * glideR;
             const bool legato = trig.isActive() && amp > 1.0e-4f;
@@ -123,7 +155,7 @@ namespace re
         {
             while (len > 0)
             {
-                if (clock % grid == 0) { p = applyMacros (pending); cook(); }
+                if (clock % grid == 0) latch();
                 const int n = juce::jmin (len, grid - (int) (clock % grid));
                 renderChunk (buffer, start, n);
                 start += n; len -= n; clock += (uint64_t) n;
@@ -227,7 +259,8 @@ namespace re
 
             work.clear (0, 0, n); work.clear (1, 0, n);
             juce::dsp::AudioBlock<float> blk (work.getArrayOfWritePointers(), 2, 0, (size_t) n);
-            auto up = os->processSamplesUp (blk);
+            auto& os = *osArr[(size_t) osIdx];
+            auto up = os.processSamplesUp (blk);
             float* uL = up.getChannelPointer (0);
             float* uR = up.getChannelPointer (1);
             const double msPerSample = 1000.0 / osr;
@@ -290,7 +323,13 @@ namespace re
                 else { amp = 0.f; postGate = 0.f; }
                 uL[i] = yl; uR[i] = yr;
             }
-            os->processSamplesDown (blk);
+            os.processSamplesDown (blk);
+            for (int s = 0; s < 2; ++s)
+            {
+                float pk2 = 0.f;
+                for (auto& c : ch) { pk2 = juce::jmax (pk2, c.tone.peak[s]); c.tone.peak[s] = 0.f; }
+                drivePeak[(size_t) s].store (juce::jmax (drivePeak[(size_t) s].load(), pk2));
+            }
             const float* l = work.getReadPointer (0);
             const float* r = work.getReadPointer (1);
             float pk = 0.f;
@@ -330,7 +369,10 @@ namespace re
         doomsday::dsp::SvfCoefs clickC;
         int playNote = 31, guiCap = 0, guiWrite = 0;
         float vel = 1.f, amp = 0.f, postGate = 0.f, levelG = 1.f, ampC = 0.01f;
-        std::unique_ptr<juce::dsp::Oversampling<float>> os;
+        std::array<std::unique_ptr<juce::dsp::Oversampling<float>>, 4> osArr;
+        int osIdx = 1, builtCurves = -1;
+        bool offline = false;
+        std::array<doomsday::lab::CustomTable, 2> customTab;
         juce::AudioBuffer<float> work;
         std::atomic<Sample*> sample { nullptr };
         const Sample* playing = nullptr;

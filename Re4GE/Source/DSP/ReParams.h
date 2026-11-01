@@ -3,6 +3,7 @@
 #include "GeKick.h"       // (Shared) ge::Params: the kick tail settings
 #include <array>
 #include "DoomsdayMod.h"     // (Shared) mod::Shape: the drawn curves
+#include "DoomsdayLab.h"     // (Shared) lab:: DISTORTION LAB curves with ADAA
 
 namespace re
 {
@@ -60,6 +61,14 @@ namespace re
         // v0.6 (step 2): REVERSE SHAPE DESIGNER lanes AMP / PITCH / HARMONIC / PHASE (ShapeLanes.h)
         struct LaneSet { bool on = false; float lenPct = 100.f; int anchor = 0; bool loop = false; float depth = 1.f; doomsday::mod::Shape shape; };
         std::array<LaneSet, 4> lane {};
+        // v0.7 (step 3): DISTORTION LAB per stage (algo -1 = CLASSIC: the 4GE types above), QUALITY
+        struct LabSet { int algo = -1; float hard = 0.5f, tone = 0.f, outDb = 0.f; bool tonePost = false, symmetric = true; };
+        std::array<LabSet, 2> lab {};
+        float dist2Bias = 0.f;
+        bool autoGain = true;
+        int qualityRt = 1, qualityExport = 2;      // 0 = 2x, 1 = 4x, 2 = 8x, 3 = 16x oversampling
+        std::array<doomsday::mod::Shape, 2> driveCurve {};   // CUSTOM curves (stage 1 / 2)
+        int curveSerial = 0;                       // changes when a drawn curve changes (the tables are rebuilt then)
     };
     enum OscWave { WSine = 0, WTri = 1, WSaw = 2, WSquare = 3, WPulse = 4, WNoise = 5 };
 }

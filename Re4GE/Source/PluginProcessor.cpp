@@ -30,9 +30,9 @@ void ReProcessor::setCurrentProgram (int i)
     currentProgram = i;
     presetName = re4ge::factoryPresets()[(size_t) i].name;
     PresetIO::apply (*this, apvts, re4ge::factoryPresets()[(size_t) i].v);
-    for (int k = 0; k < 4; ++k)
+    for (int k = 0; k < numShapes; ++k)
     {
-        const auto& txt = re4ge::factoryPresets()[(size_t) i].shapes[(size_t) k];
+        const String txt = k < 4 ? re4ge::factoryPresets()[(size_t) i].shapes[(size_t) k] : String();
         setShape (k, txt.isNotEmpty() ? [&] { mod::Shape sh = re4ge::defaultLaneShape (k); mod::Shape::fromString (txt, sh); return sh; }() : re4ge::defaultLaneShape (k), false);
     }
 }
@@ -51,7 +51,7 @@ bool ReProcessor::loadUserPresetFile (const File& f)
     PresetValues v;
     for (auto* c : xml->getChildWithTagNameIterator ("PARAM")) v.push_back ({ c->getStringAttribute ("id"), (float) c->getDoubleAttribute ("value") });
     PresetIO::apply (*this, apvts, v);
-    for (int k = 0; k < 4; ++k)
+    for (int k = 0; k < numShapes; ++k)
     {
         mod::Shape sh = re4ge::defaultLaneShape (k);
         mod::Shape::fromString (xml->getStringAttribute (shapeKey (k)), sh);
@@ -103,7 +103,7 @@ ReProcessor::ReProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", AudioChannelSet::stereo(), true)),
       apvts (*this, &undo, "RE4GE", re4ge::createLayout())
 {
-    for (int i = 0; i < 4; ++i) shapes[(size_t) i] = lastShapes[(size_t) i] = re4ge::defaultLaneShape (i);
+    for (int i = 0; i < numShapes; ++i) shapes[(size_t) i] = lastShapes[(size_t) i] = re4ge::defaultLaneShape (i);
     apvts.state.addListener (this);
     setCurrentProgram (0);
 }
@@ -123,19 +123,21 @@ re::Params ReProcessor::gather() const
         if (l.isLocked()) lastShapes = shapes;          // busy (the GUI is writing): the last copy
     }
     for (int i = 0; i < 4; ++i) p.lane[(size_t) i].shape = lastShapes[(size_t) i];
+    p.driveCurve = { lastShapes[4], lastShapes[5] };
+    p.curveSerial = shapeSerial.load();
     return p;
 }
 
 // ------------------------------------------------------------ SHAPE DESIGNER curves
-const char* ReProcessor::shapeKey (int lane) { static const char* k[4] { "shapeAmp", "shapePitch", "shapeHarm", "shapePhase" }; return k[jlimit (0, 3, lane)]; }
-mod::Shape ReProcessor::getShape (int lane) const { const SpinLock::ScopedLockType l (shapeLock); return shapes[(size_t) jlimit (0, 3, lane)]; }
+const char* ReProcessor::shapeKey (int lane) { static const char* k[numShapes] { "shapeAmp", "shapePitch", "shapeHarm", "shapePhase", "shapeDrive1", "shapeDrive2" }; return k[jlimit (0, numShapes - 1, lane)]; }
+mod::Shape ReProcessor::getShape (int lane) const { const SpinLock::ScopedLockType l (shapeLock); return shapes[(size_t) jlimit (0, numShapes - 1, lane)]; }
 void ReProcessor::setShape (int lane, const mod::Shape& s, bool undoable)
 {
     apvts.state.setProperty (shapeKey (lane), s.toString(), undoable ? &undo : nullptr);     // -> valueTreePropertyChanged
 }
 void ReProcessor::valueTreePropertyChanged (ValueTree&, const Identifier& id)
 {
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < numShapes; ++i)
         if (id.toString() == shapeKey (i))
         {
             mod::Shape s = re4ge::defaultLaneShape (i);
@@ -146,7 +148,7 @@ void ReProcessor::valueTreePropertyChanged (ValueTree&, const Identifier& id)
 }
 void ReProcessor::applyShapesFromState()
 {
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < numShapes; ++i)
     {
         mod::Shape s = re4ge::defaultLaneShape (i);
         mod::Shape::fromString (apvts.state.getProperty (shapeKey (i)).toString(), s);
@@ -188,6 +190,7 @@ void ReProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
         if (auto pos = ph->getPosition())
             if (auto bp = pos->getBpm()) bpmNow = *bp;
     engine.setTempo (bpmNow);
+    engine.setNonRealtime (isNonRealtime());
     if (pendingAudition.exchange (false)) engine.audition (auditionNote);
     engine.process (buffer, midi);
 }

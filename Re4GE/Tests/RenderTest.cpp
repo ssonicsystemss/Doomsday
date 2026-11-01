@@ -314,7 +314,7 @@ int main (int argc, char** argv)
             for (int i = 0; i < k.getNumSamples(); ++i) { const double t = i / sr; ph += (50.0 + 250.0 * std::exp (-t * 25.0)) / sr; const float v = (float) (std::tanh (3.0 * std::sin (6.2831853 * ph)) * std::exp (-t * 3.0)) * 0.7f; k.setSample (0, i, v); k.setSample (1, i, v); }
             writeWav (wav, k);
         }
-        struct Ctx { const char* preset; std::vector<std::pair<const char*, float>> extra; bool sample = false; bool gate = false; };
+        struct Ctx { const char* preset; std::vector<std::pair<const char*, float>> extra; bool sample = false; bool gate = false; bool offline = false; };
         const std::vector<Ctx> ctxs {
             { "PUMP - QL Tail", {} },
             { "SWELL - Synth Bend", {} },
@@ -323,6 +323,9 @@ int main (int argc, char** argv)
             { "INIT", { { source, 2.f } }, true },
             { "INIT", { { timing, 1.f } } },
             { "INIT", { { clickLevel, -6.f }, { smear, 0.6f } } },
+            { "INIT", { { source, 0.f }, { labId (0, "lab"), 6.f }, { labId (0, "tone"), 0.6f }, { dist2Drive, 12.f }, { labId (1, "lab"), 6.f }, { labId (1, "tone"), 0.6f }, { dist2Bias, 0.3f } } },
+            { "INIT", { { source, 0.f }, { labId (0, "lab"), 1.f }, { labId (1, "lab"), 1.f }, { dist2Drive, 12.f } } },
+            { "INIT", { { source, 0.f } }, false, false, true },
             { "INIT", { { source, 0.f }, { warp, 1.f }, { warpAmt, 0.6f }, { preType, 1.f }, { preHz, 1500.f }, { oscId (2, "level"), -6.f }, { oscId (2, "pm"), 0.6f },
                         { laneId (0, "on"), 1.f }, { laneId (1, "on"), 1.f }, { laneId (2, "on"), 1.f }, { laneId (3, "on"), 1.f },
                         { laneId (0, "depth"), 0.7f }, { laneId (2, "depth"), 0.7f }, { laneId (3, "depth"), 0.7f },
@@ -348,6 +351,7 @@ int main (int argc, char** argv)
                 p.setCurrentProgram (byName (p, cx.preset)); host.bpm = 150.0;
                 for (auto& [id, v] : cx.extra) set (p, id, v);
                 if (cx.sample) p.loadSample (wav); else p.clearSample();
+                p.setNonRealtime (cx.offline);
                 auto notes = cx.gate ? std::vector<Note> { { 30.0, 500.0, 31, 0.6f }, { 300.0, 400.0, 38, 0.6f } } : std::vector<Note> { { 0.0, 100.0, 31, 0.6f } };
                 rp->setValueNotifyingHost (0.f); const auto a = play (p, host, notes, 0.8);
                 rp->setValueNotifyingHost (1.f); const auto b = play (p, host, notes, 0.8);
@@ -357,7 +361,7 @@ int main (int argc, char** argv)
             }
             if (! moves) dead << rp->paramID << " ";
         }
-        p.clearSample();
+        p.clearSample(); p.setNonRealtime (false);
         check (dead.isEmpty(), "every parameter changes the sound (min vs max)", String (tested) + " params" + (dead.isNotEmpty() ? " DEAD: " + dead : String()));
     }
     // 15) GUI: editor stress + snapshots of the three pages
@@ -378,7 +382,7 @@ int main (int argc, char** argv)
         p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise"));
         play (p, host, everyBeat (1, 150.0), 0.3);
         const std::pair<int, const char*> pages[] { { 0, "gui_main.png" }, { 1, "gui_osc.png" }, { 3, "gui_envelope.png" }, { 4, "gui_shape.png" },
-                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" } };
+                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" } };
         for (auto [pg, name] : pages)
         {
             dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (pg);

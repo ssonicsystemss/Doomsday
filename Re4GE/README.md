@@ -1,4 +1,19 @@
-# RE4GE v0.6
+# RE4GE v0.7
+
+## v0.7 (krok 3): DISTORTION LAB
+**02 PROCESS → Distortion**: obok każdego stopnia (STAGE 1 / 2) jest **LAB**:
+- **CLASSIC**: typy z 4GE (Soft … Crush), jak dotąd.
+- **SAT**: tanh ↔ twardy clip. **DIODE**: asymetryczny (parzyste harmoniczne, ciasny dół). **FOLD**: wavefolding.
+  **RECT**: prostownik (HARDNESS 0 = zwykły, 50 % = półokresowy, 100 % = pełny, czyli oktawa w górę).
+  **CRUSH**: prawdziwy bitcrusher (mniej bitów i niższa częstotliwość, aliasuje celowo). **CUSTOM**: Twoja narysowana krzywa.
+- Wszystkie oprócz CRUSH mają **ADAA**, czyli dużo mniej cyfrowego „piasku” przy mocnym przesterze (test: od −5,7 do kilkunastu dB mniej aliasingu).
+- Gałki: **HARDNESS** (charakter krzywej), **TONE** (pochylenie przy 800 Hz, **PRE** = zmienia to, co się przesterowuje, **POST** = tylko kolor), **OUTPUT**.
+  STAGE 2 dostał też ASYM.
+- **02 PROCESS → Waveshaper**: rysujesz krzywą CUSTOM dla stopnia 1 / 2 (X = wejście, Y = wyjście). **Biała kropka** pokazuje, jak głęboko bas
+  wchodzi teraz w krzywą. SYMMETRIC (rysujesz prawą połówkę), Save / Load do `Dokumenty\RE4GE\Shapes`, Reset, Undo. Krzywe zapisują się też w presecie.
+- **SYSTEM → Settings**: **QUALITY** (oversampling przy graniu 2× / **4×** / 8× / 16×, osobno przy eksporcie z FL, domyślnie **8×**), **AUTO GAIN**.
+- Nowy preset **LAB - Diode Fold Rise**: Dense Rise z DIODE na stopniu 1 i WAVEFOLD na stopniu 2.
+
 
 ## v0.6 (krok 2): REVERSE SHAPE DESIGNER
 **01 SOUND → Shape**: jeden ekran, 4 rysowane linie na osi jednego kroku (od kicka do kicka). Czerwona kreska = koniec basu (GATE).

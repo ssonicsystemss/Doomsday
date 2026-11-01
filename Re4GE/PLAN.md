@@ -143,7 +143,9 @@ Ostateczny test: **ucho właściciela + A/B z jego samplami** (Bass_15 / 16, FHS
    ✅ **Bramka kroku 1 zaliczona (2026-11-01): właściciel – „brzmi świetnie”** (v0.5, CLASSIC - Dense Rise).
 2. ✅ **(v0.6, 2026-11-01)** Reverse Shape Designer: AMP / PITCH / HARMONIC / PHASE, ON / LENGTH / ANCHOR START-END / ONE SHOT-LOOP / DEPTH,
    krzywe = `mod::Shape` (bend = EXP / LOG; typ S i osobne SYNC / MS długości – później), undo, zapis w stanie. RETRIGGER = co krok; FREE – później.
-3. Distortion Lab (waveshaper rysowany, typy, oversampling 1–16×).
+3. ✅ **(v0.7, 2026-11-02)** Distortion Lab: LAB na stopień (CLASSIC / SAT / DIODE / FOLD / RECT / CRUSH / CUSTOM) z ADAA (`Shared/Source/DoomsdayLab.h`),
+   HARDNESS / TONE PRE-POST / OUTPUT, rysowany waveshaper z kropką na żywo + pliki krzywych, QUALITY 2–16× (osobno eksport), AUTO GAIN.
+   Do zrobienia później: THRESHOLD, PRE / POST EQ stopnia (jest wspólny EQ), oversampling 1× (teraz min 2×, bo oscylatory też są w nadpróbkowaniu).
 4. Modulation Matrix + LFO 1–4.
 5. Kick-to-Reverse (ekstrakcja, tryby, OWN SOUND) + RE4GE FX (audio / sidechain).
 6. Randomizer, sekwencer + gate, EQ, dynamika, presety z kategoriami, eksport.

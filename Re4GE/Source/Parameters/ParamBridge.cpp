@@ -59,6 +59,14 @@ re::Params gatherParams (const AudioProcessorValueTreeState& apvts)
         L.on = get (laneId (i, "on")) > 0.5f; L.lenPct = get (laneId (i, "len")); L.anchor = ch (laneId (i, "anchor"), 1);
         L.loop = get (laneId (i, "mode")) > 0.5f; L.depth = get (laneId (i, "depth"));      // (the curves come from the processor)
     }
+    for (int s = 0; s < 2; ++s)
+    {
+        auto& L = p.lab[(size_t) s];
+        L.algo = ch (labId (s, "lab"), 6) - 1; L.hard = get (labId (s, "hard")); L.tone = get (labId (s, "tone"));
+        L.tonePost = get (labId (s, "tone_post")) > 0.5f; L.outDb = get (labId (s, "out")); L.symmetric = get (labId (s, "sym")) > 0.5f;
+    }
+    p.dist2Bias = get (dist2Bias); p.autoGain = get (autoGain) > 0.5f;
+    p.qualityRt = ch (qualityRt, 3); p.qualityExport = ch (qualityExport, 3);
     return p;
 }
 }

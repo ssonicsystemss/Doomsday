@@ -60,6 +60,8 @@ public:
 
     // SHAPE DESIGNER curves (message thread). They live in the state (saved with presets / projects, undoable);
     // a listener copies them for the audio thread under a spin lock (the audio thread only try-locks).
+    // 0..3 = the SHAPE DESIGNER lanes, 4 / 5 = the CUSTOM distortion curves of stage 1 / 2
+    static constexpr int numShapes = 6;
     static const char* shapeKey (int lane);
     doomsday::mod::Shape getShape (int lane) const;
     void setShape (int lane, const doomsday::mod::Shape&, bool undoable = true);
@@ -77,8 +79,8 @@ private:
     void valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&) override;
     void applyShapesFromState();
     mutable juce::SpinLock shapeLock;
-    std::array<doomsday::mod::Shape, 4> shapes;
-    mutable std::array<doomsday::mod::Shape, 4> lastShapes;
+    std::array<doomsday::mod::Shape, numShapes> shapes;
+    mutable std::array<doomsday::mod::Shape, numShapes> lastShapes;
     std::atomic<int> shapeSerial { 0 };
     void set (const char* id, float v);
     re::Engine engine;

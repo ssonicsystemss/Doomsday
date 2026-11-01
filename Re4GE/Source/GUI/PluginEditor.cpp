@@ -1,7 +1,9 @@
 #include "PluginEditor.h"
 #include "DoomsdayBrand.h"
+#include "../Presets/ShapeFiles.h"
 
 using namespace juce;
+namespace mod = doomsday::mod;
 
 using namespace doomsday::flat;
 
@@ -126,7 +128,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p)
+Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -317,7 +319,58 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p)
         auto& c = card ("Stage 2", hot, PDist); cDrive2 = (int) cards.size() - 1;
         knob (c, dist2Drive, "Drive", "The second distortion, after the EQ bell (OFF = none): the presence you boost gets dense and bright");
         knob (c, dist2Mix, "Mix", "Clean / distorted");
+        knob (c, dist2Bias, "Asym", "Asymmetry of stage 2: even harmonics", true);
         c.head.push_back (seg (dist2Type, { "Soft", "Tube", "Hard", "Fold", "Raw", "Crush" }, hot, distTip));
+    }
+    // ---- DISTORTION LAB per stage (CLASSIC = the types on the left)
+    for (int s = 0; s < 2; ++s)
+    {
+        auto& c = card ("Lab " + String (s + 1), hot, PDist); cLab[s] = (int) cards.size() - 1;
+        knob (c, labId (s, "hard"), "Hardness", "Character of the LAB curve: SAT / DIODE / FOLD = soft -> hard clip, RECT = plain -> half-wave -> full-wave (octave up), CRUSH = fewer bits + lower rate");
+        knob (c, labId (s, "tone"), "Tone", "Tilt around 800 Hz: - darker, + brighter (PRE = what goes into the curve, POST = after it)", true);
+        knob (c, labId (s, "out"), "Output", "Level after this stage", true);
+        c.head.push_back (seg (labId (s, "tone_post"), { "Pre", "Post" }, hot, "TONE before the curve (changes what distorts) or after it (only the colour)"));
+        c.head.push_back (seg (labId (s, "lab"), { "Classic", "Sat", "Diode", "Fold", "Rect", "Crush", "Custom" }, hot,
+                               "CLASSIC = the 4GE types on the left. SAT = tanh / clip, DIODE = asymmetric (even harmonics), FOLD = wavefolding, RECT = rectifier (octave), CRUSH = real bitcrusher (aliases on purpose), CUSTOM = your drawn curve (WAVESHAPER page). All but CRUSH are anti-aliased (ADAA)"));
+    }
+    // ---- WAVESHAPER: the drawn CUSTOM curves
+    for (int s = 0; s < 2; ++s)
+    {
+        auto& c = card ("Custom curve " + String (s + 1), hot, PWaveshaper); cCurve[s] = (int) cards.size() - 1;
+        c.shown = [this, s] { return shaperView.stage == s; };
+        c.head.push_back (toggle (labId (s, "sym"), "Symmetric", Toggle::Chip, hot, "ON: draw the right half (positive input), the left half mirrors it. OFF: both halves are free (asymmetric = even harmonics)"));
+        auto mk = [this, &c] (const char* text, const char* tip, std::function<void()> fn)
+        {
+            auto b = std::make_unique<TextButton> (text); b->setTooltip (tip); b->onClick = std::move (fn);
+            addAndMakeVisible (*b); c.head.push_back (b.get()); templ.push_back (std::move (b));
+        };
+        mk ("Reset", "Back to the default curve", [this, s] { proc.undo.beginNewTransaction(); proc.resetShape (4 + s); });
+        mk ("Save", "Save this curve to Documents / RE4GE / Shapes", [this, s]
+        {
+            auto* w = new AlertWindow ("Save curve", "Name:", MessageBoxIconType::NoIcon, this);
+            w->addTextEditor ("name", "My Curve"); w->addButton ("Save", 1, KeyPress (KeyPress::returnKey)); w->addButton ("Cancel", 0, KeyPress (KeyPress::escapeKey));
+            w->enterModalState (true, ModalCallbackFunction::create ([this, s, w] (int r)
+            {
+                if (r == 1) re4ge::shapefiles::save (w->getTextEditorContents ("name"), proc.getShape (4 + s));
+            }), true);
+        });
+        mk ("Load", "Load one of your curves (Documents / RE4GE / Shapes)", [this, s]
+        {
+            PopupMenu m; const auto files = re4ge::shapefiles::list();
+            if (files.isEmpty()) m.addItem (-1, "No curves saved yet", false);
+            for (int i = 0; i < files.size(); ++i) m.addItem (i + 1, files[i].getFileNameWithoutExtension());
+            m.showMenuAsync (PopupMenu::Options(), [this, s, files] (int r)
+            {
+                mod::Shape sh;
+                if (r > 0 && re4ge::shapefiles::load (files[r - 1], sh)) { proc.undo.beginNewTransaction(); proc.setShape (4 + s, sh); }
+            });
+        });
+    }
+    {
+        auto& c = card ("Quality", n, PSettings); cSettings = (int) cards.size() - 1;
+        c.head.push_back (toggle (autoGain, "Auto gain", Toggle::Chip, n, "ON: more DRIVE changes the character, not the loudness (the ear is not fooled by 'louder = better')"));
+        c.head.push_back (seg (qualityExport, { "2x", "4x", "8x", "16x" }, n, "Oversampling when FL renders / exports (offline): more = cleaner top, slower export"));
+        c.head.push_back (seg (qualityRt, { "2x", "4x", "8x", "16x" }, n, "Oversampling while you play: more = less aliasing on hard distortion, more CPU (4x is the default)"));
     }
     {
         auto& c = card ("EQ", cool, PEq); cPost = (int) cards.size() - 1;
@@ -416,6 +469,11 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p)
         c.head.push_back (toggle (laneId (i, "on"), "On", Toggle::Chip, ShapeDesigner::laneColour (i), "This lane plays (OFF = the knobs do it)"));
     }
     designer.onLaneChanged = [this] { showPage (page); };
+    shaperView.onStageChanged = [this] { showPage (page); };
+    addAndMakeVisible (shaperView);
+    settingsB.setTooltip ("Quality (oversampling while playing / for export), auto gain");
+    settingsB.onClick = [this] { showPage (PSettings); };
+    addAndMakeVisible (settingsB);
     addAndMakeVisible (designer);
     addAndMakeVisible (view);
 
@@ -425,7 +483,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p)
     nav.blocks = {
         { "01", "SOUND",      { { "Main", PMain, {} }, { "Osc", POsc, oscOn }, { "Pitch", PPitch, [this] { return raw (proc, ParamIDs::pitchMode) > 0.5f; } },
                                 { "Envelope", PEnv, [] { return true; } }, { "Shape", PDesigner, [this] { for (int i = 0; i < 4; ++i) if (raw (proc, ParamIDs::laneId (i, "on")) > 0.5f) return true; return false; } } }, {} },
-        { "02", "PROCESS",    { { "Filter", PFilter, on (preType, 0.5f) }, { "Distortion", PDist, on (drive, 0.05f) }, { "Transient", PTransient, on (clickLevel, -59.f) }, { "EQ", PEq, [this] { return std::abs (raw (proc, ParamIDs::bellGain)) > 0.05f || raw (proc, ParamIDs::lowCut) > 20.5f; } } }, {} },
+        { "02", "PROCESS",    { { "Filter", PFilter, on (preType, 0.5f) }, { "Distortion", PDist, on (drive, 0.05f) }, { "Waveshaper", PWaveshaper, [this] { return roundToInt (raw (proc, ParamIDs::labId (0, "lab"))) == 6 || roundToInt (raw (proc, ParamIDs::labId (1, "lab"))) == 6; } }, { "Transient", PTransient, on (clickLevel, -59.f) }, { "EQ", PEq, [this] { return std::abs (raw (proc, ParamIDs::bellGain)) > 0.05f || raw (proc, ParamIDs::lowCut) > 20.5f; } } }, {} },
         { "03", "MODULATION", { { "Steps", PShape, [] { return true; } } }, "LFO / matrix: step 4" },
         { "04", "SOURCE",     { { "Kick Tail", PTail, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 1; } }, { "Sample", PSample, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 2; } },
                                 { "Sub", PSub, on (subHz, 20.5f) }, { "Stereo", PStereo, on (uniVoices, 1.5f) } }, {} } };
@@ -523,6 +581,7 @@ void Canvas::showPage (int pg)
     nav.repaint();
     view.setVisible (page == PMain || page == PPitch || page == PEnv || page == PShape);
     designer.setVisible (page == PDesigner);
+    shaperView.setVisible (page == PWaveshaper);
     for (auto& c : cards)
     {
         const bool on = cardOn (c);
@@ -569,7 +628,7 @@ void Canvas::resized()
     prev.setBounds (presetBox.getX() - 40, 13, 34, 30);
     // left: NAV + SYSTEM; right: the work area; bottom: MACROS + MASTER
     navArea = { 0, top, 200, H - top - bottomH };
-    sysArea = navArea.removeFromBottom (128);
+    sysArea = navArea.removeFromBottom (168);
     nav.setBounds (navArea);
     {
         auto s = sysArea.reduced (12, 0).withTrimmedTop (34);
@@ -578,6 +637,7 @@ void Canvas::resized()
         saveB.setBounds (r1.removeFromLeft (bw)); r1.removeFromLeft (6); folderB.setBounds (r1);
         auto r2 = s.removeFromTop (34);
         randomB.setBounds (r2.removeFromLeft (bw)); r2.removeFromLeft (6); playB.setBounds (r2);
+        s.removeFromTop (6); settingsB.setBounds (s.removeFromTop (34));
     }
     workArea = { 200 + m, top + 12, W - 200 - 2 * m, H - top - bottomH - 24 };
     for (auto& c : cards) c.area = {};
@@ -604,7 +664,9 @@ void Canvas::resized()
         case PEnv:    row ({ { cEnv, 0 } }); row ({ { raw (proc, ParamIDs::timing) < 0.5f ? cTimeSync : cTimeMs, 420 } }); break;
         case PShape:  row ({ { cTrig, 520 }, { cSteps, 0 } }); break;
         case PFilter: row ({ { cPre, 520 } }); break;
-        case PDist:   row ({ { cDrive, 0 } }); row ({ { cDrive2, 0 } }); break;
+        case PDist:   row ({ { cDrive, 470 }, { cLab[0], 0 } }); row ({ { cDrive2, 470 }, { cLab[1], 0 } }); break;
+        case PWaveshaper: { shaperView.setBounds (wa.removeFromTop (wa.getHeight() - rowH - gap)); wa.removeFromTop (gap); row ({ { cCurve[shaperView.stage], 0 } }); break; }
+        case PSettings: row ({ { cSettings, 0 } }); break;
         case PEq:     row ({ { cPost, 520 } }); break;
         case PTail:   row ({ { cTail, 0 } }); break;
         case PSample: row ({ { cSample, 0 } }); break;
@@ -760,6 +822,7 @@ void Canvas::timerCallback()
 {
     view.tick();
     if (designer.isVisible()) designer.tick();
+    if (shaperView.isVisible()) shaperView.tick();
     const int mode = raw (proc, ParamIDs::timing) > 0.5f ? 1 : 0;
     if (mode != lastMode) { lastMode = mode; showPage (page); }
     nav.repaint();   // the module dots follow the knobs

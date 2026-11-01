@@ -4,7 +4,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.6";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.7";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";
@@ -133,6 +133,20 @@ namespace ParamIDs
         jassertfalse; return ids[0][0];
     }
     inline const juce::StringArray laneNames { "AMP", "PITCH", "HARMONIC", "PHASE" };
+    // ---- v0.7: step 3, DISTORTION LAB (per stage 1 / 2) + QUALITY
+    inline const char* labId (int stage, const char* what)       // "dist1_lab", "dist2_hard", ...
+    {
+        static const char* ids[2][6] {
+            { "dist1_lab", "dist1_hard", "dist1_tone", "dist1_tone_post", "dist1_out", "dist1_sym" },
+            { "dist2_lab", "dist2_hard", "dist2_tone", "dist2_tone_post", "dist2_out", "dist2_sym" } };
+        static const char* names[6] { "lab", "hard", "tone", "tone_post", "out", "sym" };
+        for (int k = 0; k < 6; ++k) if (std::strcmp (names[k], what) == 0) return ids[juce::jlimit (0, 1, stage)][k];
+        jassertfalse; return ids[0][0];
+    }
+    inline constexpr const char* dist2Bias = "dist2_bias";
+    inline constexpr const char* autoGain  = "dist_autogain";
+    inline constexpr const char* qualityRt = "quality_rt";
+    inline constexpr const char* qualityExport = "quality_export";
     inline const juce::StringArray macroNames { "BODY", "WEIGHT", "REVERSE", "PITCH", "GRIT", "BITE", "MOVEMENT", "SPACE" };
 
     // v0.1 / v0.2 IDs -> v0.3 (old user presets still load); the v0.3 IDs are FROZEN: never rename (Tests/param_ids.txt)
@@ -213,6 +227,9 @@ namespace Choices
     inline const juce::StringArray clickAts { "START", "PEAK" };
     inline const juce::StringArray anchors { "START", "END" };
     inline const juce::StringArray laneModes { "ONE SHOT", "LOOP" };
+    inline const juce::StringArray labAlgos { "CLASSIC", "SATURATION", "DIODE", "WAVEFOLD", "RECTIFIER", "BITCRUSH", "CUSTOM" };
+    inline const juce::StringArray qualities { "2x", "4x", "8x", "16x" };
+    inline const juce::StringArray tonePos { "PRE", "POST" };
     inline const juce::StringArray phaseModes { "RESET", "FREE" };
     inline const juce::StringArray pitchModes { "STABLE", "DROP", "RISE", "BOUNCE" };
 }

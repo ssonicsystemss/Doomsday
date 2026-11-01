@@ -92,7 +92,7 @@ Zasady: (1) kliknięcie bloku **rozwija jego podmenu**, nie skacze do przypadkow
 roboczą po prawej**; (3) **makra, preset, BPM i MASTER OUTPUT zawsze widoczne**, niezależnie od sekcji.
 Wygląd: styl flat z `Shared/DESIGN.md`, akcent **czerwony**, grafit / czerń, białe opisy, duże pokrętła makr, animowany oscyloskop,
 podświetlenie włączonych modułów; skalowanie 75–200 % zapamiętywane; każda gałka: nazwa, wartość, tooltip, wpisywanie, automacja, MIDI Learn,
-menu (reset, learn, copy / paste, FREEZE); copy / paste modułów. Makieta przed kodowaniem GUI (do potwierdzenia).
+menu (reset, learn, copy / paste, FREEZE); copy / paste modułów. Makieta: `Re4GE/Design/` (MAIN + otwarty moduł; do akceptacji właściciela). ID parametrów: jednorazowe porządkowanie przy v0.3 (właściciel nie ma projektów z automacją v0.1 / v0.2), potem zamrożone.
 
 ## Presety, eksport, host
 - Kategorie: Classic / Early / Nu-Style / Modern / Raw / Euphoric / Screech Bass / Industrial / Experimental / Clean Sub / Kick Based /

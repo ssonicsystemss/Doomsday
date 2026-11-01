@@ -1,0 +1,84 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root{--g:#16181c;--s:#1b1e23;--c:#1d2025;--b:#2c3138;--d:#262a30;--t:#e8eaed;--td:#9aa1ab;--tm:#7d848e;--hot:#ff3b3b;--cool:#4ea1ff}
+*{box-sizing:border-box;margin:0}body{background:var(--g);color:var(--t);font:12px Inter,Helvetica,Arial,sans-serif;width:1280px;height:800px;overflow:hidden}
+.top{height:56px;border-bottom:1px solid var(--d);display:flex;align-items:center;padding:0 16px;gap:14px}
+.badge{width:30px;height:30px;border-radius:7px;background:var(--hot);color:#16181c;font-weight:800;display:grid;place-items:center;font-size:13px}
+.name{font-size:16px;font-weight:700;letter-spacing:1px}.ver{color:var(--tm);font-size:11px}
+.pill{background:var(--c);border:1px solid var(--b);border-radius:8px;padding:7px 12px;color:var(--td)}
+.seg{display:flex;border:1px solid var(--b);border-radius:8px;overflow:hidden}.seg div{padding:7px 11px;color:var(--td);background:var(--c)}.seg .on{background:var(--hot);color:#16181c;font-weight:700}
+.preset{flex:1;max-width:330px;display:flex;justify-content:space-between;background:var(--c);border:1px solid var(--b);border-radius:8px;padding:7px 12px;font-weight:600}
+.sp{flex:1}
+.main{display:flex;height:604px}
+.nav{width:200px;flex:0 0 200px;border-right:1px solid var(--d);padding:12px 10px;display:flex;flex-direction:column}
+.blk{border-radius:8px;padding:9px 10px;font-weight:700;letter-spacing:1.2px;color:var(--td);display:flex;gap:8px;margin-bottom:3px}
+.blk .n{color:var(--tm);font-weight:600}.blk.open{background:var(--c);color:var(--t)}.blk.open .n{color:var(--hot)}
+.sub{margin:2px 0 8px 32px}.sub div{padding:5px 8px;color:var(--tm);border-left:2px solid var(--d);display:flex;justify-content:space-between}
+.sub .act{color:var(--t);border-left:2px solid var(--hot);background:#1b1e23}
+.dot{width:6px;height:6px;border-radius:3px;background:var(--hot);margin-top:4px}.dot.off{background:var(--b)}
+.sys{margin-top:auto;border-top:1px solid var(--b);padding-top:10px}
+.sys .blk{font-size:11px;padding:6px 10px}
+.sysrow{display:grid;grid-template-columns:1fr 1fr;gap:5px}.sysrow div{background:var(--c);border:1px solid var(--b);border-radius:7px;padding:6px;text-align:center;color:var(--td);font-size:11px}
+.work{flex:1;min-width:0;padding:14px;display:flex;flex-direction:column;gap:12px}
+.crumb{color:var(--tm);font-size:11px;letter-spacing:1px}.crumb b{color:var(--t)}
+.card{background:var(--s);border-radius:12px;padding:12px;position:relative}
+.ct{font-weight:700;font-size:12px;letter-spacing:1.5px;color:var(--td);display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.tog{font-size:10px;background:var(--hot);color:#16181c;border-radius:6px;padding:2px 6px;font-weight:700}
+.knobs{display:flex;gap:6px;flex-wrap:wrap}.k{width:66px;text-align:center}.k .v{font-weight:600;font-size:12px;margin-top:-6px}.k .l{color:var(--tm);font-size:10px;margin-top:2px}
+.bottom{height:140px;border-top:1px solid var(--d);display:flex;padding:10px 14px;gap:12px}
+.macros{flex:1;display:flex;justify-content:space-between;background:var(--s);border-radius:12px;padding:8px 14px}
+.mk{text-align:center;width:84px}.mk .v{font-weight:700;margin-top:-8px}.mk .l{color:var(--t);font-size:10px;font-weight:700;letter-spacing:1px;margin-top:3px}
+.master{width:330px;background:var(--s);border-radius:12px;padding:8px 12px;display:flex;gap:6px;align-items:center}
+.meter{width:10px;height:100px;background:var(--c);border-radius:4px;position:relative;overflow:hidden}.meter i{position:absolute;bottom:0;left:0;right:0;background:#b4bac3}
+.lab{position:absolute;font-size:10px;color:var(--tm)}
+.note{position:absolute;background:#fff3;border:1px dashed #fff8;color:#fff;font-size:11px;padding:4px 7px;border-radius:6px}
+</style></head><body>
+<div class="top"><div class="badge">D</div><div><div class="name">RE4GE</div><div class="ver">v0.3 · sonicsystems</div></div>
+<div class="seg"><div class="on">CLASSIC</div><div>MODERN</div><div>EXPERIMENTAL</div></div><div class="sp"></div>
+<div class="pill">&lt;</div><div class="preset"><span>CLASSIC · Pump Tail 2009</span><span style="color:var(--tm)">▾</span></div><div class="pill">&gt;</div>
+<div class="pill">BPM <b style="color:var(--t)">150</b> · HOST</div><div class="pill">A | B</div><div class="pill">↶ ↷</div></div>
+<div class="main"><div class="nav" id="nav"></div><div class="work" id="work"></div></div>
+<div class="bottom"><div class="macros" id="macros"></div><div class="master" id="master"></div></div>
+<script>
+const hot='#ff3b3b',cool='#4ea1ff',grey='#b4bac3';
+function knob(v,val,lab,col=grey,size=56){const r=size/2-5,c=size/2,a0=135,sw=270*v;
+ const p=(a)=>{a=a*Math.PI/180;return[c+r*Math.cos(a),c+r*Math.sin(a)]};
+ const arc=(s,e)=>{const[x1,y1]=p(s),[x2,y2]=p(e);return`M${x1} ${y1}A${r} ${r} 0 ${e-s>180?1:0} 1 ${x2} ${y2}`};
+ return`<svg width="${size}" height="${size}"><path d="${arc(a0,a0+270)}" stroke="#2c3138" stroke-width="5" fill="none" stroke-linecap="round"/>${v>0.005?`<path d="${arc(a0,a0+sw)}" stroke="${col}" stroke-width="5" fill="none" stroke-linecap="round"/>`:''}</svg><div class="v">${val}</div><div class="l">${lab}</div>`}
+const K=(v,val,lab,col)=>`<div class="k">${knob(v,val,lab,col)}</div>`;
+const view=new URLSearchParams(location.search).get('v')||'main';
+const blocks=[['01','SOUND',['Main','Osc','Pitch','Phase','Envelope','Shape']],['02','PROCESS',['Filter','Distortion','Waveshaper','Transient','EQ','Dynamics']],['03','MODULATION',['LFO','Mod Matrix','Sequencer','Gate']],['04','SOURCE',['Kick Tail','Audio Input','Sub','Stereo']]];
+const openB=view=='main'?'SOUND':view=='env'?'SOUND':'PROCESS',act=view=='main'?'Main':view=='env'?'Envelope':'Distortion';
+const offs=['Phase','Waveshaper','Transient','Dynamics','LFO','Sequencer','Audio Input'];
+let h='';for(const[n,t,s]of blocks){const o=t==openB;h+=`<div class="blk ${o?'open':''}"><span class="n">${n}</span>${t}<span class="sp"></span><span style="color:var(--tm)">${o?'▾':'▸'}</span></div>`;
+ if(o)h+=`<div class="sub">${s.map(x=>`<div class="${x==act?'act':''}">${x}${x=='Main'?'':`<span class="dot ${offs.includes(x)?'off':''}"></span>`}</div>`).join('')}</div>`}
+h+=`<div class="sys"><div class="blk"><span class="n">05</span>SYSTEM</div><div class="sysrow"><div>Presets</div><div>Random</div><div>Export</div><div>Settings</div></div></div>`;
+nav.innerHTML=h;
+const graph=(w,hh,title,body)=>`<div class="card" style="height:${hh}px"><div class="ct">${title}</div><svg width="${w}" height="${hh-44}" style="display:block">${body}</svg></div>`;
+function beat(W,H){let g='';for(let i=0;i<=4;i++)g+=`<line x1="${i*W/4}" y1="0" x2="${i*W/4}" y2="${H}" stroke="#262a30"/>`;
+ let p=`M0 ${H}`;for(let s=0;s<4;s++){const x0=s*W/4,w=W/4;if(s%2==0){g+=`<rect x="${x0+2}" y="${H*0.08}" width="${w*0.18}" height="${H*0.92}" fill="${hot}" opacity=".85" rx="3"/>`;p+=`L${x0} ${H}`;continue}
+ p+=`L${x0+w*0.05} ${H}`;for(let i=0;i<=30;i++){const t=i/30;p+=`L${x0+w*0.05+t*w*0.88} ${H-(H*0.85)*Math.pow(t,0.45)*(t>0.92?(1-t)/0.08:1)}`}p+=`L${x0+w} ${H}`}
+ g+=`<path d="${p}" fill="${cool}22" stroke="${cool}" stroke-width="2"/>`;
+ g+=`<path d="M${W*0.27} ${H*0.6} C ${W*0.4} ${H*0.6}, ${W*0.45} ${H*0.6}, ${W*0.49} ${H*0.25}" stroke="#fff" stroke-dasharray="4 4" fill="none" opacity=".6"/>`;
+ g+=`<text x="6" y="14" fill="#7d848e" font-size="10">KICK</text><text x="${W*0.27}" y="14" fill="${cool}" font-size="10">REVERSE BASS · 1/8 off</text><text x="${W-90}" y="14" fill="#7d848e" font-size="10">0 · 100 · 200 · 300 · 400 ms</text>`;return g}
+if(view=='main'){
+ work.innerHTML=`<div class="crumb">01 SOUND › <b>MAIN</b> — 80 % pracy z jednego ekranu</div>`+graph(1046,210,'ONE BEAT · 150 BPM <span style="color:var(--tm);font-weight:400">· kick / bas / pitch</span>',beat(1020,166))+
+ `<div style="display:flex;gap:12px">
+ <div class="card" style="flex:1.2"><div class="ct">SOURCE <span class="tog">ON</span></div><div class="seg" style="margin-bottom:8px;width:max-content"><div>SYNTH</div><div class="on">KICK TAIL</div><div>SAMPLE</div><div>AUDIO</div></div><div class="knobs">${K(.6,'62 %','BASS TAIL',cool)+K(.35,'+12','TUNE',cool)+K(.5,'0.0','SHAPE',cool)+K(.7,'5 v','UNISON',cool)}</div></div>
+ <div class="card" style="flex:1"><div class="ct">ENVELOPE <span class="tog">PUMP</span></div><div class="knobs">${K(.4,'65 ms','SWELL')+K(.6,'+0.4','CURVE')+K(.3,'12 %','DUCK')+K(.8,'88 %','GATE')}</div></div>
+ <div class="card" style="flex:1"><div class="ct">TONE</div><div class="knobs">${K(.55,'TUBE 7.2','DRIVE',hot)+K(.7,'9 kHz','HIGH CUT',cool)+K(.5,'2 kHz +6','BITE',hot)+K(.25,'40 %','CLIP',hot)}</div></div>
+ <div class="card" style="flex:.8"><div class="ct">LOW END</div><div class="knobs">${K(.5,'90 Hz','SUB Hz')+K(.7,'-2 dB','SUB')+K(.4,'0.4','WIDTH')}</div></div></div>`;
+}else if(view=='env'){
+ const W=1020,H=330;let g='';for(let i=0;i<=8;i++)g+=`<line x1="${i*W/8}" y1="0" x2="${i*W/8}" y2="${H}" stroke="#262a30"/>`;for(let i=0;i<=4;i++)g+=`<line x1="0" y1="${i*H/4}" x2="${W}" y2="${i*H/4}" stroke="#262a30"/>`;
+ const pts=[[0,.12],[.08,.12],[.45,.95],[.55,.8],[.88,.7],[.96,0]];let p=`M0 ${H*(1-.12)}`;
+ p+=` L${.08*W} ${H*.88} C ${.2*W} ${H*.85}, ${.3*W} ${H*.1}, ${.45*W} ${H*.05} L ${.55*W} ${H*.2} C ${.65*W} ${H*.28}, ${.8*W} ${H*.3}, ${.88*W} ${H*.3} L ${.96*W} ${H}`;
+ g+=`<path d="${p} L${W} ${H} L0 ${H}Z" fill="${cool}18"/><path d="${p}" stroke="${cool}" stroke-width="2.5" fill="none"/>`;
+ for(const[x,y]of pts)g+=`<circle cx="${x*W}" cy="${H*(1-y)}" r="7" fill="#16181c" stroke="#fff" stroke-width="2"/>`;
+ g+=`<rect x="${.45*W+12}" y="${H*.05-10}" width="150" height="22" rx="5" fill="#1d2025" stroke="#2c3138"/><text x="${.45*W+20}" y="${H*.05+5}" fill="#e8eaed" font-size="11">SWELL 65 ms · 95 %</text>`;
+ work.innerHTML=`<div class="crumb">01 SOUND › <b>ENVELOPE</b> — moduł zajmuje całą prawą stronę</div>`+
+ `<div class="card"><div class="ct">AMP ENVELOPE <span class="tog">ON</span><span class="sp"></span><div class="seg" style="font-weight:400"><div class="on">PUMP</div><div>SWELL</div><div>TIGHT</div><div>ROLL</div><div>PULSE</div></div><div class="pill" style="font-weight:400">LOOP OFF</div><div class="pill" style="font-weight:400">SYNC</div></div><svg width="${W}" height="${H}">${g}</svg></div>`+
+ `<div class="card"><div class="knobs" style="justify-content:space-between">${K(.12,'12 %','DUCK')+K(.2,'20 %','INITIAL')+K(.08,'8 %','DELAY')+K(.4,'65 ms','SWELL',cool)+K(.6,'+0.4','CURVE',cool)+K(.1,'10 %','HOLD')+K(.7,'70 %','SUSTAIN')+K(.4,'-0.2','DEC CURVE')+K(.8,'88 %','GATE')+K(.15,'6 ms','FADE')+K(.5,'50 %','VEL')}</div></div>`;
+}
+macros.innerHTML=`<div style="color:var(--td);font-weight:700;letter-spacing:1.5px;font-size:11px;writing-mode:vertical-rl;transform:rotate(180deg);text-align:center">MACROS</div>`+
+ [['BODY',.6],['WEIGHT',.5],['REVERSE',.8],['PITCH',.3],['GRIT',.55],['BITE',.4],['MOVEMENT',.2],['SPACE',.35]].map(([l,v])=>`<div class="mk">${knob(v,Math.round(v*100),'',hot,70).replace('<div class="l"></div>','')}<div class="l">${l}</div></div>`).join('');
+master.innerHTML=`<div style="color:var(--td);font-weight:700;letter-spacing:1.5px;font-size:11px;writing-mode:vertical-rl;transform:rotate(180deg)">MASTER</div><div class="knobs" style="flex-wrap:nowrap">${K(.7,'-3.0 dB','OUTPUT')+K(.3,'30 %','CLIP')+K(1,'ON','LIMIT')}</div><div class="meter"><i style="height:62%"></i></div><div class="meter"><i style="height:58%"></i></div><div style="font-size:10px;color:var(--tm);line-height:1.6">PEAK -1.2<br>RMS -9.8<br>LUFS -8.4</div>`;
+</script></body></html>

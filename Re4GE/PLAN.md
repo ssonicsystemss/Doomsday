@@ -80,9 +80,16 @@ szablon MULTIBAND; automatyczne wyrównanie opóźnień między torami. Domyśln
 8 makr (BODY / WEIGHT / REVERSE / PITCH / GRIT / BITE / MOVEMENT / SPACE) = źródła w MATRIX (wiele celów, zakres, INV, krzywa, nazwa do
 zmiany), działają **na wierzch** gałek (0 = to, co w modułach), automatyzowalne. Obok szybkie gałki: BASS TAIL, CLICK, TAIL SHAPE, BASS GATE,
 KICK INTERACTION. **MAIN wystarcza do 80 % pracy** (lekcja z 4GE: za dużo zakładek = nieczytelne).
-Nawigacja: pionowy pasek po lewej w 5 blokach – SOUND (OSC · KICK · SUB), MOTION (PITCH · ENVELOPE · SHAPE), TONE (FILTER · DISTORT · FX),
-RHYTHM & MOD (SEQ · MOD), OUT (OUTPUT); PRESETS jako wysuwana przeglądarka. **Potwierdzone przez właściciela (2026-11-01): 14 zakładek
-= przeładowany interfejs i brak miejsca na kontrolki przy mniejszych rozdzielczościach.**
+Nawigacja (**układ właściciela, 2026-11-01**; 14 zakładek = przeładowany interfejs i brak miejsca na kontrolki przy mniejszych rozdzielczościach):
+pionowy pasek po lewej, 4 bloki robocze + SYSTEM:
+- **01 SOUND**: Main, OSC, Pitch, Phase, Envelope, Shape
+- **02 PROCESS**: Filter, Distortion, Waveshaper, Transient, EQ, Dynamics
+- **03 MODULATION**: LFO, Mod Matrix, Sequencer, Gate
+- **04 SOURCE**: Kick Tail, Audio Input, Sub, Stereo
+- **05 SYSTEM**: Presets, Randomizer, Export, Settings – **dolna część paska, wizualnie oddzielona** od 4 bloków roboczych.
+
+Zasady: (1) kliknięcie bloku **rozwija jego podmenu**, nie skacze do przypadkowej funkcji; (2) otwarty moduł zajmuje **główną przestrzeń
+roboczą po prawej**; (3) **makra, preset, BPM i MASTER OUTPUT zawsze widoczne**, niezależnie od sekcji.
 Wygląd: styl flat z `Shared/DESIGN.md`, akcent **czerwony**, grafit / czerń, białe opisy, duże pokrętła makr, animowany oscyloskop,
 podświetlenie włączonych modułów; skalowanie 75–200 % zapamiętywane; każda gałka: nazwa, wartość, tooltip, wpisywanie, automacja, MIDI Learn,
 menu (reset, learn, copy / paste, FREEZE); copy / paste modułów. Makieta przed kodowaniem GUI (do potwierdzenia).

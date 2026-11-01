@@ -118,3 +118,13 @@ mac_grit
 mac_bite
 mac_movement
 mac_space
+sub_oct
+sub_harm
+sub_sat
+click_level
+click_tone
+click_len
+click_at
+pitch_glide
+st_smear
+st_smear_size

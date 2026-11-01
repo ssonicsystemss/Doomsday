@@ -4,7 +4,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.4";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.5";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";
@@ -109,6 +109,17 @@ namespace ParamIDs
     inline constexpr const char* dist2Drive = "dist2_drive";
     inline constexpr const char* dist2Mix  = "dist2_mix";
     inline constexpr const char* macros[8] { "mac_body", "mac_weight", "mac_reverse", "mac_pitch", "mac_grit", "mac_bite", "mac_movement", "mac_space" };
+    // ---- v0.5: step 1, part 2
+    inline constexpr const char* subOct    = "sub_oct";
+    inline constexpr const char* subHarm   = "sub_harm";
+    inline constexpr const char* subSat    = "sub_sat";
+    inline constexpr const char* clickLevel = "click_level";
+    inline constexpr const char* clickTone = "click_tone";
+    inline constexpr const char* clickLen  = "click_len";
+    inline constexpr const char* clickAt   = "click_at";
+    inline constexpr const char* glide     = "pitch_glide";
+    inline constexpr const char* smear     = "st_smear";
+    inline constexpr const char* smearSize = "st_smear_size";
     inline const juce::StringArray macroNames { "BODY", "WEIGHT", "REVERSE", "PITCH", "GRIT", "BITE", "MOVEMENT", "SPACE" };
 
     // v0.1 / v0.2 IDs -> v0.3 (old user presets still load); the v0.3 IDs are FROZEN: never rename (Tests/param_ids.txt)
@@ -185,6 +196,8 @@ namespace Choices
     inline const juce::StringArray distTypes { "SOFT", "TUBE", "HARD", "FOLD", "RAW", "CRUSH" };
     inline const juce::StringArray filterTypes { "OFF", "LP", "HP", "BP", "NOTCH" };
     inline const juce::StringArray oscWaves { "SINE", "TRI", "SAW", "SQUARE", "PULSE", "NOISE" };
+    inline const juce::StringArray subOcts { "0", "-1" };
+    inline const juce::StringArray clickAts { "START", "PEAK" };
     inline const juce::StringArray phaseModes { "RESET", "FREE" };
     inline const juce::StringArray pitchModes { "STABLE", "DROP", "RISE", "BOUNCE" };
 }

@@ -84,6 +84,11 @@ namespace re
             tone.cook (p, osr);
             sub.cook (p, osr);
             stereo.cook (p, osr);
+            for (int sd = 0; sd < 3; ++sd) ch[(size_t) sd].smear.cook (p, osr, sd);
+            clickG = p.clickDb <= -59.f ? 0.f : std::pow (10.f, p.clickDb / 20.f);
+            clickC = doomsday::dsp::svfCoefs (p.clickHz, 1.f / 0.707f, osr);
+            clickDecay = (float) std::exp (-1.0 / (juce::jmax (0.5, (double) p.clickMs) * 0.001 * osr / 3.0));
+            glideC = p.glideMs < 0.5f ? 1.0 : 1.0 - std::exp (-1.0 / (p.glideMs * 0.001 * osr / 3.0));
             sineG = p.sineDb <= -59.f ? 0.0 : std::pow (10.0, p.sineDb / 20.0);
             osc1G = p.osc1Db <= -59.f ? 0.f : std::pow (10.f, p.osc1Db / 20.f);
             OscBank::cook (p, osr, oscG, oscMult, oscNoise);
@@ -95,11 +100,14 @@ namespace re
         {
             if (clock % grid == 0) { p = applyMacros (pending); cook(); }       // a note on a grid point already gets this block's settings
             trig.noteOn (note, isAudition);
+            const double prevHz = hz * glideR;
+            const bool legato = trig.isActive() && amp > 1.0e-4f;
             playNote = p.keyTrack ? note : p.fixedNote;
             hz = 440.0 * std::pow (2.0, (playNote - 69 + p.tuneSt + p.fineCt * 0.01) / 12.0);
             subHzNote = Sub::noteHz (playNote, p);
+            glideR = (legato && p.glideMs >= 0.5f && hz > 0.0) ? prevHz / hz : 1.0;     // GLIDE: slide from the last note's pitch
             vel = 1.f - p.velocitySens * (1.f - velocity);
-            uCount = 0; preCount = 0;
+            uCount = 0; preCount = 0; lastT = -1.0; clickRnd = 0x2545f491u;
             if (p.source == SrcTail) { beginTail(); if (p.gate) tail.finish(); }
             playing = sample.load();
             guiWrite = 0; hitSerial.fetch_add (1);
@@ -125,7 +133,8 @@ namespace re
             std::array<double, 6> uph {}, upos {};
             ToneChain tone;
             OscBank::State ob;
-            void clear() { *this = Chain(); }
+            Smear smear;
+            void clear() { phase = 0.0; readPos = 0.0; uph = {}; upos = {}; tone.clear(); ob = {}; smear.clear(); }
         };
         // the start of a new step (or of the note in GATE mode): phases reset, the backwards read starts
         void startStep()
@@ -231,7 +240,8 @@ namespace re
                     if (k.target < 1.0e-6 && p.duck <= 0.f) gateNow = 0.0;       // silent part of the step: the filters' ringing is gated too
                     amp += ((float) k.target - amp) * ampC;
                     const bool refresh = (uCount++ & 31) == 0;
-                    const double ratio = std::pow (2.0, k.st / 12.0);
+                    glideR += (1.0 - glideR) * glideC;
+                    const double ratio = std::pow (2.0, k.st / 12.0) * glideR;
                     const float g = std::pow (10.f, p.driveDb * (1.f - p.driveEnv + p.driveEnv * amp) / 20.f);
                     if (tone.dynPre && (preCount++ & 15) == 0)       // PRE FILTER ENV / KEY: the cutoff follows the envelope and the note
                         preNow = doomsday::dsp::svfCoefs ((float) (p.preHz * std::exp2 (p.preEnvOct * (amp - 1.f)) * std::pow (hz / 65.406, (double) p.preKey)),
@@ -239,8 +249,23 @@ namespace re
                     const auto& preC = tone.dynPre ? preNow : tone.pre;
                     float out[3] = { 0.f, 0.f, 0.f };
                     for (int sd = 0; sd < (w ? 3 : 1); ++sd)
-                        out[sd] = ch[(size_t) sd].tone.process (source (sd, amp, ratio, refresh) * amp, g, p, tone, preC);
-                    const float centre = sub.process (out[0], subHzNote, ratio, amp);
+                        out[sd] = ch[(size_t) sd].smear.process (ch[(size_t) sd].tone.process (source (sd, amp, ratio, refresh) * amp, g, p, tone, preC));
+                    float centre = sub.process (out[0], subHzNote, ratio, amp);
+                    // CLICK: a short noise tick with its own HP, outside the envelope and the drive, at the START of the bass or its PEAK
+                    if (clickG > 0.f && k.plays)
+                    {
+                        const double mark = trig.stepTimes().delay + (p.clickAt == 1 ? p.swellMs : 0.0);
+                        if (k.newStep) lastT = -1.0;
+                        if (lastT < mark && k.t >= mark) clickEnv = 1.f;
+                        lastT = k.t;
+                    }
+                    if (clickEnv > 1.0e-4f)
+                    {
+                        clickRnd ^= clickRnd << 13; clickRnd ^= clickRnd >> 17; clickRnd ^= clickRnd << 5;
+                        const float nz = (float) (clickRnd & 0xffffff) / 8388608.f - 1.f;
+                        centre += clickHp2.hp (clickHp1.hp (nz, clickC), clickC) * clickEnv * clickG;
+                        clickEnv *= clickDecay;
+                    }
                     if (w) stereo.process (centre, out[1], out[2], yl, yr);
                     else yl = yr = centre;
                     // the gate once more AFTER the filters: their ringing (the sub crossover delays the lows by a few ms) never reaches the next kick
@@ -283,6 +308,11 @@ namespace re
         std::array<float, 3> oscG {}, oscNoise {};
         std::array<double, 3> oscMult {};
         bool oscOn = false;
+        double glideR = 1.0, glideC = 1.0, lastT = -1.0;
+        float clickG = 0.f, clickEnv = 0.f, clickDecay = 0.9f;
+        uint32_t clickRnd = 0x2545f491u;
+        doomsday::dsp::Svf clickHp1, clickHp2;
+        doomsday::dsp::SvfCoefs clickC;
         int playNote = 31, guiCap = 0, guiWrite = 0;
         float vel = 1.f, amp = 0.f, postGate = 0.f, levelG = 1.f, ampC = 0.01f;
         std::unique_ptr<juce::dsp::Oversampling<float>> os;

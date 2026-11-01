@@ -1,4 +1,12 @@
-# RE4GE v0.4
+# RE4GE v0.5
+
+## v0.5 (krok 1, część 2)
+- **SUB**: OCTAVE (0 / −1), HARMONICS (czyste 2. i 3. harmoniczne, żeby sub był słyszalny na małych głośnikach), SATURATION (domyślnie 0).
+- **TRANSIENT → CLICK**: krótki tick z szumu z własnym HP, poza obwiednią i przesterem, na START basu albo w jego szczycie (PEAK).
+- **PITCH → GLIDE**: pitch dojeżdża z poprzedniej nuty, kiedy bas jeszcze gra.
+- **STEREO → SMEAR**: krótki dyfuzor na środku i górze, który wypełnia przerwy między harmonicznymi, jak pogłos w odwróconych kickach z paczek.
+  Dół zostaje czysty. CLASSIC - Dense Rise ma go teraz na 40 %.
+
 
 ## v0.4 (krok 1 planu, część 1): RDZEŃ BRZMIENIA + NOWY EKRAN
 - **Nowy ekran** według makiety. Po lewej pasek z blokami **01 SOUND / 02 PROCESS / 03 MODULATION / 04 SOURCE** (klik rozwija listę modułów,

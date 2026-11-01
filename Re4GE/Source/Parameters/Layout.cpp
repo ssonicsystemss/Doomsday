@@ -134,6 +134,17 @@ namespace
         l.add (f (dist2Drive, "DIST2 Drive", { 0.f, 40.f }, 0.f, [] (float v, int) { return v < 0.05f ? String ("OFF") : fm::db (v, 0); }, fm::num));
         l.add (f (dist2Mix, "DIST2 Mix", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
         for (int k = 0; k < 8; ++k) l.add (f (macros[k], "MACRO " + macroNames[k], { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
+        // ---- v0.5
+        l.add (c (subOct, "SUB Octave", Choices::subOcts, 0));
+        l.add (f (subHarm, "SUB Harmonics", { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
+        l.add (f (subSat, "SUB Saturation", { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
+        l.add (f (clickLevel, "CLICK Level", { -60.f, 0.f }, -60.f, offDb, fm::num));
+        l.add (f (clickTone, "CLICK Tone", skew (500.f, 10000.f, 2000.f), 2000.f, fm::hz, fm::hzIn));
+        l.add (f (clickLen, "CLICK Length", skew (1.f, 40.f, 8.f), 8.f, fm::ms, fm::msIn));
+        l.add (c (clickAt, "CLICK At", Choices::clickAts, 0));
+        l.add (f (glide, "PITCH Glide", skew (0.f, 300.f, 60.f), 0.f, [] (float v, int) { return v < 0.5f ? String ("OFF") : fm::ms (v, 0); }, fm::msIn));
+        l.add (f (smear, "STEREO Smear", { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
+        l.add (f (smearSize, "STEREO Smear Size", { 0.f, 1.f }, 0.5f, fm::pct, fm::pctIn));
         return l;
     }
 }

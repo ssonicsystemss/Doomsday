@@ -10,7 +10,7 @@ namespace re
     class Trigger
     {
     public:
-        struct Tick { double target = 0.0, st = 0.0, gate = 0.0; bool newStep = false; };
+        struct Tick { double target = 0.0, st = 0.0, gate = 0.0, t = -1.0; bool newStep = false, plays = false; };
 
         void noteOn (int note, bool audition) { held = note; noteOffAt = -1.0; auditionOff = audition; tNote = 0.0; step = -1; active = true; }
         void noteOff (int note) { if (note == held) noteOffAt = tNote; }
@@ -39,7 +39,7 @@ namespace re
                 double g = 1.0;
                 if (noteOffAt >= 0.0) g = 0.5 + 0.5 * std::cos (juce::jmin (1.0, (tNote - noteOffAt) / juce::jmax (0.5f, p.fadeMs)) * juce::MathConstants<double>::pi);
                 if (auditionOff && tNote > 400.0 && noteOffAt < 0.0) noteOffAt = tNote;
-                k.target = envAt (p, tm, tNote) * g;
+                k.target = envAt (p, tm, tNote) * g; k.t = tNote; k.plays = true;
                 k.st = pitchAt (p, tm, tNote);
                 k.gate = g;
                 if (noteOffAt >= 0.0 && tNote - noteOffAt > p.fadeMs + 1.0) active = false;
@@ -53,7 +53,8 @@ namespace re
                 {
                     if (s != step) { step = s; k.newStep = true; }
                     const double t = tt - s * stepMs;
-                    if ((p.mask >> (s % stepsPerBeat)) & 1) { k.gate = gateAt (p, tm, t); k.target = envAt (p, tm, t) * k.gate; k.st = pitchAt (p, tm, t); }
+                    k.t = t;
+                    if ((p.mask >> (s % stepsPerBeat)) & 1) { k.plays = true; k.gate = gateAt (p, tm, t); k.target = envAt (p, tm, t) * k.gate; k.st = pitchAt (p, tm, t); }
                 }
             }
             return k;

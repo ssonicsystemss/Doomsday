@@ -50,6 +50,9 @@ re::Params gatherParams (const AudioProcessorValueTreeState& apvts)
     p.preEnvOct = get (preEnv); p.preKey = get (preKey);
     p.dist2Type = ch (dist2Type, 5); p.dist2Db = get (dist2Drive); p.dist2Mix = get (dist2Mix);
     for (int k = 0; k < 8; ++k) p.macro[(size_t) k] = get (macros[k]);
+    p.subOctDown = get (subOct) > 0.5f; p.subHarm = get (subHarm); p.subSat = get (subSat);
+    p.clickDb = get (clickLevel); p.clickHz = get (clickTone); p.clickMs = get (clickLen); p.clickAt = ch (clickAt, 1);
+    p.glideMs = get (glide); p.smear = get (smear); p.smearSize = get (smearSize);
     return p;
 }
 }

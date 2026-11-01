@@ -251,6 +251,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
         knob (c, tune, "Tune", "Bass pitch against the note (12 = an octave up)", true);
         knob (c, fine, "Fine", "Fine tune in cents", true);
         knob (c, fixedNote, "Note", "KEY TRACK off: the bass always plays this note (the notes only give the rhythm)");
+        knob (c, glide, "Glide", "The pitch slides from the last note while the bass still sounds (OFF = jumps)");
         c.head.push_back (toggle (keyTrack, "Key track", Toggle::Chip, acc, "ON: the bass plays the note you play. OFF: always on NOTE"));
         c.head.push_back (seg (pitchMode, { "Stable", "Drop", "Rise", "Bounce" }, acc, "STABLE on the note, DROP from above at the start, RISE at the end (the classic reverse), BOUNCE both"));
     }
@@ -364,6 +365,16 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
         auto& c = card ("Sub", n, PSub); cSub = (int) cards.size() - 1;
         knob (c, subHz, "Sub Hz", "Below this the bass is a clean sine on the note (never cut, never distorted). OFF = all from the source");
         knob (c, subLevel, "Level", "Level of the clean sub - the 'bass punch'");
+        knob (c, subHarm, "Harmonics", "Clean 2nd / 3rd harmonics of the sub: it is heard on small speakers too");
+        knob (c, subSat, "Saturation", "Rounds the sub sine (louder, a bit dirtier). 0 = a pure sine");
+        c.head.push_back (seg (subOct, { "0", "-1 oct" }, n, "The sub on the note or an octave below"));
+    }
+    {
+        auto& c = card ("Click", hot, PTransient); cClick = (int) cards.size() - 1;
+        knob (c, clickLevel, "Level", "A short noise tick at the start (or the peak) of every bass step - outside the envelope and the distortion. OFF = none");
+        knob (c, clickTone, "Tone", "The tick's own high-pass: higher = thinner, sharper");
+        knob (c, clickLen, "Length", "How long the tick rings");
+        c.head.push_back (seg (clickAt, { "Start", "Peak" }, hot, "START: when the bass begins (after DELAY). PEAK: at the top of the swell"));
     }
     {
         auto& c = card ("Unison / width", acc, PStereo); cUni = (int) cards.size() - 1;
@@ -373,6 +384,8 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
         knob (c, uniMix, "Mix", "Level of the copies");
         knob (c, stereoWidth, "Width", "Stereo width of the mids / highs (your reference basses: about 25 - 45%)");
         knob (c, widthSplit, "Mono below", "Below this the bass stays mono");
+        knob (c, smear, "Smear", "A short diffuser on the mids / highs: fills the gaps between the harmonics - dense, like the reverb inside reversed-kick samples");
+        knob (c, smearSize, "Size", "Size of the smear (short = grainy, long = washed)");
     }
     addAndMakeVisible (view);
 
@@ -382,7 +395,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
     nav.blocks = {
         { "01", "SOUND",      { { "Main", PMain, {} }, { "Osc", POsc, oscOn }, { "Pitch", PPitch, [this] { return raw (proc, ParamIDs::pitchMode) > 0.5f; } },
                                 { "Envelope", PEnv, [] { return true; } }, { "Shape", PShape, [] { return true; } } }, {} },
-        { "02", "PROCESS",    { { "Filter", PFilter, on (preType, 0.5f) }, { "Distortion", PDist, on (drive, 0.05f) }, { "EQ", PEq, [this] { return std::abs (raw (proc, ParamIDs::bellGain)) > 0.05f || raw (proc, ParamIDs::lowCut) > 20.5f; } } }, {} },
+        { "02", "PROCESS",    { { "Filter", PFilter, on (preType, 0.5f) }, { "Distortion", PDist, on (drive, 0.05f) }, { "Transient", PTransient, on (clickLevel, -59.f) }, { "EQ", PEq, [this] { return std::abs (raw (proc, ParamIDs::bellGain)) > 0.05f || raw (proc, ParamIDs::lowCut) > 20.5f; } } }, {} },
         { "03", "MODULATION", {}, "LFO / matrix: step 4" },
         { "04", "SOURCE",     { { "Kick Tail", PTail, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 1; } }, { "Sample", PSample, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 2; } },
                                 { "Sub", PSub, on (subHz, 20.5f) }, { "Stereo", PStereo, on (uniVoices, 1.5f) } }, {} } };
@@ -564,8 +577,9 @@ void Canvas::resized()
         case PEq:     row ({ { cPost, 520 } }); break;
         case PTail:   row ({ { cTail, 0 } }); break;
         case PSample: row ({ { cSample, 0 } }); break;
-        case PSub:    row ({ { cSub, 300 } }); break;
-        case PStereo: row ({ { cUni, 560 } }); break;
+        case PSub:    row ({ { cSub, 420 } }); break;
+        case PStereo: row ({ { cUni, 0 } }); break;
+        case PTransient: row ({ { cClick, 420 } }); break;
         default: break;
     }
     if (page == POsc) { auto r = wa.removeFromTop (rowH); cards[(size_t) cOsc[2]].area = r; }

@@ -51,6 +51,11 @@ namespace re
         std::array<float, 8> macro {};          // BODY / WEIGHT / REVERSE / PITCH / GRIT / BITE / MOVEMENT / SPACE (0 = the modules as set)
         // set by the macros (not knobs): extra pitch movement, the BODY / BITE bells
         float extraRiseSt = 0.f, extraDropSt = 0.f, bodyDb = 0.f, biteDb = 0.f;
+        // v0.5 (step 1, part 2)
+        bool subOctDown = false; float subHarm = 0.f, subSat = 0.f;      // SUB: an octave down, clean 2nd / 3rd harmonics, saturation
+        float clickDb = -60.f, clickHz = 2000.f, clickMs = 8.f; int clickAt = 0;   // CLICK: noise tick (own HP), outside the envelope / drive; START / PEAK
+        float glideMs = 0.f;                    // GLIDE: the pitch slides from the last note
+        float smear = 0.f, smearSize = 0.5f;    // SMEAR: a short diffuser on the mids / highs (fills between the harmonics = density)
     };
     enum OscWave { WSine = 0, WTri = 1, WSaw = 2, WSquare = 3, WPulse = 4, WNoise = 5 };
 }

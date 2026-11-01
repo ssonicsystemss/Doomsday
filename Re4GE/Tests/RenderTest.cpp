@@ -306,6 +306,8 @@ int main (int argc, char** argv)
             { "INIT", { { source, 0.f }, { warp, 0.f } } },
             { "INIT", { { source, 2.f } }, true },
             { "INIT", { { timing, 1.f } } },
+            { "INIT", { { clickLevel, -6.f }, { smear, 0.6f } } },
+            { "INIT", { { clickLevel, -6.f }, { clickAt, 1.f }, { swell, 120.f } } },
             { "INIT", { { timing, 1.f }, { sustain, 0.f }, { decayMs, 150.f }, { holdMs, 50.f } } },
             { "INIT", { { keyTrack, 0.f }, { pitchMode, 3.f } } },
             { "PULSE", {} },
@@ -326,7 +328,7 @@ int main (int argc, char** argv)
                 p.setCurrentProgram (byName (p, cx.preset)); host.bpm = 150.0;
                 for (auto& [id, v] : cx.extra) set (p, id, v);
                 if (cx.sample) p.loadSample (wav); else p.clearSample();
-                auto notes = cx.gate ? std::vector<Note> { { 30.0, 500.0, 31, 0.6f } } : std::vector<Note> { { 0.0, 100.0, 31, 0.6f } };
+                auto notes = cx.gate ? std::vector<Note> { { 30.0, 500.0, 31, 0.6f }, { 300.0, 400.0, 38, 0.6f } } : std::vector<Note> { { 0.0, 100.0, 31, 0.6f } };
                 rp->setValueNotifyingHost (0.f); const auto a = play (p, host, notes, 0.8);
                 rp->setValueNotifyingHost (1.f); const auto b = play (p, host, notes, 0.8);
                 if (diff (a, b) > 1.0e-4) { moves = true; break; }
@@ -356,7 +358,7 @@ int main (int argc, char** argv)
         p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise"));
         play (p, host, everyBeat (1, 150.0), 0.3);
         const std::pair<int, const char*> pages[] { { 0, "gui_main.png" }, { 1, "gui_osc.png" }, { 3, "gui_envelope.png" }, { 4, "gui_shape.png" },
-                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 11, "gui_stereo.png" } };
+                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" } };
         for (auto [pg, name] : pages)
         {
             dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (pg);

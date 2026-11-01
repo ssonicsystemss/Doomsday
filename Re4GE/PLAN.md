@@ -131,6 +131,12 @@ Ostateczny test: **ucho właściciela + A/B z jego samplami** (Bass_15 / 16, FHS
    potrzebują przyszłości ogona), testy podstawowe. Brzmienie identyczne z v0.2 (±1 LSB).
 1. Rdzeń brzmienia: OSC 1–4 + unison / sync, pitch, phase (LOCK), AMP + Reverse Amount, filtr, 2 × przester + ADAA, sub, stereo, 8 makr,
    MAIN. **Bramka: A/B z jego samplami, aż powie „jest”.**
+   **Krok 1 – projekt (2026-11-01, wysłany właścicielowi):** pomiar Bass_15/16 vs nasze: góra 2,5–6 kHz −20 vs −48…−65 dB, gęstość (flatness)
+   0,18–0,30 vs 0,002, narastanie przez ~cały beat (od −33 dB, szczyt ~240 ms) vs cisza do 120 ms, 150–400 Hz +5 dB u niego.
+   Tor: warstwy → PRE filtr (ENV + KEY TRACK) → STAGE 1 → DC → LOW CUT → BELL → STAGE 2 (nowy) → HIGH CUT → SUB → STEREO → OUT.
+   OSC 1 = obecne źródło (SYNTH / TAIL / SAMPLE) + osc1_level; OSC 2–4: SINE / TRI / SAW / SQUARE / PULSE / NOISE, LEVEL (OFF), OCT, SEMI,
+   FINE, PHASE, WIDTH, SYNC (do fazy nuty), PM; w kanałach L / R po jednej rozstrojonej kopii (tanio). PHASE RESET / FREE.
+   8 makr na stałych mapowaniach (matrix w kroku 4). Nowe ID tylko dopisywane na końcu `Tests/param_ids.txt`.
 2. Reverse Shape Designer.
 3. Distortion Lab (waveshaper rysowany, typy, oversampling 1–16×).
 4. Modulation Matrix + LFO 1–4.

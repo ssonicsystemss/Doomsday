@@ -126,7 +126,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
+Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -387,6 +387,36 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
         knob (c, smear, "Smear", "A short diffuser on the mids / highs: fills the gaps between the harmonics - dense, like the reverb inside reversed-kick samples");
         knob (c, smearSize, "Size", "Size of the smear (short = grainy, long = washed)");
     }
+    // ---- SHAPE DESIGNER: one card per lane (the active lane's card is shown)
+    for (int i = 0; i < 4; ++i)
+    {
+        auto& c = card (String ("Lane ") + ParamIDs::laneNames[i], ShapeDesigner::laneColour (i), PDesigner); cLane[i] = (int) cards.size() - 1;
+        const char* tips[4] { "How much the drawn AMP replaces the knob envelope (0 = the knobs, 100% = only the drawing)",
+                              "Range of the drawn pitch: the top of the lane = +RANGE semitones, the middle = the note, the bottom = -RANGE",
+                              "How much the drawn HARMONIC curve opens / closes the bass: it scales the DRIVE and moves the PRE FILTER (when it is on) down by up to 4 octaves",
+                              "How much the drawn PHASE curve scales PHASE WARP and the OSC 2-4 PM" };
+        knob (c, laneId (i, "depth"), i == 1 ? "Range" : "Depth", tips[i]);
+        knob (c, laneId (i, "len"), "Length", "How long the lane is, in % of the step (or of the gate in GATE mode)");
+        c.shown = [this, i] { return designer.lane == i; };
+        if (i == 0)
+        {
+            auto b = std::make_unique<TextButton> ("From knobs");
+            b->setTooltip ("Draws the current knob envelope as a curve - a start for editing");
+            b->onClick = [this] { proc.undo.beginNewTransaction(); proc.shapeFromKnobs (0); };
+            addAndMakeVisible (*b); c.head.push_back (b.get()); templ.push_back (std::move (b));
+        }
+        {
+            auto b = std::make_unique<TextButton> ("Reset");
+            b->setTooltip ("Back to the default curve of this lane");
+            b->onClick = [this, i] { proc.undo.beginNewTransaction(); proc.resetShape (i); };
+            addAndMakeVisible (*b); c.head.push_back (b.get()); templ.push_back (std::move (b));
+        }
+        c.head.push_back (seg (laneId (i, "mode"), { "One shot", "Loop" }, ShapeDesigner::laneColour (i), "ONE SHOT: the curve plays once per step. LOOP: it repeats inside the step"));
+        c.head.push_back (seg (laneId (i, "anchor"), { "Start", "End" }, ShapeDesigner::laneColour (i), "START: the lane begins with the step. END: it ends exactly where the bass ends (before the kick) - the reverse way"));
+        c.head.push_back (toggle (laneId (i, "on"), "On", Toggle::Chip, ShapeDesigner::laneColour (i), "This lane plays (OFF = the knobs do it)"));
+    }
+    designer.onLaneChanged = [this] { showPage (page); };
+    addAndMakeVisible (designer);
     addAndMakeVisible (view);
 
     // ---- navigation (the owner's 5 blocks; only working modules are listed)
@@ -394,9 +424,9 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p)
     auto oscOn = [this] { for (int o = 2; o <= 4; ++o) if (raw (proc, ParamIDs::oscId (o, "level")) > -59.f) return true; return raw (proc, ParamIDs::osc1Level) > -59.f; };
     nav.blocks = {
         { "01", "SOUND",      { { "Main", PMain, {} }, { "Osc", POsc, oscOn }, { "Pitch", PPitch, [this] { return raw (proc, ParamIDs::pitchMode) > 0.5f; } },
-                                { "Envelope", PEnv, [] { return true; } }, { "Shape", PShape, [] { return true; } } }, {} },
+                                { "Envelope", PEnv, [] { return true; } }, { "Shape", PDesigner, [this] { for (int i = 0; i < 4; ++i) if (raw (proc, ParamIDs::laneId (i, "on")) > 0.5f) return true; return false; } } }, {} },
         { "02", "PROCESS",    { { "Filter", PFilter, on (preType, 0.5f) }, { "Distortion", PDist, on (drive, 0.05f) }, { "Transient", PTransient, on (clickLevel, -59.f) }, { "EQ", PEq, [this] { return std::abs (raw (proc, ParamIDs::bellGain)) > 0.05f || raw (proc, ParamIDs::lowCut) > 20.5f; } } }, {} },
-        { "03", "MODULATION", {}, "LFO / matrix: step 4" },
+        { "03", "MODULATION", { { "Steps", PShape, [] { return true; } } }, "LFO / matrix: step 4" },
         { "04", "SOURCE",     { { "Kick Tail", PTail, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 1; } }, { "Sample", PSample, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 2; } },
                                 { "Sub", PSub, on (subHz, 20.5f) }, { "Stereo", PStereo, on (uniVoices, 1.5f) } }, {} } };
     nav.onSelect = [this] (int pg) { showPage (pg); };
@@ -492,6 +522,7 @@ void Canvas::showPage (int pg)
     for (int bI = 0; bI < (int) nav.blocks.size(); ++bI) for (auto& it : nav.blocks[(size_t) bI].items) if (it.page == page) nav.open = bI;
     nav.repaint();
     view.setVisible (page == PMain || page == PPitch || page == PEnv || page == PShape);
+    designer.setVisible (page == PDesigner);
     for (auto& c : cards)
     {
         const bool on = cardOn (c);
@@ -510,7 +541,7 @@ void Canvas::layoutCard (Card& c, int kw)
     for (auto* h : c.head)
     {
         const bool isSeg = dynamic_cast<Segmented*> (h) != nullptr;
-        const int w = isSeg ? jmin (segW[h], head.getWidth() - 70) : dynamic_cast<TextButton*> (h) != nullptr ? (h == &clearBtn ? 28 : 64) : 92;
+        const int w = isSeg ? jmin (segW[h], head.getWidth() - 70) : dynamic_cast<TextButton*> (h) != nullptr ? (h == &clearBtn ? 28 : jmax (64, 9 * dynamic_cast<TextButton*> (h)->getButtonText().length() + 18)) : 92;
         h->setBounds (head.removeFromRight (w).withSizeKeepingCentre (w, 24));
         head.removeFromRight (6);
     }
@@ -580,6 +611,7 @@ void Canvas::resized()
         case PSub:    row ({ { cSub, 420 } }); break;
         case PStereo: row ({ { cUni, 0 } }); break;
         case PTransient: row ({ { cClick, 420 } }); break;
+        case PDesigner: { designer.setBounds (wa.removeFromTop (wa.getHeight() - rowH - gap)); wa.removeFromTop (gap); row ({ { cLane[designer.lane], 0 } }); break; }
         default: break;
     }
     if (page == POsc) { auto r = wa.removeFromTop (rowH); cards[(size_t) cOsc[2]].area = r; }
@@ -727,6 +759,7 @@ void Canvas::filesDropped (const StringArray& files, int, int)
 void Canvas::timerCallback()
 {
     view.tick();
+    if (designer.isVisible()) designer.tick();
     const int mode = raw (proc, ParamIDs::timing) > 0.5f ? 1 : 0;
     if (mode != lastMode) { lastMode = mode; showPage (page); }
     nav.repaint();   // the module dots follow the knobs

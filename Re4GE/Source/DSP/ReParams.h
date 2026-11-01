@@ -2,6 +2,7 @@
 // RE4GE - the engine's settings (filled from the parameters by Parameters/ParamBridge; DSP knows no APVTS / GUI / files)
 #include "GeKick.h"       // (Shared) ge::Params: the kick tail settings
 #include <array>
+#include "DoomsdayMod.h"     // (Shared) mod::Shape: the drawn curves
 
 namespace re
 {
@@ -56,6 +57,9 @@ namespace re
         float clickDb = -60.f, clickHz = 2000.f, clickMs = 8.f; int clickAt = 0;   // CLICK: noise tick (own HP), outside the envelope / drive; START / PEAK
         float glideMs = 0.f;                    // GLIDE: the pitch slides from the last note
         float smear = 0.f, smearSize = 0.5f;    // SMEAR: a short diffuser on the mids / highs (fills between the harmonics = density)
+        // v0.6 (step 2): REVERSE SHAPE DESIGNER lanes AMP / PITCH / HARMONIC / PHASE (ShapeLanes.h)
+        struct LaneSet { bool on = false; float lenPct = 100.f; int anchor = 0; bool loop = false; float depth = 1.f; doomsday::mod::Shape shape; };
+        std::array<LaneSet, 4> lane {};
     };
     enum OscWave { WSine = 0, WTri = 1, WSaw = 2, WSquare = 3, WPulse = 4, WNoise = 5 };
 }

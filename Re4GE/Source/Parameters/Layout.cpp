@@ -145,6 +145,17 @@ namespace
         l.add (f (glide, "PITCH Glide", skew (0.f, 300.f, 60.f), 0.f, [] (float v, int) { return v < 0.5f ? String ("OFF") : fm::ms (v, 0); }, fm::msIn));
         l.add (f (smear, "STEREO Smear", { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
         l.add (f (smearSize, "STEREO Smear Size", { 0.f, 1.f }, 0.5f, fm::pct, fm::pctIn));
+        // ---- v0.6: SHAPE DESIGNER
+        for (int i = 0; i < 4; ++i)
+        {
+            const String n = "SHAPE " + laneNames[i] + " ";
+            l.add (b (laneId (i, "on"), n + "On", false));
+            l.add (f (laneId (i, "len"), n + "Length", { 10.f, 100.f }, 100.f, [] (float v, int) { return String (roundToInt (v)) + "% step"; }, fm::num));
+            l.add (c (laneId (i, "anchor"), n + "Anchor", Choices::anchors, i == 1 ? 1 : 0));
+            l.add (c (laneId (i, "mode"), n + "Mode", Choices::laneModes, 0));
+            if (i == 1) l.add (f (laneId (i, "depth"), n + "Range", { 0.f, 24.f }, 12.f, fm::semi, fm::num));
+            else        l.add (f (laneId (i, "depth"), n + "Depth", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
+        }
         return l;
     }
 }

@@ -22,6 +22,7 @@
 #include "LowEnd.h"
 #include "OscBank.h"
 #include "Macros.h"
+#include "ShapeLanes.h"
 #include <atomic>
 
 namespace re
@@ -93,6 +94,8 @@ namespace re
             osc1G = p.osc1Db <= -59.f ? 0.f : std::pow (10.f, p.osc1Db / 20.f);
             OscBank::cook (p, osr, oscG, oscMult, oscNoise);
             oscOn = OscBank::any (p);
+            lanesOn = ShapeLanes::any (p);
+            tone.dynPre = tone.dynPre || (p.preType != 0 && p.lane[LaneHarm].on);
             levelG = std::pow (10.f, p.levelDb / 20.f);
             ampC = (float) (1.0 - std::exp (-1.0 / (0.0005 * osr)));        // 0.5 ms smoothing: no clicks between steps
         }
@@ -166,7 +169,7 @@ namespace re
             if (oscOn)
             {
                 const double det = sd == 0 ? 1.0 : std::exp2 (0.7 * uniCents (p, 0, 1, sd, trig.timeMs()) / 1200.0);
-                y += OscBank::render (p, ch[(size_t) sd].ob, hz * ratio, osr, det, oscG, oscMult, oscNoise);
+                y += OscBank::render (p, ch[(size_t) sd].ob, hz * ratio, osr, det, oscG, oscMult, oscNoise, lv.phase);
             }
             return y;
         }
@@ -180,7 +183,7 @@ namespace re
             {
                 const double dt = hz * ratio / osr;
                 c.phase += dt; if (c.phase >= 1.0) c.phase -= 1.0;
-                const double a = p.warpAmt * (1.0 - p.warpEnv + p.warpEnv * e);
+                const double a = p.warpAmt * (1.0 - p.warpEnv + p.warpEnv * e) * lv.phase;
                 double y = synthWave (p, c.phase, dt, a, sineG);
                 if (nu > 0)
                 {
@@ -234,17 +237,27 @@ namespace re
                 float yl = 0.f, yr = 0.f;
                 if (trig.isActive())
                 {
-                    const auto k = trig.tick (p);
-                    if (k.newStep) startStep();
+                    auto k = trig.tick (p);
+                    if (k.newStep) { startStep(); lanes.restart(); }
+                    // REVERSE SHAPE DESIGNER: the drawn lanes on the step's time line
+                    if (lanesOn && k.plays)
+                    {
+                        const double gateEnd = trig.stepTimes().gateEnd, ref = p.gate ? gateEnd : stepMs;
+                        lv = lanes.eval (p, k.t, gateEnd, ref);
+                        const auto& la = p.lane[LaneAmp];
+                        if (la.on) k.target = (k.target * (1.0 - la.depth) + lv.amp * la.depth * k.gate);
+                        k.st += lv.st;
+                    }
+                    else lv = {};
                     double gateNow = k.gate;
                     if (k.target < 1.0e-6 && p.duck <= 0.f) gateNow = 0.0;       // silent part of the step: the filters' ringing is gated too
                     amp += ((float) k.target - amp) * ampC;
                     const bool refresh = (uCount++ & 31) == 0;
                     glideR += (1.0 - glideR) * glideC;
                     const double ratio = std::pow (2.0, k.st / 12.0) * glideR;
-                    const float g = std::pow (10.f, p.driveDb * (1.f - p.driveEnv + p.driveEnv * amp) / 20.f);
+                    const float g = std::pow (10.f, p.driveDb * (1.f - p.driveEnv + p.driveEnv * amp) * (float) lv.harm / 20.f);
                     if (tone.dynPre && (preCount++ & 15) == 0)       // PRE FILTER ENV / KEY: the cutoff follows the envelope and the note
-                        preNow = doomsday::dsp::svfCoefs ((float) (p.preHz * std::exp2 (p.preEnvOct * (amp - 1.f)) * std::pow (hz / 65.406, (double) p.preKey)),
+                        preNow = doomsday::dsp::svfCoefs ((float) (p.preHz * std::exp2 (p.preEnvOct * (amp - 1.f) - 4.0 * (1.0 - lv.harm)) * std::pow (hz / 65.406, (double) p.preKey)),
                                                           ge::resoToK (p.preReso), osr);
                     const auto& preC = tone.dynPre ? preNow : tone.pre;
                     float out[3] = { 0.f, 0.f, 0.f };
@@ -307,7 +320,9 @@ namespace re
         float osc1G = 1.f;
         std::array<float, 3> oscG {}, oscNoise {};
         std::array<double, 3> oscMult {};
-        bool oscOn = false;
+        bool oscOn = false, lanesOn = false;
+        ShapeLanes lanes;
+        LaneValues lv;
         double glideR = 1.0, glideC = 1.0, lastT = -1.0;
         float clickG = 0.f, clickEnv = 0.f, clickDecay = 0.9f;
         uint32_t clickRnd = 0x2545f491u;

@@ -53,6 +53,12 @@ re::Params gatherParams (const AudioProcessorValueTreeState& apvts)
     p.subOctDown = get (subOct) > 0.5f; p.subHarm = get (subHarm); p.subSat = get (subSat);
     p.clickDb = get (clickLevel); p.clickHz = get (clickTone); p.clickMs = get (clickLen); p.clickAt = ch (clickAt, 1);
     p.glideMs = get (glide); p.smear = get (smear); p.smearSize = get (smearSize);
+    for (int i = 0; i < 4; ++i)
+    {
+        auto& L = p.lane[(size_t) i];
+        L.on = get (laneId (i, "on")) > 0.5f; L.lenPct = get (laneId (i, "len")); L.anchor = ch (laneId (i, "anchor"), 1);
+        L.loop = get (laneId (i, "mode")) > 0.5f; L.depth = get (laneId (i, "depth"));      // (the curves come from the processor)
+    }
     return p;
 }
 }

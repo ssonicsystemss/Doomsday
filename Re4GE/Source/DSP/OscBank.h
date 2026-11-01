@@ -40,7 +40,8 @@ namespace re
         }
         // one sample: hzNow = the played pitch incl. the pitch movement, detune = ratio for this side
         static inline float render (const Params& p, State& s, double hzNow, double osr, double detune,
-                                    const std::array<float, 3>& gain, const std::array<double, 3>& mult, const std::array<float, 3>& noiseC)
+                                    const std::array<float, 3>& gain, const std::array<double, 3>& mult, const std::array<float, 3>& noiseC,
+                                    double pmScale = 1.0)
         {
             const double mdt = hzNow / osr;
             s.master += mdt;
@@ -65,7 +66,7 @@ namespace re
                 ph += dt; if (ph >= 1.0) ph -= std::floor (ph);
                 if (o.sync && wrapped) ph = s.master * mult[i] * detune - std::floor (s.master * mult[i] * detune);   // restart with the note
                 double q = ph;
-                if (o.pm > 0.f) { q += o.pm * 0.35 * msin; q -= std::floor (q); }
+                if (o.pm > 0.f) { q += o.pm * pmScale * 0.35 * msin; q -= std::floor (q); }
                 double v;
                 switch (o.wave)
                 {

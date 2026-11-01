@@ -289,6 +289,22 @@ int main (int argc, char** argv)
         check (d > 1.0, "KICK TAIL knobs work live (a change mid-note is heard on the next step)", "diff " + String (d, 2));
         check (worstMs < blockMs * 0.25, "KICK TAIL: no CPU spike on the note (worst block)", String (worstMs, 2) + " ms of " + String (blockMs, 1) + " ms");
     }
+    // 14a) SHAPE DESIGNER: a drawn AMP curve really shapes the step (silent where the drawing is 0), saved in the state, undoable
+    {
+        p.setCurrentProgram (byName (p, "INIT")); host.bpm = 150.0;
+        set (p, source, 0.f); set (p, laneId (0, "on"), 1.f); set (p, laneId (0, "depth"), 1.f);
+        p.undo.beginNewTransaction();
+        p.setShape (0, doomsday::mod::Shape::make ({ { 0.f, 0.f }, { 499.f, 0.f }, { 500.f, 1.f }, { 1000.f, 1.f } }));     // silent first half, full second
+        auto b = play (p, host, everyBeat (2, 150.0), 0.8);
+        const double first = rms (b, 430.0, 580.0), second = rms (b, 620.0, 780.0);
+        MemoryBlock st; p.getStateInformation (st);
+        p.undo.beginNewTransaction(); p.undo.undo();
+        const bool undone = ! (p.getShape (0) == doomsday::mod::Shape::make ({ { 0.f, 0.f }, { 499.f, 0.f }, { 500.f, 1.f }, { 1000.f, 1.f } }));
+        p.setStateInformation (st.getData(), (int) st.getSize());
+        const bool restored = p.getShape (0) == doomsday::mod::Shape::make ({ { 0.f, 0.f }, { 499.f, 0.f }, { 500.f, 1.f }, { 1000.f, 1.f } });
+        check (first < second * 0.02 && second > 0.05 && undone && restored, "SHAPE DESIGNER: drawn AMP plays, undo works, the curve is saved in the project",
+               String (first, 4) + " / " + String (second, 3) + (undone ? "" : " NO UNDO") + (restored ? "" : " NOT RESTORED"));
+    }
     // 14) every knob changes the sound: min vs max, in at least one of the contexts where it matters
     {
         // a short reversed-kick-like WAV for the SAMPLE source
@@ -307,6 +323,10 @@ int main (int argc, char** argv)
             { "INIT", { { source, 2.f } }, true },
             { "INIT", { { timing, 1.f } } },
             { "INIT", { { clickLevel, -6.f }, { smear, 0.6f } } },
+            { "INIT", { { source, 0.f }, { warp, 1.f }, { warpAmt, 0.6f }, { preType, 1.f }, { preHz, 1500.f }, { oscId (2, "level"), -6.f }, { oscId (2, "pm"), 0.6f },
+                        { laneId (0, "on"), 1.f }, { laneId (1, "on"), 1.f }, { laneId (2, "on"), 1.f }, { laneId (3, "on"), 1.f },
+                        { laneId (0, "depth"), 0.7f }, { laneId (2, "depth"), 0.7f }, { laneId (3, "depth"), 0.7f },
+                        { laneId (0, "len"), 50.f }, { laneId (1, "len"), 50.f }, { laneId (2, "len"), 50.f }, { laneId (3, "len"), 50.f } } },
             { "INIT", { { clickLevel, -6.f }, { clickAt, 1.f }, { swell, 120.f } } },
             { "INIT", { { timing, 1.f }, { sustain, 0.f }, { decayMs, 150.f }, { holdMs, 50.f } } },
             { "INIT", { { keyTrack, 0.f }, { pitchMode, 3.f } } },
@@ -358,7 +378,7 @@ int main (int argc, char** argv)
         p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise"));
         play (p, host, everyBeat (1, 150.0), 0.3);
         const std::pair<int, const char*> pages[] { { 0, "gui_main.png" }, { 1, "gui_osc.png" }, { 3, "gui_envelope.png" }, { 4, "gui_shape.png" },
-                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" } };
+                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" } };
         for (auto [pg, name] : pages)
         {
             dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (pg);

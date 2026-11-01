@@ -7,6 +7,7 @@
 
 using namespace juce;
 using namespace doomsday;
+namespace mod = doomsday::mod;
 
 // ------------------------------------------------------------ factory presets + templates
 const StringArray& ReProcessor::templateNames() { return re4ge::templateNames(); }
@@ -29,6 +30,11 @@ void ReProcessor::setCurrentProgram (int i)
     currentProgram = i;
     presetName = re4ge::factoryPresets()[(size_t) i].name;
     PresetIO::apply (*this, apvts, re4ge::factoryPresets()[(size_t) i].v);
+    for (int k = 0; k < 4; ++k)
+    {
+        const auto& txt = re4ge::factoryPresets()[(size_t) i].shapes[(size_t) k];
+        setShape (k, txt.isNotEmpty() ? [&] { mod::Shape sh = re4ge::defaultLaneShape (k); mod::Shape::fromString (txt, sh); return sh; }() : re4ge::defaultLaneShape (k), false);
+    }
 }
 
 // v0.1 / v0.2 files: old IDs -> v0.3
@@ -45,6 +51,12 @@ bool ReProcessor::loadUserPresetFile (const File& f)
     PresetValues v;
     for (auto* c : xml->getChildWithTagNameIterator ("PARAM")) v.push_back ({ c->getStringAttribute ("id"), (float) c->getDoubleAttribute ("value") });
     PresetIO::apply (*this, apvts, v);
+    for (int k = 0; k < 4; ++k)
+    {
+        mod::Shape sh = re4ge::defaultLaneShape (k);
+        mod::Shape::fromString (xml->getStringAttribute (shapeKey (k)), sh);
+        setShape (k, sh, false);
+    }
     loadSample (File (xml->getStringAttribute ("samplePath")));
     presetName = f.getFileNameWithoutExtension();
     return true;
@@ -61,7 +73,7 @@ void ReProcessor::setStateInformation (const void* data, int size)
 {
     MemoryBlock fixed (data, (size_t) size);
     if (auto xml = getXmlFromBinary (data, size)) { translateLegacy (*xml); fixed.reset(); copyXmlToBinary (*xml, fixed); }
-    if (PresetIO::setState (*this, apvts, fixed.getData(), (int) fixed.getSize(), currentProgram, presetName)) loadSample (File (apvts.state.getProperty ("samplePath").toString()));
+    if (PresetIO::setState (*this, apvts, fixed.getData(), (int) fixed.getSize(), currentProgram, presetName)) { applyShapesFromState(); loadSample (File (apvts.state.getProperty ("samplePath").toString())); }
 }
 
 void ReProcessor::randomizeSound()
@@ -91,6 +103,8 @@ ReProcessor::ReProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", AudioChannelSet::stereo(), true)),
       apvts (*this, &undo, "RE4GE", re4ge::createLayout())
 {
+    for (int i = 0; i < 4; ++i) shapes[(size_t) i] = lastShapes[(size_t) i] = re4ge::defaultLaneShape (i);
+    apvts.state.addListener (this);
     setCurrentProgram (0);
 }
 
@@ -101,7 +115,66 @@ void ReProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     engine.prepare (sampleRate, samplesPerBlock);
 }
 
-re::Params ReProcessor::gather() const { return re4ge::gatherParams (apvts); }
+re::Params ReProcessor::gather() const
+{
+    auto p = re4ge::gatherParams (apvts);
+    {
+        const SpinLock::ScopedTryLockType l (shapeLock);
+        if (l.isLocked()) lastShapes = shapes;          // busy (the GUI is writing): the last copy
+    }
+    for (int i = 0; i < 4; ++i) p.lane[(size_t) i].shape = lastShapes[(size_t) i];
+    return p;
+}
+
+// ------------------------------------------------------------ SHAPE DESIGNER curves
+const char* ReProcessor::shapeKey (int lane) { static const char* k[4] { "shapeAmp", "shapePitch", "shapeHarm", "shapePhase" }; return k[jlimit (0, 3, lane)]; }
+mod::Shape ReProcessor::getShape (int lane) const { const SpinLock::ScopedLockType l (shapeLock); return shapes[(size_t) jlimit (0, 3, lane)]; }
+void ReProcessor::setShape (int lane, const mod::Shape& s, bool undoable)
+{
+    apvts.state.setProperty (shapeKey (lane), s.toString(), undoable ? &undo : nullptr);     // -> valueTreePropertyChanged
+}
+void ReProcessor::valueTreePropertyChanged (ValueTree&, const Identifier& id)
+{
+    for (int i = 0; i < 4; ++i)
+        if (id.toString() == shapeKey (i))
+        {
+            mod::Shape s = re4ge::defaultLaneShape (i);
+            mod::Shape::fromString (apvts.state.getProperty (id).toString(), s);
+            { const SpinLock::ScopedLockType l (shapeLock); shapes[(size_t) i] = s; }
+            shapeSerial.fetch_add (1);
+        }
+}
+void ReProcessor::applyShapesFromState()
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        mod::Shape s = re4ge::defaultLaneShape (i);
+        mod::Shape::fromString (apvts.state.getProperty (shapeKey (i)).toString(), s);
+        { const SpinLock::ScopedLockType l (shapeLock); shapes[(size_t) i] = s; }
+    }
+    shapeSerial.fetch_add (1);
+}
+void ReProcessor::resetShape (int lane) { setShape (lane, re4ge::defaultLaneShape (lane)); }
+void ReProcessor::shapeFromKnobs (int lane)
+{
+    if (lane != re::LaneAmp) { setShape (lane, re4ge::defaultLaneShape (lane)); return; }
+    // the knob envelope of one step, sampled at 24 points (the drawing starts where the knobs were)
+    const auto p = gather();
+    const double stepMs = p.stepBeats * 60000.0 / jmax (20.f, engine.tempoNow.load());
+    const auto tm = re::times (p, stepMs);
+    const double ref = p.gate ? tm.gateEnd : stepMs;
+    mod::Shape s;
+    for (int k = 0; k < 24; ++k)
+    {
+        const double t = ref * k / 23.0;
+        const double v = re::envAt (p, tm, t) * (p.gate ? 1.0 : re::gateAt (p, tm, t));
+        s.pts[(size_t) s.n++] = { (float) (1000.0 * k / 23.0), (float) jlimit (0.0, 1.0, v), 0.f };
+    }
+    s.tidy();
+    setShape (lane, s);
+}
+
+
 
 void ReProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
 {

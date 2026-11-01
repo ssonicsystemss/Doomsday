@@ -140,7 +140,9 @@ Ostateczny test: **ucho właściciela + A/B z jego samplami** (Bass_15 / 16, FHS
    **Zrobione (v0.4, 2026-11-01):** to wszystko + nowy ekran (NAV / MAIN / makra + MASTER) + preset CLASSIC - Dense Rise (pasma ±2–4 dB,
    gęstość 0,08 vs 0,18–0,30). Czeka na ucho właściciela (A/B). **v0.5:** CLICK, SUB OCT / HARMONICS / SAT, GLIDE, SMEAR (gęstość 0,08 → 0,10; dalsze podnoszenie
    szumem / FM / FOLD daje max ~0,13 i rozjaśnia – reszta czeka na ucho właściciela). ADAA przeniesione do kroku 3 (Distortion Lab; teraz 4× oversampling).
-2. Reverse Shape Designer.
+   ✅ **Bramka kroku 1 zaliczona (2026-11-01): właściciel – „brzmi świetnie”** (v0.5, CLASSIC - Dense Rise).
+2. ✅ **(v0.6, 2026-11-01)** Reverse Shape Designer: AMP / PITCH / HARMONIC / PHASE, ON / LENGTH / ANCHOR START-END / ONE SHOT-LOOP / DEPTH,
+   krzywe = `mod::Shape` (bend = EXP / LOG; typ S i osobne SYNC / MS długości – później), undo, zapis w stanie. RETRIGGER = co krok; FREE – później.
 3. Distortion Lab (waveshaper rysowany, typy, oversampling 1–16×).
 4. Modulation Matrix + LFO 1–4.
 5. Kick-to-Reverse (ekstrakcja, tryby, OWN SOUND) + RE4GE FX (audio / sidechain).

@@ -1,4 +1,19 @@
-# RE4GE v0.5
+# RE4GE v0.6
+
+## v0.6 (krok 2): REVERSE SHAPE DESIGNER
+**01 SOUND → Shape**: jeden ekran, 4 rysowane linie na osi jednego kroku (od kicka do kicka). Czerwona kreska = koniec basu (GATE).
+- **AMP**: głośność. DEPTH: ile rysunek zastępuje obwiednię z gałek (0 = gałki, 100 % = tylko rysunek). **From knobs** przerysowuje obecną obwiednię.
+- **PITCH**: środek = na nucie, góra = +RANGE, dół = −RANGE (do 24 półtonów). Domyślnie podjazd w kicka.
+- **HARMONIC**: jak bardzo bas się „otwiera”: skaluje DRIVE i, gdy filtr PRE jest włączony, przesuwa go w dół (do 4 oktaw).
+- **PHASE**: skaluje PHASE WARP i PM w OSC 2–4.
+
+Każda linia ma ON, LENGTH (% kroku), ANCHOR (**START** = od początku kroku, **END** = kończy się dokładnie tam, gdzie bas, czyli po reverse'owemu),
+ONE SHOT / LOOP, DEPTH / RANGE i Reset.
+Na wykresie: klik dodaje punkt, przeciąganie przesuwa, **Alt albo prawy przycisk + ciągnięcie** wygina odcinek, a podwójny klik usuwa punkt. Każda zmiana ma **Undo**,
+a krzywe zapisują się w presecie i projekcie.
+- Nowy preset **SHAPE - Drawn Rise Talk**: Dense Rise + rysowana głośność, podjazd pitchu, harmoniczne i warp otwierające się pod kick.
+- TRIGGER / STEPS przeszły do **03 MODULATION → Steps**.
+
 
 ## v0.5 (krok 1, część 2)
 - **SUB**: OCTAVE (0 / −1), HARMONICS (czyste 2. i 3. harmoniczne, żeby sub był słyszalny na małych głośnikach), SATURATION (domyślnie 0).

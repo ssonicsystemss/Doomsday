@@ -4,7 +4,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.5";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.6";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";
@@ -120,6 +120,19 @@ namespace ParamIDs
     inline constexpr const char* glide     = "pitch_glide";
     inline constexpr const char* smear     = "st_smear";
     inline constexpr const char* smearSize = "st_smear_size";
+    // ---- v0.6: step 2, REVERSE SHAPE DESIGNER lanes (AMP / PITCH / HARM / PHASE)
+    inline const char* laneId (int lane, const char* what)      // "shp_amp_on", "shp_pitch_len", ...
+    {
+        static const char* ids[4][5] {
+            { "shp_amp_on", "shp_amp_len", "shp_amp_anchor", "shp_amp_mode", "shp_amp_depth" },
+            { "shp_pitch_on", "shp_pitch_len", "shp_pitch_anchor", "shp_pitch_mode", "shp_pitch_range" },
+            { "shp_harm_on", "shp_harm_len", "shp_harm_anchor", "shp_harm_mode", "shp_harm_depth" },
+            { "shp_phase_on", "shp_phase_len", "shp_phase_anchor", "shp_phase_mode", "shp_phase_depth" } };
+        static const char* names[5] { "on", "len", "anchor", "mode", "depth" };
+        for (int k = 0; k < 5; ++k) if (std::strcmp (names[k], what) == 0) return ids[juce::jlimit (0, 3, lane)][k];
+        jassertfalse; return ids[0][0];
+    }
+    inline const juce::StringArray laneNames { "AMP", "PITCH", "HARMONIC", "PHASE" };
     inline const juce::StringArray macroNames { "BODY", "WEIGHT", "REVERSE", "PITCH", "GRIT", "BITE", "MOVEMENT", "SPACE" };
 
     // v0.1 / v0.2 IDs -> v0.3 (old user presets still load); the v0.3 IDs are FROZEN: never rename (Tests/param_ids.txt)
@@ -198,6 +211,8 @@ namespace Choices
     inline const juce::StringArray oscWaves { "SINE", "TRI", "SAW", "SQUARE", "PULSE", "NOISE" };
     inline const juce::StringArray subOcts { "0", "-1" };
     inline const juce::StringArray clickAts { "START", "PEAK" };
+    inline const juce::StringArray anchors { "START", "END" };
+    inline const juce::StringArray laneModes { "ONE SHOT", "LOOP" };
     inline const juce::StringArray phaseModes { "RESET", "FREE" };
     inline const juce::StringArray pitchModes { "STABLE", "DROP", "RISE", "BOUNCE" };
 }

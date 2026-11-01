@@ -5,7 +5,7 @@
 #include "DSP/Engine.h"
 #include "Parameters/ParamIDs.h"
 
-class ReProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost
+class ReProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener
 {
 public:
     ReProcessor();
@@ -58,6 +58,15 @@ public:
     juce::String sampleName() const;
     int getSampleSerial() const { return sampleSerial.load(); }
 
+    // SHAPE DESIGNER curves (message thread). They live in the state (saved with presets / projects, undoable);
+    // a listener copies them for the audio thread under a spin lock (the audio thread only try-locks).
+    static const char* shapeKey (int lane);
+    doomsday::mod::Shape getShape (int lane) const;
+    void setShape (int lane, const doomsday::mod::Shape&, bool undoable = true);
+    void shapeFromKnobs (int lane);
+    void resetShape (int lane);                       // AMP: the knob envelope drawn as a curve (a start for editing)
+    int getShapeSerial() const { return shapeSerial.load(); }
+
     re::Engine& getEngine() { return engine; }
     re::Params gather() const;
     const doomsday::PresetIO io { "RE4GE", "re4ge" };
@@ -65,6 +74,12 @@ public:
 
 private:
     float get (const juce::String& id) const { return apvts.getRawParameterValue (id)->load(); }
+    void valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&) override;
+    void applyShapesFromState();
+    mutable juce::SpinLock shapeLock;
+    std::array<doomsday::mod::Shape, 4> shapes;
+    mutable std::array<doomsday::mod::Shape, 4> lastShapes;
+    std::atomic<int> shapeSerial { 0 };
     void set (const char* id, float v);
     re::Engine engine;
     int currentProgram = 0;

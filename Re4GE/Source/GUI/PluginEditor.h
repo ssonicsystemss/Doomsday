@@ -2,6 +2,7 @@
 #include "../PluginProcessor.h"
 #include "DoomsdayUI.h"
 #include "DoomsdayFlat.h"
+#include "ShapeDesigner.h"
 #include <map>
 
 // =====================================================================
@@ -89,10 +90,11 @@ private:
     std::map<juce::Component*, int> segW;
     StepView view;
     NavBar nav;
+    ShapeDesigner designer;
     int page = 0;
-    enum Page { PMain = 0, POsc, PPitch, PEnv, PShape, PFilter, PDist, PEq, PTail, PSample, PSub, PStereo, PTransient, NumPages };
+    enum Page { PMain = 0, POsc, PPitch, PEnv, PShape, PFilter, PDist, PEq, PTail, PSample, PSub, PStereo, PTransient, PDesigner, NumPages };
     int cUni = 0, cMaster = 0, cMacros = 0, cSource = 0, cWarp = 0, cPhase = 0, cOsc[3] {}, cTail = 0, cSample = 0, cTrig = 0, cSteps = 0, cPitch = 0, cEnv = 0,
-        cTimeSync = 0, cTimeMs = 0, cPre = 0, cDrive = 0, cDrive2 = 0, cPost = 0, cSub = 0, cClick = 0, cMSource = 0, cMEnv = 0, cMTone = 0, cMLow = 0;
+        cTimeSync = 0, cTimeMs = 0, cPre = 0, cDrive = 0, cDrive2 = 0, cPost = 0, cSub = 0, cClick = 0, cLane[4] {}, cMSource = 0, cMEnv = 0, cMTone = 0, cMLow = 0;
     juce::Rectangle<int> navArea, sysArea, workArea;
     juce::ComboBox presetBox;
     juce::TextButton prev { "<" }, next { ">" }, randomB { "Random" }, saveB { "Save" }, folderB { "Folder" },

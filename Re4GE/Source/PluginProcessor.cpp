@@ -179,7 +179,8 @@ void ReProcessor::morphRebuild()
         const float cur = r->getValue();
         d.a[i] = A.hasProperty (id) ? (float) A.getProperty (id) : cur;
         d.b[i] = B.hasProperty (id) ? (float) B.getProperty (id) : cur;
-        d.skip[i] = r->paramID.startsWith ("quality") || r->paramID.startsWith ("fx_") ? 1 : 0;      // never morphed: oversampling, FX detection
+        d.skip[i] = r->paramID.startsWith ("quality") || r->paramID.startsWith ("fx_") ? 1                          // never: oversampling, FX detection
+                  : dynamic_cast<AudioParameterChoice*> (r) != nullptr || dynamic_cast<AudioParameterBool*> (r) != nullptr ? 2 : 0;   // switches: at 50 %
     }
     morphIdx.store (w);
     morphValid.store (A.isValid() && B.isValid());

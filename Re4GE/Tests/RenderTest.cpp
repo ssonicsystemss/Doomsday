@@ -133,11 +133,12 @@ int main (int argc, char** argv)
     if (argc > 4 && String (argv[2]) == "--render")
     {
         StringArray lines; lines.addLines (File::getCurrentWorkingDirectory().getChildFile (argv[3]).loadFileAsString());
-        bool kicks = false;
+        bool kicks = false; int renderNote = 31;
         for (auto& ln : lines)
         {
             auto t = StringArray::fromTokens (ln.trim(), " ", ""); if (t.size() < 2) continue;
             if (t[0] == "kicks") { kicks = t[1].getIntValue() != 0; continue; }                 // 'kicks 1': a kick on every beat (A/B)
+            if (t[0] == "note") { renderNote = t[1].getIntValue(); continue; }                       // 'note 26': the MIDI note of the bass
             if (t[0] == "ab") { if (t[1] == "sync") p.morphSync(); else p.morphSelect (t[1].getIntValue()); continue; }   // 'ab 0' / 'ab 1' / 'ab sync': MORPH slots
             if (t[0] == "preset") p.setCurrentProgram (byName (p, ln.fromFirstOccurrenceOf ("preset ", false, false).trim().toRawUTF8()));
             else if (t[0] == "sample") p.loadSample (File (ln.fromFirstOccurrenceOf ("sample ", false, false).trim()));
@@ -147,7 +148,7 @@ int main (int argc, char** argv)
         host.bpm = argc > 5 ? String (argv[5]).getDoubleValue() : 147.0;
         const int beatsN = argc > 6 ? String (argv[6]).getIntValue() : 4;
         host.withPpq = true;                                                   // like FL: the SEQUENCER follows the song grid
-        auto b = play (p, host, everyBeat (beatsN, host.bpm), beatsN * 60.0 / host.bpm);
+        auto b = play (p, host, everyBeat (beatsN, host.bpm, renderNote), beatsN * 60.0 / host.bpm);
         host.withPpq = false;
         if (kicks) addKicks (b, host.bpm);
         writeWav (File::getCurrentWorkingDirectory().getChildFile (argv[4]), b);
@@ -566,6 +567,11 @@ int main (int argc, char** argv)
         const bool backToA = std::abs (raw (p, tune)) < 0.01f;
         p.undo.undo();
         const bool undoOk = std::abs (raw (p, tune) - 12.f) < 0.01f;
+        // a CHOICE never passes the options in between: PITCH STABLE (A) -> BOUNCE (B) at 25 % plays STABLE, at 75 % BOUNCE
+        set (p, morphOn, 0.f); p.morphSelect (1); set (p, pitchMode, 3.f); p.morphSync(); p.morphSelect (0); set (p, pitchMode, 0.f); p.morphSync(); set (p, morphOn, 1.f);
+        set (p, morph, 0.25f); const auto c1 = p.gather().pitchMode; set (p, morph, 0.75f); const auto c2 = p.gather().pitchMode;
+        set (p, morph, 0.f); set (p, morphOn, 0.f); p.morphSelect (1); set (p, pitchMode, 0.f); p.morphSync(); set (p, morphOn, 1.f);
+        if (c1 != 0 || c2 != 3) hz[1] = 1.0 + c1 * 10 + c2;
         const bool okM = hz[0] < 1.0e-4 && hz[1] < 1.0e-4 && hz[2] < 1.0e-4 && saved && backToA && undoOk;
         check (okM, "MORPH A / B: 0 / 50 / 100 % = TUNE 0 / +6 / +12 st, saved in the project, A / B undoable",
                "diff " + String (hz[0], 6) + " / " + String (hz[1], 6) + " / " + String (hz[2], 6) + (saved ? "" : " NOT SAVED") + (backToA ? "" : " NO LOAD") + (undoOk ? "" : " NO UNDO"));

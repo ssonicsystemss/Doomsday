@@ -283,3 +283,10 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - **„Jakby ktoś zaciągał ślinę” (owner o RE4GE Randomizer EXPERIMENTAL, 2026-11-02)** = wąski BAND-PASS nisko (~200 Hz) przesuwany obwiednią
   (+1,4 oct) przed przesterem, do tego SMEAR 100 %, SQUEEZE z ENV i high cut 2,7 kHz → mokry, „ciamkający” formant. Randomizer: tylko LP / OFF
   we wszystkich stylach, EXPERIMENTAL z węższymi zakresami (pre filtr od 900 Hz, ENV −1..+2,5 oct, smear ≤ 60 %, high cut od 3,5 kHz).
+- **RE4GE demo MORPH B (owner, 2026-11-02): „cały ten kick w 2 części do wyrzucenia”** – bas na 1/8 (krótkie ~100 ms zrywy) + pitch BOUNCE
+  ±12 st + SYNC warp 60 % + WAVEFOLD w 1. stopniu, na tle stopy na 1/4. Za krótkie, szarpane i metaliczne – reverse ma narastać przez
+  cały beat. Do demo / presetów nie łączyć 1/8 z BOUNCE + fold; wariacje robić na 1/4 (drive, EQ, layers), nie przez siekanie.
+  MORPH od v0.15: przełączniki zmieniają się w połowie z A na B (nie przechodzą przez opcje pomiędzy).
+- **A/B z kickiem właściciela (2026-11-02): „w tym 33 coś zjebane”** – kick_hardstyle_84 ma root 53,6 Hz = A1 −45 centów (prawie pół tonu
+  od A), a bas grał czyste A → zgrzyt. Do demo zawsze: `RenderTest --analyse` na kicku → nuta + FINE w centach (na obu slotach A / B),
+  kick ucinany na beat z fade 6 ms (KICK2_D ma 0,84 s ogona i trzyma pełny poziom na 0,4 s – twarde cięcie = klik).

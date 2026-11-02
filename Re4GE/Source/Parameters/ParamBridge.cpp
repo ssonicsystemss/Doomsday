@@ -16,10 +16,12 @@ re::Params gatherParams (const AudioProcessorValueTreeState& apvts, ParamCache& 
     {
         if (record) { cache.ptrs.push_back (apvts.getRawParameterValue (id)); cache.prm.push_back (apvts.getParameter (id)); return cache.ptrs.back()->load(); }
         const size_t i = idx++;
-        if (morph != nullptr && morph->skip[i] == 0)
+        if (morph != nullptr && morph->skip[i] != 1)
         {
-            // MORPH: between the A and B snapshots in the knob's own 0..1 (so Hz / ms knobs move musically); choices switch halfway
-            const float n = morph->a[i] + morph->t * (morph->b[i] - morph->a[i]);
+            // MORPH: knobs move between the A and B snapshots in their own 0..1 (so Hz / ms knobs move musically);
+            // SWITCHES / CHOICES jump from A to B halfway - never through the options in between (owner: the 50 % sound was bad
+            // when PITCH STABLE -> BOUNCE passed DROP / RISE and the distortion passed SAT / DIODE on its way to WAVEFOLD)
+            const float n = morph->skip[i] == 2 ? (morph->t < 0.5f ? morph->a[i] : morph->b[i]) : morph->a[i] + morph->t * (morph->b[i] - morph->a[i]);
             return cache.prm[i]->convertFrom0to1 (juce::jlimit (0.f, 1.f, n));
         }
         return cache.ptrs[i]->load();

@@ -1,4 +1,16 @@
-# RE4GE v0.7
+# RE4GE v0.8
+
+## v0.8 (krok 4): LFO 1–4 + MATRIX MODULACJI
+**03 MODULATION**:
+- **LFO**: 4 LFO, a każde ma falę (SINE / TRI / SAW+ / SAW− / SQR / S&H / SMOOTH / CHAOS), **SYNC** (wartości nut w tempie FL) albo RATE w Hz, PHASE
+  i **RETRIG** (włączony = każdy krok basu rusza LFO od początku, czyli każde uderzenie ma ten sam ruch).
+- **Matrix**: 16 wierszy. Każdy ma ON, **SOURCE** (LFO 1–4, AMP ENV, linie z SHAPE, velocity, mod wheel, aftertouch, pitch bend, KEY, makra,
+  RANDOM na krok ze stałym ziarnem, STEP), **DESTINATION** (28 celów: poziomy OSC, pitch, filtr, drive, stage 2, warp, PM, bell, high cut, sub,
+  szerokość, smear, detune, output, hardness / tone LAB, click, swell), **AMOUNT** (±, 100 % = cały zakres opisany w nazwie celu) i **POLARITY**
+  (AS IS / UNI / BI). Kilka wierszy na jeden cel się sumuje. Gałki się nie ruszają, więc automacja i presety zostają czyste.
+- Makra dalej robią swoje (stałe cele) i są też źródłami w matrixie.
+- Nowy preset **MOD - Dense Rise Talk 1/16**: LFO (trójkąt 1/16) gada filtrem, a obwiednia otwiera HARDNESS przesteru.
+
 
 ## v0.7 (krok 3): DISTORTION LAB
 **02 PROCESS → Distortion**: obok każdego stopnia (STAGE 1 / 2) jest **LAB**:

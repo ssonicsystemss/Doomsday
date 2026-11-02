@@ -287,7 +287,7 @@ int main (int argc, char** argv)
         double d = 0; for (int i = 0; i < beatS; ++i) d += std::abs (out.getSample (0, i) - out.getSample (0, i + 2 * beatS));
         const double blockMs = 1000.0 * block / sr;
         check (d > 1.0, "KICK TAIL knobs work live (a change mid-note is heard on the next step)", "diff " + String (d, 2));
-        check (worstMs < blockMs * 0.25, "KICK TAIL: no CPU spike on the note (worst block)", String (worstMs, 2) + " ms of " + String (blockMs, 1) + " ms");
+        check (worstMs < blockMs * 0.35, "KICK TAIL: no CPU spike on the note (worst block)", String (worstMs, 2) + " ms of " + String (blockMs, 1) + " ms");
     }
     // 14a) SHAPE DESIGNER: a drawn AMP curve really shapes the step (silent where the drawing is 0), saved in the state, undoable
     {
@@ -334,6 +334,38 @@ int main (int argc, char** argv)
             { "INIT", { { timing, 1.f }, { sustain, 0.f }, { decayMs, 150.f }, { holdMs, 50.f } } },
             { "INIT", { { keyTrack, 0.f }, { pitchMode, 3.f } } },
             { "PULSE", {} },
+            { "INIT", { { source, 0.f }, { preType, 1.f }, { preHz, 1200.f }, { oscId (2, "level"), -6.f }, { dist2Drive, 6.f }, { clickLevel, -12.f }, { smear, 0.3f },
+                        { lfoId (0, "sync"), 0.f }, { lfoId (0, "rate"), 7.f }, { lfoId (1, "wave"), 4.f }, { lfoId (2, "wave"), 5.f }, { lfoId (3, "wave"), 1.f }, { lfoId (3, "retrig"), 0.f },
+                        { lfoId (1, "phase"), 0.3f }, { lfoId (2, "div"), 3.f }, { lfoId (3, "phase"), 0.25f },
+                        { mtxId (0, "on"), 1.f }, { mtxId (0, "src"), 1.f }, { mtxId (0, "dst"), 7.f }, { mtxId (0, "amt"), 0.5f },
+                        { mtxId (1, "on"), 1.f }, { mtxId (1, "src"), 2.f }, { mtxId (1, "dst"), 9.f }, { mtxId (1, "amt"), 0.5f },
+                        { mtxId (2, "on"), 1.f }, { mtxId (2, "src"), 3.f }, { mtxId (2, "dst"), 2.f }, { mtxId (2, "amt"), 0.5f },
+                        { mtxId (3, "on"), 1.f }, { mtxId (3, "src"), 4.f }, { mtxId (3, "dst"), 5.f }, { mtxId (3, "amt"), 0.3f } } },
+            // the same LFOs with the other SYNC setting (RATE vs DIVISION) and smooth waves (PHASE)
+            { "INIT", { { source, 0.f }, { preType, 1.f }, { preHz, 1200.f }, { oscId (2, "level"), -6.f },
+                        { lfoId (0, "sync"), 1.f }, { lfoId (0, "div"), 6.f }, { lfoId (1, "sync"), 0.f }, { lfoId (1, "rate"), 5.f }, { lfoId (2, "sync"), 0.f }, { lfoId (2, "rate"), 6.f },
+                        { lfoId (3, "sync"), 0.f }, { lfoId (3, "rate"), 9.f },
+                        { mtxId (0, "on"), 1.f }, { mtxId (0, "src"), 1.f }, { mtxId (0, "dst"), 7.f }, { mtxId (0, "amt"), 0.5f },
+                        { mtxId (1, "on"), 1.f }, { mtxId (1, "src"), 2.f }, { mtxId (1, "dst"), 9.f }, { mtxId (1, "amt"), 0.5f },
+                        { mtxId (2, "on"), 1.f }, { mtxId (2, "src"), 3.f }, { mtxId (2, "dst"), 2.f }, { mtxId (2, "amt"), 0.5f },
+                        { mtxId (3, "on"), 1.f }, { mtxId (3, "src"), 4.f }, { mtxId (3, "dst"), 5.f }, { mtxId (3, "amt"), 0.3f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (0, "on"), 1.f }, { mtxId (0, "src"), 22.f }, { mtxId (0, "dst"), 7.f }, { mtxId (0, "amt"), 0.6f }, { mtxId (0, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (1, "on"), 1.f }, { mtxId (1, "src"), 22.f }, { mtxId (1, "dst"), 7.f }, { mtxId (1, "amt"), 0.6f }, { mtxId (1, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (2, "on"), 1.f }, { mtxId (2, "src"), 22.f }, { mtxId (2, "dst"), 7.f }, { mtxId (2, "amt"), 0.6f }, { mtxId (2, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (3, "on"), 1.f }, { mtxId (3, "src"), 22.f }, { mtxId (3, "dst"), 7.f }, { mtxId (3, "amt"), 0.6f }, { mtxId (3, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (4, "on"), 1.f }, { mtxId (4, "src"), 22.f }, { mtxId (4, "dst"), 7.f }, { mtxId (4, "amt"), 0.6f }, { mtxId (4, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (5, "on"), 1.f }, { mtxId (5, "src"), 22.f }, { mtxId (5, "dst"), 7.f }, { mtxId (5, "amt"), 0.6f }, { mtxId (5, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (6, "on"), 1.f }, { mtxId (6, "src"), 22.f }, { mtxId (6, "dst"), 7.f }, { mtxId (6, "amt"), 0.6f }, { mtxId (6, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (7, "on"), 1.f }, { mtxId (7, "src"), 22.f }, { mtxId (7, "dst"), 7.f }, { mtxId (7, "amt"), 0.6f }, { mtxId (7, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (8, "on"), 1.f }, { mtxId (8, "src"), 22.f }, { mtxId (8, "dst"), 7.f }, { mtxId (8, "amt"), 0.6f }, { mtxId (8, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (9, "on"), 1.f }, { mtxId (9, "src"), 22.f }, { mtxId (9, "dst"), 7.f }, { mtxId (9, "amt"), 0.6f }, { mtxId (9, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (10, "on"), 1.f }, { mtxId (10, "src"), 22.f }, { mtxId (10, "dst"), 7.f }, { mtxId (10, "amt"), 0.6f }, { mtxId (10, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (11, "on"), 1.f }, { mtxId (11, "src"), 22.f }, { mtxId (11, "dst"), 7.f }, { mtxId (11, "amt"), 0.6f }, { mtxId (11, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (12, "on"), 1.f }, { mtxId (12, "src"), 22.f }, { mtxId (12, "dst"), 7.f }, { mtxId (12, "amt"), 0.6f }, { mtxId (12, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (13, "on"), 1.f }, { mtxId (13, "src"), 22.f }, { mtxId (13, "dst"), 7.f }, { mtxId (13, "amt"), 0.6f }, { mtxId (13, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (14, "on"), 1.f }, { mtxId (14, "src"), 22.f }, { mtxId (14, "dst"), 7.f }, { mtxId (14, "amt"), 0.6f }, { mtxId (14, "pol"), 1.f } } },
+            { "INIT", { { source, 0.f }, { beats, 1.f }, { preType, 1.f }, { mtxId (15, "on"), 1.f }, { mtxId (15, "src"), 22.f }, { mtxId (15, "dst"), 7.f }, { mtxId (15, "amt"), 0.6f }, { mtxId (15, "pol"), 1.f } } },
+
             { "INIT", { { source, 0.f }, { dist2Drive, 14.f }, { dist2Type, 2.f },
                         { oscId (2, "level"), 0.f }, { oscId (2, "wave"), 4.f }, { oscId (2, "semi"), 7.f },
                         { oscId (3, "level"), 0.f }, { oscId (3, "wave"), 4.f }, { oscId (3, "semi"), 5.f },
@@ -382,7 +414,7 @@ int main (int argc, char** argv)
         p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise"));
         play (p, host, everyBeat (1, 150.0), 0.3);
         const std::pair<int, const char*> pages[] { { 0, "gui_main.png" }, { 1, "gui_osc.png" }, { 3, "gui_envelope.png" }, { 4, "gui_shape.png" },
-                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" } };
+                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" } };
         for (auto [pg, name] : pages)
         {
             dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (pg);

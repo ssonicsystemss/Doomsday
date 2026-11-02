@@ -3,4 +3,8 @@
 #include "ParamIDs.h"
 #include "../DSP/ReParams.h"
 
-namespace re4ge { re::Params gatherParams (const juce::AudioProcessorValueTreeState&); }
+namespace re4ge
+{
+    struct ParamCache { std::vector<std::atomic<float>*> ptrs; };
+    re::Params gatherParams (const juce::AudioProcessorValueTreeState&, ParamCache&);
+}

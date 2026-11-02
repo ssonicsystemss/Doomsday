@@ -1,13 +1,22 @@
 // RE4GE - parameters -> engine settings (the only place that knows both the APVTS and re::Params)
 #include "ParamBridge.h"
+#include "../DSP/ModMatrix.h"
 
 using namespace juce;
 
 namespace re4ge
 {
-re::Params gatherParams (const AudioProcessorValueTreeState& apvts)
+re::Params gatherParams (const AudioProcessorValueTreeState& apvts, ParamCache& cache)
 {
-    auto get = [&apvts] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
+    // the first call (the processor's constructor, message thread) records the parameters in call order; after that every call
+    // only walks the recorded pointers - no string building / lookups / allocation on the audio thread
+    const bool record = cache.ptrs.empty();
+    size_t idx = 0;
+    auto get = [&] (const char* id) -> float
+    {
+        if (record) { cache.ptrs.push_back (apvts.getRawParameterValue (id)); return cache.ptrs.back()->load(); }
+        return cache.ptrs[idx++]->load();
+    };
     using namespace ParamIDs;
     auto ch = [&get] (const char* id, int hi) { return jlimit (0, hi, (int) std::round (get (id))); };
     re::Params p;
@@ -67,6 +76,18 @@ re::Params gatherParams (const AudioProcessorValueTreeState& apvts)
     }
     p.dist2Bias = get (dist2Bias); p.autoGain = get (autoGain) > 0.5f;
     p.qualityRt = ch (qualityRt, 3); p.qualityExport = ch (qualityExport, 3);
+    for (int i = 0; i < 4; ++i)
+    {
+        auto& L = p.lfo[(size_t) i];
+        L.wave = ch (lfoId (i, "wave"), 7); L.sync = get (lfoId (i, "sync")) > 0.5f; L.hz = get (lfoId (i, "rate"));
+        L.div = ch (lfoId (i, "div"), 18); L.phase = get (lfoId (i, "phase")); L.retrig = get (lfoId (i, "retrig")) > 0.5f;
+    }
+    for (int r = 0; r < 16; ++r)
+    {
+        auto& m = p.mtx[(size_t) r];
+        m.on = get (mtxId (r, "on")) > 0.5f; m.src = ch (mtxId (r, "src"), re::NumModSrc - 1);
+        m.dst = ch (mtxId (r, "dst"), re::NumModDst - 1); m.amount = get (mtxId (r, "amt")); m.polarity = ch (mtxId (r, "pol"), 2);
+    }
     return p;
 }
 }

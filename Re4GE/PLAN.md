@@ -146,7 +146,8 @@ Ostateczny test: **ucho właściciela + A/B z jego samplami** (Bass_15 / 16, FHS
 3. ✅ **(v0.7, 2026-11-02)** Distortion Lab: LAB na stopień (CLASSIC / SAT / DIODE / FOLD / RECT / CRUSH / CUSTOM) z ADAA (`Shared/Source/DoomsdayLab.h`),
    HARDNESS / TONE PRE-POST / OUTPUT, rysowany waveshaper z kropką na żywo + pliki krzywych, QUALITY 2–16× (osobno eksport), AUTO GAIN.
    Do zrobienia później: THRESHOLD, PRE / POST EQ stopnia (jest wspólny EQ), oversampling 1× (teraz min 2×, bo oscylatory też są w nadpróbkowaniu).
-4. Modulation Matrix + LFO 1–4.
+4. ✅ **(v0.8, 2026-11-02)** Modulation Matrix (16 wierszy, 23 źródła, 28 celów, polarity, suma + clamp, raz na 32 próbki) + LFO 1–4
+   (Shared `mod::Lfo`, sync / Hz / phase / retrig). Później: VIA, CURVE, ASSIGN klikiem w gałkę z pierścieniami (jak w 5CR34M 4LPH4), ENV 1–2.
 5. Kick-to-Reverse (ekstrakcja, tryby, OWN SOUND) + RE4GE FX (audio / sidechain).
 6. Randomizer, sekwencer + gate, EQ, dynamika, presety z kategoriami, eksport.
 7. Dodatki (morph A/B, waveform compare, reference analyzer, presety modułów).

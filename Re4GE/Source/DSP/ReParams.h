@@ -69,6 +69,12 @@ namespace re
         int qualityRt = 1, qualityExport = 2;      // 0 = 2x, 1 = 4x, 2 = 8x, 3 = 16x oversampling
         std::array<doomsday::mod::Shape, 2> driveCurve {};   // CUSTOM curves (stage 1 / 2)
         int curveSerial = 0;                       // changes when a drawn curve changes (the tables are rebuilt then)
+        // v0.8 (step 4): LFO 1-4 + MOD MATRIX (ModMatrix.h)
+        struct LfoSet { int wave = 0; bool sync = true, retrig = true; float hz = 2.f; int div = 9; float phase = 0.f; };
+        std::array<LfoSet, 4> lfo {};
+        struct ModRow { bool on = false; int src = 0, dst = 0, polarity = 0; float amount = 0.f; };
+        std::array<ModRow, 16> mtx {};
+        float modSt = 0.f;                         // set by the matrix: pitch offset in semitones (not a knob)
     };
     enum OscWave { WSine = 0, WTri = 1, WSaw = 2, WSquare = 3, WPulse = 4, WNoise = 5 };
 }

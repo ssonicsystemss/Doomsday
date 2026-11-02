@@ -105,6 +105,7 @@ ReProcessor::ReProcessor()
 {
     for (int i = 0; i < numShapes; ++i) shapes[(size_t) i] = lastShapes[(size_t) i] = re4ge::defaultLaneShape (i);
     apvts.state.addListener (this);
+    gather();                     // records the parameter pointers once (message thread)
     setCurrentProgram (0);
 }
 
@@ -117,7 +118,7 @@ void ReProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
 re::Params ReProcessor::gather() const
 {
-    auto p = re4ge::gatherParams (apvts);
+    auto p = re4ge::gatherParams (apvts, paramCache);
     {
         const SpinLock::ScopedTryLockType l (shapeLock);
         if (l.isLocked()) lastShapes = shapes;          // busy (the GUI is writing): the last copy

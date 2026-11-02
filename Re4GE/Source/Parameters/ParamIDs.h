@@ -1,10 +1,12 @@
 #pragma once
 #include <juce_core/juce_core.h>
 #include <cstring>
+#include <string>
+#include <array>
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.7";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.8";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";
@@ -147,6 +149,22 @@ namespace ParamIDs
     inline constexpr const char* autoGain  = "dist_autogain";
     inline constexpr const char* qualityRt = "quality_rt";
     inline constexpr const char* qualityExport = "quality_export";
+    // ---- v0.8: step 4, LFO 1-4 + MOD MATRIX (16 rows)
+    // (static text: no allocation when the audio thread asks for an ID)
+    inline const char* lfoId (int lfo, const char* what)      // "lfo1_wave" ... what = wave sync rate div phase retrig
+    {
+        static const char* names[6] { "wave", "sync", "rate", "div", "phase", "retrig" };
+        static const auto table = [] { std::array<std::array<std::string, 6>, 4> t; for (int i = 0; i < 4; ++i) for (int k = 0; k < 6; ++k) t[(size_t) i][(size_t) k] = "lfo" + std::to_string (i + 1) + "_" + names[k]; return t; }();
+        for (int k = 0; k < 6; ++k) if (std::strcmp (names[k], what) == 0) return table[(size_t) juce::jlimit (0, 3, lfo)][(size_t) k].c_str();
+        jassertfalse; return table[0][0].c_str();
+    }
+    inline const char* mtxId (int row, const char* what)      // "mtx1_on" ... what = on src dst amt pol
+    {
+        static const char* names[5] { "on", "src", "dst", "amt", "pol" };
+        static const auto table = [] { std::array<std::array<std::string, 5>, 16> t; for (int i = 0; i < 16; ++i) for (int k = 0; k < 5; ++k) t[(size_t) i][(size_t) k] = "mtx" + std::to_string (i + 1) + "_" + names[k]; return t; }();
+        for (int k = 0; k < 5; ++k) if (std::strcmp (names[k], what) == 0) return table[(size_t) juce::jlimit (0, 15, row)][(size_t) k].c_str();
+        jassertfalse; return table[0][0].c_str();
+    }
     inline const juce::StringArray macroNames { "BODY", "WEIGHT", "REVERSE", "PITCH", "GRIT", "BITE", "MOVEMENT", "SPACE" };
 
     // v0.1 / v0.2 IDs -> v0.3 (old user presets still load); the v0.3 IDs are FROZEN: never rename (Tests/param_ids.txt)
@@ -230,6 +248,8 @@ namespace Choices
     inline const juce::StringArray labAlgos { "CLASSIC", "SATURATION", "DIODE", "WAVEFOLD", "RECTIFIER", "BITCRUSH", "CUSTOM" };
     inline const juce::StringArray qualities { "2x", "4x", "8x", "16x" };
     inline const juce::StringArray tonePos { "PRE", "POST" };
+    inline const juce::StringArray lfoWaves { "SINE", "TRI", "SAW UP", "SAW DN", "SQUARE", "S&H", "SMOOTH", "CHAOS" };
+    inline const juce::StringArray polarities { "AS IS", "UNI", "BI" };
     inline const juce::StringArray phaseModes { "RESET", "FREE" };
     inline const juce::StringArray pitchModes { "STABLE", "DROP", "RISE", "BOUNCE" };
 }

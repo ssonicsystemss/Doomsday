@@ -4,6 +4,7 @@
 #include "DoomsdayUI.h"
 #include "DSP/Engine.h"
 #include "Parameters/ParamIDs.h"
+#include "Parameters/ParamBridge.h"
 
 class ReProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener
 {
@@ -82,6 +83,7 @@ private:
     std::array<doomsday::mod::Shape, numShapes> shapes;
     mutable std::array<doomsday::mod::Shape, numShapes> lastShapes;
     std::atomic<int> shapeSerial { 0 };
+    mutable re4ge::ParamCache paramCache;
     void set (const char* id, float v);
     re::Engine engine;
     int currentProgram = 0;

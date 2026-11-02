@@ -128,7 +128,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p)
+Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -366,6 +366,18 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
             });
         });
     }
+    // ---- LFO 1-4
+    for (int i = 0; i < 4; ++i)
+    {
+        auto& c = card ("LFO " + String (i + 1), cool, PLfo); cLfo[i] = (int) cards.size() - 1;
+        knob (c, lfoId (i, "rate"), "Rate", "Speed in Hz (when SYNC is off)");
+        knob (c, lfoId (i, "div"), "Sync", "Speed in note values on the FL tempo (when SYNC is on)");
+        knob (c, lfoId (i, "phase"), "Phase", "Start point of the wave");
+        c.head.push_back (toggle (lfoId (i, "retrig"), "Retrig", Toggle::Chip, cool, "ON: the LFO starts again on every step (every bass hit moves the same). OFF: it runs freely"));
+        c.head.push_back (toggle (lfoId (i, "sync"), "Sync", Toggle::Chip, cool, "ON: the rate follows the FL tempo (note values). OFF: Hz"));
+        c.head.push_back (seg (lfoId (i, "wave"), { "Sine", "Tri", "Saw+", "Saw-", "Sqr", "S&H", "Smooth", "Chaos" }, cool,
+                               "The wave. S&H = a new random value every cycle, SMOOTH = gliding random, CHAOS = never repeats. Route it on the MATRIX page"));
+    }
     {
         auto& c = card ("Quality", n, PSettings); cSettings = (int) cards.size() - 1;
         c.head.push_back (toggle (autoGain, "Auto gain", Toggle::Chip, n, "ON: more DRIVE changes the character, not the loudness (the ear is not fooled by 'louder = better')"));
@@ -471,6 +483,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     designer.onLaneChanged = [this] { showPage (page); };
     shaperView.onStageChanged = [this] { showPage (page); };
     addAndMakeVisible (shaperView);
+    addAndMakeVisible (matrix);
     settingsB.setTooltip ("Quality (oversampling while playing / for export), auto gain");
     settingsB.onClick = [this] { showPage (PSettings); };
     addAndMakeVisible (settingsB);
@@ -484,7 +497,9 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
         { "01", "SOUND",      { { "Main", PMain, {} }, { "Osc", POsc, oscOn }, { "Pitch", PPitch, [this] { return raw (proc, ParamIDs::pitchMode) > 0.5f; } },
                                 { "Envelope", PEnv, [] { return true; } }, { "Shape", PDesigner, [this] { for (int i = 0; i < 4; ++i) if (raw (proc, ParamIDs::laneId (i, "on")) > 0.5f) return true; return false; } } }, {} },
         { "02", "PROCESS",    { { "Filter", PFilter, on (preType, 0.5f) }, { "Distortion", PDist, on (drive, 0.05f) }, { "Waveshaper", PWaveshaper, [this] { return roundToInt (raw (proc, ParamIDs::labId (0, "lab"))) == 6 || roundToInt (raw (proc, ParamIDs::labId (1, "lab"))) == 6; } }, { "Transient", PTransient, on (clickLevel, -59.f) }, { "EQ", PEq, [this] { return std::abs (raw (proc, ParamIDs::bellGain)) > 0.05f || raw (proc, ParamIDs::lowCut) > 20.5f; } } }, {} },
-        { "03", "MODULATION", { { "Steps", PShape, [] { return true; } } }, "LFO / matrix: step 4" },
+        { "03", "MODULATION", { { "LFO", PLfo, [this] { for (int r = 0; r < 16; ++r) if (raw (proc, ParamIDs::mtxId (r, "on")) > 0.5f && roundToInt (raw (proc, ParamIDs::mtxId (r, "src"))) >= 1 && roundToInt (raw (proc, ParamIDs::mtxId (r, "src"))) <= 4) return true; return false; } },
+                                { "Matrix", PMatrix, [this] { for (int r = 0; r < 16; ++r) if (raw (proc, ParamIDs::mtxId (r, "on")) > 0.5f) return true; return false; } },
+                                { "Steps", PShape, [] { return true; } } }, {} },
         { "04", "SOURCE",     { { "Kick Tail", PTail, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 1; } }, { "Sample", PSample, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 2; } },
                                 { "Sub", PSub, on (subHz, 20.5f) }, { "Stereo", PStereo, on (uniVoices, 1.5f) } }, {} } };
     nav.onSelect = [this] (int pg) { showPage (pg); };
@@ -582,6 +597,7 @@ void Canvas::showPage (int pg)
     view.setVisible (page == PMain || page == PPitch || page == PEnv || page == PShape);
     designer.setVisible (page == PDesigner);
     shaperView.setVisible (page == PWaveshaper);
+    matrix.setVisible (page == PMatrix);
     for (auto& c : cards)
     {
         const bool on = cardOn (c);
@@ -667,6 +683,8 @@ void Canvas::resized()
         case PDist:   row ({ { cDrive, 470 }, { cLab[0], 0 } }); row ({ { cDrive2, 470 }, { cLab[1], 0 } }); break;
         case PWaveshaper: { shaperView.setBounds (wa.removeFromTop (wa.getHeight() - rowH - gap)); wa.removeFromTop (gap); row ({ { cCurve[shaperView.stage], 0 } }); break; }
         case PSettings: row ({ { cSettings, 0 } }); break;
+        case PLfo:    for (int i = 0; i < 4; ++i) row ({ { cLfo[i], 0 } }); break;
+        case PMatrix: matrix.setBounds (wa); break;
         case PEq:     row ({ { cPost, 520 } }); break;
         case PTail:   row ({ { cTail, 0 } }); break;
         case PSample: row ({ { cSample, 0 } }); break;

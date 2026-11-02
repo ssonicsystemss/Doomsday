@@ -23,6 +23,7 @@
 #include "OscBank.h"
 #include "Macros.h"
 #include "ShapeLanes.h"
+#include "ModMatrix.h"
 #include <atomic>
 
 namespace re
@@ -51,6 +52,8 @@ namespace re
             for (auto& o : osArr) o->reset();
             work.setSize (2, grid);
             tail.prepare (sr);
+            for (int i = 0; i < 4; ++i) { lfos[(size_t) i].prepare (sr); lfos[(size_t) i].setSeed (0x51ed270bu + 977u * (uint32_t) i); lfos[(size_t) i].retrigger(); }
+            lfoClock = ~0ull;
             guiCap = juce::jmin ((int) gui.size(), (int) (sr * 2.0));
             clock = 0;
             builtCurves = -1;
@@ -76,6 +79,10 @@ namespace re
                 const auto m = meta.getMessage();
                 if (m.isNoteOn()) noteOn (m.getNoteNumber(), m.getFloatVelocity(), false);
                 else if (m.isNoteOff()) trig.noteOff (m.getNoteNumber());
+                else if (m.isController() && m.getControllerNumber() == 1) modWheel = m.getControllerValue() / 127.f;
+                else if (m.isChannelPressure()) aftertouch = m.getChannelPressureValue() / 127.f;
+                else if (m.isAftertouch()) aftertouch = m.getAfterTouchValue() / 127.f;
+                else if (m.isPitchWheel()) pitchBend = (m.getPitchWheelValue() - 8192) / 8192.f;
             }
             if (pos < n) render (buffer, pos, n - pos);
         }
@@ -90,7 +97,29 @@ namespace re
         // ---- per grid point: the settings (+ the oversampling factor and the drawn distortion curves)
         void latch()
         {
-            p = applyMacros (pending);
+            p = pending;
+            // MOD MATRIX: LFOs move on by one grid step, the sources are read, the matrix moves a copy of the settings
+            const double bpmL = bpmPending;
+            for (int i = 0; i < 4; ++i)
+            {
+                const auto& L = p.lfo[(size_t) i];
+                auto& o = lfos[(size_t) i];
+                static const int waveMap[8] { 0, 1, 2, 3, 4, 5, 6, 8 };       // SINE TRI SAW UP SAW DN SQUARE S&H SMOOTH CHAOS
+                o.setWave (waveMap[juce::jlimit (0, 7, L.wave)]);
+                if (L.sync) o.setSynced (doomsday::mod::syncBeats (L.div), bpmL); else o.setRateHz (L.hz);
+                o.setPhaseOffset (L.phase);
+                src.v[(size_t) (SrcLfo1 + i)] = clock != lfoClock ? o.advance (grid) : src.v[(size_t) (SrcLfo1 + i)];   // once per grid point
+            }
+            src.v[SrcAmpEnv] = amp;
+            src.v[SrcShapePitch] = (float) juce::jlimit (-1.0, 1.0, lv.st / 24.0);
+            src.v[SrcShapeHarm] = (float) lv.harm; src.v[SrcShapePhase] = (float) lv.phase;
+            src.v[SrcVelocity] = noteVel; src.v[SrcModWheel] = modWheel; src.v[SrcAftertouch] = aftertouch; src.v[SrcPitchBend] = pitchBend;
+            src.v[SrcKey] = juce::jlimit (-1.f, 1.f, (playNote - 36) / 24.f);
+            for (int k = 0; k < 8; ++k) src.v[(size_t) (SrcMacro1 + k)] = p.macro[(size_t) k];
+            src.v[SrcRandom] = stepRandom; src.v[SrcStep] = stepPos;
+            lfoClock = clock;
+            applyMatrix (p, src);
+            p = applyMacros (p);
             const int want = juce::jlimit (0, 3, offline ? p.qualityExport : p.qualityRt);
             if (want != osIdx)
             {
@@ -142,7 +171,9 @@ namespace re
             subHzNote = Sub::noteHz (playNote, p);
             glideR = (legato && p.glideMs >= 0.5f && hz > 0.0) ? prevHz / hz : 1.0;     // GLIDE: slide from the last note's pitch
             vel = 1.f - p.velocitySens * (1.f - velocity);
-            uCount = 0; preCount = 0; lastT = -1.0; clickRnd = 0x2545f491u;
+            noteVel = velocity;
+            for (int i = 0; i < 4; ++i) if (p.lfo[(size_t) i].retrig) lfos[(size_t) i].retrigger();
+            uCount = 0; preCount = 0; lastT = -1.0; clickRnd = 0x2545f491u; rndState = 0x9e3779b9u; stepCount = 0;
             if (p.source == SrcTail) { beginTail(); if (p.gate) tail.finish(); }
             playing = sample.load();
             guiWrite = 0; hitSerial.fetch_add (1);
@@ -271,7 +302,14 @@ namespace re
                 if (trig.isActive())
                 {
                     auto k = trig.tick (p);
-                    if (k.newStep) { startStep(); lanes.restart(); }
+                    if (k.newStep)
+                    {
+                        startStep(); lanes.restart();
+                        for (int i = 0; i < 4; ++i) if (p.lfo[(size_t) i].retrig) lfos[(size_t) i].retrigger();     // RETRIG: every step starts the LFO again
+                        rndState ^= rndState << 13; rndState ^= rndState >> 17; rndState ^= rndState << 5;          // RANDOM (step): fixed seed -> the same every play
+                        stepRandom = (float) (rndState & 0xffffff) / 8388607.5f - 1.f;
+                        stepPos = (float) (stepCount++ % 4) / 3.f;
+                    }
                     // REVERSE SHAPE DESIGNER: the drawn lanes on the step's time line
                     if (lanesOn && k.plays)
                     {
@@ -287,7 +325,7 @@ namespace re
                     amp += ((float) k.target - amp) * ampC;
                     const bool refresh = (uCount++ & 31) == 0;
                     glideR += (1.0 - glideR) * glideC;
-                    const double ratio = std::pow (2.0, k.st / 12.0) * glideR;
+                    const double ratio = std::pow (2.0, (k.st + p.modSt) / 12.0) * glideR;
                     const float g = std::pow (10.f, p.driveDb * (1.f - p.driveEnv + p.driveEnv * amp) * (float) lv.harm / 20.f);
                     if (tone.dynPre && (preCount++ & 15) == 0)       // PRE FILTER ENV / KEY: the cutoff follows the envelope and the note
                         preNow = doomsday::dsp::svfCoefs ((float) (p.preHz * std::exp2 (p.preEnvOct * (amp - 1.f) - 4.0 * (1.0 - lv.harm)) * std::pow (hz / 65.406, (double) p.preKey)),
@@ -361,6 +399,11 @@ namespace re
         std::array<double, 3> oscMult {};
         bool oscOn = false, lanesOn = false;
         ShapeLanes lanes;
+        std::array<doomsday::mod::Lfo, 4> lfos;
+        ModSources src;
+        float modWheel = 0.f, aftertouch = 0.f, pitchBend = 0.f, noteVel = 1.f, stepRandom = 0.f, stepPos = 0.f;
+        uint32_t rndState = 0x9e3779b9u, stepCount = 0;
+        uint64_t lfoClock = ~0ull;
         LaneValues lv;
         double glideR = 1.0, glideC = 1.0, lastT = -1.0;
         float clickG = 0.f, clickEnv = 0.f, clickDecay = 0.9f;

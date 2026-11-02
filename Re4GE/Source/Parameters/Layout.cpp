@@ -1,5 +1,6 @@
 // RE4GE - the parameter layout. IDs are FROZEN since v0.3 (Tests/param_ids.txt); names carry the module prefix (FL's automation list).
 #include "Layout.h"
+#include "../DSP/ModMatrix.h"
 #include "DoomsdayParams.h"
 
 using namespace juce;
@@ -171,6 +172,26 @@ namespace
         l.add (b (autoGain, "DIST Auto Gain", true));
         l.add (c (qualityRt, "QUALITY Realtime", Choices::qualities, 1));
         l.add (c (qualityExport, "QUALITY Export", Choices::qualities, 2));
+        // ---- v0.8: LFO 1-4 + MOD MATRIX
+        for (int i = 0; i < 4; ++i)
+        {
+            const String n = "LFO" + String (i + 1) + " ";
+            l.add (c (lfoId (i, "wave"), n + "Wave", Choices::lfoWaves, 0));
+            l.add (b (lfoId (i, "sync"), n + "Sync", true));
+            l.add (f (lfoId (i, "rate"), n + "Rate", skew (0.05f, 40.f, 2.f), 2.f, fm::hz, fm::hzIn));
+            l.add (c (lfoId (i, "div"), n + "Division", doomsday::mod::syncNames(), 9));
+            l.add (f (lfoId (i, "phase"), n + "Phase", { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
+            l.add (b (lfoId (i, "retrig"), n + "Retrigger", true));
+        }
+        for (int r = 0; r < 16; ++r)
+        {
+            const String n = "MOD" + String (r + 1) + " ";
+            l.add (b (mtxId (r, "on"), n + "On", false));
+            l.add (c (mtxId (r, "src"), n + "Source", re::modSourceNames(), r < 4 ? 1 + r : 0));
+            l.add (c (mtxId (r, "dst"), n + "Destination", re::modDestNames(), 0));
+            l.add (f (mtxId (r, "amt"), n + "Amount", { -1.f, 1.f }, 0.f, fm::bip, fm::pctIn));
+            l.add (c (mtxId (r, "pol"), n + "Polarity", Choices::polarities, 0));
+        }
         return l;
     }
 }

@@ -138,6 +138,7 @@ int main (int argc, char** argv)
         {
             auto t = StringArray::fromTokens (ln.trim(), " ", ""); if (t.size() < 2) continue;
             if (t[0] == "kicks") { kicks = t[1].getIntValue() != 0; continue; }                 // 'kicks 1': a kick on every beat (A/B)
+            if (t[0] == "ab") { if (t[1] == "sync") p.morphSync(); else p.morphSelect (t[1].getIntValue()); continue; }   // 'ab 0' / 'ab 1' / 'ab sync': MORPH slots
             if (t[0] == "preset") p.setCurrentProgram (byName (p, ln.fromFirstOccurrenceOf ("preset ", false, false).trim().toRawUTF8()));
             else if (t[0] == "sample") p.loadSample (File (ln.fromFirstOccurrenceOf ("sample ", false, false).trim()));
             else if (t[0] == "detect") p.detectKick (t[1].getIntValue());

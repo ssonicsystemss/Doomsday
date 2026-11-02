@@ -69,13 +69,13 @@ namespace re
         inline float process (float x, float g, const Params& p, const ToneCoefs& c, const doomsday::dsp::SvfCoefs& preC)
         {
             x = ge::filt (pre, x, preC, p.preType);
-            x = stageN (0, x, g, p.distType, p.bias, p.mix, p, c);
+            if (! p.stagesOff) x = stageN (0, x, g, p.distType, p.bias, p.mix, p, c);
             const float dc = x - dcx + c.dcR * dcy; dcx = x; dcy = dc; x = dc;
             if (p.lowCutHz > 20.5f) x = lcF.hp (x, c.lc);
             if (std::abs (p.bellDb) > 0.05f) x = bell.process (x, c.bell);
             if (p.bodyDb > 0.05f) x = body.process (x, c.body);
             if (p.biteDb > 0.05f) x = bite.process (x, c.bite);
-            if (p.dist2Db > 0.05f)
+            if (p.dist2Db > 0.05f && ! p.stagesOff)
             {
                 x = stageN (1, x, c.g2, p.dist2Type, p.dist2Bias, p.dist2Mix, p, c);
                 if (std::abs (p.dist2Bias) > 1.0e-4f) { const float d = x - dc2x + c.dcR * dc2y; dc2x = x; dc2y = d; x = d; }

@@ -6,7 +6,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.8";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.9";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";
@@ -165,6 +165,9 @@ namespace ParamIDs
         for (int k = 0; k < 5; ++k) if (std::strcmp (names[k], what) == 0) return table[(size_t) juce::jlimit (0, 15, row)][(size_t) k].c_str();
         jassertfalse; return table[0][0].c_str();
     }
+    // ---- v0.9: step 5, KICK-TO-REVERSE
+    inline constexpr const char* smpEnd    = "smp_end";
+    inline constexpr const char* smpMode   = "smp_mode";
     inline const juce::StringArray macroNames { "BODY", "WEIGHT", "REVERSE", "PITCH", "GRIT", "BITE", "MOVEMENT", "SPACE" };
 
     // v0.1 / v0.2 IDs -> v0.3 (old user presets still load); the v0.3 IDs are FROZEN: never rename (Tests/param_ids.txt)
@@ -250,6 +253,7 @@ namespace Choices
     inline const juce::StringArray tonePos { "PRE", "POST" };
     inline const juce::StringArray lfoWaves { "SINE", "TRI", "SAW UP", "SAW DN", "SQUARE", "S&H", "SMOOTH", "CHAOS" };
     inline const juce::StringArray polarities { "AS IS", "UNI", "BI" };
+    inline const juce::StringArray smpModes { "ORIGINAL", "PROCESSED" };
     inline const juce::StringArray phaseModes { "RESET", "FREE" };
     inline const juce::StringArray pitchModes { "STABLE", "DROP", "RISE", "BOUNCE" };
 }

@@ -88,6 +88,7 @@ re::Params gatherParams (const AudioProcessorValueTreeState& apvts, ParamCache& 
         m.on = get (mtxId (r, "on")) > 0.5f; m.src = ch (mtxId (r, "src"), re::NumModSrc - 1);
         m.dst = ch (mtxId (r, "dst"), re::NumModDst - 1); m.amount = get (mtxId (r, "amt")); m.polarity = ch (mtxId (r, "pol"), 2);
     }
+    p.sampleEndMs = get (smpEnd); p.sampleOriginal = get (smpMode) < 0.5f;
     return p;
 }
 }

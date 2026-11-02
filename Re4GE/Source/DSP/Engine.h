@@ -120,6 +120,7 @@ namespace re
             lfoClock = clock;
             applyMatrix (p, src);
             p = applyMacros (p);
+            p.stagesOff = p.source == SrcSample && p.sampleOriginal;
             const int want = juce::jlimit (0, 3, offline ? p.qualityExport : p.qualityRt);
             if (want != osIdx)
             {
@@ -267,7 +268,14 @@ namespace re
             else if (playing != nullptr) { d = playing->data.data(); len = (int) playing->data.size(); inc = playing->rate / osr * ratio * smpSpeed(); }
             if (d == nullptr) return 0.f;
             const double dir = p.source == SrcTail || p.sampleReverse ? -1.0 : 1.0;
-            float y = readBuf (d, len, c.readPos);
+            // KICK-TO-REVERSE: only the region START .. END of the sample sounds (2 ms fades at its edges)
+            double lo = 0.0, hi = 1.0e12, fadeS = 1.0;
+            if (p.source == SrcSample && playing != nullptr)
+            {
+                lo = p.sampleStartMs * 0.001 * playing->rate; hi = p.sampleEndMs * 0.001 * playing->rate; fadeS = 0.002 * playing->rate;
+            }
+            auto region = [lo, hi, fadeS] (double pos) { return (float) (juce::jlimit (0.0, 1.0, (pos - lo) / fadeS + 1.0) * juce::jlimit (0.0, 1.0, (hi - pos) / fadeS)); };
+            float y = readBuf (d, len, c.readPos) * region (c.readPos);
             c.readPos += dir * inc;
             if (nu > 0)
             {
@@ -275,7 +283,7 @@ namespace re
                 for (int i = 0; i < nu; ++i)
                 {
                     double& up = c.upos[(size_t) i];
-                    yu += readBuf (d, len, up);
+                    yu += readBuf (d, len, up) * region (up);
                     up += dir * inc * uRatio[(size_t) sd][(size_t) i];
                 }
                 y += yu * p.uniMix / std::sqrt ((float) nu);

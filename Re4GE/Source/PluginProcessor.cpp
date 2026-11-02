@@ -57,7 +57,7 @@ bool ReProcessor::loadUserPresetFile (const File& f)
         mod::Shape::fromString (xml->getStringAttribute (shapeKey (k)), sh);
         setShape (k, sh, false);
     }
-    loadSample (File (xml->getStringAttribute ("samplePath")));
+    restoreSample (xml->getStringAttribute ("samplePath"), xml->getStringAttribute ("sampleData"), xml->getDoubleAttribute ("sampleRate"), xml->getStringAttribute ("sampleName"));
     presetName = f.getFileNameWithoutExtension();
     return true;
 }
@@ -73,7 +73,7 @@ void ReProcessor::setStateInformation (const void* data, int size)
 {
     MemoryBlock fixed (data, (size_t) size);
     if (auto xml = getXmlFromBinary (data, size)) { translateLegacy (*xml); fixed.reset(); copyXmlToBinary (*xml, fixed); }
-    if (PresetIO::setState (*this, apvts, fixed.getData(), (int) fixed.getSize(), currentProgram, presetName)) { applyShapesFromState(); loadSample (File (apvts.state.getProperty ("samplePath").toString())); }
+    if (PresetIO::setState (*this, apvts, fixed.getData(), (int) fixed.getSize(), currentProgram, presetName)) { applyShapesFromState(); restoreSample (apvts.state.getProperty ("samplePath").toString(), apvts.state.getProperty ("sampleData").toString(), (double) apvts.state.getProperty ("sampleRate", 44100.0), apvts.state.getProperty ("sampleName").toString()); }
 }
 
 void ReProcessor::randomizeSound()
@@ -197,21 +197,58 @@ void ReProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
 }
 
 // message thread: the file -> engine (reading the WAV is Presets/SampleFile)
+// OWN SOUND: the sample is also stored INSIDE the state (16-bit mono, base64), so a project / preset plays even when the file is gone
+void ReProcessor::useSample (std::unique_ptr<re::Sample> s, const String& path)
+{
+    if (s != nullptr)
+    {
+        MemoryBlock mb (s->data.size() * 2);
+        auto* d = static_cast<int16_t*> (mb.getData());
+        for (size_t i = 0; i < s->data.size(); ++i) d[i] = (int16_t) jlimit (-32767, 32767, roundToInt (s->data[i] * 32767.f));
+        apvts.state.setProperty ("sampleData", mb.toBase64Encoding(), nullptr);
+        apvts.state.setProperty ("sampleRate", s->rate, nullptr);
+        apvts.state.setProperty ("sampleName", s->name, nullptr);
+        sections = re::analyseKick (s->data, s->rate);
+    }
+    else { for (auto* k : { "sampleData", "sampleRate", "sampleName" }) apvts.state.removeProperty (k, nullptr); sections = {}; }
+    engine.setSample (std::move (s));
+    apvts.state.setProperty ("samplePath", path, nullptr);
+    sampleSerial.fetch_add (1);
+}
 bool ReProcessor::loadSample (const File& f)
 {
     if (! f.existsAsFile()) { if (f.getFullPathName().isEmpty()) clearSample(); return false; }
     auto s = re4ge::readSampleFile (f);
     if (s == nullptr) return false;
-    engine.setSample (std::move (s));
-    apvts.state.setProperty ("samplePath", f.getFullPathName(), nullptr);
-    sampleSerial.fetch_add (1);
+    embeddedOnly = false;
+    useSample (std::move (s), f.getFullPathName());
     return true;
 }
-void ReProcessor::clearSample()
+// a project / preset: the file if it is there, else the copy inside
+bool ReProcessor::restoreSample (const String& path, const String& embedded, double rate, const String& name)
 {
-    engine.setSample (nullptr);
-    apvts.state.setProperty ("samplePath", String(), nullptr);
-    sampleSerial.fetch_add (1);
+    if (path.isNotEmpty() && File (path).existsAsFile() && loadSample (File (path))) return true;
+    if (embedded.isEmpty()) { clearSample(); return false; }
+    MemoryBlock mb; if (! mb.fromBase64Encoding (embedded)) { clearSample(); return false; }
+    auto s = std::make_unique<re::Sample>();
+    s->rate = rate > 1000.0 ? rate : 44100.0; s->name = name;
+    const auto* d = static_cast<const int16_t*> (mb.getData());
+    s->data.resize (mb.getSize() / 2);
+    for (size_t i = 0; i < s->data.size(); ++i) s->data[i] = d[i] / 32767.f;
+    embeddedOnly = true;
+    useSample (std::move (s), path);
+    return true;
+}
+void ReProcessor::clearSample() { embeddedOnly = false; useSample (nullptr, {}); }
+void ReProcessor::detectKick (int use)
+{
+    const auto& k = sections;
+    if (! k.ok) return;
+    const double from = use == 0 ? k.bodyEnd : use == 1 ? k.punchEnd : use == 2 ? k.transientEnd : 0.0;
+    set (ParamIDs::smpStart, (float) jmin (500.0, from));
+    set (ParamIDs::smpEnd, (float) jlimit (10.0, 4000.0, k.tailEnd));
+    if (k.rootNote > 0) set (ParamIDs::smpRoot, (float) k.rootNote);
+    set (ParamIDs::smpReverse, 1.f);
 }
 String ReProcessor::sampleName() const { auto* s = engine.currentSample(); return s != nullptr ? s->name : String(); }
 

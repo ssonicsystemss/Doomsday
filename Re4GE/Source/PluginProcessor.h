@@ -3,6 +3,7 @@
 #include "DoomsdayParams.h"
 #include "DoomsdayUI.h"
 #include "DSP/Engine.h"
+#include "DSP/KickAnalysis.h"
 #include "Parameters/ParamIDs.h"
 #include "Parameters/ParamBridge.h"
 
@@ -57,6 +58,11 @@ public:
     bool loadSample (const juce::File&);
     void clearSample();
     juce::String sampleName() const;
+    // KICK-TO-REVERSE (message thread): analyse the loaded WAV, and set the region / ROOT from it
+    //   use: 0 = TAIL, 1 = BODY + TAIL, 2 = PUNCH .. END (everything after the click), 3 = ALL
+    const re::KickSections& kickSections() const { return sections; }
+    void detectKick (int use);
+    bool sampleIsEmbeddedOnly() const { return embeddedOnly; }        // the file is gone: the copy inside the project / preset plays
     int getSampleSerial() const { return sampleSerial.load(); }
 
     // SHAPE DESIGNER curves (message thread). They live in the state (saved with presets / projects, undoable);
@@ -90,6 +96,10 @@ private:
     juce::String presetName { "INIT" };
     juce::SpinLock prepareLock;            // prepareToPlay holds it; processBlock only try-locks (silence while FL re-prepares)
     std::atomic<int> sampleSerial { 0 };
+    re::KickSections sections;
+    bool embeddedOnly = false;
+    void useSample (std::unique_ptr<re::Sample>, const juce::String& path);
+    bool restoreSample (const juce::String& path, const juce::String& embedded, double rate, const juce::String& name);
     std::atomic<bool> pendingAudition { false };
     juce::Random rng;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ReProcessor)

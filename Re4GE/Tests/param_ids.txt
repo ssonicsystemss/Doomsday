@@ -268,3 +268,5 @@ mtx16_src
 mtx16_dst
 mtx16_amt
 mtx16_pol
+smp_end
+smp_mode

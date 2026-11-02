@@ -1,4 +1,15 @@
-# RE4GE v0.8
+# RE4GE v0.9
+
+## v0.9 (krok 5, część 1): KICK-TO-REVERSE
+**04 SOURCE → Kick > Reverse**: wrzuć (przeciągnij) swojego kicka, np. wyrenderowanego z 4GE.
+- Wtyczka sama dzieli go na **TRANSIENT / PUNCH / BODY / TAIL** (kolorowe pasy pod waveformem, przy każdym pewność wykrycia w %)
+  i znajduje jego **nutę** (ROOT, z odchyłką w centach).
+- Po wrzuceniu od razu gra **TAIL od tyłu**. Przyciski **Tail / Body+Tail / Punch+ / All** wybierają, która część gra.
+  Białe uchwyty na waveformie (albo gałki START / END) ustawiasz ręcznie; kolejne DETECT nadpisuje je dopiero po kliknięciu.
+- **ORIGINAL**: kick taki, jaki jest (bez przesterów RE4GE). **PROCESSED**: przez cały tor RE4GE (filtr, przestery, EQ, makra, matrix).
+  HYBRID = dokręć OSC 2–4 i SUB, a grają razem z kickiem, nastrojone do nuty.
+- **Kick zapisuje się W PROJEKCIE i W PRESECIE** (OWN SOUND). Jak plik zniknie z dysku, gra kopia ze środka (wtyczka to pokazuje).
+
 
 ## v0.8 (krok 4): LFO 1–4 + MATRIX MODULACJI
 **03 MODULATION**:

@@ -75,6 +75,10 @@ namespace re
         struct ModRow { bool on = false; int src = 0, dst = 0, polarity = 0; float amount = 0.f; };
         std::array<ModRow, 16> mtx {};
         float modSt = 0.f;                         // set by the matrix: pitch offset in semitones (not a knob)
+        // v0.9 (step 5): KICK-TO-REVERSE - the SAMPLE region (START .. END ms) and ORIGINAL (the kick as it is, no distortion stages)
+        float sampleEndMs = 4000.f;
+        bool sampleOriginal = false;
+        bool stagesOff = false;                    // set by the engine (SAMPLE + ORIGINAL): both distortion stages bypassed
     };
     enum OscWave { WSine = 0, WTri = 1, WSaw = 2, WSquare = 3, WPulse = 4, WNoise = 5 };
 }

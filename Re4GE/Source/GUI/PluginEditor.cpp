@@ -128,7 +128,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p)
+Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -411,15 +411,27 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     }
     {
         auto& c = card ("Sample", acc, PSample); cSample = (int) cards.size() - 1;
-        knob (c, smpRoot, "Root", "SAMPLE: the note of your WAV (with KEY TRACK it is played on the note you play)");
-        knob (c, smpStart, "Start", "SAMPLE: skips the start of the WAV");
+        knob (c, smpRoot, "Root", "SAMPLE: the note of your WAV (with KEY TRACK it is played on the note you play). DETECT sets it");
+        knob (c, smpStart, "Start", "Where the region that plays begins (backwards: where the bass ends, on the gate). DETECT sets it");
+        knob (c, smpEnd, "End", "Where the region ends (backwards: where the bass starts). DETECT sets it to the end of the tail");
+        c.head.push_back (seg (smpMode, { "Original", "Processed" }, acc, "ORIGINAL: the kick as it is (the distortion stages are skipped). PROCESSED: through the whole RE4GE chain"));
+        for (auto [label, use, tip] : { std::tuple<const char*, int, const char*> { "All", 3, "DETECT: the whole kick plays (reversed: the click lands on the gate end)" },
+                                        { "Punch+", 2, "DETECT: everything after the click" },
+                                        { "Body+Tail", 1, "DETECT: the body and the tail (no click, no punch)" },
+                                        { "Tail", 0, "DETECT: only the tail - the classic reverse bass from a kick" } })
+        {
+            auto b = std::make_unique<TextButton> (label); b->setTooltip (tip);
+            const int u = use;
+            b->onClick = [this, u] { proc.undo.beginNewTransaction(); proc.detectKick (u); if (auto* s = proc.apvts.getParameter (ParamIDs::source)) s->setValueNotifyingHost (s->convertTo0to1 (2.f)); };
+            addAndMakeVisible (*b); c.head.push_back (b.get()); templ.push_back (std::move (b));
+        }
         loadBtn.setTooltip ("SAMPLE source: load a WAV (e.g. a kick from 4GE). You can also drag a file onto the plugin");
         clearBtn.setTooltip ("Remove the sample");
         loadBtn.onClick = [this]
         {
             chooser = std::make_unique<FileChooser> ("Load a sample", File::getSpecialLocation (File::userDocumentsDirectory), "*.wav;*.aif;*.aiff;*.flac");
             chooser->launchAsync (FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles,
-                                  [this] (const FileChooser& fc) { if (fc.getResult().existsAsFile()) proc.loadSample (fc.getResult()); });
+                                  [this] (const FileChooser& fc) { if (fc.getResult().existsAsFile() && proc.loadSample (fc.getResult())) proc.detectKick (0); });
         };
         clearBtn.onClick = [this] { proc.clearSample(); };
         addAndMakeVisible (loadBtn); addAndMakeVisible (clearBtn);
@@ -484,6 +496,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     shaperView.onStageChanged = [this] { showPage (page); };
     addAndMakeVisible (shaperView);
     addAndMakeVisible (matrix);
+    addAndMakeVisible (kickView);
     settingsB.setTooltip ("Quality (oversampling while playing / for export), auto gain");
     settingsB.onClick = [this] { showPage (PSettings); };
     addAndMakeVisible (settingsB);
@@ -500,7 +513,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
         { "03", "MODULATION", { { "LFO", PLfo, [this] { for (int r = 0; r < 16; ++r) if (raw (proc, ParamIDs::mtxId (r, "on")) > 0.5f && roundToInt (raw (proc, ParamIDs::mtxId (r, "src"))) >= 1 && roundToInt (raw (proc, ParamIDs::mtxId (r, "src"))) <= 4) return true; return false; } },
                                 { "Matrix", PMatrix, [this] { for (int r = 0; r < 16; ++r) if (raw (proc, ParamIDs::mtxId (r, "on")) > 0.5f) return true; return false; } },
                                 { "Steps", PShape, [] { return true; } } }, {} },
-        { "04", "SOURCE",     { { "Kick Tail", PTail, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 1; } }, { "Sample", PSample, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 2; } },
+        { "04", "SOURCE",     { { "Kick Tail", PTail, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 1; } }, { "Kick > Reverse", PSample, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 2; } },
                                 { "Sub", PSub, on (subHz, 20.5f) }, { "Stereo", PStereo, on (uniVoices, 1.5f) } }, {} } };
     nav.onSelect = [this] (int pg) { showPage (pg); };
     addAndMakeVisible (nav);
@@ -598,6 +611,7 @@ void Canvas::showPage (int pg)
     designer.setVisible (page == PDesigner);
     shaperView.setVisible (page == PWaveshaper);
     matrix.setVisible (page == PMatrix);
+    kickView.setVisible (page == PSample);
     for (auto& c : cards)
     {
         const bool on = cardOn (c);
@@ -687,7 +701,7 @@ void Canvas::resized()
         case PMatrix: matrix.setBounds (wa); break;
         case PEq:     row ({ { cPost, 520 } }); break;
         case PTail:   row ({ { cTail, 0 } }); break;
-        case PSample: row ({ { cSample, 0 } }); break;
+        case PSample: { kickView.setBounds (wa.removeFromTop (wa.getHeight() - rowH - gap)); wa.removeFromTop (gap); row ({ { cSample, 0 } }); break; }
         case PSub:    row ({ { cSub, 420 } }); break;
         case PStereo: row ({ { cUni, 0 } }); break;
         case PTransient: row ({ { cClick, 420 } }); break;
@@ -711,7 +725,7 @@ void Canvas::resized()
         const int w = a.getWidth() / 3;
         for (int i = 0; i < 3; ++i) k[(size_t) i]->setBounds (a.getX() + i * w, a.getY(), w, a.getHeight());
     }
-    if (page == PSample) sampleNameArea = cards[(size_t) cSample].area.reduced (16, 10).removeFromTop (28).withTrimmedLeft (90).withTrimmedRight (210);
+    if (page == PSample) sampleNameArea = cards[(size_t) cSample].area.reduced (16, 10).removeFromTop (28).withTrimmedLeft (90).withWidth (220);
     else sampleNameArea = {};
 }
 
@@ -830,7 +844,10 @@ void Canvas::filesDropped (const StringArray& files, int, int)
         if (File (f).hasFileExtension ("wav;aif;aiff;flac"))
         {
             if (proc.loadSample (File (f)))
+            {
+                proc.detectKick (0);       // a dropped kick: its TAIL plays backwards right away (DETECT buttons for other parts)
                 if (auto* s = proc.apvts.getParameter (ParamIDs::source)) { s->beginChangeGesture(); s->setValueNotifyingHost (s->convertTo0to1 (2.f)); s->endChangeGesture(); }
+            }
             break;
         }
     repaint();
@@ -841,6 +858,7 @@ void Canvas::timerCallback()
     view.tick();
     if (designer.isVisible()) designer.tick();
     if (shaperView.isVisible()) shaperView.tick();
+    if (kickView.isVisible()) kickView.tick();
     const int mode = raw (proc, ParamIDs::timing) > 0.5f ? 1 : 0;
     if (mode != lastMode) { lastMode = mode; showPage (page); }
     nav.repaint();   // the module dots follow the knobs

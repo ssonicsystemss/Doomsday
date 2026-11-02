@@ -192,6 +192,9 @@ namespace
             l.add (f (mtxId (r, "amt"), n + "Amount", { -1.f, 1.f }, 0.f, fm::bip, fm::pctIn));
             l.add (c (mtxId (r, "pol"), n + "Polarity", Choices::polarities, 0));
         }
+        // ---- v0.9: KICK-TO-REVERSE
+        l.add (f (smpEnd, "SAMPLE End", skew (10.f, 4000.f, 400.f), 4000.f, [] (float v, int) { return v > 3999.f ? String ("END") : fm::ms (v, 0); }, fm::msIn));
+        l.add (c (smpMode, "SAMPLE Mode", Choices::smpModes, 1));
         return l;
     }
 }

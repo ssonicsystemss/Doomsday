@@ -5,6 +5,7 @@
 #include "ShapeDesigner.h"
 #include "WaveshaperView.h"
 #include "MatrixView.h"
+#include "KickView.h"
 #include <map>
 
 // =====================================================================
@@ -95,6 +96,7 @@ private:
     ShapeDesigner designer;
     WaveshaperView shaperView;
     MatrixView matrix;
+    KickView kickView;
     int page = 0;
     enum Page { PMain = 0, POsc, PPitch, PEnv, PShape, PFilter, PDist, PEq, PTail, PSample, PSub, PStereo, PTransient, PDesigner, PWaveshaper, PSettings, PLfo, PMatrix, NumPages };
     int cUni = 0, cMaster = 0, cMacros = 0, cSource = 0, cWarp = 0, cPhase = 0, cOsc[3] {}, cTail = 0, cSample = 0, cTrig = 0, cSteps = 0, cPitch = 0, cEnv = 0,

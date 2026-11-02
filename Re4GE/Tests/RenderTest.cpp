@@ -99,6 +99,15 @@ int main (int argc, char** argv)
     outDir.createDirectory();
     using namespace ParamIDs;
     ReProcessor p; Host host;
+    // RenderTest <outdir> --analyse <wav>: KICK-TO-REVERSE sections of a kick
+    if (argc > 3 && String (argv[2]) == "--analyse")
+    {
+        if (! p.loadSample (File::getCurrentWorkingDirectory().getChildFile (argv[3]))) { printf ("cannot load\n"); return 1; }
+        const auto& k = p.kickSections();
+        printf ("transient %.1f (%.0f%%)  punch %.1f (%.0f%%)  body %.1f (%.0f%%)  tail end %.1f (%.0f%%)  root %.1f Hz = note %d %+.0f ct\n",
+                k.transientEnd, k.confTransient * 100.f, k.punchEnd, k.confPunch * 100.f, k.bodyEnd, k.confBody * 100.f, k.tailEnd, k.confTail * 100.f, k.rootHz, k.rootNote, k.rootCents);
+        return 0;
+    }
     // RenderTest <outdir> --render <settings.txt> <out.wav> [bpm] [beats]: 'preset <name>' / '<id> <value>' lines -> a WAV (for matching)
     if (argc > 4 && String (argv[2]) == "--render")
     {
@@ -107,6 +116,8 @@ int main (int argc, char** argv)
         {
             auto t = StringArray::fromTokens (ln.trim(), " ", ""); if (t.size() < 2) continue;
             if (t[0] == "preset") p.setCurrentProgram (byName (p, ln.fromFirstOccurrenceOf ("preset ", false, false).trim().toRawUTF8()));
+            else if (t[0] == "sample") p.loadSample (File (ln.fromFirstOccurrenceOf ("sample ", false, false).trim()));
+            else if (t[0] == "detect") p.detectKick (t[1].getIntValue());
             else set (p, t[0], t[1].getFloatValue());
         }
         host.bpm = argc > 5 ? String (argv[5]).getDoubleValue() : 147.0;
@@ -305,6 +316,42 @@ int main (int argc, char** argv)
         check (first < second * 0.02 && second > 0.05 && undone && restored, "SHAPE DESIGNER: drawn AMP plays, undo works, the curve is saved in the project",
                String (first, 4) + " / " + String (second, 3) + (undone ? "" : " NO UNDO") + (restored ? "" : " NOT RESTORED"));
     }
+    // 14c) KICK-TO-REVERSE: a synthetic kick (click + pitch drop 400 -> 55 Hz + a long 55 Hz tail) is split in the right order, its note found;
+    //      the sample lives inside the project (it plays after the file is gone); ORIGINAL skips the distortion
+    {
+        const File kf = outDir.getChildFile ("test_kick.wav");
+        {
+            AudioBuffer<float> k (2, (int) (sr * 0.7)); double ph = 0; Random rr (5);
+            for (int i = 0; i < k.getNumSamples(); ++i)
+            {
+                const double t = i / sr, hz = 55.0 + 345.0 * std::exp (-t / 0.018);
+                ph += hz / sr;
+                float v = (float) (std::sin (6.2831853 * ph) * std::exp (-t * 4.0) * 0.8);
+                if (t < 0.004) v += (rr.nextFloat() * 2.f - 1.f) * 0.6f * (float) (1.0 - t / 0.004);
+                k.setSample (0, i, v); k.setSample (1, i, v);
+            }
+            writeWav (kf, k);
+        }
+        p.setCurrentProgram (byName (p, "INIT"));
+        const bool loaded = p.loadSample (kf);
+        const auto k = p.kickSections();
+        const bool order = k.ok && k.transientEnd > 0.5 && k.transientEnd < 20.0 && k.punchEnd >= k.transientEnd && k.bodyEnd >= k.punchEnd && k.bodyEnd < 200.0 && k.tailEnd > 300.0;
+        const bool note = k.rootNote == 33;           // 55 Hz = A1
+        p.detectKick (0);
+        const bool region = std::abs (p.apvts.getRawParameterValue (smpStart)->load() - (float) k.bodyEnd) < 1.f && p.apvts.getRawParameterValue (smpRoot)->load() == 33.f;
+        check (loaded && order && note && region, "KICK-TO-REVERSE: sections in order, note found, DETECT sets the region + ROOT",
+               String (k.transientEnd, 1) + " / " + String (k.punchEnd, 1) + " / " + String (k.bodyEnd, 1) + " / " + String (k.tailEnd, 1) + " ms, " + String (k.rootHz, 1) + " Hz = " + String (k.rootNote));
+        // OWN SOUND: save the project, delete the file, load the project -> the same sound from the copy inside
+        set (p, source, 2.f);
+        const auto before = play (p, host, everyBeat (2, 150.0), 0.8);
+        MemoryBlock st; p.getStateInformation (st);
+        kf.deleteFile();
+        ReProcessor p2; p2.setStateInformation (st.getData(), (int) st.getSize());
+        const auto after = play (p2, host, everyBeat (2, 150.0), 0.8);
+        check (p2.sampleIsEmbeddedOnly() && diff (before, after) < 2.0e-3 && rms (after, 400, 800) > 0.01, "the kick is saved INSIDE the project (plays without the file)",
+               "max diff " + String (diff (before, after), 5));
+        p.clearSample(); p.setPlayHead (&host);
+    }
     // 14) every knob changes the sound: min vs max, in at least one of the contexts where it matters
     {
         // a short reversed-kick-like WAV for the SAMPLE source
@@ -413,8 +460,14 @@ int main (int argc, char** argv)
         }
         p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise"));
         play (p, host, everyBeat (1, 150.0), 0.3);
+        {   // a kick for the KICK-TO-REVERSE page
+            const File kf = outDir.getChildFile ("gui_kick.wav");
+            AudioBuffer<float> k (2, (int) (sr * 0.6)); double ph = 0;
+            for (int i = 0; i < k.getNumSamples(); ++i) { const double t = i / sr; ph += (52.0 + 300.0 * std::exp (-t / 0.02)) / sr; const float v = (float) (std::tanh (4.0 * std::sin (6.2831853 * ph)) * std::exp (-t * 5.0) * 0.8); k.setSample (0, i, v); k.setSample (1, i, v); }
+            writeWav (kf, k); p.loadSample (kf); p.detectKick (0);
+        }
         const std::pair<int, const char*> pages[] { { 0, "gui_main.png" }, { 1, "gui_osc.png" }, { 3, "gui_envelope.png" }, { 4, "gui_shape.png" },
-                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" } };
+                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" }, { 9, "gui_kick.png" } };
         for (auto [pg, name] : pages)
         {
             dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (pg);

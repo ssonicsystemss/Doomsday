@@ -194,6 +194,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     }
     {
         auto& c = card ("Envelope", acc, PMain); cMEnv = (int) cards.size() - 1;
+        knob (c, delayPct, "Delay", "How long after the kick the bass starts (% of a step). More = later, the kick's tail stays clean");
         knob (c, initial, "Initial", "Where the swell starts (0 = from silence)");
         knob (c, swell, "Swell", "How long the bass takes to come up (ms)");
         knob (c, curve, "Curve", "+ = fast, then landing (sidechain release), - = slow start, late swell", true);

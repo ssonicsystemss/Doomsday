@@ -239,6 +239,8 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - Preset dopasowany do sampli (Bass_15 / 16) zaczynał narastanie od razu po kicku, bo sample referencyjne startują od −33 dB na początku beatu.
   **Z kickiem na wierzchu** bas wchodził pod jego ogon („wchodzi trochę za szybko”). Właściciel z A/B: najlepsze starty po 15–25 % kroku,
   33 % też OK. → Dopasowanie do sampli robić **na solo**, ale moment wejścia sprawdzać **z kickiem**. W A/B zawsze dawać wersję z kickiem.
+- Drugi raz (2026-11-02, kick_hardstyle_84 od tyłu przy 20 %): „znów wchodzi za wcześnie”. → Domyślnie **~28 % kroku** (Late: 38 %),
+  a DELAY jest teraz na MAIN, żeby właściciel sam dosuwał. Zasada: przy wątpliwości bas raczej później niż wcześniej.
 
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)

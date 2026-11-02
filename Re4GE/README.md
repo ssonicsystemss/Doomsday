@@ -1,4 +1,12 @@
-# RE4GE v0.14
+# RE4GE v0.15
+
+## v0.15 (krok 7, część 1): A / B + MORPH
+Na górnym pasku: **A**, **B**, **A>B** (kopiuj), **MORPH** + suwak.
+- Klik **A** albo **B** = edytujesz ten dźwięk (pusty slot bierze obecny dźwięk). Przełączanie zapamiętuje to, co zmieniłeś, i jest w Undo.
+- **A>B** kopiuje edytowany dźwięk do drugiego slotu (zrób kopię, zmień coś w B i porównuj).
+- **MORPH** włączony = bas gra **pomiędzy A i B** według suwaka (0 % = A, 100 % = B). Gałki w Hz / ms płyną muzycznie,
+  przełączniki zmieniają się w połowie. Suwak jest automatyzowalny – w FL narysuj przejście z A do B w trakcie numeru.
+- Oba sloty zapisują się w projekcie i w presecie.
 
 ## v0.14 (krok 6, część 4): EKSPORT WAV + KATEGORIE PRESETÓW
 - **05 SYSTEM → Export**: LENGTH (1 / 2 / 4 / 8 beatów), NOTE + OCTAVE (tonacja numeru), **EXPORT WAV** – bas renderuje się w tle

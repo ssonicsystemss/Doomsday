@@ -128,7 +128,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p), seqView (p), eqView (p), exportPanel (p)
+Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p), seqView (p), eqView (p), exportPanel (p), morphBar (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -557,6 +557,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     addChildComponent (seqView);
     addChildComponent (eqView);
     addChildComponent (exportPanel);
+    addAndMakeVisible (morphBar);
     exportB.setTooltip ("EXPORT: render the bass to a WAV (and drag it into FL)");
     exportB.onClick = [this] { showPage (PExport); };
     addAndMakeVisible (exportB);
@@ -741,6 +742,7 @@ void Canvas::resized()
     next.setBounds (bx - 250, 13, 34, 30);
     presetBox.setBounds (next.getX() - 6 - 300, 13, 300, 30);
     prev.setBounds (presetBox.getX() - 40, 13, 34, 30);
+    morphBar.setBounds (330, 13, prev.getX() - 18 - 330, 30);
     // left: NAV + SYSTEM; right: the work area; bottom: MACROS + MASTER
     navArea = { 0, top, 200, H - top - bottomH };
     sysArea = navArea.removeFromBottom (208);
@@ -980,6 +982,7 @@ void Canvas::timerCallback()
     if (shaperView.isVisible()) shaperView.tick();
     if (kickView.isVisible()) kickView.tick();
     if (seqView.isVisible()) seqView.tick();
+    morphBar.tick();
     if (eqView.isVisible()) eqView.tick();
     if (page == PDyn)
     {

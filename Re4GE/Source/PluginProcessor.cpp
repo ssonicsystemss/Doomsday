@@ -73,7 +73,7 @@ void ReProcessor::setStateInformation (const void* data, int size)
 {
     MemoryBlock fixed (data, (size_t) size);
     if (auto xml = getXmlFromBinary (data, size)) { translateLegacy (*xml); fixed.reset(); copyXmlToBinary (*xml, fixed); }
-    if (PresetIO::setState (*this, apvts, fixed.getData(), (int) fixed.getSize(), currentProgram, presetName)) { applyShapesFromState(); restoreSample (apvts.state.getProperty ("samplePath").toString(), apvts.state.getProperty ("sampleData").toString(), (double) apvts.state.getProperty ("sampleRate", 44100.0), apvts.state.getProperty ("sampleName").toString()); }
+    if (PresetIO::setState (*this, apvts, fixed.getData(), (int) fixed.getSize(), currentProgram, presetName)) { applyShapesFromState(); restoreSample (apvts.state.getProperty ("samplePath").toString(), apvts.state.getProperty ("sampleData").toString(), (double) apvts.state.getProperty ("sampleRate", 44100.0), apvts.state.getProperty ("sampleName").toString()); morphRebuild(); }
 }
 
 void ReProcessor::randomizeSound() { randomizeWith (re4ge::Randomizer::read (apvts.state)); }
@@ -111,6 +111,8 @@ ReProcessor::ReProcessor (bool fx)
     for (int i = 0; i < numShapes; ++i) shapes[(size_t) i] = lastShapes[(size_t) i] = re4ge::defaultLaneShape (i);
     apvts.state.addListener (this);
     gather();                     // records the parameter pointers once (message thread)
+    morphOnPtr = apvts.getRawParameterValue (ParamIDs::morphOn); morphAmtPtr = apvts.getRawParameterValue (ParamIDs::morph);
+    morphRebuild(); morphRebuild();          // both buffers sized (no allocation later on the audio thread)
     setCurrentProgram (0);
 }
 
@@ -132,7 +134,13 @@ void ReProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
 re::Params ReProcessor::gather() const
 {
-    auto p = re4ge::gatherParams (apvts, paramCache);
+    re4ge::MorphView mv; const re4ge::MorphView* mvp = nullptr;
+    if (morphOnPtr != nullptr && morphOnPtr->load() > 0.5f && morphValid.load())
+    {
+        const auto& d = morphBuf[(size_t) morphIdx.load()];
+        if (d.a.size() == paramCache.ptrs.size()) { mv = { d.a.data(), d.b.data(), d.skip.data(), jlimit (0.f, 1.f, morphAmtPtr->load()) }; mvp = &mv; }
+    }
+    auto p = re4ge::gatherParams (apvts, paramCache, mvp);
     {
         const SpinLock::ScopedTryLockType l (shapeLock);
         if (l.isLocked()) lastShapes = shapes;          // busy (the GUI is writing): the last copy
@@ -141,6 +149,89 @@ re::Params ReProcessor::gather() const
     p.driveCurve = { lastShapes[4], lastShapes[5] };
     p.curveSerial = shapeSerial.load();
     return p;
+}
+
+// ------------------------------------------------------------ MORPH A / B
+ValueTree ReProcessor::morphSlot (int slot) const
+{
+    auto m = apvts.state.getChildWithName ("MORPH");
+    return m.isValid() ? m.getChildWithName (slot == 1 ? "B" : "A") : ValueTree();
+}
+void ReProcessor::morphStore (int slot)
+{
+    auto m = apvts.state.getOrCreateChildWithName ("MORPH", nullptr);
+    auto s = m.getOrCreateChildWithName (slot == 1 ? "B" : "A", nullptr);
+    for (auto* prm : getParameters())
+        if (auto* r = dynamic_cast<RangedAudioParameter*> (prm))
+            if (! r->paramID.startsWith ("morph_")) s.setProperty (r->paramID, r->getValue(), nullptr);
+}
+void ReProcessor::morphRebuild()
+{
+    const int w = 1 - morphIdx.load();
+    auto& d = morphBuf[(size_t) w];
+    const size_t n = paramCache.prm.size();
+    d.a.resize (n); d.b.resize (n); d.skip.resize (n);
+    const auto A = morphSlot (0), B = morphSlot (1);
+    for (size_t i = 0; i < n; ++i)
+    {
+        auto* r = paramCache.prm[i];
+        const Identifier id (r->paramID);
+        const float cur = r->getValue();
+        d.a[i] = A.hasProperty (id) ? (float) A.getProperty (id) : cur;
+        d.b[i] = B.hasProperty (id) ? (float) B.getProperty (id) : cur;
+        d.skip[i] = r->paramID.startsWith ("quality") || r->paramID.startsWith ("fx_") ? 1 : 0;      // never morphed: oversampling, FX detection
+    }
+    morphIdx.store (w);
+    morphValid.store (A.isValid() && B.isValid());
+}
+void ReProcessor::morphSelect (int slot)
+{
+    slot = jlimit (0, 1, slot);
+    morphStore (morphActive());                                     // keep what was edited
+    if (morphHas (slot) && slot != morphActive())
+    {
+        // one UNDO step: the tree first gets the values as they are now (APVTS copies them on a timer), then every change goes
+        // into the tree with the undo manager at once (LESSONS: APVTS + UNDO)
+        for (auto* prm : getParameters())
+            if (auto* r = dynamic_cast<RangedAudioParameter*> (prm))
+            {
+                auto node = apvts.state.getChildWithProperty ("id", r->paramID);
+                if (node.isValid()) node.setProperty ("value", r->convertFrom0to1 (r->getValue()), nullptr);
+            }
+        undo.beginNewTransaction ("A / B");
+        const auto s = morphSlot (slot);
+        for (auto* prm : getParameters())
+            if (auto* r = dynamic_cast<RangedAudioParameter*> (prm))
+                if (s.hasProperty (r->paramID))
+                {
+                    r->beginChangeGesture(); r->setValueNotifyingHost ((float) s.getProperty (r->paramID)); r->endChangeGesture();
+                    auto node = apvts.state.getChildWithProperty ("id", r->paramID);
+                    if (node.isValid()) node.setProperty ("value", r->convertFrom0to1 (r->getValue()), &undo);
+                }
+    }
+    else if (! morphHas (slot)) morphStore (slot);                  // an empty slot takes the current sound
+    apvts.state.setProperty ("morphEdit", slot, nullptr);
+    morphRebuild();
+}
+void ReProcessor::morphCopy()
+{
+    const int a = morphActive();
+    morphStore (a);
+    morphStore (1 - a);
+    morphRebuild();
+}
+void ReProcessor::morphSync()
+{
+    if (! morphHas (morphActive())) return;
+    const auto s = morphSlot (morphActive());
+    for (auto* prm : getParameters())
+        if (auto* r = dynamic_cast<RangedAudioParameter*> (prm))
+            if (! r->paramID.startsWith ("morph_") && (! s.hasProperty (r->paramID) || std::abs ((float) s.getProperty (r->paramID) - r->getValue()) > 1.0e-6f))
+            {
+                morphStore (morphActive());
+                morphRebuild();
+                return;
+            }
 }
 
 // ------------------------------------------------------------ SHAPE DESIGNER curves

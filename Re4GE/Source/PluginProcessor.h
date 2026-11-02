@@ -58,6 +58,14 @@ public:
     float lastRandomDb = 0.f;
     // EXPORT (message thread): a copy of everything the background render needs
     re4ge::ExportJob makeExportJob (int note, int beats) const;
+    // MORPH A / B (message thread): A / B = the two sounds; a click saves the knobs into the slot being edited and loads the other
+    // (an empty slot takes the current sound). MORPH ON + the MORPH knob plays between them (automatable).
+    void morphSelect (int slot);
+    void morphCopy();                       // the slot being edited -> the other one
+    void morphSync();                       // (editor timer) the knobs -> the slot being edited, when they changed
+    int morphActive() const { return (int) apvts.state.getProperty ("morphEdit", 0); }
+    bool morphHas (int slot) const { return morphSlot (slot).getNumProperties() > 0; }
+    void morphReset() { apvts.state.removeChild (apvts.state.getChildWithName ("MORPH"), nullptr); apvts.state.setProperty ("morphEdit", 0, nullptr); morphRebuild(); }
     // PRESET CATEGORIES: the part of the name before " - " (factory and user presets alike)
     static juce::String presetCategory (const juce::String& name)
     {
@@ -117,6 +125,15 @@ private:
     mutable std::array<doomsday::mod::Shape, numShapes> lastShapes;
     std::atomic<int> shapeSerial { 0 };
     mutable re4ge::ParamCache paramCache;
+    // MORPH: double-buffered snapshots in the cache's order (the message thread writes the idle one, then flips)
+    struct MorphData { std::vector<float> a, b; std::vector<char> skip; };
+    std::array<MorphData, 2> morphBuf;
+    std::atomic<int> morphIdx { 0 };
+    std::atomic<bool> morphValid { false };
+    std::atomic<float>* morphOnPtr = nullptr; std::atomic<float>* morphAmtPtr = nullptr;
+    juce::ValueTree morphSlot (int slot) const;
+    void morphStore (int slot);
+    void morphRebuild();
     void set (const char* id, float v);
     re::Engine engine;
     int currentProgram = 0;

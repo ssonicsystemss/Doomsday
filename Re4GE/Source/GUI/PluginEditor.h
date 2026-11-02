@@ -10,6 +10,7 @@
 #include "SeqView.h"
 #include "EqView.h"
 #include "ExportPanel.h"
+#include "MorphBar.h"
 #include <map>
 
 // =====================================================================
@@ -107,6 +108,7 @@ private:
     SeqView seqView;
     EqView eqView;
     ExportPanel exportPanel;
+    MorphBar morphBar;
     int page = 0;
     enum Page { PMain = 0, POsc, PPitch, PEnv, PShape, PFilter, PDist, PEq, PTail, PSample, PSub, PStereo, PTransient, PDesigner, PWaveshaper, PSettings, PLfo, PMatrix, PFx, PRandom, PSeq, PGate, PDyn, PExport, NumPages };
     int cUni = 0, cMaster = 0, cMacros = 0, cSource = 0, cWarp = 0, cPhase = 0, cOsc[3] {}, cTail = 0, cSample = 0, cTrig = 0, cSteps = 0, cPitch = 0, cEnv = 0,

@@ -6,7 +6,7 @@ using namespace juce;
 
 namespace re4ge
 {
-re::Params gatherParams (const AudioProcessorValueTreeState& apvts, ParamCache& cache)
+re::Params gatherParams (const AudioProcessorValueTreeState& apvts, ParamCache& cache, const MorphView* morph)
 {
     // the first call (the processor's constructor, message thread) records the parameters in call order; after that every call
     // only walks the recorded pointers - no string building / lookups / allocation on the audio thread
@@ -14,8 +14,15 @@ re::Params gatherParams (const AudioProcessorValueTreeState& apvts, ParamCache& 
     size_t idx = 0;
     auto get = [&] (const char* id) -> float
     {
-        if (record) { cache.ptrs.push_back (apvts.getRawParameterValue (id)); return cache.ptrs.back()->load(); }
-        return cache.ptrs[idx++]->load();
+        if (record) { cache.ptrs.push_back (apvts.getRawParameterValue (id)); cache.prm.push_back (apvts.getParameter (id)); return cache.ptrs.back()->load(); }
+        const size_t i = idx++;
+        if (morph != nullptr && morph->skip[i] == 0)
+        {
+            // MORPH: between the A and B snapshots in the knob's own 0..1 (so Hz / ms knobs move musically); choices switch halfway
+            const float n = morph->a[i] + morph->t * (morph->b[i] - morph->a[i]);
+            return cache.prm[i]->convertFrom0to1 (juce::jlimit (0.f, 1.f, n));
+        }
+        return cache.ptrs[i]->load();
     };
     using namespace ParamIDs;
     auto ch = [&get] (const char* id, int hi) { return jlimit (0, hi, (int) std::round (get (id))); };

@@ -376,3 +376,5 @@ comp_attack
 comp_release
 comp_makeup
 comp_mix
+morph_on
+morph_amt

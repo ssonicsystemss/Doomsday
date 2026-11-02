@@ -541,6 +541,35 @@ int main (int argc, char** argv)
         check (ok4 && std::abs (len - 0.8) < 0.01 && lvl > 0.02 && noCat == 0, "EXPORT: 2 beats -> a 24-bit WAV that plays; presets have categories",
                String (len, 3) + " s, rms " + String (lvl, 3) + ", " + String (noCat) + " presets without a category");
     }
+    // 14j) MORPH A / B: A = the note, B = +12 st; MORPH 0 / 50 / 100 % = 1x / ~1.41x / 2x the pitch; the slots are saved in the project;
+    //      a click on A loads A back (undoable)
+    {
+        p.setCurrentProgram (byName (p, "INIT")); host.bpm = 150.0; set (p, source, 0.f);
+        p.morphReset(); p.morphSelect (0); p.morphSelect (1);         // A = the current sound, B = a copy that is edited now
+        set (p, tune, 12.f); p.morphSync();
+        set (p, morphOn, 1.f);
+        // the morphed sound = the sound with the knob set to the middle / end by hand
+        double hz[3];
+        for (int k = 0; k < 3; ++k)
+        {
+            set (p, morph, 0.5f * k); auto m = play (p, host, everyBeat (1, 150.0), 0.4);
+            set (p, morphOn, 0.f); const float keep = raw (p, tune); set (p, tune, 6.f * k); auto h = play (p, host, everyBeat (1, 150.0), 0.4);
+            set (p, tune, keep); set (p, morphOn, 1.f);
+            hz[k] = diff (m, h);
+        }
+        MemoryBlock st; p.getStateInformation (st);
+        ReProcessor p2; p2.setStateInformation (st.getData(), (int) st.getSize());
+        const bool saved = p2.morphHas (0) && p2.morphHas (1) && p2.morphActive() == 1;
+        set (p, morphOn, 0.f);
+        p.undo.beginNewTransaction(); p.morphSelect (0);
+        const bool backToA = std::abs (raw (p, tune)) < 0.01f;
+        p.undo.undo();
+        const bool undoOk = std::abs (raw (p, tune) - 12.f) < 0.01f;
+        const bool okM = hz[0] < 1.0e-4 && hz[1] < 1.0e-4 && hz[2] < 1.0e-4 && saved && backToA && undoOk;
+        check (okM, "MORPH A / B: 0 / 50 / 100 % = TUNE 0 / +6 / +12 st, saved in the project, A / B undoable",
+               "diff " + String (hz[0], 6) + " / " + String (hz[1], 6) + " / " + String (hz[2], 6) + (saved ? "" : " NOT SAVED") + (backToA ? "" : " NO LOAD") + (undoOk ? "" : " NO UNDO"));
+        p.morphReset();
+    }
     // 14e) RE4GE FX: kicks in the INPUT are found (one hit each, on time), the dry kick passes untouched, the bass sounds between them;
     //      LIVE: the previous kick reversed (no bass after the first kick, bass after the second)
     {
@@ -598,7 +627,7 @@ int main (int argc, char** argv)
             for (int i = 0; i < k.getNumSamples(); ++i) { const double t = i / sr; ph += (50.0 + 250.0 * std::exp (-t * 25.0)) / sr; const float v = (float) (std::tanh (3.0 * std::sin (6.2831853 * ph)) * std::exp (-t * 3.0)) * 0.7f; k.setSample (0, i, v); k.setSample (1, i, v); }
             writeWav (wav, k);
         }
-        struct Ctx { const char* preset; std::vector<std::pair<const char*, float>> extra; bool sample = false; bool gate = false; bool offline = false; double bpm = 150.0; };
+        struct Ctx { const char* preset; std::vector<std::pair<const char*, float>> extra; bool sample = false; bool gate = false; bool offline = false; double bpm = 150.0; bool morphAB = false; };
         const std::vector<Ctx> ctxs {
             { "PUMP - QL Tail", {} },
             { "SWELL - Synth Bend", {} },
@@ -669,7 +698,9 @@ int main (int argc, char** argv)
             { "INIT", { { source, 0.f }, { eqId (0, "on"), 1.f }, { eqId (0, "type"), 2.f }, { eqId (0, "gain"), 9.f }, { eqId (0, "freq"), 400.f },
                         { eqId (7, "on"), 1.f }, { eqId (7, "type"), 2.f }, { eqId (7, "gain"), 9.f }, { eqId (7, "freq"), 3000.f } } },
             // COMP: well over the threshold so every knob is heard
-            { "INIT", { { source, 0.f }, { compOn, 1.f }, { compThresh, -30.f }, { compRatio, 6.f }, { compMakeup, 6.f }, { compMix, 0.7f } } } };
+            { "INIT", { { source, 0.f }, { compOn, 1.f }, { compThresh, -30.f }, { compRatio, 6.f }, { compMakeup, 6.f }, { compMix, 0.7f } } },
+            // MORPH: A = INIT synth, B = the same with +12 st and more drive
+            { "INIT", { { source, 0.f } }, false, false, false, 150.0, true } };
         String dead; int tested = 0;
         for (auto* prm : p.getParameters())
         {
@@ -680,6 +711,12 @@ int main (int argc, char** argv)
             {
                 p.setCurrentProgram (byName (p, cx.preset)); host.bpm = cx.bpm;
                 for (auto& [id, v] : cx.extra) set (p, id, v);
+                if (cx.morphAB)
+                {
+                    const float keep = rp->getValue();
+                    p.morphReset(); p.morphSelect (0); p.morphSelect (1); set (p, tune, 12.f); set (p, drive, 24.f); p.morphSync(); set (p, morphOn, 1.f); set (p, morph, 0.5f);
+                    rp->setValueNotifyingHost (keep);
+                }
                 if (cx.sample) p.loadSample (wav); else p.clearSample();
                 p.setNonRealtime (cx.offline);
                 auto notes = cx.gate ? std::vector<Note> { { 30.0, 500.0, 31, 0.6f }, { 300.0, 400.0, 38, 0.6f } } : std::vector<Note> { { 0.0, 100.0, 31, 0.6f } };
@@ -691,7 +728,7 @@ int main (int argc, char** argv)
             }
             if (! moves) dead << rp->paramID << " ";
         }
-        p.clearSample(); p.setNonRealtime (false); host.bpm = 150.0;
+        p.clearSample(); p.setNonRealtime (false); host.bpm = 150.0; p.morphReset();
         check (dead.isEmpty(), "every parameter changes the sound (min vs max)", String (tested) + " params" + (dead.isNotEmpty() ? " DEAD: " + dead : String()));
     }
     // 15) GUI: editor stress + snapshots of the three pages

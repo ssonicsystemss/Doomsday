@@ -242,6 +242,9 @@ namespace
         l.add (f (compRelease, "COMP Release", skew (10.f, 800.f, 120.f), 120.f, fm::ms, fm::msIn));
         l.add (f (compMakeup, "COMP Makeup", { 0.f, 24.f }, 0.f, fm::db, fm::num));
         l.add (f (compMix, "COMP Mix", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
+        // ---- v0.15: MORPH A / B (automatable: draw the morph in FL)
+        l.add (b (morphOn, "MORPH On", false));
+        l.add (f (morph, "MORPH A > B", { 0.f, 1.f }, 0.f, fm::pct, fm::pctIn));
         return l;
     }
 }

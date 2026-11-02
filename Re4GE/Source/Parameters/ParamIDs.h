@@ -6,7 +6,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.14";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.15";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";
@@ -203,6 +203,9 @@ namespace ParamIDs
     inline constexpr const char* compRelease = "comp_release";
     inline constexpr const char* compMakeup  = "comp_makeup";
     inline constexpr const char* compMix     = "comp_mix";
+    // ---- v0.15: step 7, MORPH A / B
+    inline constexpr const char* morphOn   = "morph_on";
+    inline constexpr const char* morph     = "morph_amt";
     inline constexpr const char* fxThreshold = "fx_threshold";
     inline constexpr const char* fxSens    = "fx_sens";
     inline constexpr const char* fxHoldoff = "fx_holdoff";

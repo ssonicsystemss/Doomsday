@@ -18,21 +18,30 @@ jobs:
       - uses: actions/checkout@v5
       - name: Configure
         run: cmake -B build -A x64
-      - name: Build VST3
-        run: cmake --build build --config Release --target Re4GE_VST3 --parallel
+      - name: Build VST3 (RE4GE + RE4GE FX)
+        run: |
+          cmake --build build --config Release --target Re4GE_VST3 --parallel
+          cmake --build build --config Release --target Re4GEFX_VST3 --parallel
       - name: Remove build leftovers (.lib / .exp), keep the symbols (.pdb) aside
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
           New-Item -ItemType Directory -Force build/symbols | Out-Null
           Get-ChildItem build/Re4GE_artefacts -Recurse -Filter *.pdb -ErrorAction SilentlyContinue | Copy-Item -Destination build/symbols -Force -ErrorAction SilentlyContinue
+          Get-ChildItem build/Re4GEFX_artefacts -Recurse -Filter *.pdb -ErrorAction SilentlyContinue | Copy-Item -Destination build/symbols -Force -ErrorAction SilentlyContinue
           Get-ChildItem build/Re4GE_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp,*.pdb -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+          Get-ChildItem build/Re4GEFX_artefacts/Release/VST3 -Recurse -Include *.lib,*.exp,*.pdb -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
           exit 0
       - name: Upload VST3
         uses: actions/upload-artifact@v5
         with:
           name: RE4GE-VST3-Windows
           path: Re4GE/build/Re4GE_artefacts/Release/VST3/
+      - name: Upload VST3 (RE4GE FX)
+        uses: actions/upload-artifact@v5
+        with:
+          name: RE4GE-FX-VST3-Windows
+          path: Re4GE/build/Re4GEFX_artefacts/Release/VST3/
       - name: Upload symbols (for crash logs)
         uses: actions/upload-artifact@v5
         with:

@@ -367,6 +367,26 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
             });
         });
     }
+    // ---- RE4GE FX: the kicks come in as audio
+    if (proc.isFx)
+    {
+        {
+            auto& c = card ("Kick detection", hot, PFx); cFxDet = (int) cards.size() - 1;
+            knob (c, fxThreshold, "Threshold", "How loud a hit must be to count as a kick (watch the HITS light)");
+            knob (c, fxSens, "Sensitivity", "How sharp the jump must be: more = softer kicks count too, less = only clear hits");
+            knob (c, fxHoldoff, "Holdoff", "After a kick, no new one for this long (no double triggers on raw tails)");
+            knob (c, fxInput, "Input", "Gain of the detection signal (not of the sound)", true);
+            c.head.push_back (seg (fxDetect, { "Input", "Sidechain" }, hot, "INPUT: find the kicks in this channel. SIDECHAIN: in the sidechain input (route the kick channel to it in FL)"));
+        }
+        {
+            auto& c = card ("FX output", hot, PFx); cFxOut = (int) cards.size() - 1;
+            knob (c, fxMix, "Bass", "Level of the reverse bass added to the input");
+            knob (c, fixedNote, "Note", "The note of the bass (the key of your track)");
+            knob (c, smpStart, "Live from", "LIVE: where in the previous kick the reverse starts (skips the click / punch)");
+            c.head.push_back (toggle (fxLive, "Live reverse", Toggle::Chip, hot, "ON + SOURCE SAMPLE: the bass is the PREVIOUS kick's tail played backwards (the first kick after silence has none)"));
+            c.head.push_back (toggle (fxDry, "Dry", Toggle::Chip, hot, "ON: the kick passes through untouched (the bass is added). OFF: only the bass"));
+        }
+    }
     // ---- LFO 1-4
     for (int i = 0; i < 4; ++i)
     {
@@ -515,8 +535,9 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
         { "03", "MODULATION", { { "LFO", PLfo, [this] { for (int r = 0; r < 16; ++r) if (raw (proc, ParamIDs::mtxId (r, "on")) > 0.5f && roundToInt (raw (proc, ParamIDs::mtxId (r, "src"))) >= 1 && roundToInt (raw (proc, ParamIDs::mtxId (r, "src"))) <= 4) return true; return false; } },
                                 { "Matrix", PMatrix, [this] { for (int r = 0; r < 16; ++r) if (raw (proc, ParamIDs::mtxId (r, "on")) > 0.5f) return true; return false; } },
                                 { "Steps", PShape, [] { return true; } } }, {} },
-        { "04", "SOURCE",     { { "Kick Tail", PTail, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 1; } }, { "Kick > Reverse", PSample, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 2; } },
+        { "04", "SOURCE",     { { "Audio Input", PFx, [] { return true; } }, { "Kick Tail", PTail, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 1; } }, { "Kick > Reverse", PSample, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 2; } },
                                 { "Sub", PSub, on (subHz, 20.5f) }, { "Stereo", PStereo, on (uniVoices, 1.5f) } }, {} } };
+    if (! proc.isFx) nav.blocks[3].items.erase (nav.blocks[3].items.begin());      // AUDIO INPUT: only in RE4GE FX
     nav.onSelect = [this] (int pg) { showPage (pg); };
     addAndMakeVisible (nav);
 
@@ -546,7 +567,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
                      (Component*) &playB, (Component*) &undoB, (Component*) &redoB })
         addAndMakeVisible (c);
     setSize (W, H);
-    showPage (PMain);
+    showPage (proc.isFx ? PFx : PMain);
     timerCallback();
     startTimerHz (30);
 }
@@ -701,6 +722,7 @@ void Canvas::resized()
         case PSettings: row ({ { cSettings, 0 } }); break;
         case PLfo:    for (int i = 0; i < 4; ++i) row ({ { cLfo[i], 0 } }); break;
         case PMatrix: matrix.setBounds (wa); break;
+        case PFx:     if (cFxDet >= 0) { row ({ { cFxDet, 0 } }); row ({ { cFxOut, 0 } }); fxLedArea = cards[(size_t) cFxDet].area.reduced (16, 10).removeFromRight (120).withTrimmedTop (40).withHeight (60); } break;
         case PEq:     row ({ { cPost, 520 } }); break;
         case PTail:   row ({ { cTail, 0 } }); break;
         case PSample: { kickView.setBounds (wa.removeFromTop (wa.getHeight() - rowH - gap)); wa.removeFromTop (gap); row ({ { cSample, 0 } }); break; }
@@ -739,9 +761,9 @@ void Canvas::paint (Graphics& g)
     doomsday::brand::drawBadge (g, doomsday::brand::headerBadgeArea (1.f, 28.f), 0.6f, RectanglePlacement::xLeft | RectanglePlacement::yMid);
     const float tx = doomsday::brand::headerTextX (1.f);
     g.setFont (lnf.font (19.f, Bold, 0.06f)); g.setColour (t.text);
-    g.drawText ("RE4GE", Rectangle<float> (tx, 0.f, 240.f, 56.f), Justification::centredLeft);
+    g.drawText (proc.isFx ? "RE4GE FX" : "RE4GE", Rectangle<float> (tx, 0.f, 240.f, 56.f), Justification::centredLeft);
     g.setFont (lnf.font (12.f, Medium)); g.setColour (t.textMute);
-    g.drawText ("v" + String (ParamIDs::versionText) + dotSep + "reverse bass", Rectangle<float> (tx + 80.f, 0.f, 240.f, 56.f), Justification::centredLeft);
+    g.drawText ("v" + String (ParamIDs::versionText) + dotSep + "reverse bass", Rectangle<float> (tx + (proc.isFx ? 112.f : 80.f), 0.f, 240.f, 56.f), Justification::centredLeft);
     // NAV / SYSTEM / work area dividers
     g.setColour (t.divider);
     g.fillRect (200, 57, 1, H - 57 - 150);
@@ -826,6 +848,13 @@ void Canvas::paintOverChildren (Graphics& g)
         g.setColour (name.isEmpty() ? t.textMute : ReTheme::bassHot);
         g.drawText (name.isEmpty() ? "No WAV - Load or drop one" : name, sampleNameArea, Justification::centredLeft, true);
     }
+    if (page == PFx && ! fxLedArea.isEmpty())
+    {
+        auto led = fxLedArea;
+        g.setColour (ReTheme::accent.withAlpha (0.15f + 0.85f * fxBlink)); g.fillEllipse (led.removeFromLeft (24).withSizeKeepingCentre (18, 18).toFloat());
+        g.setColour (t.text); g.setFont (lnf.font (12.f, SemiBold));
+        g.drawText ("HITS " + String (proc.fxHits.load()), led.withTrimmedLeft (6), Justification::centredLeft);
+    }
     if (dragHover)
     {
         g.setColour (ReTheme::accent.withAlpha (0.10f)); g.fillRect (getLocalBounds());
@@ -864,6 +893,7 @@ void Canvas::timerCallback()
     const int mode = raw (proc, ParamIDs::timing) > 0.5f ? 1 : 0;
     if (mode != lastMode) { lastMode = mode; showPage (page); }
     nav.repaint();   // the module dots follow the knobs
+    if (proc.isFx) { const int h = proc.fxHits.load(); fxBlink = h != lastFxHits ? 1.f : fxBlink * 0.8f; lastFxHits = h; if (page == PFx) repaint (fxLedArea.expanded (40)); }
     repaint (Rectangle<int> (W - 16 - 240, 13, 100, 30));
     if (proc.currentPresetName() != lastName)
     {

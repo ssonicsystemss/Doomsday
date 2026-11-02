@@ -99,9 +99,16 @@ void ReProcessor::randomizeSound()
     presetName = "Random #" + String (1000 + rng.nextInt (9000));
 }
 
-ReProcessor::ReProcessor()
-    : AudioProcessor (BusesProperties().withOutput ("Output", AudioChannelSet::stereo(), true)),
-      apvts (*this, &undo, "RE4GE", re4ge::createLayout())
+AudioProcessor::BusesProperties ReProcessor::busesFor (bool fx)
+{
+    if (! fx) return BusesProperties().withOutput ("Output", AudioChannelSet::stereo(), true);
+    return BusesProperties().withInput ("Input", AudioChannelSet::stereo(), true)
+                                            .withInput ("Sidechain", AudioChannelSet::stereo(), false)
+                                            .withOutput ("Output", AudioChannelSet::stereo(), true);
+}
+ReProcessor::ReProcessor (bool fx)
+    : AudioProcessor (busesFor (fx)), isFx (fx),
+      apvts (*this, &undo, "RE4GE", re4ge::createLayout (fx))
 {
     for (int i = 0; i < numShapes; ++i) shapes[(size_t) i] = lastShapes[(size_t) i] = re4ge::defaultLaneShape (i);
     apvts.state.addListener (this);
@@ -112,6 +119,15 @@ ReProcessor::ReProcessor()
 void ReProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     const SpinLock::ScopedLockType l (prepareLock);
+    if (isFx)
+    {
+        detector.prepare (sampleRate);
+        dry.setSize (2, jmax (16, samplesPerBlock));
+        ring.assign ((size_t) (sampleRate * 2.0), 0.f); ringPos = 0; lastHitPos = -1; silentFor = 0;
+        if (auto* cur = engine.currentSample(); cur == &liveSmp[0] || cur == &liveSmp[1]) engine.setSampleRaw (nullptr);   // no stale LIVE kick
+        for (auto& s : liveSmp) { s.data.clear(); s.data.reserve ((size_t) (sampleRate * 2.0) + 16); s.rate = sampleRate; s.name = "LIVE"; }
+        fxMidi.ensureSize (2048);
+    }
     engine.setParams (gather());
     engine.prepare (sampleRate, samplesPerBlock);
 }
@@ -182,9 +198,9 @@ void ReProcessor::shapeFromKnobs (int lane)
 void ReProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
 {
     ScopedNoDenormals noDenormals;
-    buffer.clear();
+    if (! isFx) buffer.clear();                              // (the FX build needs its input)
     const SpinLock::ScopedTryLockType prepared (prepareLock);
-    if (! prepared.isLocked()) return;
+    if (! prepared.isLocked()) { buffer.clear(); return; }
     engine.setParams (gather());
     double bpmNow = 150.0;
     if (auto* ph = getPlayHead())
@@ -193,7 +209,69 @@ void ReProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     engine.setTempo (bpmNow);
     engine.setNonRealtime (isNonRealtime());
     if (pendingAudition.exchange (false)) engine.audition (auditionNote);
+    if (isFx) { processFx (buffer, buffer.getNumSamples()); return; }
     engine.process (buffer, midi);
+}
+
+// RE4GE FX: the kicks are found in the audio; each one starts the bass (a note on FIXED NOTE). LIVE = the SAMPLE source becomes
+// the previous kick (captured from the input, ring buffer), so its tail plays backwards before the next kick. The first kick after
+// silence has no previous one -> no bass there. Dry = the kick passes through untouched (sample-exact).
+void ReProcessor::processFx (AudioBuffer<float>& buffer, int n)
+{
+    using namespace ParamIDs;
+    const int nIn = jmin (2, getTotalNumInputChannels());
+    if (dry.getNumSamples() < n) return;                                   // (the host broke its promise on the block size)
+    auto mainIn = getBusBuffer (buffer, true, 0);
+    for (int ch = 0; ch < 2; ++ch) dry.copyFrom (ch, 0, mainIn, jmin (ch, jmax (0, mainIn.getNumChannels() - 1)), 0, n);
+    const bool useSc = get (fxDetect) > 0.5f && getBusCount (true) > 1 && getBus (true, 1) != nullptr && getBus (true, 1)->isEnabled();
+    auto det = useSc ? getBusBuffer (buffer, true, 1) : mainIn;
+    const float inG = std::pow (10.f, get (fxInput) / 20.f);
+    detector.set (get (fxThreshold), get (fxSens), get (fxHoldoff));
+    const bool live = get (fxLive) > 0.5f;
+    const int note = jlimit (0, 127, roundToInt (get (fixedNote)));
+    fxMidi.clear();
+    float lv = 0.f;
+    const int ringN = (int) ring.size();
+    for (int i = 0; i < n; ++i)
+    {
+        float x = 0.f;
+        for (int ch = 0; ch < det.getNumChannels(); ++ch) x += det.getSample (ch, i);
+        x *= inG / (float) jmax (1, det.getNumChannels());
+        lv = jmax (lv, std::abs (x));
+        float mono = 0.f; for (int ch = 0; ch < jmax (1, nIn); ++ch) mono += dry.getSample (ch, i);
+        ring[(size_t) ringPos] = mono * 0.5f * inG;
+        if (detector.process (x))
+        {
+            if (live && lastHitPos >= 0)
+            {
+                // the previous kick: from its hit to this one (max 2 s) -> the LIVE sample (pre-allocated, no allocation here)
+                auto& s = liveSmp[(size_t) liveIdx];
+                const int len = jmin (ringN - 1, (ringPos - lastHitPos + ringN) % ringN);
+                s.data.resize ((size_t) len);
+                for (int k = 0; k < len; ++k) s.data[(size_t) k] = ring[(size_t) ((lastHitPos + k) % ringN)];
+                engine.setSampleRaw (&s);
+                liveIdx = 1 - liveIdx;
+            }
+            const bool first = lastHitPos < 0;
+            silentFor = 0;
+            lastHitPos = ringPos;
+            if (! (live && first)) fxMidi.addEvent (MidiMessage::noteOn (1, note, 1.f), i);     // LIVE: the first kick after silence has no bass
+            fxHits.fetch_add (1);
+        }
+        ringPos = (ringPos + 1) % ringN;
+        if (lastHitPos >= 0 && ++silentFor > ringN) { lastHitPos = -1; silentFor = 0; }      // 2 s without a kick = silence
+    }
+    fxInLevel.store (jmax (fxInLevel.load() * 0.9f, lv));
+    buffer.clear();
+    AudioBuffer<float> out (buffer.getArrayOfWritePointers(), 2, n);
+    engine.process (out, fxMidi);
+    const float mix = get (fxMix);
+    const bool dryOn = get (fxDry) > 0.5f;
+    for (int ch = 0; ch < 2; ++ch)
+    {
+        out.applyGain (ch, 0, n, mix);
+        if (dryOn) out.addFrom (ch, 0, dry, ch, 0, n);
+    }
 }
 
 // message thread: the file -> engine (reading the WAV is Presets/SampleFile)
@@ -253,4 +331,7 @@ void ReProcessor::detectKick (int use)
 String ReProcessor::sampleName() const { auto* s = engine.currentSample(); return s != nullptr ? s->name : String(); }
 
 AudioProcessorEditor* ReProcessor::createEditor() { return new ReEditor (*this); }
-AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new ReProcessor(); }
+#ifndef RE4GE_FX
+ #define RE4GE_FX 0
+#endif
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new ReProcessor (RE4GE_FX != 0); }

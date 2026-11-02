@@ -4,23 +4,31 @@
 #include "DoomsdayUI.h"
 #include "DSP/Engine.h"
 #include "DSP/KickAnalysis.h"
+#include "DSP/HitDetector.h"
 #include "Parameters/ParamIDs.h"
 #include "Parameters/ParamBridge.h"
 
 class ReProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener
 {
 public:
-    ReProcessor();
+    // fx = the RE4GE FX build: an effect on the mixer, the kicks come in as audio (input or sidechain)
+    explicit ReProcessor (bool fx = false);
+    static BusesProperties busesFor (bool fx);
+    const bool isFx;
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
-    bool isBusesLayoutSupported (const BusesLayout& l) const override { return l.getMainOutputChannelSet() == juce::AudioChannelSet::stereo(); }
+    bool isBusesLayoutSupported (const BusesLayout& l) const override
+    {
+        if (l.getMainOutputChannelSet() != juce::AudioChannelSet::stereo()) return false;
+        return ! isFx || l.getMainInputChannelSet() == juce::AudioChannelSet::stereo();
+    }
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     using AudioProcessor::processBlock;
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
-    const juce::String getName() const override { return "RE4GE"; }
-    bool acceptsMidi() const override { return true; }
+    const juce::String getName() const override { return isFx ? "RE4GE FX" : "RE4GE"; }
+    bool acceptsMidi() const override { return ! isFx; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
@@ -62,6 +70,8 @@ public:
     //   use: 0 = TAIL, 1 = BODY + TAIL, 2 = PUNCH .. END (everything after the click), 3 = ALL
     const re::KickSections& kickSections() const { return sections; }
     void detectKick (int use);
+    std::atomic<int> fxHits { 0 };                      // RE4GE FX: kicks found so far (the GUI blinks)
+    std::atomic<float> fxInLevel { 0.f };
     bool sampleIsEmbeddedOnly() const { return embeddedOnly; }        // the file is gone: the copy inside the project / preset plays
     int getSampleSerial() const { return sampleSerial.load(); }
 
@@ -97,6 +107,15 @@ private:
     juce::SpinLock prepareLock;            // prepareToPlay holds it; processBlock only try-locks (silence while FL re-prepares)
     std::atomic<int> sampleSerial { 0 };
     re::KickSections sections;
+    // RE4GE FX
+    void processFx (juce::AudioBuffer<float>&, int n);
+    re::HitDetector detector;
+    juce::AudioBuffer<float> dry;
+    std::vector<float> ring;                       // the input (mono), for LIVE: the last kick
+    int ringPos = 0, lastHitPos = -1, silentFor = 0;
+    std::array<re::Sample, 2> liveSmp;
+    int liveIdx = 0;
+    juce::MidiBuffer fxMidi;
     bool embeddedOnly = false;
     void useSample (std::unique_ptr<re::Sample>, const juce::String& path);
     bool restoreSample (const juce::String& path, const juce::String& embedded, double rate, const juce::String& name);

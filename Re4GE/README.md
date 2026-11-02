@@ -1,4 +1,15 @@
-# RE4GE v0.9
+# RE4GE v0.10
+
+## v0.10 (krok 5, część 2): RE4GE FX
+**Druga wtyczka: RE4GE FX** (efekt na mikser, ten sam silnik i te same presety). Artifact `RE4GE-FX-VST3-Windows`, folder `RE4GE FX.vst3`.
+- Wstaw na kanał z kickiem (albo na kanał basu i wyślij kick na **sidechain**). FX sam **znajduje kicki** w audio (lampka HITS) i każdy
+  odpala reverse bass, jakbyś pisał nuty. **Threshold / Sensitivity / Holdoff / Input**, źródło detekcji **Input / Sidechain**.
+- **Dry**: kick przechodzi nietknięty (sprawdzone próbka po próbce), bas dochodzi do niego. Wyłączony = tylko bas.
+  **Bass** = poziom basu, **Note** = tonacja numeru.
+- **Live reverse** (ze źródłem SAMPLE): basem jest **ogon POPRZEDNIEGO kicka puszczony od tyłu**. Pierwszy kick po ciszy nie ma basu,
+  bo nie ma jeszcze poprzedniego. **Live from** pomija klik / punch.
+- Strona **04 SOURCE → Audio Input** (w RE4GE FX otwiera się od niej).
+
 
 ## v0.9 (krok 5, część 1): KICK-TO-REVERSE
 **04 SOURCE → Kick > Reverse**: wrzuć (przeciągnij) swojego kicka, np. wyrenderowanego z 4GE.

@@ -6,7 +6,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.9";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.10";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";
@@ -169,6 +169,15 @@ namespace ParamIDs
     inline constexpr const char* smpEnd    = "smp_end";
     inline constexpr const char* smpMode   = "smp_mode";
     inline constexpr const char* smpPitch  = "smp_pitch";
+    // ---- RE4GE FX only (the effect build): kick detection on the input / sidechain, dry / wet, LIVE = the previous kick reversed
+    inline constexpr const char* fxThreshold = "fx_threshold";
+    inline constexpr const char* fxSens    = "fx_sens";
+    inline constexpr const char* fxHoldoff = "fx_holdoff";
+    inline constexpr const char* fxInput   = "fx_input";
+    inline constexpr const char* fxDetect  = "fx_detect";
+    inline constexpr const char* fxDry     = "fx_dry";
+    inline constexpr const char* fxMix     = "fx_mix";
+    inline constexpr const char* fxLive    = "fx_live";
     inline const juce::StringArray macroNames { "BODY", "WEIGHT", "REVERSE", "PITCH", "GRIT", "BITE", "MOVEMENT", "SPACE" };
 
     // v0.1 / v0.2 IDs -> v0.3 (old user presets still load); the v0.3 IDs are FROZEN: never rename (Tests/param_ids.txt)
@@ -256,6 +265,7 @@ namespace Choices
     inline const juce::StringArray polarities { "AS IS", "UNI", "BI" };
     inline const juce::StringArray smpModes { "ORIGINAL", "PROCESSED" };
     inline const juce::StringArray smpPitches { "VARISPEED", "KEEP LENGTH" };
+    inline const juce::StringArray fxDetects { "INPUT", "SIDECHAIN" };
     inline const juce::StringArray phaseModes { "RESET", "FREE" };
     inline const juce::StringArray pitchModes { "STABLE", "DROP", "RISE", "BOUNCE" };
 }

@@ -67,6 +67,8 @@ namespace re
         void stop() { trig.stop(); amp = 0.f; postGate = 0.f; for (auto& c : ch) c.clear(); sub.clear(); stereo.clear(); }
 
         void setSample (std::unique_ptr<Sample> s) { Sample* raw = s.get(); if (s != nullptr) keep.push_back (std::move (s)); sample.store (raw); }
+        // RE4GE FX LIVE: a sample owned by the caller (pre-allocated; the audio thread fills it) - no allocation here
+        void setSampleRaw (Sample* s) { sample.store (s); }
         const Sample* currentSample() const { return sample.load(); }
 
         void process (juce::AudioBuffer<float>& buffer, const juce::MidiBuffer& midi)

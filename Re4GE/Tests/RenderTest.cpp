@@ -370,6 +370,54 @@ int main (int argc, char** argv)
                "late rms " + String (keepLate, 3) + " vs " + String (variLate, 4) + ", " + String (hz, 1) + " Hz");
         p.clearSample();
     }
+    // 14e) RE4GE FX: kicks in the INPUT are found (one hit each, on time), the dry kick passes untouched, the bass sounds between them;
+    //      LIVE: the previous kick reversed (no bass after the first kick, bass after the second)
+    {
+        ReProcessor fx (true);
+        fx.setPlayHead (&host); host.bpm = 150.0;
+        fx.setCurrentProgram (byName (fx, "CLASSIC - Dense Rise"));
+        const int beat = (int) (0.4 * sr), N = beat * 4;
+        AudioBuffer<float> in (2, N); in.clear();
+        for (int b = 0; b < 4; ++b) { double ph = 0; for (int i = 0; i < beat; ++i) { const double t = i / sr; ph += (52.0 + 300.0 * std::exp (-t / 0.02)) / sr; const float v = (float) (std::tanh (3.0 * std::sin (6.2831853 * ph)) * std::exp (-t * 9.0) * 0.8); in.setSample (0, b * beat + i, v); in.setSample (1, b * beat + i, v); } }
+        auto runFx = [&] (bool live, bool dryOn)
+        {
+            if (auto* a = fx.apvts.getParameter (ParamIDs::fxLive)) a->setValueNotifyingHost (live ? 1.f : 0.f);
+            if (auto* a = fx.apvts.getParameter (ParamIDs::fxDry)) a->setValueNotifyingHost (dryOn ? 1.f : 0.f);
+            set (fx, source, live ? 2.f : 0.f);
+            fx.prepareToPlay (sr, block);
+            const int h0 = fx.fxHits.load();
+            AudioBuffer<float> out (2, N);
+            for (int pos = 0; pos < N; pos += block)
+            {
+                const int n = jmin (block, N - pos);
+                AudioBuffer<float> b (4, n); b.clear(); MidiBuffer m;
+                for (int ch = 0; ch < 2; ++ch) b.copyFrom (ch, 0, in, ch, pos, n);
+                fx.processBlock (b, m);
+                for (int ch = 0; ch < 2; ++ch) out.copyFrom (ch, pos, b, ch, 0, n);
+            }
+            return std::make_pair (out, fx.fxHits.load() - h0);
+        };
+        auto [wet, hits] = runFx (false, false);
+        auto [withDry, hits2] = runFx (false, true);
+        AudioBuffer<float> diffB (2, N); for (int ch = 0; ch < 2; ++ch) { diffB.copyFrom (ch, 0, withDry, ch, 0, N); diffB.addFrom (ch, 0, wet, ch, 0, N, -1.f); }
+        const double dryErr = diff (diffB, in);
+        const double between = rms (wet, 400 + 200, 400 + 360), onKick = rms (wet, 400, 400 + 40);
+        check (hits == 4 && hits2 == 4 && dryErr < 1.0e-5 && between > 0.03 && onKick < between * 0.3,
+               "RE4GE FX: 4 kicks found, the dry kick passes untouched, the bass sounds between the kicks",
+               String (hits) + " hits, dry err " + String (dryErr, 7) + ", bass " + String (between, 3) + " / on the kick " + String (onKick, 4));
+        fx.setCurrentProgram (byName (fx, "INIT"));            // (no OSC 2-4: only the SAMPLE source sounds)
+        auto [liveOut, hits3] = runFx (true, false);
+        const double firstBeat = rms (liveOut, 100, 380), secondBeat = rms (liveOut, 500, 780);
+        check (hits3 == 4 && firstBeat < 1.0e-4 && secondBeat > 0.02, "RE4GE FX LIVE: no bass after the first kick, the previous kick reversed after the next",
+               String (firstBeat, 5) + " / " + String (secondBeat, 4));
+        {   // the FX page
+            std::unique_ptr<AudioProcessorEditor> ed (fx.createEditor()); ed->setSize (Canvas::W, Canvas::H);
+            dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (18); dynamic_cast<ReEditor&> (*ed).getCanvas().tickForTest();
+            auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
+            PNGImageFormat png; FileOutputStream fo (outDir.getChildFile ("gui_fx.png")); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
+        }
+        fx.setPlayHead (nullptr);
+    }
     // 14) every knob changes the sound: min vs max, in at least one of the contexts where it matters
     {
         // a short reversed-kick-like WAV for the SAMPLE source

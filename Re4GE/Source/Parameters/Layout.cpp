@@ -25,7 +25,7 @@ namespace
         String lowCutFmt (float v, int) { return v < 20.5f ? String ("OFF") : fm::hz (v, 0); }
     }
     
-    AudioProcessorValueTreeState::ParameterLayout createLayout()
+    AudioProcessorValueTreeState::ParameterLayout createLayout (bool fx)
     {
         using namespace ParamIDs;
         using make::f; using make::b; using make::c; using make::skew;
@@ -196,6 +196,17 @@ namespace
         l.add (f (smpEnd, "SAMPLE End", skew (10.f, 4000.f, 400.f), 4000.f, [] (float v, int) { return v > 3999.f ? String ("END") : fm::ms (v, 0); }, fm::msIn));
         l.add (c (smpMode, "SAMPLE Mode", Choices::smpModes, 1));
         l.add (c (smpPitch, "SAMPLE Pitch", Choices::smpPitches, 0));
+        if (fx)
+        {
+            l.add (f (fxThreshold, "FX Threshold", { -60.f, 0.f }, -30.f, fm::db, fm::num));
+            l.add (f (fxSens, "FX Sensitivity", { 0.f, 1.f }, 0.5f, fm::pct, fm::pctIn));
+            l.add (f (fxHoldoff, "FX Holdoff", skew (20.f, 600.f, 120.f), 120.f, fm::ms, fm::msIn));
+            l.add (f (fxInput, "FX Input", { -24.f, 24.f }, 0.f, fm::db, fm::num));
+            l.add (c (fxDetect, "FX Detect From", Choices::fxDetects, 0));
+            l.add (b (fxDry, "FX Dry", true));
+            l.add (f (fxMix, "FX Bass Level", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
+            l.add (b (fxLive, "FX Live Reverse", false));
+        }
         return l;
     }
 }

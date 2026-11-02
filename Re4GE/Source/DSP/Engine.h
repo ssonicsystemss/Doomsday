@@ -20,6 +20,7 @@
 #include "KickTail.h"
 #include "ToneChain.h"
 #include "LowEnd.h"
+#include "Eq8.h"
 #include "OscBank.h"
 #include "Macros.h"
 #include "ShapeLanes.h"
@@ -57,7 +58,7 @@ namespace re
             lfoClock = ~0ull;
             guiCap = juce::jmin ((int) gui.size(), (int) (sr * 2.0));
             clock = 0;
-            builtCurves = -1;
+            builtCurves = -1; eqKey = {};
             trig.resetSong(); gateG = 1.f; gateLo[0] = gateLo[1] = 0.f;
             latch();
             stop();
@@ -65,7 +66,7 @@ namespace re
         // the settings for the next grid point (the audio thread, once per host block)
         void setParams (const Params& np) { pending = np; }
         void setTempo (double b) { bpmPending = b > 20.0 && std::isfinite (b) ? juce::jlimit (20.0, 400.0, b) : 150.0; tempoNow.store ((float) bpmPending); }
-        void stop() { trig.stop(); amp = 0.f; postGate = 0.f; for (auto& c : ch) c.clear(); sub.clear(); stereo.clear(); }
+        void stop() { trig.stop(); amp = 0.f; postGate = 0.f; for (auto& c : ch) c.clear(); sub.clear(); stereo.clear(); comp.clear(); }
 
         void setSample (std::unique_ptr<Sample> s) { Sample* raw = s.get(); if (s != nullptr) keep.push_back (std::move (s)); sample.store (raw); }
         // RE4GE FX LIVE: a sample owned by the caller (pre-allocated; the audio thread fills it) - no allocation here
@@ -99,6 +100,8 @@ namespace re
         std::array<std::atomic<float>, 2> drivePeak {};      // the stages' input level for the live dot (the GUI takes and resets it)
         std::atomic<int> hitSerial { 0 }, guiLength { 0 };
         int seqStepNow() const { return trig.seqNow.load(); }
+        float compGrDb() const { return compGr.load(); }
+        std::atomic<float> compGr { 0.f };
         std::vector<float> gui;                 // the output since the last note (GUI playhead / meter)
 
     private:
@@ -168,6 +171,8 @@ namespace re
             tone.dynPre = tone.dynPre || (p.preType != 0 && p.lane[LaneHarm].on);
             levelG = std::pow (10.f, p.levelDb / 20.f);
             ampC = (float) (1.0 - std::exp (-1.0 / (0.0005 * osr)));        // 0.5 ms smoothing: no clicks between steps
+            if (eqKeyChanged()) eqC.cook (p, osr);
+            comp.cook (p, osr);
             static const double gateDivBeats[5] { 0.5, 0.25, 0.125, 1.0 / 3.0, 1.0 / 6.0 };
             gateBeats = gateDivBeats[juce::jlimit (0, 4, p.gateDiv)];
             gateC = (float) (1.0 - std::exp (-1.0 / (juce::jmax (0.2f, p.gateSmoothMs) * 0.001 * osr / 3.0)));
@@ -218,7 +223,8 @@ namespace re
             ToneChain tone;
             OscBank::State ob;
             Smear smear;
-            void clear() { phase = 0.0; readPos = 0.0; uph = {}; upos = {}; tone.clear(); ob = {}; smear.clear(); for (auto& g : grain) g.reset(); }
+            Eq8 eq;
+            void clear() { phase = 0.0; readPos = 0.0; uph = {}; upos = {}; tone.clear(); ob = {}; smear.clear(); eq.clear(); for (auto& g : grain) g.reset(); }
         };
         // the start of a new step (or of the note in GATE mode): phases reset, the backwards read starts
         void startStep()
@@ -374,7 +380,7 @@ namespace re
                     const auto& preC = tone.dynPre ? preNow : tone.pre;
                     float out[3] = { 0.f, 0.f, 0.f };
                     for (int sd = 0; sd < (w ? 3 : 1); ++sd)
-                        out[sd] = ch[(size_t) sd].smear.process (ch[(size_t) sd].tone.process (source (sd, amp, ratio, refresh) * amp, g, p, tone, preC));
+                        out[sd] = ch[(size_t) sd].eq.process (ch[(size_t) sd].smear.process (ch[(size_t) sd].tone.process (source (sd, amp, ratio, refresh) * amp, g, p, tone, preC)), eqC);
                     float centre = sub.process (out[0], subHzNote, ratio, amp);
                     // CLICK: a short noise tick with its own HP, outside the envelope and the drive, at the START of the bass or its PEAK
                     if (clickG > 0.f && k.plays)
@@ -414,6 +420,7 @@ namespace re
                         }
                         else gain *= gateG;
                     }
+                    if (p.compOn) { const float cg = comp.gain (juce::jmax (std::abs (yl), std::abs (yr)), p); yl *= cg; yr *= cg; }
                     yl = outputStage (yl, p, gain); yr = outputStage (yr, p, gain);
                     trig.advance (msPerSample);
                 }
@@ -438,6 +445,7 @@ namespace re
                 if (guiWrite < guiCap) gui[(size_t) guiWrite++] = 0.5f * (l[i] + r[i]);
             }
             guiLength.store (guiWrite);
+            compGr.store (p.compOn ? comp.grDb : 0.f);
             outPeak.store (juce::jmax (outPeak.load(), pk));
         }
 
@@ -447,6 +455,17 @@ namespace re
         Trigger trig;
         KickTail tail;
         ToneCoefs tone;
+        EqCoefs eqC;
+        Comp comp;
+        std::array<float, 41> eqKey {};
+        bool eqKeyChanged()
+        {
+            std::array<float, 41> k {};
+            for (int i = 0; i < 8; ++i) { const auto& e = p.eq[(size_t) i]; k[(size_t) (i * 5)] = e.on ? 1.f : 0.f; k[(size_t) (i * 5 + 1)] = (float) e.type; k[(size_t) (i * 5 + 2)] = e.hz; k[(size_t) (i * 5 + 3)] = e.db; k[(size_t) (i * 5 + 4)] = e.q; }
+            k[40] = (float) osr;
+            if (k == eqKey) return false;
+            eqKey = k; return true;
+        }
         Sub sub;
         Stereo stereo;
         std::array<Chain, 3> ch;

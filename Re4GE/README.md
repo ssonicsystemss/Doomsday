@@ -1,4 +1,12 @@
-# RE4GE v0.12
+# RE4GE v0.13
+
+## v0.13 (krok 6, część 3): POST EQ 8 PASM + KOMPRESOR
+**02 PROCESS → EQ** – nad starą kartą EQ jest wykres z 8 punktami (filtry jak w Mirror of Souls):
+- przeciągnij punkt = częstotliwość / gain (pasmo samo się włącza), kółko myszy = Q, dwuklik = włącz / wyłącz,
+  prawy klik = typ: LOW CUT / LOW SHELF / BELL / NOTCH / HIGH SHELF / HIGH CUT (cięcia 24 dB/okt).
+- EQ działa na basie **przed** czystym SUBEM – LOW CUT nigdy nie wytnie dołu z subu (sprawdzone testem).
+**02 PROCESS → Dynamics** – kompresor na gotowym basie (przed CLIP / OUTPUT): THRESHOLD, RATIO, ATTACK, RELEASE, MAKEUP, MIX
+(równoległa kompresja) + pasek GAIN REDUCTION. Daje gęstszy, równiejszy reverse.
 
 ## v0.12 (krok 6, część 2): SEKWENCER + GATE
 **03 MODULATION → Sequencer** – 16 kroków (rozmiar kroku = STEP w Steps: 1/4, 1/8, 1/16):

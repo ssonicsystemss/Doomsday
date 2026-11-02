@@ -486,6 +486,35 @@ int main (int argc, char** argv)
                String (s2 / s1, 3) + " " + String (hz3 / hz1, 2) + " " + String (s4 / s1, 2) + (swingOk ? "" : " SWING") + (gridOk ? "" : " GRID " + String (gridHz, 1))
                + " gate " + String (shut / open, 3) + " / " + String (rms (gh, 120, 190) / open, 2));
     }
+    // 14h) POST EQ + COMP: a LOW CUT at 300 Hz never cuts the clean SUB (the note stays), a +12 dB bell at 1 kHz is heard,
+    //      the compressor makes the bass more even (lower crest factor)
+    {
+        auto power = [] (const AudioBuffer<float>& b, double hz, double fromMs, double toMs)
+        {
+            const int a0 = (int) (fromMs * 0.001 * sr), e = (int) (toMs * 0.001 * sr);
+            double re = 0, im = 0;
+            for (int i = a0; i < e; ++i) { const double w = 0.5 - 0.5 * std::cos (6.283185307 * (i - a0) / (e - a0)); re += b.getSample (0, i) * w * std::cos (6.283185307 * hz * i / sr); im += b.getSample (0, i) * w * std::sin (6.283185307 * hz * i / sr); }
+            return 10.0 * std::log10 (re * re + im * im + 1e-20);
+        };
+        auto band = [&] (const AudioBuffer<float>& b, double lo, double hi) { double acc = 0; for (double f = lo; f <= hi; f += 25.0) acc += std::pow (10.0, power (b, f, 250, 390) / 10.0); return 10.0 * std::log10 (acc + 1e-20); };
+        p.setCurrentProgram (byName (p, "INIT")); host.bpm = 150.0; set (p, source, 0.f);
+        auto base = play (p, host, everyBeat (1, 150.0), 0.4);
+        set (p, eqId (0, "on"), 1.f); set (p, eqId (0, "freq"), 300.f);
+        auto cut = play (p, host, everyBeat (1, 150.0), 0.4);
+        const double subBase = power (base, 49.0, 250, 390), subCut = power (cut, 49.0, 250, 390);
+        const double midBase = band (base, 150, 250), midCut = band (cut, 150, 250);
+        set (p, eqId (0, "on"), 0.f); set (p, eqId (3, "on"), 1.f); set (p, eqId (3, "freq"), 1000.f); set (p, eqId (3, "gain"), 12.f);
+        auto bell = play (p, host, everyBeat (1, 150.0), 0.4);
+        const double bellUp = band (bell, 850, 1150) - band (base, 850, 1150);
+        set (p, eqId (3, "on"), 0.f);
+        // the swell's range: loud end vs the quiet start (a compressor makes it smaller)
+        auto crest = [] (const AudioBuffer<float>& b) { return 20.0 * std::log10 (rms (b, 210, 280) / jmax (1e-9, rms (b, 150, 175))); };
+        set (p, compOn, 1.f); set (p, compThresh, -30.f); set (p, compRatio, 8.f); set (p, compAttack, 0.5f);
+        auto cmp = play (p, host, everyBeat (1, 150.0), 0.4);
+        const bool ok3 = std::abs (subCut - subBase) < 1.5 && midCut < midBase - 6.0 && bellUp > 6.0 && crest (cmp) < crest (base) - 2.0 && finite (cmp);
+        check (ok3, "POST EQ: LOW CUT keeps the SUB, the bell is heard; COMP evens the swell",
+               "sub " + String (subCut - subBase, 1) + " dB, 150-250 Hz " + String (midCut - midBase, 1) + " dB, bell +" + String (bellUp, 1) + " dB, swell range " + String (crest (base), 1) + " -> " + String (crest (cmp), 1));
+    }
     // 14e) RE4GE FX: kicks in the INPUT are found (one hit each, on time), the dry kick passes untouched, the bass sounds between them;
     //      LIVE: the previous kick reversed (no bass after the first kick, bass after the second)
     {
@@ -605,7 +634,16 @@ int main (int argc, char** argv)
             { "INIT", { { source, 0.f }, { step, 2.f }, { beats, 3.f }, { seqOn, 1.f }, { seqSwing, 30.f }, { seqId (0, "pitch"), 5.f }, { seqId (1, "vel"), 0.5f } }, false, false, false, 300.0 },
             // GATE (rhythm): on, every knob in play; HIGHS band separately
             { "INIT", { { source, 0.f }, { gateOn, 1.f }, { gateDepth, 0.8f }, { gateShape, 1.f } } },
-            { "INIT", { { source, 0.f }, { gateOn, 1.f }, { gateBand, 1.f }, { gateDiv, 2.f } } } };
+            { "INIT", { { source, 0.f }, { gateOn, 1.f }, { gateBand, 1.f }, { gateDiv, 2.f } } },
+            // POST EQ: every band on with its default type (cuts / shelves / bells), then every band a bell with gain
+            { "INIT", { { source, 0.f }, { eqId (0, "on"), 1.f }, { eqId (1, "on"), 1.f }, { eqId (2, "on"), 1.f }, { eqId (3, "on"), 1.f },
+                        { eqId (4, "on"), 1.f }, { eqId (5, "on"), 1.f }, { eqId (6, "on"), 1.f }, { eqId (7, "on"), 1.f },
+                        { eqId (1, "gain"), 6.f }, { eqId (2, "gain"), 6.f }, { eqId (3, "gain"), 6.f }, { eqId (4, "gain"), 6.f }, { eqId (5, "gain"), 6.f }, { eqId (6, "gain"), 6.f },
+                        { eqId (0, "freq"), 200.f }, { eqId (7, "freq"), 3000.f } } },
+            { "INIT", { { source, 0.f }, { eqId (0, "on"), 1.f }, { eqId (0, "type"), 2.f }, { eqId (0, "gain"), 9.f }, { eqId (0, "freq"), 400.f },
+                        { eqId (7, "on"), 1.f }, { eqId (7, "type"), 2.f }, { eqId (7, "gain"), 9.f }, { eqId (7, "freq"), 3000.f } } },
+            // COMP: well over the threshold so every knob is heard
+            { "INIT", { { source, 0.f }, { compOn, 1.f }, { compThresh, -30.f }, { compRatio, 6.f }, { compMakeup, 6.f }, { compMix, 0.7f } } } };
         String dead; int tested = 0;
         for (auto* prm : p.getParameters())
         {
@@ -654,7 +692,7 @@ int main (int argc, char** argv)
             writeWav (kf, k); p.loadSample (kf); p.detectKick (0);
         }
         const std::pair<int, const char*> pages[] { { 0, "gui_main.png" }, { 1, "gui_osc.png" }, { 3, "gui_envelope.png" }, { 4, "gui_shape.png" },
-                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" }, { 9, "gui_kick.png" }, { 19, "gui_random.png" }, { 20, "gui_seq.png" }, { 21, "gui_gate.png" } };
+                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" }, { 9, "gui_kick.png" }, { 19, "gui_random.png" }, { 20, "gui_seq.png" }, { 21, "gui_gate.png" }, { 7, "gui_eq.png" }, { 22, "gui_dyn.png" } };
         for (auto [pg, name] : pages)
         {
             dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (pg);

@@ -97,6 +97,13 @@ re::Params gatherParams (const AudioProcessorValueTreeState& apvts, ParamCache& 
     }
     p.gateFxOn = get (gateOn) > 0.5f; p.gateDiv = ch (gateDiv, 4); p.gateDepth = get (gateDepth); p.gateDuty = get (gateDuty);
     p.gateShape = ch (gateShape, 2); p.gateSmoothMs = get (gateSmooth); p.gateHighs = get (gateBand) > 0.5f;
+    for (int i = 0; i < 8; ++i)
+    {
+        auto& e = p.eq[(size_t) i];
+        e.on = get (eqId (i, "on")) > 0.5f; e.type = ch (eqId (i, "type"), 5); e.hz = get (eqId (i, "freq")); e.db = get (eqId (i, "gain")); e.q = get (eqId (i, "q"));
+    }
+    p.compOn = get (compOn) > 0.5f; p.compThreshDb = get (compThresh); p.compRatio = get (compRatio); p.compAttackMs = get (compAttack);
+    p.compReleaseMs = get (compRelease); p.compMakeupDb = get (compMakeup); p.compMix = get (compMix);
     return p;
 }
 }

@@ -225,6 +225,23 @@ namespace
         l.add (c (gateShape, "GATE Shape", Choices::gateShapes, 0));
         l.add (f (gateSmooth, "GATE Smooth", skew (0.5f, 30.f, 4.f), 2.f, fm::ms, fm::msIn));
         l.add (c (gateBand, "GATE Band", Choices::gateBands, 0));
+        // ---- v0.13: POST EQ + COMP
+        for (int i = 0; i < 8; ++i)
+        {
+            const String n = "EQ" + String (i + 1) + " ";
+            l.add (b (eqId (i, "on"), n + "On", false));
+            l.add (c (eqId (i, "type"), n + "Type", Choices::eqTypes, Choices::eqDefaultType[i]));
+            l.add (f (eqId (i, "freq"), n + "Freq", skew (20.f, 20000.f, 1000.f), Choices::eqDefaultHz[i], fm::hz, fm::hzIn));
+            l.add (f (eqId (i, "gain"), n + "Gain", { -18.f, 18.f }, 0.f, fm::db, fm::num));
+            l.add (f (eqId (i, "q"), n + "Q", skew (0.2f, 10.f, 1.f), 0.9f, [] (float v, int) { return String (v, 2); }, fm::num));
+        }
+        l.add (b (compOn, "COMP On", false));
+        l.add (f (compThresh, "COMP Threshold", { -48.f, 0.f }, -18.f, fm::db, fm::num));
+        l.add (f (compRatio, "COMP Ratio", skew (1.f, 20.f, 4.f), 3.f, [] (float v, int) { return String (v, 1) + ":1"; }, fm::num));
+        l.add (f (compAttack, "COMP Attack", skew (0.1f, 100.f, 10.f), 10.f, fm::ms, fm::msIn));
+        l.add (f (compRelease, "COMP Release", skew (10.f, 800.f, 120.f), 120.f, fm::ms, fm::msIn));
+        l.add (f (compMakeup, "COMP Makeup", { 0.f, 24.f }, 0.f, fm::db, fm::num));
+        l.add (f (compMix, "COMP Mix", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
         return l;
     }
 }

@@ -128,7 +128,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p), seqView (p)
+Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p), seqView (p), eqView (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -417,6 +417,16 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
         c.head.push_back (toggle (gateOn, "Gate", Toggle::Chip, hot, "ON: cuts the finished bass in rhythm (it does not trigger it)"));
     }
     {
+        auto& c = card ("Compressor", hot, PDyn); cComp = (int) cards.size() - 1;
+        knob (c, compThresh, "Threshold", "Above this level the bass is turned down");
+        knob (c, compRatio, "Ratio", "How hard: 2:1 gentle, 10:1 almost a limiter");
+        knob (c, compAttack, "Attack", "How fast it grabs (short = flatter peaks, long = the start punches through)");
+        knob (c, compRelease, "Release", "How fast it lets go (long = smoother, short = pumping)");
+        knob (c, compMakeup, "Makeup", "Turns the compressed bass up again");
+        knob (c, compMix, "Mix", "Parallel: 100 % = only the compressed bass, less = mixed with the original");
+        c.head.push_back (toggle (compOn, "Comp", Toggle::Chip, hot, "ON: a compressor on the finished bass (before CLIP / OUTPUT): a denser, more even reverse"));
+    }
+    {
         auto& c = card ("Quality", n, PSettings); cSettings = (int) cards.size() - 1;
         c.head.push_back (toggle (autoGain, "Auto gain", Toggle::Chip, n, "ON: more DRIVE changes the character, not the loudness (the ear is not fooled by 'louder = better')"));
         c.head.push_back (seg (qualityExport, { "2x", "4x", "8x", "16x" }, n, "Oversampling when FL renders / exports (offline): more = cleaner top, slower export"));
@@ -545,6 +555,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     randomPanel.onRandomized = [this] { lastName = {}; };
     addChildComponent (randomPanel);
     addChildComponent (seqView);
+    addChildComponent (eqView);
     addAndMakeVisible (designer);
     addAndMakeVisible (view);
 
@@ -662,6 +673,7 @@ void Canvas::showPage (int pg)
     kickView.setVisible (page == PSample);
     randomPanel.setVisible (page == PRandom);
     seqView.setVisible (page == PSeq);
+    eqView.setVisible (page == PEq);
     for (auto& c : cards)
     {
         const bool on = cardOn (c);
@@ -755,7 +767,8 @@ void Canvas::resized()
         case PLfo:    for (int i = 0; i < 4; ++i) row ({ { cLfo[i], 0 } }); break;
         case PMatrix: matrix.setBounds (wa); break;
         case PFx:     if (cFxDet >= 0) { row ({ { cFxDet, 0 } }); row ({ { cFxOut, 0 } }); fxLedArea = cards[(size_t) cFxDet].area.reduced (16, 10).removeFromRight (120).withTrimmedTop (40).withHeight (60); } break;
-        case PEq:     row ({ { cPost, 520 } }); break;
+        case PEq:     { eqView.setBounds (wa.removeFromTop (wa.getHeight() - rowH - gap)); wa.removeFromTop (gap); row ({ { cPost, 520 } }); break; }
+        case PDyn:    { row ({ { cComp, 0 } }); grArea = cards[(size_t) cComp].area.reduced (16, 10).removeFromRight (150).withTrimmedTop (44).withHeight (60); break; }
         case PTail:   row ({ { cTail, 0 } }); break;
         case PSample: { kickView.setBounds (wa.removeFromTop (wa.getHeight() - rowH - gap)); wa.removeFromTop (gap); row ({ { cSample, 0 } }); break; }
         case PSub:    row ({ { cSub, 420 } }); break;
@@ -809,6 +822,20 @@ void Canvas::paint (Graphics& g)
     for (auto& c : cards) if (! c.area.isEmpty() && cardOn (c)) doomsday::flat::card (g, lnf, c.area, c.title, c.dot);
     if (page == PRandom) doomsday::flat::card (g, lnf, randomPanel.getBounds(), {}, ReTheme::accent);
     if (page == PSeq) doomsday::flat::card (g, lnf, seqView.getBounds(), {}, tokens().cool);
+    if (page == PEq) doomsday::flat::card (g, lnf, eqView.getBounds(), {}, tokens().cool);
+    if (page == PDyn && ! grArea.isEmpty())
+    {
+        // GAIN REDUCTION of the compressor
+        const auto& tk = tokens();
+        auto a = grArea.toFloat();
+        g.setFont (lnf.font (10.5f, Bold, 0.1f)); g.setColour (tk.textDim);
+        g.drawText ("GAIN REDUCTION", a.removeFromTop (16.f), Justification::centredLeft);
+        auto bar = a.removeFromTop (10.f);
+        g.setColour (tk.control); g.fillRoundedRectangle (bar, 3.f);
+        g.setColour (ReTheme::accent); g.fillRoundedRectangle (bar.withWidth (bar.getWidth() * jlimit (0.f, 1.f, -grShown / 24.f)), 3.f);
+        g.setFont (lnf.font (13.f, SemiBold)); g.setColour (tk.text);
+        g.drawText (String (grShown, 1) + " dB", a.withTrimmedTop (4.f), Justification::centredLeft);
+    }
 }
 
 // ======================================================================= NAV
@@ -925,6 +952,13 @@ void Canvas::timerCallback()
     if (shaperView.isVisible()) shaperView.tick();
     if (kickView.isVisible()) kickView.tick();
     if (seqView.isVisible()) seqView.tick();
+    if (eqView.isVisible()) eqView.tick();
+    if (page == PDyn)
+    {
+        const float gr = proc.getEngine().compGrDb();
+        grShown = gr < grShown ? gr : grShown + (gr - grShown) * 0.25f;
+        repaint (grArea.expanded (4));
+    }
     const int mode = raw (proc, ParamIDs::timing) > 0.5f ? 1 : 0;
     if (mode != lastMode) { lastMode = mode; showPage (page); }
     nav.repaint();   // the module dots follow the knobs

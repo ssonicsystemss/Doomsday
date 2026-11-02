@@ -86,6 +86,10 @@ namespace re
         std::array<SeqStep, 16> seq {};
         bool gateFxOn = false; int gateDiv = 1, gateShape = 0; bool gateHighs = false;
         float gateDepth = 1.f, gateDuty = 0.5f, gateSmoothMs = 2.f;      // DIV: 1/8 1/16 1/32 1/8T 1/16T; SHAPE: HARD / SOFT / TRANCE
+        // v0.13 (step 6): POST EQ 8 bands (Eq8.h) + COMP
+        struct EqBand { bool on = false; int type = 2; float hz = 1000.f, db = 0.f, q = 0.9f; };
+        std::array<EqBand, 8> eq {};
+        bool compOn = false; float compThreshDb = -18.f, compRatio = 3.f, compAttackMs = 10.f, compReleaseMs = 120.f, compMakeupDb = 0.f, compMix = 1.f;
     };
     enum OscWave { WSine = 0, WTri = 1, WSaw = 2, WSquare = 3, WPulse = 4, WNoise = 5 };
 }

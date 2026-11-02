@@ -6,7 +6,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.12";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.13";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";
@@ -188,6 +188,21 @@ namespace ParamIDs
     inline constexpr const char* gateShape = "gate_shape";
     inline constexpr const char* gateSmooth = "gate_smooth";
     inline constexpr const char* gateBand  = "gate_band";
+    // ---- v0.13: step 6, POST EQ (8 bands) + COMP
+    inline const char* eqId (int band, const char* what)      // "eqb1_on" ... what = on type freq gain q
+    {
+        static const char* names[5] { "on", "type", "freq", "gain", "q" };
+        static const auto table = [] { std::array<std::array<std::string, 5>, 8> t; for (int i = 0; i < 8; ++i) for (int k = 0; k < 5; ++k) t[(size_t) i][(size_t) k] = "eqb" + std::to_string (i + 1) + "_" + names[k]; return t; }();
+        for (int k = 0; k < 5; ++k) if (std::strcmp (names[k], what) == 0) return table[(size_t) juce::jlimit (0, 7, band)][(size_t) k].c_str();
+        jassertfalse; return table[0][0].c_str();
+    }
+    inline constexpr const char* compOn      = "comp_on";
+    inline constexpr const char* compThresh  = "comp_thresh";
+    inline constexpr const char* compRatio   = "comp_ratio";
+    inline constexpr const char* compAttack  = "comp_attack";
+    inline constexpr const char* compRelease = "comp_release";
+    inline constexpr const char* compMakeup  = "comp_makeup";
+    inline constexpr const char* compMix     = "comp_mix";
     inline constexpr const char* fxThreshold = "fx_threshold";
     inline constexpr const char* fxSens    = "fx_sens";
     inline constexpr const char* fxHoldoff = "fx_holdoff";
@@ -284,6 +299,9 @@ namespace Choices
     inline const juce::StringArray gateDivs { "1/8", "1/16", "1/32", "1/8T", "1/16T" };
     inline const juce::StringArray gateShapes { "HARD", "SOFT", "TRANCE" };
     inline const juce::StringArray gateBands { "FULL", "HIGHS" };
+    inline const juce::StringArray eqTypes { "LOW CUT", "LOW SHELF", "BELL", "NOTCH", "HIGH SHELF", "HIGH CUT" };
+    inline const float eqDefaultHz[8] { 30.f, 90.f, 250.f, 700.f, 2000.f, 5000.f, 10000.f, 18000.f };
+    inline const int eqDefaultType[8] { 0, 1, 2, 2, 2, 2, 4, 5 };
     inline const juce::StringArray smpModes { "ORIGINAL", "PROCESSED" };
     inline const juce::StringArray smpPitches { "VARISPEED", "KEEP LENGTH" };
     inline const juce::StringArray fxDetects { "INPUT", "SIDECHAIN" };

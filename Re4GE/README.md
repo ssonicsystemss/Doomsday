@@ -1,4 +1,17 @@
-# RE4GE v0.10
+# RE4GE v0.11
+
+## v0.11 (krok 6, część 1): RANDOMIZER W KIERUNKACH
+**05 SYSTEM → Randomizer** (nowy przycisk obok Settings). Przycisk **Random** losuje z tymi ustawieniami.
+- **MODE** – co się rusza: FULL (wszystko) / OSC (źródła, warstwy OSC 2–4, unison) / PITCH / DIST / FILTER (pre filtr + EQ) /
+  MOD (1–3 nowe połączenia LFO → MATRIX) / REVERSE (tylko obwiednia, ruch pitchu i Shape).
+- **STYLE** – w którą stronę: CLASSIC (umiarkowany drive, swell, mało warstw) / MODERN (warstwy, smear, szerokość, LAB SAT / DIODE) /
+  RAW (mocny drive, asymetria, fold / crush, ogon kicka) / EXPERIMENTAL (szerokie zakresy, warp, PM, wavefold).
+- **AMOUNT** – jak daleko od obecnego brzmienia: 0 % = nic, 30 % = wariacja, 100 % = nowy bas.
+- **LOCK** – zablokowane moduły nigdy się nie zmieniają (np. zablokuj ENV i losuj resztę).
+- Zasady zawsze: dół zostaje (LOW CUT wyłączony, SUB 60+ Hz), bas startuje **po ogonie kicka** (DELAY 20–45 %, zwykle 24–38 %),
+  zawsze coś gra, SAMPLE tylko jeśli jest wczytany kick.
+- **Głośność wyrównana**: każdy wylosowany bas jest zmierzony w tle i ustawiony na ok. −14 dB RMS (nie oceniasz „głośniejsze = lepsze”).
+- **Jedno kliknięcie = jeden krok Undo** – nie podoba się, Ctrl+Z / Undo i wracasz.
 
 ## v0.10 (krok 5, część 2): RE4GE FX
 **Druga wtyczka: RE4GE FX** (efekt na mikser, ten sam silnik i te same presety). Artifact `RE4GE-FX-VST3-Windows`, folder `RE4GE FX.vst3`.

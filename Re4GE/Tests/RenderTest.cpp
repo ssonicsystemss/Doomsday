@@ -11,6 +11,7 @@ static const int block = 512;
 static bool ok = true;
 static void check (bool c, const char* what, const String& extra = {}) { printf ("%-58s %s %s\n", what, c ? "OK" : "FAIL", extra.toRawUTF8()); ok &= c; }
 static void set (ReProcessor& p, const String& id, float v) { if (auto* a = p.apvts.getParameter (id)) a->setValueNotifyingHost (a->convertTo0to1 (v)); }
+static float raw (ReProcessor& p, const String& id) { return p.apvts.getRawParameterValue (id)->load(); }
 
 // a fake host with a tempo
 struct Host : AudioPlayHead
@@ -106,6 +107,24 @@ int main (int argc, char** argv)
         const auto& k = p.kickSections();
         printf ("transient %.1f (%.0f%%)  punch %.1f (%.0f%%)  body %.1f (%.0f%%)  tail end %.1f (%.0f%%)  root %.1f Hz = note %d %+.0f ct\n",
                 k.transientEnd, k.confTransient * 100.f, k.punchEnd, k.confPunch * 100.f, k.bodyEnd, k.confBody * 100.f, k.tailEnd, k.confTail * 100.f, k.rootHz, k.rootNote, k.rootCents);
+        return 0;
+    }
+    // RenderTest <outdir> --random <out.wav>: Dense Rise, then one random bass per STYLE (FULL, amount 100 %), 4 beats each with a kick
+    if (argc > 3 && String (argv[2]) == "--random")
+    {
+        Random rng (7);
+        AudioBuffer<float> all (2, 0);
+        for (int sIdx = -1; sIdx < re4ge::Randomizer::NumStyles; ++sIdx)
+        {
+            p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise"));
+            if (sIdx >= 0) { re4ge::Randomizer::Settings st; st.style = sIdx; const float db = p.randomizeWith (st); printf ("%s: %.1f dB\n", re4ge::Randomizer::styleNames()[sIdx].toRawUTF8(), db); }
+            auto b = play (p, host, everyBeat (4, 150.0), 1.6);
+            addKicks (b, 150.0);
+            const int at = all.getNumSamples(); all.setSize (2, at + b.getNumSamples(), true);
+            for (int ch = 0; ch < 2; ++ch) all.copyFrom (ch, at, b, ch, 0, b.getNumSamples());
+        }
+        all.applyGain (0.7f);
+        writeWav (File::getCurrentWorkingDirectory().getChildFile (argv[3]), all);
         return 0;
     }
     // RenderTest <outdir> --render <settings.txt> <out.wav> [bpm] [beats]: 'preset <name>' / '<id> <value>' lines -> a WAV (for matching)
@@ -370,6 +389,56 @@ int main (int argc, char** argv)
                "late rms " + String (keepLate, 3) + " vs " + String (variLate, 4) + ", " + String (hz, 1) + " Hz");
         p.clearSample();
     }
+    // 14f) RANDOMIZER: 1000 random sounds (all modes / styles) - never NaN / silent / clipping, the level is matched, the low end and
+    //      the late start stay; AMOUNT 0 changes nothing; LOCKS hold; one click = one UNDO step
+    {
+        using RZ = re4ge::Randomizer;
+        p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise")); host.bpm = 150.0;
+        auto snapshot = [&p] { std::vector<float> v; for (auto* a : p.getParameters()) v.push_back (a->getValue()); return v; };
+        auto params = [&p] { StringArray ids; for (auto* a : p.getParameters()) if (auto* w = dynamic_cast<AudioProcessorParameterWithID*> (a)) ids.add (w->paramID); return ids; };
+        const auto ids = params();
+        RZ::Settings st; st.amount = 0.f;
+        auto before = snapshot(); p.randomizeWith (st);
+        const bool amount0 = snapshot() == before;
+        // locks: everything but DIST locked -> only dist* moves
+        st = {}; st.mode = RZ::Full; for (auto& l : st.lock) l = true; st.lock[RZ::GDist] = false;
+        before = snapshot(); p.undo.beginNewTransaction(); p.randomizeWith (st);
+        auto after = snapshot(); String leaked; bool distMoved = false;
+        for (int i = 0; i < ids.size(); ++i) if (after[(size_t) i] != before[(size_t) i])
+        {
+            if (ids[i].startsWith ("dist")) distMoved = true;
+            else if (ids[i] != level) leaked << ids[i] << " ";
+        }
+        // undo: one step back = exactly the sound before
+        p.undo.beginNewTransaction(); p.undo.undo();
+        const bool undoOk = snapshot() == before;
+        // 1000 random sounds
+        Random rng (2026); int bad = 0, n = 0; String why; double secs = 0; float lo = 99.f, hi = -99.f;
+        for (int i = 0; i < 1000; ++i)
+        {
+            st = {}; st.mode = rng.nextInt (RZ::NumModes); st.style = rng.nextInt (RZ::NumStyles); st.amount = rng.nextFloat() < 0.7f ? 1.f : rng.nextFloat();
+            if (i % 9 == 0) p.setCurrentProgram (rng.nextInt (p.getNumPrograms()));
+            const double t0 = Time::getMillisecondCounterHiRes();
+            const float db = p.randomizeWith (st);
+            secs += (Time::getMillisecondCounterHiRes() - t0) * 0.001;
+            ++n; lo = jmin (lo, db); hi = jmax (hi, db);
+            const bool rules = raw (p, lowCut) < 20.5f && raw (p, delayPct) >= 19.9f && raw (p, subHz) >= 59.f;
+            if (! std::isfinite (db) || db < -24.f || db > -8.f || ! rules) { ++bad; if (why.length() < 300) why << "#" << i << " m" << st.mode << " s" << st.style << " " << String (db, 1) << "dB" << (rules ? "" : " RULES") << "; ";
+                if (std::getenv ("RND_DUMP") != nullptr) { for (auto* a : p.getParameters()) if (auto* w = dynamic_cast<RangedAudioParameter*> (a)) if (std::abs (w->getValue() - w->getDefaultValue()) > 1e-4f) printf ("  %s %s\n", w->paramID.toRawUTF8(), w->getCurrentValueAsText().toRawUTF8()); printf ("dump of #%d\n", i); break; } }
+            if (i % 50 == 0)
+            {
+                auto b = play (p, host, everyBeat (2, 150.0), 0.8);
+                const double r = rms (b, 400, 800); float pk = 0.f; for (int ch = 0; ch < 2; ++ch) pk = jmax (pk, b.getMagnitude (ch, 0, b.getNumSamples()));
+                if (! finite (b) || r < 0.01 || pk > 1.01f) { ++bad; if (why.length() < 300) why << "#" << i << " play rms " << String (r, 4) << " pk " << String (pk, 2) << "; "; }
+            }
+        }
+        check (amount0 && distMoved && leaked.isEmpty() && undoOk, "RANDOMIZER: AMOUNT 0 = no change, LOCKS hold, one click = one undo",
+               String (amount0 ? "" : "AMOUNT0 ") + (distMoved ? "" : "DIST STILL ") + (leaked.isEmpty() ? "" : "LEAK " + leaked) + (undoOk ? "" : "NO UNDO"));
+        check (bad == 0, "RANDOMIZER: 1000 sounds clean, level matched, rules kept",
+               String (lo, 1) + " .. " + String (hi, 1) + " dB, " + String (secs / n * 1000.0, 0) + " ms per click " + why);
+        p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise"));
+        p.undo.clearUndoHistory();
+    }
     // 14e) RE4GE FX: kicks in the INPUT are found (one hit each, on time), the dry kick passes untouched, the bass sounds between them;
     //      LIVE: the previous kick reversed (no bass after the first kick, bass after the second)
     {
@@ -533,7 +602,7 @@ int main (int argc, char** argv)
             writeWav (kf, k); p.loadSample (kf); p.detectKick (0);
         }
         const std::pair<int, const char*> pages[] { { 0, "gui_main.png" }, { 1, "gui_osc.png" }, { 3, "gui_envelope.png" }, { 4, "gui_shape.png" },
-                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" }, { 9, "gui_kick.png" } };
+                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" }, { 9, "gui_kick.png" }, { 19, "gui_random.png" } };
         for (auto [pg, name] : pages)
         {
             dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (pg);

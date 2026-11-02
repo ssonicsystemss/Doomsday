@@ -6,6 +6,7 @@
 #include "WaveshaperView.h"
 #include "MatrixView.h"
 #include "KickView.h"
+#include "RandomPanel.h"
 #include <map>
 
 // =====================================================================
@@ -67,6 +68,7 @@ public:
     void tickForTest() { timerCallback(); }
     void showPageForTest (int p) { showPage (p); }
     void openPresetBrowserForTest() { refreshList(); }
+    RandomPanel& randomPanelForTest() { return randomPanel; }
 private:
     struct Card
     {
@@ -97,15 +99,16 @@ private:
     WaveshaperView shaperView;
     MatrixView matrix;
     KickView kickView;
+    RandomPanel randomPanel;
     int page = 0;
-    enum Page { PMain = 0, POsc, PPitch, PEnv, PShape, PFilter, PDist, PEq, PTail, PSample, PSub, PStereo, PTransient, PDesigner, PWaveshaper, PSettings, PLfo, PMatrix, PFx, NumPages };
+    enum Page { PMain = 0, POsc, PPitch, PEnv, PShape, PFilter, PDist, PEq, PTail, PSample, PSub, PStereo, PTransient, PDesigner, PWaveshaper, PSettings, PLfo, PMatrix, PFx, PRandom, NumPages };
     int cUni = 0, cMaster = 0, cMacros = 0, cSource = 0, cWarp = 0, cPhase = 0, cOsc[3] {}, cTail = 0, cSample = 0, cTrig = 0, cSteps = 0, cPitch = 0, cEnv = 0,
         cTimeSync = 0, cTimeMs = 0, cPre = 0, cDrive = 0, cDrive2 = 0, cPost = 0, cSub = 0, cClick = 0, cLane[4] {}, cLab[2] {}, cCurve[2] {}, cSettings = 0, cLfo[4] {}, cFxDet = -1, cFxOut = -1, cMSource = 0, cMEnv = 0, cMTone = 0, cMLow = 0;
     juce::Rectangle<int> navArea, sysArea, workArea, fxLedArea;
     int lastFxHits = 0; float fxBlink = 0.f;
     juce::ComboBox presetBox;
     juce::TextButton prev { "<" }, next { ">" }, randomB { "Random" }, saveB { "Save" }, folderB { "Folder" },
-                     undoB { "Undo" }, redoB { "Redo" }, loadBtn { "Load" }, clearBtn { "x" }, settingsB { "Settings" };
+                     undoB { "Undo" }, redoB { "Redo" }, loadBtn { "Load" }, clearBtn { "x" }, settingsB { "Settings" }, rndPageB { "Randomizer" };
     std::vector<std::unique_ptr<juce::TextButton>> templ;
     struct PlayButton : public juce::TextButton
     {

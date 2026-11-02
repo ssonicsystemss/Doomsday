@@ -6,7 +6,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.10";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.11";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";

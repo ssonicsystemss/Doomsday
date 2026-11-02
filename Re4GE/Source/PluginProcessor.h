@@ -7,6 +7,7 @@
 #include "DSP/HitDetector.h"
 #include "Parameters/ParamIDs.h"
 #include "Parameters/ParamBridge.h"
+#include "Randomizer/Randomizer.h"
 
 class ReProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener
 {
@@ -51,7 +52,9 @@ public:
     juce::Array<juce::File> userPresetFiles() override { return io.list(); }
     bool loadUserPresetFile (const juce::File& f) override;
     bool saveUserPresetAs (const juce::String& name) override;
-    void randomizeSound() override;
+    void randomizeSound() override;                  // the RANDOMIZER with the settings saved in the state (SYSTEM -> RANDOMIZER)
+    float randomizeWith (const re4ge::Randomizer::Settings&);   // returns the level after matching (dB RMS)
+    float lastRandomDb = 0.f;
     juce::String currentPresetName() override { return presetName; }
     juce::String presetFolderText() override { return "Documents / RE4GE / Presets"; }
     juce::File userPresetFolder() override { return io.folder(); }
@@ -121,5 +124,6 @@ private:
     bool restoreSample (const juce::String& path, const juce::String& embedded, double rate, const juce::String& name);
     std::atomic<bool> pendingAudition { false };
     juce::Random rng;
+    std::unique_ptr<re4ge::Randomizer> randomizer;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ReProcessor)
 };

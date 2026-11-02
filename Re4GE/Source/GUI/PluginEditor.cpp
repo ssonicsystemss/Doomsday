@@ -128,7 +128,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p)
+Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -522,6 +522,11 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     settingsB.setTooltip ("Quality (oversampling while playing / for export), auto gain");
     settingsB.onClick = [this] { showPage (PSettings); };
     addAndMakeVisible (settingsB);
+    rndPageB.setTooltip ("RANDOMIZER: mode (which modules), style (the direction), amount, locks");
+    rndPageB.onClick = [this] { showPage (PRandom); };
+    addAndMakeVisible (rndPageB);
+    randomPanel.onRandomized = [this] { lastName = {}; };
+    addChildComponent (randomPanel);
     addAndMakeVisible (designer);
     addAndMakeVisible (view);
 
@@ -558,7 +563,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     next.onClick = [this] { step (1); };
     undoB.onClick = [this] { proc.undo.undo(); };
     redoB.onClick = [this] { proc.undo.redo(); };
-    randomB.setTooltip ("A new bass: a random template + source + tone (the low end stays)");
+    randomB.setTooltip ("A new bass with the RANDOMIZER settings (mode / style / amount / locks: the Randomizer page). One click = one Undo step");
     saveB.setTooltip ("Save to Documents / RE4GE / Presets");
     folderB.setTooltip ("Open the folder with your own presets");
     playB.setTooltip ("Play one note (G1)");
@@ -635,6 +640,7 @@ void Canvas::showPage (int pg)
     shaperView.setVisible (page == PWaveshaper);
     matrix.setVisible (page == PMatrix);
     kickView.setVisible (page == PSample);
+    randomPanel.setVisible (page == PRandom);
     for (auto& c : cards)
     {
         const bool on = cardOn (c);
@@ -690,7 +696,9 @@ void Canvas::resized()
         saveB.setBounds (r1.removeFromLeft (bw)); r1.removeFromLeft (6); folderB.setBounds (r1);
         auto r2 = s.removeFromTop (34);
         randomB.setBounds (r2.removeFromLeft (bw)); r2.removeFromLeft (6); playB.setBounds (r2);
-        s.removeFromTop (6); settingsB.setBounds (s.removeFromTop (34));
+        s.removeFromTop (6);
+        auto r3 = s.removeFromTop (34);
+        rndPageB.setBounds (r3.removeFromLeft (bw)); r3.removeFromLeft (6); settingsB.setBounds (r3);
     }
     workArea = { 200 + m, top + 12, W - 200 - 2 * m, H - top - bottomH - 24 };
     for (auto& c : cards) c.area = {};
@@ -720,6 +728,7 @@ void Canvas::resized()
         case PDist:   row ({ { cDrive, 470 }, { cLab[0], 0 } }); row ({ { cDrive2, 470 }, { cLab[1], 0 } }); break;
         case PWaveshaper: { shaperView.setBounds (wa.removeFromTop (wa.getHeight() - rowH - gap)); wa.removeFromTop (gap); row ({ { cCurve[shaperView.stage], 0 } }); break; }
         case PSettings: row ({ { cSettings, 0 } }); break;
+        case PRandom: randomPanel.setBounds (wa.removeFromTop (330)); break;
         case PLfo:    for (int i = 0; i < 4; ++i) row ({ { cLfo[i], 0 } }); break;
         case PMatrix: matrix.setBounds (wa); break;
         case PFx:     if (cFxDet >= 0) { row ({ { cFxDet, 0 } }); row ({ { cFxOut, 0 } }); fxLedArea = cards[(size_t) cFxDet].area.reduced (16, 10).removeFromRight (120).withTrimmedTop (40).withHeight (60); } break;
@@ -775,6 +784,7 @@ void Canvas::paint (Graphics& g)
     g.setFont (lnf.font (12.f, Medium)); g.setColour (t.textMute);
     g.drawText ("BPM " + String (roundToInt (proc.getEngine().tempoNow.load())), Rectangle<int> (W - 16 - 240, 13, 100, 30), Justification::centred);
     for (auto& c : cards) if (! c.area.isEmpty() && cardOn (c)) doomsday::flat::card (g, lnf, c.area, c.title, c.dot);
+    if (page == PRandom) doomsday::flat::card (g, lnf, randomPanel.getBounds().expanded (0, 0), {}, ReTheme::accent);
 }
 
 // ======================================================================= NAV

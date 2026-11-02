@@ -274,3 +274,9 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - `Graphics::drawImage` rysuje z przezroczystością **aktualnego koloru** (np. po `setColour (white.withAlpha (0.03f))` obraz jest prawie niewidoczny)
   → `g.setOpacity (1.f)` tuż przed `drawImage` (film promo v3.1 wyszedł przez to ciemny).
 - `TabStrip` / zakładki: przyciski włącznika wszystkich zakładek w tym samym miejscu → `removeFromRight` liczyć RAZ, nie w pętli (zjadało pasek zakładek).
+- **APVTS + UNDO: many parameter changes as ONE undo step (RE4GE Randomizer, 2026-11-02).** APVTS copies parameter values into its
+  state tree later, on a timer – so a burst of `setValueNotifyingHost` lands in whatever undo transaction is open then (or none), and the
+  undo "before" value can be stale (a preset loaded a moment ago). Fix: first copy the current values into the tree WITHOUT undo, then
+  `beginNewTransaction`, then for each change set the parameter (host gesture) AND `node.setProperty ("value", v, &undo)` at once.
+  Also: a randomizer must never pick a filter that removes the fundamental (HP / BP before the drive) outside EXPERIMENTAL – such rolls
+  came out 20+ dB quieter; weak rolls are rolled again (loudness measured by an offline render).

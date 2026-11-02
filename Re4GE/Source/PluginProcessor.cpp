@@ -76,27 +76,13 @@ void ReProcessor::setStateInformation (const void* data, int size)
     if (PresetIO::setState (*this, apvts, fixed.getData(), (int) fixed.getSize(), currentProgram, presetName)) { applyShapesFromState(); restoreSample (apvts.state.getProperty ("samplePath").toString(), apvts.state.getProperty ("sampleData").toString(), (double) apvts.state.getProperty ("sampleRate", 44100.0), apvts.state.getProperty ("sampleName").toString()); }
 }
 
-void ReProcessor::randomizeSound()
+void ReProcessor::randomizeSound() { randomizeWith (re4ge::Randomizer::read (apvts.state)); }
+float ReProcessor::randomizeWith (const re4ge::Randomizer::Settings& st)
 {
-    using namespace ParamIDs;
-    auto between = [this] (float a, float b) { return a + rng.nextFloat() * (b - a); };
-    auto logB = [this] (float a, float b) { return a * std::pow (b / a, rng.nextFloat()); };
-    applyTemplate (rng.nextInt (5));
-    const bool tail = rng.nextFloat() < 0.5f;
-    set (source, tail ? 1.f : 0.f);
-    if (tail)
-    {
-        set (tailStart, logB (2.5f, 6.f)); set (tailDrop, logB (25.f, 180.f)); set (tailCurve, between (2.f, 5.f)); set (tailDist, (float) rng.nextInt (5));
-        set (tailDrive, between (20.f, 44.f)); set (tailTone, between (-0.2f, 0.9f)); set (tailScream, rng.nextFloat() < 0.6f ? between (0.2f, 0.8f) : 0.f); set (tailScreamHz, logB (500.f, 1800.f));
-    }
-    else
-    {
-        set (warp, (float) rng.nextInt (5)); set (warpAmt, between (0.2f, 0.8f)); set (warpEnv, between (0.f, 1.f)); set (blend, between (0.f, 0.8f)); set (width, between (0.2f, 0.6f));
-    }
-    set (distType, (float) rng.nextInt (6)); set (ParamIDs::drive, between (6.f, 20.f)); set (driveEnv, between (0.f, 0.8f)); set (bias, rng.nextFloat() < 0.3f ? between (-0.5f, 0.5f) : 0.f);
-    set (highCut, logB (1500.f, 16000.f)); set (bellHz, logB (1200.f, 2500.f)); set (bellGain, between (0.f, 8.f));   // the owner likes presence ~2 kHz (OWNER - 1 / 2)
-    set (subHz, between (70.f, 120.f)); set (subLevel, 0.f); set (lowCut, 20.f);       // the low end stays (owner's rule)
-    presetName = "Random #" + String (1000 + rng.nextInt (9000));
+    if (randomizer == nullptr) randomizer = std::make_unique<re4ge::Randomizer> (*this);
+    lastRandomDb = randomizer->randomize (st, rng);
+    if (st.amount > 0.f) presetName = "Random #" + String (1000 + rng.nextInt (9000));
+    return lastRandomDb;
 }
 
 AudioProcessor::BusesProperties ReProcessor::busesFor (bool fx)

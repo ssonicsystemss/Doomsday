@@ -85,6 +85,18 @@ float ReProcessor::randomizeWith (const re4ge::Randomizer::Settings& st)
     return lastRandomDb;
 }
 
+re4ge::ExportJob ReProcessor::makeExportJob (int note, int beats) const
+{
+    re4ge::ExportJob j;
+    j.params = gather();
+    if (auto* s = const_cast<ReProcessor*> (this)->getEngine().currentSample()) j.sample = std::make_shared<re::Sample> (*s);
+    j.bpm = jlimit (60.0, 300.0, (double) const_cast<ReProcessor*> (this)->getEngine().tempoNow.load());
+    j.rate = getSampleRate() > 8000.0 ? getSampleRate() : 48000.0;
+    j.note = jlimit (12, 96, note); j.beats = jlimit (1, 16, beats);
+    j.name = presetName;
+    return j;
+}
+
 AudioProcessor::BusesProperties ReProcessor::busesFor (bool fx)
 {
     if (! fx) return BusesProperties().withOutput ("Output", AudioChannelSet::stereo(), true);

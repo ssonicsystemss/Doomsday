@@ -515,6 +515,32 @@ int main (int argc, char** argv)
         check (ok3, "POST EQ: LOW CUT keeps the SUB, the bell is heard; COMP evens the swell",
                "sub " + String (subCut - subBase, 1) + " dB, 150-250 Hz " + String (midCut - midBase, 1) + " dB, bell +" + String (bellUp, 1) + " dB, swell range " + String (crest (base), 1) + " -> " + String (crest (cmp), 1));
     }
+    // 14i) EXPORT: the current bass -> a 24-bit WAV (2 beats at the FL tempo, the note asked), it plays, it is the right length;
+    //      every factory preset has a category
+    {
+        p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise")); host.bpm = 150.0;
+        play (p, host, everyBeat (1, 150.0), 0.1);                              // the engine knows the tempo
+        auto job = p.makeExportJob (31, 2);
+        job.name = "RenderTest export";
+        const File f = re4ge::Exporter::run (job);
+        bool ok4 = f.existsAsFile();
+        double len = 0, lvl = 0;
+        if (ok4)
+        {
+            WavAudioFormat wav;
+            std::unique_ptr<AudioFormatReader> r (wav.createReaderFor (new FileInputStream (f), true));
+            ok4 = r != nullptr && r->bitsPerSample == 24;
+            if (ok4)
+            {
+                AudioBuffer<float> b ((int) r->numChannels, (int) r->lengthInSamples); r->read (&b, 0, (int) r->lengthInSamples, 0, true, true);
+                len = r->lengthInSamples / r->sampleRate; lvl = b.getRMSLevel (0, 0, b.getNumSamples());
+            }
+            f.deleteFile();
+        }
+        int noCat = 0; for (int i = 0; i < p.getNumPrograms(); ++i) if (ReProcessor::presetCategory (p.getProgramName (i)) == "OTHER") ++noCat;
+        check (ok4 && std::abs (len - 0.8) < 0.01 && lvl > 0.02 && noCat == 0, "EXPORT: 2 beats -> a 24-bit WAV that plays; presets have categories",
+               String (len, 3) + " s, rms " + String (lvl, 3) + ", " + String (noCat) + " presets without a category");
+    }
     // 14e) RE4GE FX: kicks in the INPUT are found (one hit each, on time), the dry kick passes untouched, the bass sounds between them;
     //      LIVE: the previous kick reversed (no bass after the first kick, bass after the second)
     {
@@ -692,7 +718,7 @@ int main (int argc, char** argv)
             writeWav (kf, k); p.loadSample (kf); p.detectKick (0);
         }
         const std::pair<int, const char*> pages[] { { 0, "gui_main.png" }, { 1, "gui_osc.png" }, { 3, "gui_envelope.png" }, { 4, "gui_shape.png" },
-                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" }, { 9, "gui_kick.png" }, { 19, "gui_random.png" }, { 20, "gui_seq.png" }, { 21, "gui_gate.png" }, { 7, "gui_eq.png" }, { 22, "gui_dyn.png" } };
+                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" }, { 9, "gui_kick.png" }, { 19, "gui_random.png" }, { 20, "gui_seq.png" }, { 21, "gui_gate.png" }, { 7, "gui_eq.png" }, { 22, "gui_dyn.png" }, { 23, "gui_export.png" } };
         for (auto [pg, name] : pages)
         {
             dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (pg);

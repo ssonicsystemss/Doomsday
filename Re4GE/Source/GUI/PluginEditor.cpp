@@ -128,7 +128,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p), seqView (p), eqView (p)
+Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p), seqView (p), eqView (p), exportPanel (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -556,6 +556,10 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     addChildComponent (randomPanel);
     addChildComponent (seqView);
     addChildComponent (eqView);
+    addChildComponent (exportPanel);
+    exportB.setTooltip ("EXPORT: render the bass to a WAV (and drag it into FL)");
+    exportB.onClick = [this] { showPage (PExport); };
+    addAndMakeVisible (exportB);
     addAndMakeVisible (designer);
     addAndMakeVisible (view);
 
@@ -618,14 +622,27 @@ Canvas::~Canvas()
 void Canvas::refreshList()
 {
     presetBox.clear (dontSendNotification);
-    presetBox.addSectionHeading ("FACTORY");
-    for (int i = 0; i < proc.getNumPrograms(); ++i) presetBox.addItem (proc.getProgramName (i), i + 1);
+    // FACTORY presets grouped by their category (the part before " - ": CLASSIC, PUMP, SWELL, ...)
+    StringArray cats;
+    for (int i = 0; i < proc.getNumPrograms(); ++i) cats.addIfNotAlreadyThere (ReProcessor::presetCategory (proc.getProgramName (i)));
+    for (auto& cat : cats)
+    {
+        presetBox.addSectionHeading (cat);
+        for (int i = 0; i < proc.getNumPrograms(); ++i) if (ReProcessor::presetCategory (proc.getProgramName (i)) == cat) presetBox.addItem (proc.getProgramName (i), i + 1);
+    }
     userFiles = proc.userPresetFiles();
     if (! userFiles.isEmpty())
     {
         presetBox.addSeparator();
-        presetBox.addSectionHeading ("USER  (Folder = open them)");
-        for (int i = 0; i < userFiles.size(); ++i) presetBox.addItem (userFiles[i].getFileNameWithoutExtension(), userBase + i);
+        StringArray ucats;
+        for (auto& f : userFiles) ucats.addIfNotAlreadyThere (ReProcessor::presetCategory (f.getFileNameWithoutExtension()));
+        ucats.sort (true);
+        for (auto& cat : ucats)
+        {
+            presetBox.addSectionHeading ("USER - " + cat);
+            for (int i = 0; i < userFiles.size(); ++i)
+                if (ReProcessor::presetCategory (userFiles[i].getFileNameWithoutExtension()) == cat) presetBox.addItem (userFiles[i].getFileNameWithoutExtension(), userBase + i);
+        }
     }
     lastName = {};
 }
@@ -643,14 +660,19 @@ void Canvas::showSave()
     if (dialog != nullptr) return;
     dialog = std::make_unique<AlertWindow> ("Save preset", "Name (Documents / RE4GE / Presets):", MessageBoxIconType::NoIcon, this);
     dialog->setLookAndFeel (&lnf);
-    dialog->addTextEditor ("name", proc.currentPresetName().startsWith ("Random") ? String ("My Bass") : proc.currentPresetName());
+    const String curName = proc.currentPresetName();
+    dialog->addTextEditor ("name", curName.startsWith ("Random") ? String ("My Bass") : curName.fromFirstOccurrenceOf (" - ", false, false).isNotEmpty() ? curName.fromFirstOccurrenceOf (" - ", false, false) : curName);
+    dialog->addComboBox ("cat", ReProcessor::categoryNames(), "Category");
+    if (auto* cb = dialog->getComboBoxComponent ("cat")) cb->setSelectedItemIndex (jmax (0, ReProcessor::categoryNames().indexOf (ReProcessor::presetCategory (curName))), dontSendNotification);
     dialog->addButton ("Save", 1, KeyPress (KeyPress::returnKey));
     dialog->addButton ("Cancel", 0, KeyPress (KeyPress::escapeKey));
     SafePointer<Canvas> safe (this);
     dialog->enterModalState (true, ModalCallbackFunction::create ([safe] (int result)
     {
         if (safe == nullptr || safe->dialog == nullptr) return;
-        const auto name = safe->dialog->getTextEditorContents ("name");
+        String name = safe->dialog->getTextEditorContents ("name").trim();
+        if (auto* cb = safe->dialog->getComboBoxComponent ("cat"))
+            if (cb->getText().isNotEmpty() && cb->getText() != "NONE") name = cb->getText() + " - " + name;   // the category is the name's prefix
         MessageManager::callAsync ([safe] { if (safe != nullptr) safe->dialog.reset(); });
         if (result == 1)
         {
@@ -674,6 +696,7 @@ void Canvas::showPage (int pg)
     randomPanel.setVisible (page == PRandom);
     seqView.setVisible (page == PSeq);
     eqView.setVisible (page == PEq);
+    exportPanel.setVisible (page == PExport);
     for (auto& c : cards)
     {
         const bool on = cardOn (c);
@@ -720,7 +743,7 @@ void Canvas::resized()
     prev.setBounds (presetBox.getX() - 40, 13, 34, 30);
     // left: NAV + SYSTEM; right: the work area; bottom: MACROS + MASTER
     navArea = { 0, top, 200, H - top - bottomH };
-    sysArea = navArea.removeFromBottom (168);
+    sysArea = navArea.removeFromBottom (208);
     nav.setBounds (navArea);
     {
         auto s = sysArea.reduced (12, 0).withTrimmedTop (34);
@@ -732,6 +755,9 @@ void Canvas::resized()
         s.removeFromTop (6);
         auto r3 = s.removeFromTop (34);
         rndPageB.setBounds (r3.removeFromLeft (bw)); r3.removeFromLeft (6); settingsB.setBounds (r3);
+        s.removeFromTop (6);
+        auto r4 = s.removeFromTop (34);
+        exportB.setBounds (r4.removeFromLeft (bw));
     }
     workArea = { 200 + m, top + 12, W - 200 - 2 * m, H - top - bottomH - 24 };
     for (auto& c : cards) c.area = {};
@@ -762,6 +788,7 @@ void Canvas::resized()
         case PWaveshaper: { shaperView.setBounds (wa.removeFromTop (wa.getHeight() - rowH - gap)); wa.removeFromTop (gap); row ({ { cCurve[shaperView.stage], 0 } }); break; }
         case PSettings: row ({ { cSettings, 0 } }); break;
         case PRandom: randomPanel.setBounds (wa.removeFromTop (330)); break;
+        case PExport: exportPanel.setBounds (wa.removeFromTop (300)); break;
         case PSeq:    row ({ { cSeq, 520 } }); seqView.setBounds (wa.removeFromTop (240)); break;
         case PGate:   row ({ { cGate, 0 } }); break;
         case PLfo:    for (int i = 0; i < 4; ++i) row ({ { cLfo[i], 0 } }); break;
@@ -821,6 +848,7 @@ void Canvas::paint (Graphics& g)
     g.drawText ("BPM " + String (roundToInt (proc.getEngine().tempoNow.load())), Rectangle<int> (W - 16 - 240, 13, 100, 30), Justification::centred);
     for (auto& c : cards) if (! c.area.isEmpty() && cardOn (c)) doomsday::flat::card (g, lnf, c.area, c.title, c.dot);
     if (page == PRandom) doomsday::flat::card (g, lnf, randomPanel.getBounds(), {}, ReTheme::accent);
+    if (page == PExport) doomsday::flat::card (g, lnf, exportPanel.getBounds(), {}, ReTheme::accent);
     if (page == PSeq) doomsday::flat::card (g, lnf, seqView.getBounds(), {}, tokens().cool);
     if (page == PEq) doomsday::flat::card (g, lnf, eqView.getBounds(), {}, tokens().cool);
     if (page == PDyn && ! grArea.isEmpty())

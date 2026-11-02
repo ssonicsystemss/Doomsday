@@ -8,6 +8,7 @@
 #include "Parameters/ParamIDs.h"
 #include "Parameters/ParamBridge.h"
 #include "Randomizer/Randomizer.h"
+#include "Export/Exporter.h"
 
 class ReProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener
 {
@@ -55,6 +56,19 @@ public:
     void randomizeSound() override;                  // the RANDOMIZER with the settings saved in the state (SYSTEM -> RANDOMIZER)
     float randomizeWith (const re4ge::Randomizer::Settings&);   // returns the level after matching (dB RMS)
     float lastRandomDb = 0.f;
+    // EXPORT (message thread): a copy of everything the background render needs
+    re4ge::ExportJob makeExportJob (int note, int beats) const;
+    // PRESET CATEGORIES: the part of the name before " - " (factory and user presets alike)
+    static juce::String presetCategory (const juce::String& name)
+    {
+        const auto c = name.upToFirstOccurrenceOf (" - ", false, false).trim().toUpperCase();
+        return name.contains (" - ") && c.isNotEmpty() ? c : juce::String ("OTHER");
+    }
+    static const juce::StringArray& categoryNames()
+    {
+        static const juce::StringArray c { "NONE", "CLASSIC", "MODERN", "RAW", "EXPERIMENTAL", "PUMP", "SWELL", "RISE", "TIGHT", "ROLL", "PULSE", "GATE", "LAB", "SHAPE", "MOD", "KICK" };
+        return c;
+    }
     juce::String currentPresetName() override { return presetName; }
     juce::String presetFolderText() override { return "Documents / RE4GE / Presets"; }
     juce::File userPresetFolder() override { return io.folder(); }

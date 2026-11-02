@@ -1,4 +1,11 @@
-# RE4GE v0.13
+# RE4GE v0.14
+
+## v0.14 (krok 6, część 4): EKSPORT WAV + KATEGORIE PRESETÓW
+- **05 SYSTEM → Export**: LENGTH (1 / 2 / 4 / 8 beatów), NOTE + OCTAVE (tonacja numeru), **EXPORT WAV** – bas renderuje się w tle
+  (jakość EXPORT, tempo z FL, jedna nuta na beat, wzór sekwencera od 1. taktu) do **Dokumenty / RE4GE / Export** jako 24-bit WAV.
+  Potem **przeciągnij plik z pola „DRAG INTO FL”** prosto na playlistę albo do samplera. **Folder** otwiera katalog.
+- **Kategorie presetów**: lista presetów jest podzielona na grupy (CLASSIC, PUMP, SWELL, RISE, …). Przy **Save** wybierasz kategorię –
+  Twoje presety też układają się w grupy („USER - PUMP”). Kategoria = początek nazwy przed „ - ”.
 
 ## v0.13 (krok 6, część 3): POST EQ 8 PASM + KOMPRESOR
 **02 PROCESS → EQ** – nad starą kartą EQ jest wykres z 8 punktami (filtry jak w Mirror of Souls):

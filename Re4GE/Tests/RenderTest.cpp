@@ -577,6 +577,25 @@ int main (int argc, char** argv)
                "diff " + String (hz[0], 6) + " / " + String (hz[1], 6) + " / " + String (hz[2], 6) + (saved ? "" : " NOT SAVED") + (backToA ? "" : " NO LOAD") + (undoOk ? "" : " NO UNDO"));
         p.morphReset();
     }
+    // 14k) REFERENCE ANALYZER: the sound vs itself = "close"; vs a darker copy = it names PRESENCE / AIR; a later start is seen
+    {
+        p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise")); host.bpm = 150.0;
+        play (p, host, everyBeat (1, 150.0), 0.1);
+        auto prof = [&p] { auto j = p.makeExportJob (31, 1); const auto b = re4ge::Exporter::render (j); std::vector<float> m ((size_t) b.getNumSamples());
+                           for (int i = 0; i < b.getNumSamples(); ++i) m[(size_t) i] = 0.5f * (b.getSample (0, i) + b.getSample (1, i));
+                           return re4ge::RefAnalysis::analyse (m.data(), (int) m.size(), j.rate, (int) m.size()); };
+        const auto a = prof();
+        const auto same = re4ge::RefAnalysis::hints (a, prof());
+        set (p, highCut, 900.f); const auto dark = prof(); set (p, highCut, 7000.f);
+        const auto darkHints = re4ge::RefAnalysis::hints (a, dark);
+        set (p, delayPct, 55.f); const auto late = prof();
+        const auto lateHints = re4ge::RefAnalysis::hints (a, late);
+        const bool okR = a.valid && same.size() == 1 && same[0].startsWith ("Close") && darkHints.joinIntoString (" ").contains ("less")
+                         && (darkHints.joinIntoString (" ").contains ("PRESENCE") || darkHints.joinIntoString (" ").contains ("AIR"))
+                         && lateHints.joinIntoString (" ").contains ("LATER") && a.peakPct > a.startPct;
+        check (okR, "REFERENCE: itself = close, darker = less PRESENCE / AIR, later DELAY = starts LATER",
+               "peak " + String (a.peakPct, 0) + " %, start " + String (a.startPct, 0) + " % | " + darkHints.joinIntoString (" | ").substring (0, 120) + " | " + lateHints.joinIntoString (" | ").substring (0, 80));
+    }
     // 14e) RE4GE FX: kicks in the INPUT are found (one hit each, on time), the dry kick passes untouched, the bass sounds between them;
     //      LIVE: the previous kick reversed (no bass after the first kick, bass after the second)
     {
@@ -769,6 +788,15 @@ int main (int argc, char** argv)
             dynamic_cast<ReEditor&> (*ed).getCanvas().tickForTest();
             auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
             PNGImageFormat png; FileOutputStream fo (outDir.getChildFile (name)); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
+        }
+        {   // the REFERENCE page with a reference (the Dense Rise rendered darker) and the plugin's own sound
+            auto j = p.makeExportJob (31, 1); j.name = "gui_reference"; j.params.highCutHz = 1500.f; j.params.delayPct = 40.f;
+            const File rf = re4ge::Exporter::run (j);
+            auto& cv = dynamic_cast<ReEditor&> (*ed).getCanvas();
+            cv.showPageForTest (24); cv.refPanelForTest().loadForTest (rf); cv.refPanelForTest().analyseMineForTest(); cv.tickForTest();
+            auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
+            PNGImageFormat png; FileOutputStream fo (outDir.getChildFile ("gui_reference.png")); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
+            rf.deleteFile();
         }
         p.setPlayHead (nullptr);
     }

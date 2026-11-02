@@ -1,4 +1,13 @@
-# RE4GE v0.15
+# RE4GE v0.16
+
+## v0.16 (krok 7, część 2): PORÓWNANIE Z REFERENCJĄ
+**05 SYSTEM → Reference**: wrzuć (przeciągnij albo **Load reference**) reverse bass, który Ci się podoba (WAV). Brany jest jeden beat
+w tempie FL. RE4GE renderuje w tle jeden beat Twojego brzmienia i pokazuje:
+- **waveformy i obwiednie na sobie** (czerwony = referencja, niebieski = RE4GE, kreska = szczyt),
+- **6 pasm** (SUB / LOW / BODY / MID / PRESENCE / AIR) – udział w energii, niezależnie od głośności, z różnicą w dB,
+- **co zmienić**: np. „PRESENCE 1.5–5k: −4 dB mniej niż referencja → makro BITE / EQ ~2 kHz”, „bas startuje 12 % beatu
+  wcześniej → ENV DELAY”. **Analyse my sound again** po zmianach. Ścieżka referencji zapisuje się w projekcie.
+MORPH: przełączniki zmieniają się w połowie z A na B (nie przechodzą przez opcje pomiędzy).
 
 ## v0.15 (krok 7, część 1): A / B + MORPH
 Na górnym pasku: **A**, **B**, **A>B** (kopiuj), **MORPH** + suwak.

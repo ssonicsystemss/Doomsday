@@ -128,7 +128,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p), seqView (p), eqView (p), exportPanel (p), morphBar (p)
+Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p), seqView (p), eqView (p), exportPanel (p), morphBar (p), refPanel (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -561,6 +561,10 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     exportB.setTooltip ("EXPORT: render the bass to a WAV (and drag it into FL)");
     exportB.onClick = [this] { showPage (PExport); };
     addAndMakeVisible (exportB);
+    addChildComponent (refPanel);
+    refB.setTooltip ("REFERENCE: compare your bass with a reverse bass WAV you like (waveform, envelope, bands, hints)");
+    refB.onClick = [this] { showPage (PRef); };
+    addAndMakeVisible (refB);
     addAndMakeVisible (designer);
     addAndMakeVisible (view);
 
@@ -698,6 +702,8 @@ void Canvas::showPage (int pg)
     seqView.setVisible (page == PSeq);
     eqView.setVisible (page == PEq);
     exportPanel.setVisible (page == PExport);
+    if (page == PRef && ! refPanel.isVisible()) refPanel.pageShown();
+    refPanel.setVisible (page == PRef);
     for (auto& c : cards)
     {
         const bool on = cardOn (c);
@@ -759,7 +765,7 @@ void Canvas::resized()
         rndPageB.setBounds (r3.removeFromLeft (bw)); r3.removeFromLeft (6); settingsB.setBounds (r3);
         s.removeFromTop (6);
         auto r4 = s.removeFromTop (34);
-        exportB.setBounds (r4.removeFromLeft (bw));
+        exportB.setBounds (r4.removeFromLeft (bw)); r4.removeFromLeft (6); refB.setBounds (r4);
     }
     workArea = { 200 + m, top + 12, W - 200 - 2 * m, H - top - bottomH - 24 };
     for (auto& c : cards) c.area = {};
@@ -791,6 +797,7 @@ void Canvas::resized()
         case PSettings: row ({ { cSettings, 0 } }); break;
         case PRandom: randomPanel.setBounds (wa.removeFromTop (330)); break;
         case PExport: exportPanel.setBounds (wa.removeFromTop (300)); break;
+        case PRef:    refPanel.setBounds (wa); break;
         case PSeq:    row ({ { cSeq, 520 } }); seqView.setBounds (wa.removeFromTop (240)); break;
         case PGate:   row ({ { cGate, 0 } }); break;
         case PLfo:    for (int i = 0; i < 4; ++i) row ({ { cLfo[i], 0 } }); break;
@@ -851,6 +858,7 @@ void Canvas::paint (Graphics& g)
     for (auto& c : cards) if (! c.area.isEmpty() && cardOn (c)) doomsday::flat::card (g, lnf, c.area, c.title, c.dot);
     if (page == PRandom) doomsday::flat::card (g, lnf, randomPanel.getBounds(), {}, ReTheme::accent);
     if (page == PExport) doomsday::flat::card (g, lnf, exportPanel.getBounds(), {}, ReTheme::accent);
+    if (page == PRef) doomsday::flat::card (g, lnf, refPanel.getBounds(), {}, ReTheme::accent);
     if (page == PSeq) doomsday::flat::card (g, lnf, seqView.getBounds(), {}, tokens().cool);
     if (page == PEq) doomsday::flat::card (g, lnf, eqView.getBounds(), {}, tokens().cool);
     if (page == PDyn && ! grArea.isEmpty())

@@ -13,6 +13,8 @@
   wchodzi teraz w krzywą. SYMMETRIC (rysujesz prawą połówkę), Save / Load do `Dokumenty\RE4GE\Shapes`, Reset, Undo. Krzywe zapisują się też w presecie.
 - **SYSTEM → Settings**: **QUALITY** (oversampling przy graniu 2× / **4×** / 8× / 16×, osobno przy eksporcie z FL, domyślnie **8×**), **AUTO GAIN**.
 - Nowy preset **LAB - Diode Fold Rise**: Dense Rise z DIODE na stopniu 1 i WAVEFOLD na stopniu 2.
+- Po Twoim odsłuchu („wchodzi trochę za szybko”): Dense Rise / LAB / Drawn startują teraz po **20 % kroku** (między wariantem B a C) z późniejszym
+  narastaniem. Wariant D jest osobno jako **CLASSIC - Dense Rise Late** (start po 33 %).
 
 
 ## v0.6 (krok 2): REVERSE SHAPE DESIGNER

@@ -235,6 +235,11 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   przesterem, odwrócenie audio na żywo wymaga przeszłości (ogon poprzedniego kicka / CAPTURE), lookahead = opóźnienie, szeroki sub = dziury w mono.
 - **Zbyt wiele zakładek = nieczytelne** (4GE): główny ekran z makrami + szybkie gałki musi wystarczyć do większości pracy.
 
+## RE4GE – reverse wchodził za szybko (2026-11-02)
+- Preset dopasowany do sampli (Bass_15 / 16) zaczynał narastanie od razu po kicku, bo sample referencyjne startują od −33 dB na początku beatu.
+  **Z kickiem na wierzchu** bas wchodził pod jego ogon („wchodzi trochę za szybko”). Właściciel z A/B: najlepsze starty po 15–25 % kroku,
+  33 % też OK. → Dopasowanie do sampli robić **na solo**, ale moment wejścia sprawdzać **z kickiem**. W A/B zawsze dawać wersję z kickiem.
+
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
   odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:

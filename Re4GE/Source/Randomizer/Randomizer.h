@@ -41,5 +41,6 @@ namespace re4ge
         float getParam (const char* id) const;
         ReProcessor& proc;
         std::unique_ptr<re::Engine> offline;
+        float lastPeak = 0.f;            // the peak of the last measurement (both beats)
     };
 }

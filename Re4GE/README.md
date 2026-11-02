@@ -1,4 +1,18 @@
-# RE4GE v0.11
+# RE4GE v0.12
+
+## v0.12 (krok 6, część 2): SEKWENCER + GATE
+**03 MODULATION → Sequencer** – 16 kroków (rozmiar kroku = STEP w Steps: 1/4, 1/8, 1/16):
+- klik w numer = krok gra / nie gra, przeciągnij słupek = **głośność** kroku, przeciągnij dolne pole = **pitch** (−12…+12 półtonów),
+  dwuklik = reset. **LENGTH** = ile kroków ma wzór (powtarza się), **SWING** = co drugi krok później (jego narastanie się ściska,
+  więc nadal kończy się przed następnym krokiem). Przełącznik **SEQ** włącza wzór (wyłączony = stare STEPS 1–4).
+- Kroki liczą się **po siatce FL**: nuta na 2. beacie zaczyna od właściwego kroku wzoru (np. 1/16 → krok 5), więc wzór zawsze
+  siedzi tak samo w takcie, nawet gdy nuty są krótkie.
+**03 MODULATION → Gate** – tnie gotowy bas w rytmie (nie wyzwala go): **RATE** 1/8 / 1/16 / 1/32 / 1/8T / 1/16T, **DEPTH**,
+**LENGTH**, **SMOOTH** (ms), kształt **HARD / SOFT / TRANCE**, pasmo **FULL** albo **HIGHS** (tnie tylko powyżej ~250 Hz – dół gra dalej).
+
+Randomizer (v0.11) po uwagach: EXPERIMENTAL bez „ciamkającego” filtra (tylko LP / OFF), więcej głębi (unison 4–7, stereo, smear,
+otwarta góra), bez skrajnych skoków pitchu i głośnego szumu; we wszystkich stylach **trzeszczenie wchodzi później** (wolniejsze narastanie,
+przester rośnie razem z basem).
 
 ## v0.11 (krok 6, część 1): RANDOMIZER W KIERUNKACH
 **05 SYSTEM → Randomizer** (nowy przycisk obok Settings). Przycisk **Random** losuje z tymi ustawieniami.

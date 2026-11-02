@@ -7,6 +7,7 @@
 #include "MatrixView.h"
 #include "KickView.h"
 #include "RandomPanel.h"
+#include "SeqView.h"
 #include <map>
 
 // =====================================================================
@@ -100,10 +101,11 @@ private:
     MatrixView matrix;
     KickView kickView;
     RandomPanel randomPanel;
+    SeqView seqView;
     int page = 0;
-    enum Page { PMain = 0, POsc, PPitch, PEnv, PShape, PFilter, PDist, PEq, PTail, PSample, PSub, PStereo, PTransient, PDesigner, PWaveshaper, PSettings, PLfo, PMatrix, PFx, PRandom, NumPages };
+    enum Page { PMain = 0, POsc, PPitch, PEnv, PShape, PFilter, PDist, PEq, PTail, PSample, PSub, PStereo, PTransient, PDesigner, PWaveshaper, PSettings, PLfo, PMatrix, PFx, PRandom, PSeq, PGate, NumPages };
     int cUni = 0, cMaster = 0, cMacros = 0, cSource = 0, cWarp = 0, cPhase = 0, cOsc[3] {}, cTail = 0, cSample = 0, cTrig = 0, cSteps = 0, cPitch = 0, cEnv = 0,
-        cTimeSync = 0, cTimeMs = 0, cPre = 0, cDrive = 0, cDrive2 = 0, cPost = 0, cSub = 0, cClick = 0, cLane[4] {}, cLab[2] {}, cCurve[2] {}, cSettings = 0, cLfo[4] {}, cFxDet = -1, cFxOut = -1, cMSource = 0, cMEnv = 0, cMTone = 0, cMLow = 0;
+        cTimeSync = 0, cTimeMs = 0, cPre = 0, cDrive = 0, cDrive2 = 0, cPost = 0, cSub = 0, cClick = 0, cLane[4] {}, cLab[2] {}, cCurve[2] {}, cSettings = 0, cLfo[4] {}, cFxDet = -1, cFxOut = -1, cMSource = 0, cMEnv = 0, cMTone = 0, cMLow = 0, cSeq = 0, cGate = 0;
     juce::Rectangle<int> navArea, sysArea, workArea, fxLedArea;
     int lastFxHits = 0; float fxBlink = 0.f;
     juce::ComboBox presetBox;

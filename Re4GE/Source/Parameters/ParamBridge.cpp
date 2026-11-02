@@ -89,6 +89,14 @@ re::Params gatherParams (const AudioProcessorValueTreeState& apvts, ParamCache& 
         m.dst = ch (mtxId (r, "dst"), re::NumModDst - 1); m.amount = get (mtxId (r, "amt")); m.polarity = ch (mtxId (r, "pol"), 2);
     }
     p.sampleEndMs = get (smpEnd); p.sampleOriginal = get (smpMode) < 0.5f; p.sampleKeepLength = get (smpPitch) > 0.5f;
+    p.seqOn = get (seqOn) > 0.5f; p.seqLen = juce::jlimit (1, 16, juce::roundToInt (get (seqLen))); p.swing = get (seqSwing);
+    for (int i = 0; i < 16; ++i)
+    {
+        auto& q = p.seq[(size_t) i];
+        q.on = get (seqId (i, "on")) > 0.5f; q.vel = get (seqId (i, "vel")); q.pitchSt = get (seqId (i, "pitch"));
+    }
+    p.gateFxOn = get (gateOn) > 0.5f; p.gateDiv = ch (gateDiv, 4); p.gateDepth = get (gateDepth); p.gateDuty = get (gateDuty);
+    p.gateShape = ch (gateShape, 2); p.gateSmoothMs = get (gateSmooth); p.gateHighs = get (gateBand) > 0.5f;
     return p;
 }
 }

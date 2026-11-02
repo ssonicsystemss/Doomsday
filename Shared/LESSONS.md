@@ -280,3 +280,6 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   `beginNewTransaction`, then for each change set the parameter (host gesture) AND `node.setProperty ("value", v, &undo)` at once.
   Also: a randomizer must never pick a filter that removes the fundamental (HP / BP before the drive) outside EXPERIMENTAL – such rolls
   came out 20+ dB quieter; weak rolls are rolled again (loudness measured by an offline render).
+- **„Jakby ktoś zaciągał ślinę” (owner o RE4GE Randomizer EXPERIMENTAL, 2026-11-02)** = wąski BAND-PASS nisko (~200 Hz) przesuwany obwiednią
+  (+1,4 oct) przed przesterem, do tego SMEAR 100 %, SQUEEZE z ENV i high cut 2,7 kHz → mokry, „ciamkający” formant. Randomizer: tylko LP / OFF
+  we wszystkich stylach, EXPERIMENTAL z węższymi zakresami (pre filtr od 900 Hz, ENV −1..+2,5 oct, smear ≤ 60 %, high cut od 3,5 kHz).

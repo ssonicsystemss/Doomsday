@@ -207,6 +207,24 @@ namespace
             l.add (f (fxMix, "FX Bass Level", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
             l.add (b (fxLive, "FX Live Reverse", false));
         }
+        // ---- v0.12: SEQUENCER + GATE (after the FX block: FL Studio keeps automation by index - new parameters only at the end)
+        l.add (b (seqOn, "SEQ On", false));
+        l.add (f (seqLen, "SEQ Length", { 1.f, 16.f, 1.f }, 16.f, [] (float v, int) { return String (roundToInt (v)) + " steps"; }, fm::num));
+        l.add (f (seqSwing, "SEQ Swing", { 0.f, 60.f }, 0.f, [] (float v, int) { return String (roundToInt (v)) + " %"; }, fm::num));
+        for (int i = 0; i < 16; ++i)
+        {
+            const String n = "SEQ" + String (i + 1) + " ";
+            l.add (b (seqId (i, "on"), n + "On", true));
+            l.add (f (seqId (i, "vel"), n + "Level", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
+            l.add (f (seqId (i, "pitch"), n + "Pitch", { -12.f, 12.f, 1.f }, 0.f, fm::semi, fm::num));
+        }
+        l.add (b (gateOn, "GATE On", false));
+        l.add (c (gateDiv, "GATE Rate", Choices::gateDivs, 1));
+        l.add (f (gateDepth, "GATE Depth", { 0.f, 1.f }, 1.f, fm::pct, fm::pctIn));
+        l.add (f (gateDuty, "GATE Length", { 0.1f, 0.9f }, 0.5f, fm::pct, fm::pctIn));
+        l.add (c (gateShape, "GATE Shape", Choices::gateShapes, 0));
+        l.add (f (gateSmooth, "GATE Smooth", skew (0.5f, 30.f, 4.f), 2.f, fm::ms, fm::msIn));
+        l.add (c (gateBand, "GATE Band", Choices::gateBands, 0));
         return l;
     }
 }

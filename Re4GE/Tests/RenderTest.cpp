@@ -16,8 +16,8 @@ static float raw (ReProcessor& p, const String& id) { return p.apvts.getRawParam
 // a fake host with a tempo
 struct Host : AudioPlayHead
 {
-    double bpm = 150.0;
-    Optional<PositionInfo> getPosition() const override { PositionInfo i; i.setBpm (bpm); i.setIsPlaying (true); return i; }
+    double bpm = 150.0, ppq = 0.0; bool withPpq = false;
+    Optional<PositionInfo> getPosition() const override { PositionInfo i; i.setBpm (bpm); i.setIsPlaying (true); if (withPpq) i.setPpqPosition (ppq); return i; }
 };
 
 // notes: (start ms, length ms, note); renders `seconds`
@@ -39,6 +39,7 @@ static AudioBuffer<float> play (ReProcessor& p, Host& h, std::vector<Note> notes
             if (on >= pos && on < pos + n) m.addEvent (MidiMessage::noteOn (1, nt.note, nt.vel), on - pos);
             if (off >= pos && off < pos + n) m.addEvent (MidiMessage::noteOff (1, nt.note), off - pos);
         }
+        h.ppq = pos / sr * h.bpm / 60.0;
         p.processBlock (b, m);
         for (int ch = 0; ch < 2; ++ch) out.copyFrom (ch, pos, b, ch, 0, n);
     }
@@ -117,7 +118,8 @@ int main (int argc, char** argv)
         for (int sIdx = -1; sIdx < re4ge::Randomizer::NumStyles; ++sIdx)
         {
             p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise"));
-            if (sIdx >= 0) { re4ge::Randomizer::Settings st; st.style = sIdx; const float db = p.randomizeWith (st); printf ("%s: %.1f dB\n", re4ge::Randomizer::styleNames()[sIdx].toRawUTF8(), db); }
+            if (sIdx >= 0) { re4ge::Randomizer::Settings st; st.style = std::getenv ("RND_STYLE") != nullptr ? std::atoi (std::getenv ("RND_STYLE")) : sIdx; const float db = p.randomizeWith (st); printf ("%s: %.1f dB\n", re4ge::Randomizer::styleNames()[sIdx].toRawUTF8(), db);
+                if (std::getenv ("RND_DUMP") != nullptr) for (auto* a : p.getParameters()) if (auto* w = dynamic_cast<RangedAudioParameter*> (a)) if (std::abs (w->getValue() - w->getDefaultValue()) > 1e-4f) printf ("  %s %s\n", w->paramID.toRawUTF8(), w->getCurrentValueAsText().toRawUTF8()); }
             auto b = play (p, host, everyBeat (4, 150.0), 1.6);
             addKicks (b, 150.0);
             const int at = all.getNumSamples(); all.setSize (2, at + b.getNumSamples(), true);
@@ -439,6 +441,46 @@ int main (int argc, char** argv)
         p.setCurrentProgram (byName (p, "CLASSIC - Dense Rise"));
         p.undo.clearUndoHistory();
     }
+    // 14g) SEQUENCER + GATE: an OFF step is silent, +12 st doubles the note, LEVEL scales, SWING delays every 2nd step,
+    //      the steps follow the FL grid (a note on beat 2 starts at step 5); the rhythmic GATE cuts between its hits (HIGHS keeps the lows)
+    {
+        auto setup = [&] (std::vector<std::pair<const char*, float>> extra)
+        {
+            p.setCurrentProgram (byName (p, "INIT")); host.bpm = 150.0;
+            set (p, source, 0.f); set (p, step, 1.f);                         // 1/8: 2 steps per beat (200 ms each at 150 BPM)
+            set (p, delayPct, 0.f); set (p, swell, 2.f); set (p, gatePct, 95.f); set (p, seqOn, 1.f);
+            for (auto& [id, v] : extra) set (p, id, v);
+        };
+        // steps 1 / 2 / 3 / 4 = normal, OFF, +12 st, 50 %
+        setup ({ { seqId (1, "on"), 0.f }, { seqId (2, "pitch"), 12.f }, { seqId (3, "vel"), 0.5f }, { seqLen, 4.f } });
+        auto b = play (p, host, everyBeat (2, 150.0), 0.8);
+        const double s1 = rms (b, 40, 180), s2 = rms (b, 240, 380), s4 = rms (b, 640, 780);
+        const double hz1 = domHz (b, 60, 120), hz3 = domHz (b, 460, 120);
+        const bool seqOk = s2 < s1 * 0.01 && std::abs (hz3 / hz1 - 2.0) < 0.15 && s4 < s1 * 0.75 && s4 > s1 * 0.3;
+        // SWING: the 2nd step starts later
+        setup ({ { seqSwing, 60.f } });
+        auto sw = play (p, host, everyBeat (1, 150.0), 0.4);
+        setup ({});
+        auto st = play (p, host, everyBeat (1, 150.0), 0.4);
+        const bool swingOk = rms (sw, 205, 240) < rms (st, 205, 240) * 0.3 && rms (sw, 330, 380) > 0.02;
+        // FL grid: a note on beat 2 (ppq 1) starts at song step 2 (1/8) -> SEQ step 3 (+12 st) plays first
+        setup ({ { seqId (2, "pitch"), 12.f }, { seqLen, 4.f } });
+        host.withPpq = true;
+        auto g1 = play (p, host, { { 400.0, 100.0, 31 } }, 0.8);
+        host.withPpq = false;
+        const double gridHz = domHz (g1, 460, 120);
+        const bool gridOk = std::abs (gridHz / hz1 - 2.0) < 0.15;
+        // GATE: 1/8 hard, depth 100 %, length 50 % -> silent in the second half of each 1/8 (200 ms)
+        setup ({ { seqOn, 0.f }, { gateOn, 1.f }, { gateDiv, 0.f }, { gateSmooth, 1.f } });
+        auto gt = play (p, host, everyBeat (1, 150.0), 0.4);
+        const double open = rms (gt, 30, 90), shut = rms (gt, 120, 190);
+        setup ({ { seqOn, 0.f }, { gateOn, 1.f }, { gateDiv, 0.f }, { gateSmooth, 1.f }, { gateBand, 1.f } });
+        auto gh = play (p, host, everyBeat (1, 150.0), 0.4);
+        const bool gateOk = shut < open * 0.02 && rms (gh, 120, 190) > open * 0.2;
+        check (seqOk && swingOk && gridOk && gateOk, "SEQUENCER: off / +12 st / level / swing / FL grid; GATE cuts (HIGHS keeps the lows)",
+               String (s2 / s1, 3) + " " + String (hz3 / hz1, 2) + " " + String (s4 / s1, 2) + (swingOk ? "" : " SWING") + (gridOk ? "" : " GRID " + String (gridHz, 1))
+               + " gate " + String (shut / open, 3) + " / " + String (rms (gh, 120, 190) / open, 2));
+    }
     // 14e) RE4GE FX: kicks in the INPUT are found (one hit each, on time), the dry kick passes untouched, the bass sounds between them;
     //      LIVE: the previous kick reversed (no bass after the first kick, bass after the second)
     {
@@ -496,7 +538,7 @@ int main (int argc, char** argv)
             for (int i = 0; i < k.getNumSamples(); ++i) { const double t = i / sr; ph += (50.0 + 250.0 * std::exp (-t * 25.0)) / sr; const float v = (float) (std::tanh (3.0 * std::sin (6.2831853 * ph)) * std::exp (-t * 3.0)) * 0.7f; k.setSample (0, i, v); k.setSample (1, i, v); }
             writeWav (wav, k);
         }
-        struct Ctx { const char* preset; std::vector<std::pair<const char*, float>> extra; bool sample = false; bool gate = false; bool offline = false; };
+        struct Ctx { const char* preset; std::vector<std::pair<const char*, float>> extra; bool sample = false; bool gate = false; bool offline = false; double bpm = 150.0; };
         const std::vector<Ctx> ctxs {
             { "PUMP - QL Tail", {} },
             { "SWELL - Synth Bend", {} },
@@ -553,7 +595,12 @@ int main (int argc, char** argv)
                         { oscId (3, "level"), 0.f }, { oscId (3, "wave"), 4.f }, { oscId (3, "semi"), 5.f },
                         { oscId (4, "level"), 0.f }, { oscId (4, "wave"), 4.f }, { oscId (4, "semi"), 3.f } } },
             { "GATE", {}, false, true },
-            { "GATE", { { source, 1.f } }, false, true } };
+            { "GATE", { { source, 1.f } }, false, true },
+            // SEQUENCER: 16 steps of 1/16 in 0.8 s at 300 BPM; every step different (level / pitch) so LENGTH and each step matter
+            { "INIT", { { source, 0.f }, { step, 2.f }, { beats, 3.f }, { seqOn, 1.f }, { seqSwing, 30.f }, { seqId (0, "pitch"), 5.f }, { seqId (1, "vel"), 0.5f } }, false, false, false, 300.0 },
+            // GATE (rhythm): on, every knob in play; HIGHS band separately
+            { "INIT", { { source, 0.f }, { gateOn, 1.f }, { gateDepth, 0.8f }, { gateShape, 1.f } } },
+            { "INIT", { { source, 0.f }, { gateOn, 1.f }, { gateBand, 1.f }, { gateDiv, 2.f } } } };
         String dead; int tested = 0;
         for (auto* prm : p.getParameters())
         {
@@ -562,7 +609,7 @@ int main (int argc, char** argv)
             bool moves = false;
             for (auto& cx : ctxs)
             {
-                p.setCurrentProgram (byName (p, cx.preset)); host.bpm = 150.0;
+                p.setCurrentProgram (byName (p, cx.preset)); host.bpm = cx.bpm;
                 for (auto& [id, v] : cx.extra) set (p, id, v);
                 if (cx.sample) p.loadSample (wav); else p.clearSample();
                 p.setNonRealtime (cx.offline);
@@ -575,7 +622,7 @@ int main (int argc, char** argv)
             }
             if (! moves) dead << rp->paramID << " ";
         }
-        p.clearSample(); p.setNonRealtime (false);
+        p.clearSample(); p.setNonRealtime (false); host.bpm = 150.0;
         check (dead.isEmpty(), "every parameter changes the sound (min vs max)", String (tested) + " params" + (dead.isNotEmpty() ? " DEAD: " + dead : String()));
     }
     // 15) GUI: editor stress + snapshots of the three pages
@@ -602,7 +649,7 @@ int main (int argc, char** argv)
             writeWav (kf, k); p.loadSample (kf); p.detectKick (0);
         }
         const std::pair<int, const char*> pages[] { { 0, "gui_main.png" }, { 1, "gui_osc.png" }, { 3, "gui_envelope.png" }, { 4, "gui_shape.png" },
-                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" }, { 9, "gui_kick.png" }, { 19, "gui_random.png" } };
+                                                    { 5, "gui_filter.png" }, { 6, "gui_dist.png" }, { 8, "gui_tail.png" }, { 10, "gui_sub.png" }, { 11, "gui_stereo.png" }, { 13, "gui_designer.png" }, { 14, "gui_waveshaper.png" }, { 15, "gui_settings.png" }, { 16, "gui_lfo.png" }, { 17, "gui_matrix.png" }, { 9, "gui_kick.png" }, { 19, "gui_random.png" }, { 20, "gui_seq.png" }, { 21, "gui_gate.png" } };
         for (auto [pg, name] : pages)
         {
             dynamic_cast<ReEditor&> (*ed).getCanvas().showPageForTest (pg);

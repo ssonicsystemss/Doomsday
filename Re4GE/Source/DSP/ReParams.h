@@ -80,6 +80,12 @@ namespace re
         bool sampleOriginal = false;
         bool stagesOff = false;                    // set by the engine (SAMPLE + ORIGINAL): both distortion stages bypassed
         bool sampleKeepLength = false;             // PITCH: VARISPEED (higher = shorter) / KEEP LENGTH (WSOLA grains, GrainReader.h)
+        // v0.12 (step 6): SEQUENCER (16 steps on the host's step grid: which step plays, its level and pitch) + rhythmic GATE
+        struct SeqStep { bool on = true; float vel = 1.f, pitchSt = 0.f; };
+        bool seqOn = false; int seqLen = 16; float swing = 0.f;          // SWING: every 2nd step later (0..60 % of a step)
+        std::array<SeqStep, 16> seq {};
+        bool gateFxOn = false; int gateDiv = 1, gateShape = 0; bool gateHighs = false;
+        float gateDepth = 1.f, gateDuty = 0.5f, gateSmoothMs = 2.f;      // DIV: 1/8 1/16 1/32 1/8T 1/16T; SHAPE: HARD / SOFT / TRANCE
     };
     enum OscWave { WSine = 0, WTri = 1, WSaw = 2, WSquare = 3, WPulse = 4, WNoise = 5 };
 }

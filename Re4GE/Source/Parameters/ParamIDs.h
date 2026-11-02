@@ -6,7 +6,7 @@
 
 namespace ParamIDs
 {
-    inline constexpr const char* versionText = "0.11";      // keep in step with CMakeLists.txt
+    inline constexpr const char* versionText = "0.12";      // keep in step with CMakeLists.txt
     // TRIGGER / TIMING
     inline constexpr const char* trigger   = "trg_mode";
     inline constexpr const char* timing    = "trg_timing";
@@ -170,6 +170,24 @@ namespace ParamIDs
     inline constexpr const char* smpMode   = "smp_mode";
     inline constexpr const char* smpPitch  = "smp_pitch";
     // ---- RE4GE FX only (the effect build): kick detection on the input / sidechain, dry / wet, LIVE = the previous kick reversed
+    // ---- v0.12: step 6, SEQUENCER (16 steps) + rhythmic GATE
+    inline constexpr const char* seqOn     = "seq_on";
+    inline constexpr const char* seqLen    = "seq_len";
+    inline constexpr const char* seqSwing  = "seq_swing";
+    inline const char* seqId (int stepIdx, const char* what)     // "seq1_on" ... what = on vel pitch
+    {
+        static const char* names[3] { "on", "vel", "pitch" };
+        static const auto table = [] { std::array<std::array<std::string, 3>, 16> t; for (int i = 0; i < 16; ++i) for (int k = 0; k < 3; ++k) t[(size_t) i][(size_t) k] = "seq" + std::to_string (i + 1) + "_" + names[k]; return t; }();
+        for (int k = 0; k < 3; ++k) if (std::strcmp (names[k], what) == 0) return table[(size_t) juce::jlimit (0, 15, stepIdx)][(size_t) k].c_str();
+        jassertfalse; return table[0][0].c_str();
+    }
+    inline constexpr const char* gateOn    = "gate_on";
+    inline constexpr const char* gateDiv   = "gate_div";
+    inline constexpr const char* gateDepth = "gate_depth";
+    inline constexpr const char* gateDuty  = "gate_len";
+    inline constexpr const char* gateShape = "gate_shape";
+    inline constexpr const char* gateSmooth = "gate_smooth";
+    inline constexpr const char* gateBand  = "gate_band";
     inline constexpr const char* fxThreshold = "fx_threshold";
     inline constexpr const char* fxSens    = "fx_sens";
     inline constexpr const char* fxHoldoff = "fx_holdoff";
@@ -263,6 +281,9 @@ namespace Choices
     inline const juce::StringArray tonePos { "PRE", "POST" };
     inline const juce::StringArray lfoWaves { "SINE", "TRI", "SAW UP", "SAW DN", "SQUARE", "S&H", "SMOOTH", "CHAOS" };
     inline const juce::StringArray polarities { "AS IS", "UNI", "BI" };
+    inline const juce::StringArray gateDivs { "1/8", "1/16", "1/32", "1/8T", "1/16T" };
+    inline const juce::StringArray gateShapes { "HARD", "SOFT", "TRANCE" };
+    inline const juce::StringArray gateBands { "FULL", "HIGHS" };
     inline const juce::StringArray smpModes { "ORIGINAL", "PROCESSED" };
     inline const juce::StringArray smpPitches { "VARISPEED", "KEEP LENGTH" };
     inline const juce::StringArray fxDetects { "INPUT", "SIDECHAIN" };

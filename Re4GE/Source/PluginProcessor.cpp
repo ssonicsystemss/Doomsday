@@ -188,11 +188,15 @@ void ReProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     const SpinLock::ScopedTryLockType prepared (prepareLock);
     if (! prepared.isLocked()) { buffer.clear(); return; }
     engine.setParams (gather());
-    double bpmNow = 150.0;
+    double bpmNow = 150.0, ppq = 0.0; bool ppqOk = false;
     if (auto* ph = getPlayHead())
         if (auto pos = ph->getPosition())
+        {
             if (auto bp = pos->getBpm()) bpmNow = *bp;
+            if (auto q = pos->getPpqPosition()) { ppq = *q; ppqOk = pos->getIsPlaying(); }
+        }
     engine.setTempo (bpmNow);
+    engine.setHostPpq (ppq, ppqOk);
     engine.setNonRealtime (isNonRealtime());
     if (pendingAudition.exchange (false)) engine.audition (auditionNote);
     if (isFx) { processFx (buffer, buffer.getNumSamples()); return; }

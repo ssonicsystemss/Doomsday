@@ -128,7 +128,7 @@ Component* Canvas::knob (Card& c, const char* id, const char* label, const char*
     return kp;
 }
 
-Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p)
+Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (p), matrix (p), kickView (p), randomPanel (p), seqView (p)
 {
     using namespace ParamIDs;
     setLookAndFeel (&lnf);
@@ -399,6 +399,23 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
         c.head.push_back (seg (lfoId (i, "wave"), { "Sine", "Tri", "Saw+", "Saw-", "Sqr", "S&H", "Smooth", "Chaos" }, cool,
                                "The wave. S&H = a new random value every cycle, SMOOTH = gliding random, CHAOS = never repeats. Route it on the MATRIX page"));
     }
+    // ---- SEQUENCER + GATE (v0.12)
+    {
+        auto& c = card ("Sequencer", cool, PSeq); cSeq = (int) cards.size() - 1;
+        knob (c, seqLen, "Length", "How many steps the pattern has (it repeats). The step size is the trigger STEP (1/4, 1/8, 1/16)");
+        knob (c, seqSwing, "Swing", "Every 2nd step comes later (its swell is squeezed, so it still ends before the next step)");
+        c.head.push_back (toggle (seqOn, "SEQ", Toggle::Chip, cool, "ON: this 16-step pattern decides which steps play, their level and pitch (on the FL grid). OFF: the trigger STEPS 1-4"));
+    }
+    {
+        auto& c = card ("Gate", hot, PGate); cGate = (int) cards.size() - 1;
+        knob (c, gateDepth, "Depth", "How deep the gate cuts (100 % = silence between the hits)");
+        knob (c, gateDuty, "Length", "How long each hit of the gate is open (part of the gate step)");
+        knob (c, gateSmooth, "Smooth", "Softens the edges of the gate (ms): low = choppy, high = round");
+        c.head.push_back (seg (gateBand, { "Full", "Highs" }, hot, "FULL: the whole bass is chopped. HIGHS: only above ~250 Hz - the low end keeps running"));
+        c.head.push_back (seg (gateShape, { "Hard", "Soft", "Trance" }, hot, "HARD: on / off. SOFT: rounded hits. TRANCE: each hit opens and fades"));
+        c.head.push_back (seg (gateDiv, { "1/8", "1/16", "1/32", "1/8T", "1/16T" }, hot, "Gate speed on the FL tempo"));
+        c.head.push_back (toggle (gateOn, "Gate", Toggle::Chip, hot, "ON: cuts the finished bass in rhythm (it does not trigger it)"));
+    }
     {
         auto& c = card ("Quality", n, PSettings); cSettings = (int) cards.size() - 1;
         c.head.push_back (toggle (autoGain, "Auto gain", Toggle::Chip, n, "ON: more DRIVE changes the character, not the loudness (the ear is not fooled by 'louder = better')"));
@@ -527,6 +544,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
     addAndMakeVisible (rndPageB);
     randomPanel.onRandomized = [this] { lastName = {}; };
     addChildComponent (randomPanel);
+    addChildComponent (seqView);
     addAndMakeVisible (designer);
     addAndMakeVisible (view);
 
@@ -539,6 +557,8 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
         { "02", "PROCESS",    { { "Filter", PFilter, on (preType, 0.5f) }, { "Distortion", PDist, on (drive, 0.05f) }, { "Waveshaper", PWaveshaper, [this] { return roundToInt (raw (proc, ParamIDs::labId (0, "lab"))) == 6 || roundToInt (raw (proc, ParamIDs::labId (1, "lab"))) == 6; } }, { "Transient", PTransient, on (clickLevel, -59.f) }, { "EQ", PEq, [this] { return std::abs (raw (proc, ParamIDs::bellGain)) > 0.05f || raw (proc, ParamIDs::lowCut) > 20.5f; } } }, {} },
         { "03", "MODULATION", { { "LFO", PLfo, [this] { for (int r = 0; r < 16; ++r) if (raw (proc, ParamIDs::mtxId (r, "on")) > 0.5f && roundToInt (raw (proc, ParamIDs::mtxId (r, "src"))) >= 1 && roundToInt (raw (proc, ParamIDs::mtxId (r, "src"))) <= 4) return true; return false; } },
                                 { "Matrix", PMatrix, [this] { for (int r = 0; r < 16; ++r) if (raw (proc, ParamIDs::mtxId (r, "on")) > 0.5f) return true; return false; } },
+                                { "Sequencer", PSeq, [this] { return raw (proc, ParamIDs::seqOn) > 0.5f; } },
+                                { "Gate", PGate, [this] { return raw (proc, ParamIDs::gateOn) > 0.5f; } },
                                 { "Steps", PShape, [] { return true; } } }, {} },
         { "04", "SOURCE",     { { "Audio Input", PFx, [] { return true; } }, { "Kick Tail", PTail, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 1; } }, { "Kick > Reverse", PSample, [this] { return roundToInt (raw (proc, ParamIDs::source)) == 2; } },
                                 { "Sub", PSub, on (subHz, 20.5f) }, { "Stereo", PStereo, on (uniVoices, 1.5f) } }, {} } };
@@ -641,6 +661,7 @@ void Canvas::showPage (int pg)
     matrix.setVisible (page == PMatrix);
     kickView.setVisible (page == PSample);
     randomPanel.setVisible (page == PRandom);
+    seqView.setVisible (page == PSeq);
     for (auto& c : cards)
     {
         const bool on = cardOn (c);
@@ -729,6 +750,8 @@ void Canvas::resized()
         case PWaveshaper: { shaperView.setBounds (wa.removeFromTop (wa.getHeight() - rowH - gap)); wa.removeFromTop (gap); row ({ { cCurve[shaperView.stage], 0 } }); break; }
         case PSettings: row ({ { cSettings, 0 } }); break;
         case PRandom: randomPanel.setBounds (wa.removeFromTop (330)); break;
+        case PSeq:    row ({ { cSeq, 520 } }); seqView.setBounds (wa.removeFromTop (240)); break;
+        case PGate:   row ({ { cGate, 0 } }); break;
         case PLfo:    for (int i = 0; i < 4; ++i) row ({ { cLfo[i], 0 } }); break;
         case PMatrix: matrix.setBounds (wa); break;
         case PFx:     if (cFxDet >= 0) { row ({ { cFxDet, 0 } }); row ({ { cFxOut, 0 } }); fxLedArea = cards[(size_t) cFxDet].area.reduced (16, 10).removeFromRight (120).withTrimmedTop (40).withHeight (60); } break;
@@ -784,7 +807,8 @@ void Canvas::paint (Graphics& g)
     g.setFont (lnf.font (12.f, Medium)); g.setColour (t.textMute);
     g.drawText ("BPM " + String (roundToInt (proc.getEngine().tempoNow.load())), Rectangle<int> (W - 16 - 240, 13, 100, 30), Justification::centred);
     for (auto& c : cards) if (! c.area.isEmpty() && cardOn (c)) doomsday::flat::card (g, lnf, c.area, c.title, c.dot);
-    if (page == PRandom) doomsday::flat::card (g, lnf, randomPanel.getBounds().expanded (0, 0), {}, ReTheme::accent);
+    if (page == PRandom) doomsday::flat::card (g, lnf, randomPanel.getBounds(), {}, ReTheme::accent);
+    if (page == PSeq) doomsday::flat::card (g, lnf, seqView.getBounds(), {}, tokens().cool);
 }
 
 // ======================================================================= NAV
@@ -900,6 +924,7 @@ void Canvas::timerCallback()
     if (designer.isVisible()) designer.tick();
     if (shaperView.isVisible()) shaperView.tick();
     if (kickView.isVisible()) kickView.tick();
+    if (seqView.isVisible()) seqView.tick();
     const int mode = raw (proc, ParamIDs::timing) > 0.5f ? 1 : 0;
     if (mode != lastMode) { lastMode = mode; showPage (page); }
     nav.repaint();   // the module dots follow the knobs

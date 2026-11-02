@@ -12,6 +12,7 @@ namespace re4ge
         // a choice / switch: the allowed values per style
         struct Pick { const char* id; int group; std::array<std::vector<int>, 4> options; };
         using R = Randomizer;
+        constexpr int WNoiseIdx = 5;            // Choices::oscWaves: NOISE
         constexpr std::pair<float, float> same (float a, float b) { return { a, b }; }
 
         const std::vector<Knob>& knobs()
@@ -20,9 +21,9 @@ namespace re4ge
                 // OSC 1 + layers + unison / width
                 { "osc_blend", R::GOsc, { same (0.f, 0.5f), same (0.f, 0.8f), same (0.f, 0.6f), same (0.f, 1.f) } },
                 { "osc_pw", R::GOsc, { same (0.3f, 0.7f), same (0.2f, 0.8f), same (0.2f, 0.6f), same (0.05f, 0.95f) } },
-                { "osc_sine", R::GOsc, { same (-18.f, -3.f), same (-24.f, -6.f), same (-24.f, -9.f), same (-40.f, 0.f) } },
-                { "osc_warp_amt", R::GOsc, { same (0.1f, 0.5f), same (0.2f, 0.7f), same (0.2f, 0.6f), same (0.1f, 0.9f) } },
-                { "osc_warp_env", R::GOsc, { same (0.2f, 0.8f), same (0.f, 1.f), same (0.f, 0.6f), same (0.f, 1.f) } },
+                { "osc_sine", R::GOsc, { same (-18.f, -3.f), same (-24.f, -6.f), same (-24.f, -9.f), same (-20.f, -3.f) } },
+                { "osc_warp_amt", R::GOsc, { same (0.1f, 0.5f), same (0.2f, 0.7f), same (0.2f, 0.6f), same (0.1f, 0.7f) } },
+                { "osc_warp_env", R::GOsc, { same (0.2f, 0.8f), same (0.f, 1.f), same (0.f, 0.6f), same (0.f, 0.6f) } },
                 { "tail_start", R::GOsc, { same (3.f, 5.5f), same (3.f, 6.f), same (4.f, 7.f), same (2.f, 9.f) }, true },
                 { "tail_drop", R::GOsc, { same (30.f, 150.f), same (25.f, 120.f), same (25.f, 90.f), same (15.f, 300.f) }, true },
                 { "tail_curve", R::GOsc, { same (2.f, 5.f), same (2.f, 5.f), same (2.5f, 6.f), same (1.f, 8.f) } },
@@ -30,17 +31,18 @@ namespace re4ge
                 { "tail_tone", R::GOsc, { same (-0.2f, 0.6f), same (0.f, 0.8f), same (0.2f, 0.95f), same (-1.f, 1.f) } },
                 { "tail_scream", R::GOsc, { same (0.f, 0.4f), same (0.1f, 0.6f), same (0.3f, 0.8f), same (0.f, 1.f) } },
                 { "tail_scream_hz", R::GOsc, { same (500.f, 1500.f), same (600.f, 1800.f), same (500.f, 1600.f), same (200.f, 4000.f) }, true },
-                { "uni_voices", R::GOsc, { same (3.f, 5.f), same (4.f, 7.f), same (3.f, 6.f), same (1.f, 7.f) } },
-                { "uni_detune", R::GOsc, { same (8.f, 22.f), same (12.f, 35.f), same (10.f, 30.f), same (0.f, 60.f) } },
-                { "st_width", R::GOsc, { same (0.15f, 0.4f), same (0.25f, 0.5f), same (0.15f, 0.45f), same (0.f, 0.8f) } },
-                { "st_smear", R::GOsc, { same (0.f, 0.4f), same (0.2f, 0.6f), same (0.f, 0.5f), same (0.f, 1.f) } },
+                { "uni_voices", R::GOsc, { same (3.f, 5.f), same (4.f, 7.f), same (3.f, 6.f), same (4.f, 7.f) } },
+                { "uni_detune", R::GOsc, { same (8.f, 22.f), same (12.f, 35.f), same (10.f, 30.f), same (12.f, 45.f) } },
+                { "st_width", R::GOsc, { same (0.15f, 0.4f), same (0.25f, 0.5f), same (0.15f, 0.45f), same (0.25f, 0.6f) } },
+                { "st_smear", R::GOsc, { same (0.f, 0.4f), same (0.2f, 0.6f), same (0.f, 0.5f), same (0.2f, 0.6f) } },
                 // PITCH
-                { "pitch_amt", R::GPitch, { same (3.f, 12.f), same (5.f, 12.f), same (5.f, 24.f), same (-24.f, 24.f) } },
-                { "pitch_time", R::GPitch, { same (30.f, 120.f), same (20.f, 100.f), same (10.f, 80.f), same (5.f, 300.f) }, true },
+                { "pitch_amt", R::GPitch, { same (3.f, 12.f), same (5.f, 12.f), same (5.f, 24.f), same (3.f, 14.f) } },
+                { "pitch_time", R::GPitch, { same (30.f, 120.f), same (20.f, 100.f), same (10.f, 80.f), same (25.f, 200.f) }, true },
                 // ENV (the owner: the bass starts AFTER the kick's tail - never early)
                 { "env_delay_pct", R::GEnv, { same (24.f, 38.f), same (22.f, 36.f), same (25.f, 40.f), same (20.f, 45.f) } },
-                { "env_swell", R::GEnv, { same (80.f, 220.f), same (60.f, 180.f), same (40.f, 140.f), same (20.f, 300.f) }, true },
-                { "env_curve", R::GEnv, { same (-0.8f, 0.2f), same (-0.6f, 0.6f), same (-0.4f, 0.8f), same (-1.f, 1.f) } },
+                // SWELL: slow enough that the dirt / crackle comes late in the step (the owner, 2026-11-02: "trzeszczenie mogłoby wchodzić później")
+                { "env_swell", R::GEnv, { same (110.f, 220.f), same (100.f, 200.f), same (80.f, 180.f), same (100.f, 260.f) }, true },
+                { "env_curve", R::GEnv, { same (-0.8f, 0.f), same (-0.7f, 0.2f), same (-0.6f, 0.4f), same (-0.7f, 0.4f) } },
                 { "env_hold_pct", R::GEnv, { same (0.f, 30.f), same (0.f, 60.f), same (20.f, 100.f), same (0.f, 100.f) } },
                 { "env_decay_pct", R::GEnv, { same (10.f, 60.f), same (0.f, 50.f), same (0.f, 30.f), same (0.f, 90.f) } },
                 { "env_sustain", R::GEnv, { same (0.f, 0.6f), same (0.3f, 1.f), same (0.6f, 1.f), same (0.f, 1.f) } },
@@ -49,24 +51,24 @@ namespace re4ge
                 { "env_fade", R::GEnv, { same (12.f, 40.f), same (8.f, 30.f), same (6.f, 25.f), same (3.f, 80.f) }, true },
                 // DIST
                 { "dist_drive", R::GDist, { same (6.f, 16.f), same (8.f, 20.f), same (14.f, 30.f), same (4.f, 36.f) } },
-                { "dist_env", R::GDist, { same (0.2f, 0.8f), same (0.f, 0.7f), same (0.f, 0.5f), same (0.f, 1.f) } },
+                { "dist_env", R::GDist, { same (0.4f, 0.9f), same (0.4f, 0.9f), same (0.3f, 0.7f), same (0.4f, 1.f) } },
                 { "dist_bias", R::GDist, { same (0.f, 0.2f), same (0.f, 0.3f), same (0.1f, 0.5f), same (-0.6f, 0.6f) } },
                 { "dist_mix", R::GDist, { same (0.7f, 1.f), same (0.8f, 1.f), same (0.9f, 1.f), same (0.5f, 1.f) } },
-                { "dist2_drive", R::GDist, { same (0.f, 6.f), same (4.f, 14.f), same (8.f, 20.f), same (0.f, 24.f) } },
+                { "dist2_drive", R::GDist, { same (0.f, 6.f), same (4.f, 14.f), same (8.f, 20.f), same (0.f, 14.f) } },
                 { "dist2_mix", R::GDist, { same (0.5f, 1.f), same (0.6f, 1.f), same (0.8f, 1.f), same (0.3f, 1.f) } },
-                { "dist1_hard", R::GDist, { same (0.f, 0.5f), same (0.2f, 0.7f), same (0.4f, 1.f), same (0.f, 1.f) } },
-                { "dist2_hard", R::GDist, { same (0.f, 0.5f), same (0.2f, 0.7f), same (0.4f, 1.f), same (0.f, 1.f) } },
-                { "dist1_tone", R::GDist, { same (-0.3f, 0.3f), same (-0.2f, 0.5f), same (0.f, 0.6f), same (-1.f, 1.f) } },
+                { "dist1_hard", R::GDist, { same (0.f, 0.5f), same (0.2f, 0.7f), same (0.4f, 1.f), same (0.1f, 0.8f) } },
+                { "dist2_hard", R::GDist, { same (0.f, 0.5f), same (0.2f, 0.7f), same (0.4f, 1.f), same (0.1f, 0.8f) } },
+                { "dist1_tone", R::GDist, { same (-0.3f, 0.3f), same (-0.2f, 0.5f), same (0.f, 0.6f), same (-0.4f, 0.6f) } },
                 // FILTER / EQ (the low end always stays: LOW CUT is never touched)
-                { "flt_pre_hz", R::GFilter, { same (800.f, 4000.f), same (1500.f, 8000.f), same (2000.f, 10000.f), same (200.f, 14000.f) }, true },
-                { "flt_pre_reso", R::GFilter, { same (0.f, 0.4f), same (0.1f, 0.6f), same (0.2f, 0.7f), same (0.f, 0.9f) } },
-                { "flt_pre_env", R::GFilter, { same (0.5f, 2.5f), same (0.f, 2.f), same (0.f, 1.5f), same (-3.f, 4.f) } },
-                { "eq_high_cut", R::GFilter, { same (2000.f, 9000.f), same (5000.f, 16000.f), same (4000.f, 14000.f), same (1500.f, 16000.f) }, true },
+                { "flt_pre_hz", R::GFilter, { same (800.f, 4000.f), same (1500.f, 8000.f), same (2000.f, 10000.f), same (900.f, 14000.f) }, true },
+                { "flt_pre_reso", R::GFilter, { same (0.f, 0.4f), same (0.1f, 0.6f), same (0.2f, 0.7f), same (0.f, 0.6f) } },
+                { "flt_pre_env", R::GFilter, { same (0.5f, 2.5f), same (0.f, 2.f), same (0.f, 1.5f), same (-1.f, 2.5f) } },
+                { "eq_high_cut", R::GFilter, { same (2000.f, 9000.f), same (5000.f, 16000.f), same (4000.f, 14000.f), same (6000.f, 16000.f) }, true },
                 { "eq_bell_hz", R::GFilter, { same (1200.f, 2400.f), same (1500.f, 2600.f), same (1000.f, 2500.f), same (300.f, 5000.f) }, true },
                 { "eq_bell_gain", R::GFilter, { same (0.f, 6.f), same (2.f, 8.f), same (2.f, 9.f), same (-8.f, 10.f) } },
-                { "eq_bell_q", R::GFilter, { same (0.8f, 1.6f), same (0.8f, 2.f), same (1.f, 2.5f), same (0.4f, 4.f) } },
+                { "eq_bell_q", R::GFilter, { same (0.8f, 1.6f), same (0.8f, 2.f), same (1.f, 2.5f), same (0.6f, 2.2f) } },
                 // SHAPE lanes' depth
-                { "shp_pitch_range", R::GShape, { same (3.f, 7.f), same (3.f, 12.f), same (5.f, 12.f), same (2.f, 24.f) } },
+                { "shp_pitch_range", R::GShape, { same (3.f, 7.f), same (3.f, 12.f), same (5.f, 12.f), same (3.f, 12.f) } },
                 { "shp_harm_depth", R::GShape, { same (0.3f, 0.7f), same (0.3f, 0.9f), same (0.2f, 0.6f), same (0.f, 1.f) } },
                 { "shp_phase_depth", R::GShape, { same (0.3f, 0.8f), same (0.3f, 1.f), same (0.2f, 0.8f), same (0.f, 1.f) } } };
             return k;
@@ -79,10 +81,10 @@ namespace re4ge
                 { "tail_dist", R::GOsc, { std::vector<int> { 0, 1, 4 }, { 1, 2, 4 }, { 2, 3, 4 }, { 0, 1, 2, 3, 4, 5 } } },
                 { "pitch_mode", R::GPitch, { std::vector<int> { 0, 2, 2 }, { 0, 2, 3 }, { 2, 3 }, { 0, 1, 2, 3 } } },
                 { "dist_type", R::GDist, { std::vector<int> { 0, 1 }, { 1, 2 }, { 2, 4 }, { 0, 1, 2, 3, 4, 5 } } },
-                { "dist2_type", R::GDist, { std::vector<int> { 0, 1 }, { 1, 4 }, { 2, 4 }, { 0, 1, 2, 3, 4, 5 } } },
+                { "dist2_type", R::GDist, { std::vector<int> { 0, 1 }, { 1, 4 }, { 2, 4 }, { 0, 1, 2, 3, 4 } } },
                 { "dist1_lab", R::GDist, { std::vector<int> { 0 }, { 0, 1, 2 }, { 0, 2, 5 }, { 1, 2, 3, 4, 5 } } },
                 { "dist2_lab", R::GDist, { std::vector<int> { 0 }, { 0, 1, 3 }, { 0, 3, 5 }, { 1, 2, 3, 4, 5 } } },
-                { "flt_pre_type", R::GFilter, { std::vector<int> { 1, 1, 0 }, { 1, 1, 0 }, { 0, 1, 1 }, { 0, 1, 1, 3, 4 } } },   // no HP: the low end stays
+                { "flt_pre_type", R::GFilter, { std::vector<int> { 1, 1, 0 }, { 1, 1, 0 }, { 0, 1, 1 }, { 0, 1, 1 } } },   // LP / OFF only: HP takes the low end, a sweeping BP / NOTCH "slurps" (the owner, 2026-11-02)
                 { "shp_pitch_on", R::GShape, { std::vector<int> { 0, 0, 1 }, { 0, 1 }, { 0, 1 }, { 0, 1 } } },
                 { "shp_harm_on", R::GShape, { std::vector<int> { 0, 1 }, { 0, 1 }, { 0, 0, 1 }, { 0, 1 } } },
                 { "shp_phase_on", R::GShape, { std::vector<int> { 0 }, { 0, 1 }, { 0 }, { 0, 1 } } } };
@@ -197,8 +199,10 @@ namespace re4ge
                 const bool on = rng.nextFloat() < onChance[s];
                 setParam (ParamIDs::oscId (o, "level"), on ? -18.f + 15.f * rng.nextFloat() : -60.f);
                 if (! on) continue;
-                static const int waves[4][4] { { 2, 2, 0, 1 }, { 2, 4, 5, 2 }, { 2, 3, 5, 4 }, { 0, 1, 3, 5 } };
-                setParam (ParamIDs::oscId (o, "wave"), (float) waves[s][rng.nextInt (4)]);
+                static const int waves[4][4] { { 2, 2, 0, 1 }, { 2, 4, 5, 2 }, { 2, 3, 5, 4 }, { 2, 3, 2, 5 } };
+                const int wv = waves[s][rng.nextInt (4)];
+                setParam (ParamIDs::oscId (o, "wave"), (float) wv);
+                if (wv == WNoiseIdx) setParam (ParamIDs::oscId (o, "level"), -26.f + 10.f * rng.nextFloat());   // NOISE: only a layer of air
                 static const int octs[5] { 1, 1, 2, 0, -1 };
                 setParam (ParamIDs::oscId (o, "oct"), (float) octs[rng.nextInt (5)]);
                 setParam (ParamIDs::oscId (o, "fine"), (rng.nextFloat() * 2.f - 1.f) * (s == Experimental ? 40.f : 12.f));
@@ -234,11 +238,26 @@ namespace re4ge
         if (getParam (ParamIDs::subLevel) < -12.f) setParam (ParamIDs::subLevel, -3.f);
         if (getParam (ParamIDs::delayPct) < 20.f) setParam (ParamIDs::delayPct, 24.f);     // after the kick's tail
         if (getParam (ParamIDs::gatePct) < 80.f) setParam (ParamIDs::gatePct, 90.f);
+        // the swell has to fit the step: on 1/16 at 150 BPM a step is 100 ms - a 200 ms swell would never open (silence)
+        if (moves (GEnv))
+        {
+            const int stIdx = juce::roundToInt (getParam (ParamIDs::step));
+            const double bpmNow = juce::jlimit (60.0, 300.0, (double) proc.getEngine().tempoNow.load());
+            const double stepMs = 60000.0 / bpmNow * (stIdx == 2 ? 0.25 : stIdx == 1 ? 0.5 : 1.0);
+            const double room = stepMs * (getParam (ParamIDs::gatePct) - getParam (ParamIDs::delayPct)) * 0.01;
+            if (getParam (ParamIDs::swell) > room * 0.6) setParam (ParamIDs::swell, (float) juce::jmax (2.0, room * 0.6));
+        }
         // LOUDNESS: two passes on OUTPUT so every random sound sits at about -14 dB RMS
         float db = measureDb();
         for (int pass = 0; pass < 2 && std::isfinite (db) && db > -80.f; ++pass)
         {
             setParam (ParamIDs::level, jlimit (-36.f, 6.f, getParam (ParamIDs::level) + (-14.f - db)));
+            db = measureDb();
+        }
+        // and never over 0 dB: a peaky sound at -14 dB RMS is turned down until its peak is below -0.5 dB
+        if (std::isfinite (db) && lastPeak > 0.944f)
+        {
+            setParam (ParamIDs::level, jlimit (-36.f, 6.f, getParam (ParamIDs::level) - 20.f * std::log10 (lastPeak / 0.944f) - 0.2f));
             db = measureDb();
         }
         return db;
@@ -256,7 +275,7 @@ namespace re4ge
         const double rate = 48000.0; const int block = 512, beat = (int) (rate * 0.4);
         offline->prepare (rate, block);
         AudioBuffer<float> b (2, block);
-        double acc = 0; int cnt = 0;
+        double acc = 0; int cnt = 0; lastPeak = 0.f;
         for (int pos = 0; pos < 2 * beat; pos += block)
         {
             b.clear(); MidiBuffer m;
@@ -264,6 +283,7 @@ namespace re4ge
             offline->setParams (p);
             offline->process (b, m);
             if (pos >= beat) for (int i = 0; i < block; ++i) { const double v = 0.5 * (b.getSample (0, i) + b.getSample (1, i)); if (! std::isfinite (v)) return -999.f; acc += v * v; ++cnt; }
+            for (int ch = 0; ch < 2; ++ch) lastPeak = jmax (lastPeak, b.getMagnitude (ch, 0, block));
         }
         return (float) (10.0 * std::log10 (acc / jmax (1, cnt) + 1e-12));
     }

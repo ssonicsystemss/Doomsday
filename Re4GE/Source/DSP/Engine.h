@@ -58,6 +58,7 @@ namespace re
             guiCap = juce::jmin ((int) gui.size(), (int) (sr * 2.0));
             clock = 0;
             builtCurves = -1;
+            trig.resetSong(); gateG = 1.f; gateLo[0] = gateLo[1] = 0.f;
             latch();
             stop();
         }
@@ -69,16 +70,19 @@ namespace re
         void setSample (std::unique_ptr<Sample> s) { Sample* raw = s.get(); if (s != nullptr) keep.push_back (std::move (s)); sample.store (raw); }
         // RE4GE FX LIVE: a sample owned by the caller (pre-allocated; the audio thread fills it) - no allocation here
         void setSampleRaw (Sample* s) { sample.store (s); }
+        // the host's position at the start of this block (quarter notes); valid = false when the host is stopped / has none
+        void setHostPpq (double ppq, bool valid) { blockPpq = ppq; ppqValid = valid && std::isfinite (ppq); }
         const Sample* currentSample() const { return sample.load(); }
 
         void process (juce::AudioBuffer<float>& buffer, const juce::MidiBuffer& midi)
         {
             const int n = buffer.getNumSamples();
-            int pos = 0;
+            int pos = 0; eventPos = 0;
             for (const auto meta : midi)
             {
                 const int at = juce::jlimit (0, n, meta.samplePosition);
                 if (at > pos) { render (buffer, pos, at - pos); pos = at; }
+                eventPos = at;
                 const auto m = meta.getMessage();
                 if (m.isNoteOn()) noteOn (m.getNoteNumber(), m.getFloatVelocity(), false);
                 else if (m.isNoteOff()) trig.noteOff (m.getNoteNumber());
@@ -94,6 +98,7 @@ namespace re
         std::atomic<float> tempoNow { 150.f }, outPeak { 0.f };
         std::array<std::atomic<float>, 2> drivePeak {};      // the stages' input level for the live dot (the GUI takes and resets it)
         std::atomic<int> hitSerial { 0 }, guiLength { 0 };
+        int seqStepNow() const { return trig.seqNow.load(); }
         std::vector<float> gui;                 // the output since the last note (GUI playhead / meter)
 
     private:
@@ -163,11 +168,18 @@ namespace re
             tone.dynPre = tone.dynPre || (p.preType != 0 && p.lane[LaneHarm].on);
             levelG = std::pow (10.f, p.levelDb / 20.f);
             ampC = (float) (1.0 - std::exp (-1.0 / (0.0005 * osr)));        // 0.5 ms smoothing: no clicks between steps
+            static const double gateDivBeats[5] { 0.5, 0.25, 0.125, 1.0 / 3.0, 1.0 / 6.0 };
+            gateBeats = gateDivBeats[juce::jlimit (0, 4, p.gateDiv)];
+            gateC = (float) (1.0 - std::exp (-1.0 / (juce::jmax (0.2f, p.gateSmoothMs) * 0.001 * osr / 3.0)));
+            gateSplit = (float) (1.0 - std::exp (-juce::MathConstants<double>::twoPi * 250.0 / osr));
         }
         void noteOn (int note, float velocity, bool isAudition)
         {
             if (clock % grid == 0) latch();       // a note on a grid point already gets this block's settings
-            trig.noteOn (note, isAudition);
+            // SEQUENCER: which song step this note starts on (host grid), so step 5 of the pattern is always the same bar position
+            notePpq = ppqValid ? blockPpq + eventPos / sr * bpmPending / 60.0 : -1.0;
+            const long long base = notePpq >= 0.0 && ! isAudition ? (long long) std::floor (notePpq / pending.stepBeats + 0.25) : -1;
+            trig.noteOn (note, isAudition, base);
             const double prevHz = hz * glideR;
             const bool legato = trig.isActive() && amp > 1.0e-4f;
             playNote = p.keyTrack ? note : p.fixedNote;
@@ -219,11 +231,11 @@ namespace re
             {
                 auto& c = ch[(size_t) sd];
                 if (lock) { c.phase = 0.0; uniSeed (c.uph, sd); OscBank::reset (p, c.ob, sd); }
-                if (p.source == SrcTail) c.readPos = p.gate ? (double) tail.length() - 2.0 : tm.gateEnd * 0.001 * sr;   // reaches the tail's start on the gate end
+                if (p.source == SrcTail) c.readPos = p.gate ? (double) tail.length() - 2.0 : trig.gateEndNow (p) * 0.001 * sr;   // reaches the tail's start on the gate end
                 else if (p.source == SrcSample && playing != nullptr)
                 {
                     const double sp = smpSpeed();
-                    c.readPos = p.sampleReverse ? (p.gate ? p.tailLenMs : tm.gateEnd) * 0.001 * playing->rate * (p.sampleKeepLength ? 1.0 : sp) + p.sampleStartMs * 0.001 * playing->rate
+                    c.readPos = p.sampleReverse ? (p.gate ? p.tailLenMs : trig.gateEndNow (p)) * 0.001 * playing->rate * (p.sampleKeepLength ? 1.0 : sp) + p.sampleStartMs * 0.001 * playing->rate
                                                 : p.sampleStartMs * 0.001 * playing->rate;
                 }
                 for (auto& u : c.upos) u = c.readPos;
@@ -383,7 +395,25 @@ namespace re
                     else yl = yr = centre;
                     // the gate once more AFTER the filters: their ringing (the sub crossover delays the lows by a few ms) never reaches the next kick
                     postGate += ((float) gateNow - postGate) * ampC;
-                    const float gain = levelG * vel * postGate;
+                    float gain = levelG * vel * postGate;
+                    if (p.gateFxOn)
+                    {
+                        // GATE: cuts the finished sound in rhythm (on the host grid when there is one), FULL or only above ~250 Hz
+                        const double beats = (notePpq >= 0.0 ? notePpq : 0.0) + trig.timeMs() * bpm / 60000.0;
+                        const double f = beats / gateBeats - std::floor (beats / gateBeats);
+                        const double duty = p.gateDuty;
+                        double shape = 0.0;
+                        if (f < duty) shape = p.gateShape == 1 ? std::pow (std::sin (juce::MathConstants<double>::pi * f / duty), 2.0)
+                                            : p.gateShape == 2 ? std::exp (-3.0 * f / duty) : 1.0;
+                        const float tgt = 1.f - p.gateDepth * (1.f - (float) shape);
+                        gateG += (tgt - gateG) * gateC;
+                        if (p.gateHighs)
+                        {
+                            gateLo[0] += (yl - gateLo[0]) * gateSplit; gateLo[1] += (yr - gateLo[1]) * gateSplit;
+                            yl = gateLo[0] + gateG * (yl - gateLo[0]); yr = gateLo[1] + gateG * (yr - gateLo[1]);
+                        }
+                        else gain *= gateG;
+                    }
                     yl = outputStage (yl, p, gain); yr = outputStage (yr, p, gain);
                     trig.advance (msPerSample);
                 }
@@ -441,6 +471,8 @@ namespace re
         doomsday::dsp::SvfCoefs clickC;
         int playNote = 31, guiCap = 0, guiWrite = 0;
         float vel = 1.f, amp = 0.f, postGate = 0.f, levelG = 1.f, ampC = 0.01f;
+        double blockPpq = 0.0, notePpq = -1.0, gateBeats = 0.25; bool ppqValid = false; int eventPos = 0;
+        float gateG = 1.f, gateC = 0.01f, gateSplit = 0.01f; float gateLo[2] { 0.f, 0.f };
         std::array<std::unique_ptr<juce::dsp::Oversampling<float>>, 4> osArr;
         int osIdx = 1, builtCurves = -1;
         bool offline = false;

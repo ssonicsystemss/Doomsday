@@ -133,9 +133,11 @@ int main (int argc, char** argv)
     if (argc > 4 && String (argv[2]) == "--render")
     {
         StringArray lines; lines.addLines (File::getCurrentWorkingDirectory().getChildFile (argv[3]).loadFileAsString());
+        bool kicks = false;
         for (auto& ln : lines)
         {
             auto t = StringArray::fromTokens (ln.trim(), " ", ""); if (t.size() < 2) continue;
+            if (t[0] == "kicks") { kicks = t[1].getIntValue() != 0; continue; }                 // 'kicks 1': a kick on every beat (A/B)
             if (t[0] == "preset") p.setCurrentProgram (byName (p, ln.fromFirstOccurrenceOf ("preset ", false, false).trim().toRawUTF8()));
             else if (t[0] == "sample") p.loadSample (File (ln.fromFirstOccurrenceOf ("sample ", false, false).trim()));
             else if (t[0] == "detect") p.detectKick (t[1].getIntValue());
@@ -143,7 +145,10 @@ int main (int argc, char** argv)
         }
         host.bpm = argc > 5 ? String (argv[5]).getDoubleValue() : 147.0;
         const int beatsN = argc > 6 ? String (argv[6]).getIntValue() : 4;
+        host.withPpq = true;                                                   // like FL: the SEQUENCER follows the song grid
         auto b = play (p, host, everyBeat (beatsN, host.bpm), beatsN * 60.0 / host.bpm);
+        host.withPpq = false;
+        if (kicks) addKicks (b, host.bpm);
         writeWav (File::getCurrentWorkingDirectory().getChildFile (argv[4]), b);
         printf ("peak %.2f\n", b.getMagnitude (0, 0, b.getNumSamples()));
         return 0;

@@ -415,6 +415,7 @@ Canvas::Canvas (ReProcessor& p) : proc (p), view (p), designer (p), shaperView (
         knob (c, smpRoot, "Root", "SAMPLE: the note of your WAV (with KEY TRACK it is played on the note you play). DETECT sets it");
         knob (c, smpStart, "Start", "Where the region that plays begins (backwards: where the bass ends, on the gate). DETECT sets it");
         knob (c, smpEnd, "End", "Where the region ends (backwards: where the bass starts). DETECT sets it to the end of the tail");
+        c.head.push_back (seg (smpPitch, { "Varispeed", "Keep len" }, acc, "VARISPEED: another note = faster / slower (like a record). KEEP LENGTH: another note, the same length (grains, like Ancient Drums)"));
         c.head.push_back (seg (smpMode, { "Original", "Processed" }, acc, "ORIGINAL: the kick as it is (the distortion stages are skipped). PROCESSED: through the whole RE4GE chain"));
         for (auto [label, use, tip] : { std::tuple<const char*, int, const char*> { "All", 3, "DETECT: the whole kick plays (reversed: the click lands on the gate end)" },
                                         { "Punch+", 2, "DETECT: everything after the click" },

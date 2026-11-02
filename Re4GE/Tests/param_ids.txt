@@ -270,3 +270,4 @@ mtx16_amt
 mtx16_pol
 smp_end
 smp_mode
+smp_pitch

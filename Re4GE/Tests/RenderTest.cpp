@@ -352,6 +352,24 @@ int main (int argc, char** argv)
                "max diff " + String (diff (before, after), 5));
         p.clearSample(); p.setPlayHead (&host);
     }
+    // 14d) KEEP LENGTH (WSOLA grains): an octave up keeps the sample's length (VARISPEED halves it), the pitch really goes up
+    {
+        const File sf = outDir.getChildFile ("test_sine.wav");
+        { AudioBuffer<float> k (2, (int) (sr * 0.4)); for (int i = 0; i < k.getNumSamples(); ++i) { const float v = 0.6f * (float) std::sin (6.2831853 * 55.0 * i / sr); k.setSample (0, i, v); k.setSample (1, i, v); } writeWav (sf, k); }
+        auto run = [&] (bool keep)
+        {
+            p.setCurrentProgram (byName (p, "GATE")); host.bpm = 150.0;
+            p.loadSample (sf);
+            set (p, source, 2.f); set (p, smpReverse, 0.f); set (p, smpRoot, 33.f); set (p, smpStart, 0.f); set (p, smpPitch, keep ? 1.f : 0.f);
+            set (p, subHz, 20.f); set (p, uniVoices, 1.f); set (p, drive, 0.f); set (p, highCut, 16000.f); set (p, swell, 2.f); set (p, smpMode, 0.f);
+            return play (p, host, { { 0.0, 700.0, 45 } }, 0.8);
+        };
+        const auto keep = run (true), vari = run (false);
+        const double keepLate = rms (keep, 270.0, 360.0), variLate = rms (vari, 270.0, 360.0), hz = domHz (keep, 60.0, 120.0);
+        check (keepLate > 0.05 && variLate < keepLate * 0.1 && std::abs (hz - 110.0) < 8.0, "KEEP LENGTH: +12 st keeps the length (varispeed ends at half), the pitch doubles",
+               "late rms " + String (keepLate, 3) + " vs " + String (variLate, 4) + ", " + String (hz, 1) + " Hz");
+        p.clearSample();
+    }
     // 14) every knob changes the sound: min vs max, in at least one of the contexts where it matters
     {
         // a short reversed-kick-like WAV for the SAMPLE source

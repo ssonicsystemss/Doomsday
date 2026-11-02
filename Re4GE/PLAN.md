@@ -149,8 +149,7 @@ Ostateczny test: **ucho właściciela + A/B z jego samplami** (Bass_15 / 16, FHS
 4. ✅ **(v0.8, 2026-11-02)** Modulation Matrix (16 wierszy, 23 źródła, 28 celów, polarity, suma + clamp, raz na 32 próbki) + LFO 1–4
    (Shared `mod::Lfo`, sync / Hz / phase / retrig). Później: VIA, CURVE, ASSIGN klikiem w gałkę z pierścieniami (jak w 5CR34M 4LPH4), ENV 1–2.
 5. ✅ część 1 **(v0.9, 2026-11-02)** Kick-to-Reverse: `DSP/KickAnalysis.h` (sekcje + pewność + ROOT), region START / END, DETECT Tail / Body+Tail /
-   Punch+ / All, ORIGINAL / PROCESSED, OWN SOUND (16-bit kopia w stanie) + gra bez pliku, `GUI/KickView`. **Część 2:** PITCH PROCESSED (WSOLA z
-   Ancient Drums: pitch bez zmiany długości), RE4GE FX (osobna wtyczka-efekt: kick z wejścia / sidechain, wykrywanie uderzeń, CAPTURE).
+   Punch+ / All, ORIGINAL / PROCESSED, OWN SOUND (16-bit kopia w stanie) + gra bez pliku, `GUI/KickView`. **Część 2:** ✅ KEEP LENGTH (WSOLA `DSP/GrainReader.h`, z Ancient Drums); RE4GE FX (osobna wtyczka-efekt: kick z wejścia / sidechain, wykrywanie uderzeń, CAPTURE).
 6. Randomizer, sekwencer + gate, EQ, dynamika, presety z kategoriami, eksport.
 7. Dodatki (morph A/B, waveform compare, reference analyzer, presety modułów).
 Szczególnie osobne testy jakości dla: ekstrakcji ogona, zaawansowanej modulacji, wieloetapowego przesteru.

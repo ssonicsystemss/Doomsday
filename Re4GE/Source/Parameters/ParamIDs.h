@@ -168,6 +168,7 @@ namespace ParamIDs
     // ---- v0.9: step 5, KICK-TO-REVERSE
     inline constexpr const char* smpEnd    = "smp_end";
     inline constexpr const char* smpMode   = "smp_mode";
+    inline constexpr const char* smpPitch  = "smp_pitch";
     inline const juce::StringArray macroNames { "BODY", "WEIGHT", "REVERSE", "PITCH", "GRIT", "BITE", "MOVEMENT", "SPACE" };
 
     // v0.1 / v0.2 IDs -> v0.3 (old user presets still load); the v0.3 IDs are FROZEN: never rename (Tests/param_ids.txt)
@@ -254,6 +255,7 @@ namespace Choices
     inline const juce::StringArray lfoWaves { "SINE", "TRI", "SAW UP", "SAW DN", "SQUARE", "S&H", "SMOOTH", "CHAOS" };
     inline const juce::StringArray polarities { "AS IS", "UNI", "BI" };
     inline const juce::StringArray smpModes { "ORIGINAL", "PROCESSED" };
+    inline const juce::StringArray smpPitches { "VARISPEED", "KEEP LENGTH" };
     inline const juce::StringArray phaseModes { "RESET", "FREE" };
     inline const juce::StringArray pitchModes { "STABLE", "DROP", "RISE", "BOUNCE" };
 }

@@ -79,6 +79,7 @@ namespace re
         float sampleEndMs = 4000.f;
         bool sampleOriginal = false;
         bool stagesOff = false;                    // set by the engine (SAMPLE + ORIGINAL): both distortion stages bypassed
+        bool sampleKeepLength = false;             // PITCH: VARISPEED (higher = shorter) / KEEP LENGTH (WSOLA grains, GrainReader.h)
     };
     enum OscWave { WSine = 0, WTri = 1, WSaw = 2, WSquare = 3, WPulse = 4, WNoise = 5 };
 }

@@ -195,6 +195,7 @@ namespace
         // ---- v0.9: KICK-TO-REVERSE
         l.add (f (smpEnd, "SAMPLE End", skew (10.f, 4000.f, 400.f), 4000.f, [] (float v, int) { return v > 3999.f ? String ("END") : fm::ms (v, 0); }, fm::msIn));
         l.add (c (smpMode, "SAMPLE Mode", Choices::smpModes, 1));
+        l.add (c (smpPitch, "SAMPLE Pitch", Choices::smpPitches, 0));
         return l;
     }
 }

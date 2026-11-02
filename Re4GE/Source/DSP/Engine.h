@@ -24,6 +24,7 @@
 #include "Macros.h"
 #include "ShapeLanes.h"
 #include "ModMatrix.h"
+#include "GrainReader.h"
 #include <atomic>
 
 namespace re
@@ -198,10 +199,12 @@ namespace re
         {
             double phase = 0.0, readPos = 0.0;
             std::array<double, 6> uph {}, upos {};
+            std::array<GrainReader, 7> grain;            // KEEP LENGTH: the main head + up to 6 unison heads
+            double alignedStart = 0.0;
             ToneChain tone;
             OscBank::State ob;
             Smear smear;
-            void clear() { phase = 0.0; readPos = 0.0; uph = {}; upos = {}; tone.clear(); ob = {}; smear.clear(); }
+            void clear() { phase = 0.0; readPos = 0.0; uph = {}; upos = {}; tone.clear(); ob = {}; smear.clear(); for (auto& g : grain) g.reset(); }
         };
         // the start of a new step (or of the note in GATE mode): phases reset, the backwards read starts
         void startStep()
@@ -218,10 +221,11 @@ namespace re
                 else if (p.source == SrcSample && playing != nullptr)
                 {
                     const double sp = smpSpeed();
-                    c.readPos = p.sampleReverse ? (p.gate ? p.tailLenMs : tm.gateEnd) * 0.001 * playing->rate * sp + p.sampleStartMs * 0.001 * playing->rate
+                    c.readPos = p.sampleReverse ? (p.gate ? p.tailLenMs : tm.gateEnd) * 0.001 * playing->rate * (p.sampleKeepLength ? 1.0 : sp) + p.sampleStartMs * 0.001 * playing->rate
                                                 : p.sampleStartMs * 0.001 * playing->rate;
                 }
                 for (auto& u : c.upos) u = c.readPos;
+                for (auto& g : c.grain) g.reset();
             }
         }
         double smpSpeed() const { return p.keyTrack ? std::pow (2.0, ((hz > 0.0 ? 12.0 * std::log2 (hz / 440.0) + 69.0 : 69.0) - p.root) / 12.0) : 1.0; }
@@ -275,6 +279,21 @@ namespace re
                 lo = p.sampleStartMs * 0.001 * playing->rate; hi = p.sampleEndMs * 0.001 * playing->rate; fadeS = 0.002 * playing->rate;
             }
             auto region = [lo, hi, fadeS] (double pos) { return (float) (juce::jlimit (0.0, 1.0, (pos - lo) / fadeS + 1.0) * juce::jlimit (0.0, 1.0, (hi - pos) / fadeS)); };
+            // KEEP LENGTH (SAMPLE): the read moves in TIME at normal speed, the grains carry the pitch
+            if (p.source == SrcSample && p.sampleKeepLength && playing != nullptr)
+            {
+                const double tInc = playing->rate / osr, pitchStep = dir * inc;
+                float y = c.grain[0].next (d, len, c.readPos, pitchStep, osr, playing->rate, true, c.alignedStart) * region (c.readPos);
+                if (nu > 0)
+                {
+                    float yu = 0.f;
+                    for (int i = 0; i < nu; ++i)
+                        yu += c.grain[(size_t) i + 1].next (d, len, c.readPos, pitchStep * uRatio[(size_t) sd][(size_t) i], osr, playing->rate, false, c.alignedStart);
+                    y += yu * region (c.readPos) * p.uniMix / std::sqrt ((float) nu);
+                }
+                c.readPos += dir * tInc;
+                return y;
+            }
             float y = readBuf (d, len, c.readPos) * region (c.readPos);
             c.readPos += dir * inc;
             if (nu > 0)

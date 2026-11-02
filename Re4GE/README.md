@@ -6,6 +6,8 @@
   i znajduje jego **nutę** (ROOT, z odchyłką w centach).
 - Po wrzuceniu od razu gra **TAIL od tyłu**. Przyciski **Tail / Body+Tail / Punch+ / All** wybierają, która część gra.
   Białe uchwyty na waveformie (albo gałki START / END) ustawiasz ręcznie; kolejne DETECT nadpisuje je dopiero po kliknięciu.
+- **VARISPEED / KEEP LENGTH**: przy VARISPEED wyższa nuta gra szybciej i krócej (jak płyta). Przy **KEEP LENGTH** gra wyżej, ale tak samo długo
+  (ziarna WSOLA jak w Ancient Drums, każde ziarno dopasowane do fali, bez fazowania).
 - **ORIGINAL**: kick taki, jaki jest (bez przesterów RE4GE). **PROCESSED**: przez cały tor RE4GE (filtr, przestery, EQ, makra, matrix).
   HYBRID = dokręć OSC 2–4 i SUB, a grają razem z kickiem, nastrojone do nuty.
 - Po Twoim odsłuchu (znów „za wcześnie”): Dense Rise i pochodne startują po **28 % kroku**, Late po 38 %. Gałka **DELAY** jest teraz na MAIN.

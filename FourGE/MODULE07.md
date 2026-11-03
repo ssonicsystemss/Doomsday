@@ -100,3 +100,7 @@ Domyślnie 4 pasma:
 | HIGH | 2,5–20 kHz | Klik, screech, harmoniczne |
 To tylko ustawienia początkowe – użytkownik dowolnie przesuwa punkty podziału.
 Wymagane: minimum 4 niezależne pasma, docelowo 6; wyłączenie dowolnego pasma; łączenie pasm; solo i mute każdego pasma; odsłuch pasm przed i po przetwarzaniu.
+### 4.2. Crossover Engine
+Punkty podziału korzystają z poprawnych filtrów crossoverowych. Tryby: Linkwitz-Riley 12 dB/oct, Linkwitz-Riley 24 dB/oct, Linkwitz-Riley 48 dB/oct, Butterworth, Bessel, Custom.
+Możliwie płaska suma częstotliwościowa po ponownym połączeniu pasm – bez niezamierzonych dziur lub podbić w okolicach crossoverów.
+Wymagania techniczne: komplementarne charakterystyki filtrów, kontrola fazy, poprawna rekonstrukcja sygnału, smoothowanie zmian crossoverów, brak kliknięć przy przesuwaniu punktów podziału, obsługa różnych częstotliwości próbkowania.

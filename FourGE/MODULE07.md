@@ -59,3 +59,7 @@ Dla typów filtrów, które nie obsługują GAIN lub Q, odpowiednie parametry mu
 - W trybie minimum phase poprawne zachowanie fazowe.
 - Odpowiednia kompensacja latencji w trybie linear phase.
 Linear Phase nie może być domyślnym trybem dla każdego zastosowania – przy bardzo krótkich transientach może powodować pre-ringing, więc użytkownik wybiera tryb odpowiedni do materiału.
+
+## 3. DYNAMIC EQ — dynamiczna korekcja
+Dynamic EQ musi reagować na rzeczywisty poziom sygnału w wybranym paśmie.
+Przykład: jeśli kick ma zbyt agresywny rezonans przy 3,5 kHz, Dynamic EQ automatycznie ogranicza tę częstotliwość tylko wtedy, kiedy rezonans staje się zbyt mocny.

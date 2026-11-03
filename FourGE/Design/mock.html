@@ -1,0 +1,174 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>4GE mockup</title>
+<style>
+:root{
+  --black:#0b0b0c; --graphite:#141517; --panel:#191a1d; --panel2:#1f2024; --line:#2a2c31; --line2:#34363c;
+  --text:#d9dadd; --dim:#8b8e95; --mute:#5f626a;
+  --red:#d8221c; --ember:#ff5a1f; --hot:#ff8a3d; --redDeep:#3a0d0b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1280px;height:800px;background:var(--black);color:var(--text);font-family:Inter,sans-serif;overflow:hidden;position:relative}
+.cond{font-family:"DejaVu Sans Condensed",Inter,sans-serif;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+/* brushed metal + grid texture */
+body:before{content:"";position:absolute;inset:0;background:
+  repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px),
+  linear-gradient(180deg,#0e0e10,#0a0a0b);z-index:-1}
+.chamfer{clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.chamfer-s{clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+/* top bar */
+.top{position:absolute;left:0;top:0;width:1280px;height:58px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 14px;gap:10px;white-space:nowrap;background:linear-gradient(180deg,#141518,#0f1012)}
+.logo{display:flex;align-items:center;gap:10px;width:150px}
+.logo .mark{width:34px;height:34px;background:linear-gradient(135deg,var(--ember),var(--red));clip-path:polygon(0 0,100% 0,100% 70%,70% 100%,0 100%);display:flex;align-items:center;justify-content:center;color:#120403;font-family:"DejaVu Sans Condensed";font-weight:800;font-size:15px}
+.logo .name{font-size:22px;letter-spacing:.18em}
+.logo .ver{font-size:10px;color:var(--mute);letter-spacing:.1em}
+.grp{display:flex;align-items:center;gap:6px}
+.lbl{font-size:9.5px;color:var(--mute)}
+.seg{display:flex;border:1px solid var(--line2);background:var(--panel)}
+.seg div{padding:7px 7px;font-size:10.5px;color:var(--dim);border-right:1px solid var(--line)}
+.seg div:last-child{border-right:none}
+.seg .on{background:linear-gradient(180deg,#3d0f0c,#250807);color:#fff;box-shadow:inset 0 -2px 0 var(--ember)}
+.ms{font-size:12px;color:var(--text);padding:6px 8px;border:1px solid var(--line2);background:var(--panel);font-variant-numeric:tabular-nums}
+.preset{flex:0 0 176px;font-size:11px !important;padding:8px 9px !important;white-space:nowrap;overflow:hidden;padding:8px 12px;border:1px solid var(--line2);background:var(--panel);font-size:12px;display:flex;justify-content:space-between}
+.btn{padding:8px 9px;flex:0 0 auto;border:1px solid var(--line2);background:var(--panel2);font-size:10.5px;color:var(--text)}
+.btn.prim{background:linear-gradient(180deg,var(--ember),var(--red));color:#160504;border-color:var(--ember)}
+.meter{width:10px;height:36px;background:var(--panel);border:1px solid var(--line2);position:relative}
+.meter i{position:absolute;left:1px;right:1px;bottom:1px;height:62%;background:linear-gradient(0deg,#9c1b16,var(--ember),var(--hot))}
+/* left nav */
+.nav{position:absolute;left:0;top:58px;width:196px;height:592px;border-right:1px solid var(--line);padding:12px 10px}
+.blk{margin-bottom:6px;border:1px solid var(--line);background:var(--graphite);position:relative}
+.blk .h{display:flex;align-items:center;gap:10px;padding:11px 12px}
+.blk .num{font-size:10px;color:var(--mute);border:1px solid var(--line2);padding:2px 4px}
+.blk .t{font-size:11.5px;color:var(--dim)}
+.blk.open{border-color:#4a1410;background:linear-gradient(90deg,#1c0b0a,var(--graphite))}
+.blk.open:before{content:"";position:absolute;left:-1px;top:-1px;bottom:-1px;width:3px;background:var(--ember)}
+.blk.open .num{color:var(--ember);border-color:#5a1a12}
+.blk.open .t{color:#fff}
+.items{padding:0 0 8px 34px}
+.items div{font-size:11.5px;color:var(--dim);padding:5px 8px;display:flex;justify-content:space-between}
+.items div.sel{color:#fff;background:#24100e;border-left:2px solid var(--ember)}
+.items i{width:6px;height:6px;border-radius:0;transform:rotate(45deg);background:#3a3c42;display:inline-block;margin-top:4px}
+.items i.lit{background:var(--ember);box-shadow:0 0 6px var(--ember)}
+.sys{position:absolute;left:10px;right:10px;bottom:10px;border-top:1px dashed var(--line2);padding-top:10px}
+.sys .t{font-size:10px;color:var(--mute);margin-bottom:8px}
+.sysg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sysg div{font-size:10.5px;text-align:center;padding:8px 0;border:1px solid var(--line2);background:var(--panel)}
+/* work area */
+.work{position:absolute;left:212px;top:72px;width:1052px;height:566px}
+.card{background:linear-gradient(180deg,#1a1b1e,#161719);border:1px solid var(--line);position:relative}
+.card .ct{position:absolute;left:14px;top:10px;font-size:10.5px;color:var(--dim);display:flex;gap:8px;align-items:center}
+.card .ct b{width:7px;height:7px;background:var(--ember);transform:rotate(45deg);display:inline-block}
+.wave{height:300px}
+.zones{position:absolute;left:46px;right:16px;top:34px;height:228px;display:flex}
+.zone{border-right:1px dashed #3a2a28;position:relative}
+.zone span{position:absolute;top:4px;left:8px;font-size:9.5px;color:var(--mute)}
+.zone.sel{background:linear-gradient(180deg,rgba(255,90,31,.08),transparent)}
+.zone.sel span{color:var(--ember)}
+.axis{position:absolute;left:46px;right:16px;bottom:12px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--mute)}
+.legend{position:absolute;right:16px;top:9px;display:flex;gap:14px;font-size:10px;color:var(--dim)}
+.legend em{display:inline-block;width:14px;height:2px;margin-right:5px;vertical-align:middle}
+.hz{position:absolute;right:16px;bottom:30px;font-size:11px;color:var(--dim)}
+.hz b{color:#fff;font-size:15px}
+/* components */
+.comps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+.comp{height:256px;padding:36px 12px 10px}
+.comp .ms2{position:absolute;right:10px;top:8px;display:flex;gap:4px}
+.comp .ms2 div{width:22px;height:20px;border:1px solid var(--line2);font-size:9.5px;display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.comp .ms2 .s{color:#ffd166;border-color:#5a4a1a}
+.srcs{display:flex;gap:5px;margin-bottom:10px}
+.srcs div{font-size:10px;padding:5px 8px;border:1px solid var(--line2);color:var(--dim);background:var(--panel)}
+.srcs .on{color:#fff;border-color:#6a1d14;background:#2a0d0b}
+.srcs .add{color:var(--mute)}
+.knobs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 0}
+.k{display:flex;flex-direction:column;align-items:center;gap:2px}
+.k svg{width:46px;height:46px}
+.k .v{font-size:11.5px;color:#fff;font-variant-numeric:tabular-nums}
+.k .n{font-size:9px;color:var(--mute);letter-spacing:.08em;text-transform:uppercase}
+.mini{height:24px;margin-top:6px;border-top:1px solid var(--line);padding-top:6px;display:flex;gap:6px;align-items:center;font-size:9.5px;color:var(--mute)}
+.mini .bar{flex:1;height:5px;background:var(--panel2);position:relative}
+.mini .bar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#7a1712,var(--ember))}
+.hazard{position:absolute;left:0;right:0;bottom:0;height:4px;background:repeating-linear-gradient(135deg,var(--ember) 0 6px,#111 6px 12px);opacity:.75}
+/* bottom */
+.bottom{position:absolute;left:0;top:650px;width:1280px;height:150px;border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:12px}
+.macros{flex:1;padding:30px 16px 8px;display:grid;grid-template-columns:repeat(8,1fr)}
+.master{width:340px;padding:30px 16px 8px;display:grid;grid-template-columns:repeat(3,1fr) 30px}
+.big svg{width:52px;height:52px}
+</style></head>
+<body>
+<div class="top">
+  <div class="logo"><div class="mark">S</div><div><div class="name cond">4GE</div><div class="ver">v1.0 · KICK</div></div></div>
+  <div class="grp"><span class="lbl cond">Style</span><div class="seg cond"><div>Early</div><div class="on">Modern</div><div>Raw</div><div>Exp</div></div></div>
+  <div class="grp"><span class="lbl cond">Length</span><div class="seg cond"><div>Short</div><div class="on">Medium</div><div>Long</div><div>XL</div></div><div class="ms">450 ms</div></div>
+  
+  <div class="btn">&lt;</div><div class="preset"><span>MODERN · Impact Drop</span><span style="color:var(--mute)">▾</span></div><div class="btn">&gt;</div>
+  <span class="lbl cond">150<br>BPM</span>
+  <div class="btn cond">▶ Play</div><div class="btn cond">Random</div><div class="btn prim cond">Export</div>
+  <div class="meter"><i></i></div>
+</div>
+
+<div class="nav">
+  <div class="blk open chamfer-s"><div class="h"><span class="num cond">01</span><span class="t cond">Kick</span></div>
+    <div class="items"><div class="sel">Main <i class="lit"></i></div><div>Style <i class="lit"></i></div><div>Length <i class="lit"></i></div><div>Punch <i class="lit"></i></div><div>Body <i class="lit"></i></div><div>Tail <i class="lit"></i></div><div>Pitch <i class="lit"></i></div></div></div>
+  <div class="blk chamfer-s"><div class="h"><span class="num cond">02</span><span class="t cond">Synthesis</span></div></div>
+  <div class="blk chamfer-s"><div class="h"><span class="num cond">03</span><span class="t cond">Processing</span></div></div>
+  <div class="blk chamfer-s"><div class="h"><span class="num cond">04</span><span class="t cond">Modulation</span></div></div>
+  <div class="sys"><div class="t cond">05 · System</div>
+    <div class="sysg cond"><div>Presets</div><div>Browser</div><div>Export</div><div>Settings</div></div></div>
+</div>
+
+<div class="work">
+  <div class="card wave chamfer">
+    <div class="ct cond"><b></b>Kick · 450 ms · click a zone to edit it</div>
+    <div class="legend"><span><em style="background:var(--ember)"></em>Waveform</span><span><em style="background:#e8e8e8"></em>Pitch</span><span><em style="background:#6aa6ff"></em>Amp</span></div>
+    <div class="zones"><div class="zone" style="width:9%"><span class="cond">Punch</span></div><div class="zone sel" style="width:24%"><span class="cond">Body</span></div><div class="zone" style="width:67%;border-right:none"><span class="cond">Tail</span></div></div>
+    <svg id="wv" style="position:absolute;left:46px;top:34px" width="990" height="228"></svg>
+    <div class="axis"><span>0</span><span>50</span><span>100</span><span>150</span><span>200</span><span>250</span><span>300</span><span>350</span><span>400</span><span>450 ms</span></div>
+    <div class="hz">Tail ≈ <b>49.0 Hz</b> · G1 · −8 ct</div>
+  </div>
+  <div class="comps">
+    <div class="card comp chamfer"><div class="ct cond"><b></b>Punch</div><div class="ms2 cond"><div>M</div><div>S</div></div>
+      <div class="srcs cond"><div class="on">Sine</div><div class="on">Click</div><div class="add">+ Osc</div></div>
+      <div class="knobs" data-k="Level:0.0 dB:.70,Pitch:310 Hz:.55,Length:35 ms:.25,Attack:0.5 ms:.08,Decay:28 ms:.3,Drive:20 %:.2"></div>
+      <div class="mini">PITCH ENV <div class="bar"><i style="width:22%"></i></div> fast</div></div>
+    <div class="card comp chamfer" style="border-color:#4a1410"><div class="ct cond"><b></b>Body</div><div class="ms2 cond"><div>M</div><div class="s">S</div></div>
+      <div class="srcs cond"><div class="on">Sine</div><div class="on">Saw</div><div class="add">+ Osc</div></div>
+      <div class="knobs" data-k="Level:-2.0 dB:.62,Pitch:120 Hz:.4,Length:120 ms:.35,Tone:1.8 kHz:.55,Drive:45 %:.45,Reso:30 %:.3"></div>
+      <div class="mini">PITCH ENV <div class="bar"><i style="width:48%"></i></div> follow punch</div></div>
+    <div class="card comp chamfer"><div class="ct cond"><b></b>Tail</div><div class="ms2 cond"><div>M</div><div>S</div></div>
+      <div class="srcs cond"><div class="on">Saw</div><div class="on">FM</div><div class="add">+ Osc</div></div>
+      <div class="knobs" data-k="Level:0.0 dB:.70,Pitch:49 Hz:.3,Length:400 ms:.6,Tone:4.2 kHz:.62,Drive:70 %:.7,Character:DIRTY:.45"></div>
+      <div class="mini">CHARACTER <div class="bar"><i style="width:45%"></i></div> dirty</div><div class="hazard"></div></div>
+    <div class="card comp chamfer"><div class="ct cond"><b></b>Sub</div><div class="ms2 cond"><div>M</div><div>S</div></div>
+      <div class="srcs cond"><div class="on">Sine</div><div class="add">Tri</div><div class="add">MONO</div></div>
+      <div class="knobs" data-k="Level:-3.0 dB:.6,Pitch:49 Hz:.35,Length:300 ms:.45,Attack:2 ms:.1,Decay:280 ms:.45,Phase:0°:0"></div>
+      <div class="mini">FOLLOW BODY <div class="bar"><i style="width:0%"></i></div> off</div></div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="card macros chamfer"><div class="ct cond"><b></b>Macros</div><div id="mac" style="display:contents"></div></div>
+  <div class="card master chamfer"><div class="ct cond"><b></b>Master</div><div id="mst" style="display:contents"></div><div class="meter" style="height:84px;align-self:center"><i style="height:70%"></i></div></div>
+</div>
+
+<script>
+function knob(v,big){const s=big?52:46,r=s/2-5,c=s/2,a0=-225*Math.PI/180,a1=45*Math.PI/180,a=a0+(a1-a0)*v;
+ const arc=(f,t)=>{const x0=c+r*Math.cos(f),y0=c+r*Math.sin(f),x1=c+r*Math.cos(t),y1=c+r*Math.sin(t);return `M${x0} ${y0} A${r} ${r} 0 ${t-f>Math.PI?1:0} 1 ${x1} ${y1}`};
+ return `<svg viewBox="0 0 ${s} ${s}"><path d="${arc(a0,a1)}" stroke="#2c2e33" stroke-width="4" fill="none"/>${v>0?`<path d="${arc(a0,a)}" stroke="url(#g)" stroke-width="4" fill="none"/>`:''}<line x1="${c}" y1="${c}" x2="${c+(r-6)*Math.cos(a)}" y2="${c+(r-6)*Math.sin(a)}" stroke="#e6e6e6" stroke-width="2"/><defs><linearGradient id="g"><stop offset="0" stop-color="#9c1b16"/><stop offset="1" stop-color="#ff5a1f"/></linearGradient></defs></svg>`}
+document.querySelectorAll('.knobs').forEach(el=>{el.innerHTML=el.dataset.k.split(',').map(t=>{const[n,v,x]=t.split(':');return `<div class="k">${knob(+x)}<div class="v">${v}</div><div class="n">${n}</div></div>`}).join('')});
+const M=[['Impact',.65],['Body',.5],['Tail',.55],['Pitch',.45],['Grit',.35],['Scream',.25],['Weight',.6],['Chaos',0]];
+document.getElementById('mac').innerHTML=M.map(([n,v])=>`<div class="k big">${knob(v,1)}<div class="v">${Math.round(v*100)}%</div><div class="n">${n}</div></div>`).join('');
+document.getElementById('mst').innerHTML=[['Output','-1.0 dB',.7],['Clip','35%',.35],['Velocity','0%',0]].map(([n,t,v])=>`<div class="k big">${knob(v,1)}<div class="v">${t}</div><div class="n">${n}</div></div>`).join('');
+// a real-ish kick: punch sweep + body + distorted tail, with pitch and amp curves
+const W=990,H=228,N=990,sr=N/0.45;let ph=0,path='',pp='',ap='';
+for(let i=0;i<N;i++){const t=i/sr;
+ const f=49+260*Math.exp(-t/0.018)+90*Math.exp(-t/0.07);ph+=f/sr;
+ const amp=(t<0.002?t/0.002:1)*(t>0.14?Math.exp(-(t-0.14)*1.6):1)*(t>0.40?Math.max(0,1-(t-0.40)/0.05):1);
+ const drive=t<0.035?1.2:t<0.14?3:6;
+ const s=Math.tanh(drive*Math.sin(2*Math.PI*ph)+0.25*Math.sin(6*Math.PI*ph)*(t>0.14))/Math.tanh(drive)*amp*0.92;
+ const x=i, y=H/2-s*(H/2-8); path+=(i?'L':'M')+x+' '+y.toFixed(1);
+ const py=H-8-(Math.log2(f/40)/Math.log2(400/40))*(H-30); pp+=(i?'L':'M')+x+' '+py.toFixed(1);
+ const ay=10+(1-amp)*(H-20); ap+=(i?'L':'M')+x+' '+ay.toFixed(1);}
+document.getElementById('wv').innerHTML=`<defs><linearGradient id="wg" x1="0" x2="1"><stop offset="0" stop-color="#ff8a3d"/><stop offset=".3" stop-color="#ff5a1f"/><stop offset="1" stop-color="#c81e18"/></linearGradient></defs>
+<line x1="0" x2="${W}" y1="${H/2}" y2="${H/2}" stroke="#2a2c31"/><path d="${path}" stroke="url(#wg)" stroke-width="1.1" fill="none" opacity=".95"/>
+<path d="${ap}" stroke="#6aa6ff" stroke-width="1.6" fill="none" opacity=".8"/><path d="${pp}" stroke="#e8e8e8" stroke-width="1.8" fill="none" stroke-dasharray="1 0"/>`;
+</script>
+</body></html>

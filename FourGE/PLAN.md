@@ -73,6 +73,26 @@ Reszta funkcji (unison, wavetable, harmonic engine, ring, sync, kolejne oscylato
    (ratio 0.1–32, fine, feedback, env); RING MOD (osobny algorytm); HARD / SOFT SYNC; routing osc → PUNCH / BODY / TAIL / SUB / CUSTOM BUS
    (single / multi / split, poziom na połączenie); 8 makr osc; widok OSCILLATORS + spectrum z prawdziwego sygnału; presety osc.
    Klocki: `Shared` polyBLEP / `Oscillator`, RE4GE `OscBank` (PM, unison), 5CR34M 4LPH4 (FM / wavetable – sprawdzić).
+1d. **Moduł 04 – Noise, Transient & Layer Engine** (specyfikacja: **`MODULE04.md`**): NOISE (white / pink / brown / blue / violet / metallic
+   z rezonatorami / digital z bit / SR reduction / custom; level / color / filter / cutoff / reso / drive / A / D / length / width / tracking;
+   seed + FIXED / PER TRIGGER / FREE RUN); TRANSIENT (sine / noise / metallic click, impulse, pulse, snap, custom; attack / click level,
+   length, pitch, tone, drive; LOW / HIGH transient; prawdziwy TRANSIENT SHAPER z detektorem; POSITION 0–250 ms od kick / punch / body /
+   tail start); LAYERS min. 8 (docelowo 16): źródło osc / noise / transient / internal / (sample później), grupa PUNCH / BODY / TAIL / SUB /
+   TEXTURE / CUSTOM, pełne parametry + własna obwiednia, kontrola grup, routing do busów (single / multi, pre / post send), LINK bez cykli,
+   randomizer warstw z LOCK / seed / undo, solo layer / group / source / processed / multi, opcjonalny PHASE ALIGN + korelacja,
+   lista warstw z mini-waveformem (przewijana), presety noise / transient / layers.
+   **Wzór właściciela – przykładowy nowoczesny kick (8 warstw, nie preset):** 01 MAIN PUNCH sine + mocny pitch transient (PUNCH),
+   02 CLICK krótki biały szum + impuls (PUNCH), 03 BODY sine + saw, kontrolowane harmoniczne (BODY), 04 METALLIC TEXTURE metallic noise
+   + rezonans (TEXTURE), 05 MAIN TAIL saw + FM + distortion (TAIL), 06 HIGH SCREAM wysoka tekstura z FM (TAIL), 07 SUB czysta sinusoida
+   mono (SUB), 08 NOISE TAIL filtrowany szum z długim zanikiem (TEXTURE) → test: ten stos musi dać się zbudować i ma być presetem
+   „MODERN · Layer Stack” w presetach startowych.
+1e. **Moduł 05 – Distortion & Waveshaper Engine** (specyfikacja: **`MODULE05.md`**, **urwana na 3.8 – czekamy na resztę**): min. 4 stopnie
+   (docelowo 8), każdy: enable / type / drive / in / out / mix / bias / symmetry / pre + post filter / oversampling / routing, zmienna
+   kolejność (także z filtrem między stopniami); typy z własnymi parametrami: SOFT CLIP (threshold / knee), HARD CLIP (ceiling / symmetry),
+   TUBE (bias / warmth / even / odd), DIODE (bias / asym / threshold), WAVEFOLD (amount / threshold / bias / symmetry / 1–8 stopni),
+   BITCRUSH (1–24 bit / SR reduction / quantization / dither), RECTIFIER (half / full / positive / negative / custom), ASYMMETRIC…
+   Klocki: `Shared/DoomsdayLab.h` (ADAA: saturation / diode / wavefold / rectifier / bitcrush / custom), RE4GE WaveshaperView.
+   **Makieta ekranu:** `Design/mock.html` → `Design/4GE_makieta_main.png` (do zatwierdzenia).
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

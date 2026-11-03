@@ -203,3 +203,6 @@ Własne łańcuchy i zmiana kolejności procesorów.
 Przykład Rawstyle: `SUB → EQ → MULTIBAND → DISTORTION → SPECTRAL SHAPER → MASTER`
 Przykład screechy: `SCREECH → FILTER → DISTORTION → DYNAMIC EQ → STEREO ENGINE → TAIL`
 Routing nie może tworzyć niejawnych kopii sygnału. Każda gałąź równoległa ma kontrolę poziomu i wyrównanie latencji.
+
+## 9. GUI — interfejs użytkownika
+Pięć zakładek: PARAMETRIC, DYNAMIC, MULTIBAND, SPECTRAL, STEREO.

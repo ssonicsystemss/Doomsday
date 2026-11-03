@@ -273,6 +273,20 @@ Warunki zaliczenia: 1. min. 8-pasmowy parametryczny EQ; 2. Dynamic EQ z prawdziw
 Użytkownik może: precyzyjnie kontrolować częstotliwości kicka; wzmacniać i ograniczać wybrane harmoniczne; kontrolować subbas bez wpływu na BODY; rozjaśniać screech bez zwiększania całej głośności; dynamicznie usuwać niepożądane rezonanse; przetwarzać niezależnie 4+ pasma; kontrolować szerokość stereo dla wybranych częstotliwości; uzyskać profesjonalny balans tonalny przed eksportem kicka.
 Test końcowy: kick z 4GE → analizator → znaleźć problematyczny rezonans → ograniczyć go przez Dynamic EQ → rozjaśnić harmoniczne przez Spectral Exciter → SUB w mono, poszerzona wyłącznie góra — bez utraty kontroli nad transientem.
 
+## 15. KOLEJNOŚĆ REALIZACJI DLA PROGRAMISTY
+Żeby nie implementować wszystkiego jednocześnie:
+1. Parametric EQ — kompletna implementacja DSP i GUI.
+2. Spectrum Analyzer — rzeczywista analiza FFT.
+3. Dynamic EQ — detektory i obwiednie.
+4. Multiband Engine — crossover i routing.
+5. Multiband Dynamics — procesory pasmowe.
+6. Spectral Shaper — Tilt, Harmonic Shaper, Exciter.
+7. Spectral Compression i opcjonalny Freeze.
+8. Stereo Frequency Engine — Mid/Side i Mono Compatibility.
+9. Integracja z pozostałymi modułami 4GE.
+10. Testy wydajności i jakości dźwięku.
+Architektura: nie budować osobnego EQ dla każdego silnika. Jedna wspólna klasa procesora, instancjonowana na poziomie warstwy, grupy i mastera – mniej duplikacji, spójne działanie całej wtyczki.
+
 ---
 ## NOTES (Claude, 2026-11-03) – decyzje techniczne
 - EQ: biquady TPT / SVF (minimum phase) z wygładzaniem współczynników per blok; RE4GE `Eq8.h` jako punkt startowy (rozszerzyć do 16 i 9 typów). Linear phase = osobna ścieżka FIR (FFT conv.), domyślnie OFF, latencja zgłaszana do hosta.

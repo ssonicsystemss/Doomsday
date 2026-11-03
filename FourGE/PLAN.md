@@ -110,6 +110,10 @@ Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznyc
    BITCRUSH (1–24 bit / SR reduction / quantization / dither), RECTIFIER (half / full / positive / negative / custom), ASYMMETRIC…
    Klocki: `Shared/DoomsdayLab.h` (ADAA: saturation / diode / wavefold / rectifier / bitcrush / custom), RE4GE WaveshaperView.
    **Makieta ekranu:** `Design/mock.html` → `Design/4GE_makieta_main.png` (do zatwierdzenia).
+1f. **Moduł 06 – Filter, Resonance & Screech Engine** (specyfikacja: **`MODULE06.md`**, na razie początek): trzy niezależne silniki
+   z przesyłaniem sygnału między nimi – FILTER (wieloetapowy), RESONANCE (własne źródła wzbudzenia, obwiednia, modulacja, routing,
+   kontrola stabilności), SCREECH (synteza screechy od podstaw – nie sampel, nie sam high-pass). Doświadczenie do wzięcia:
+   Prophecy of Scream / 5CR34M 4LPH4 (`Tools/screech`, LESSONS o screechach), `Shared` Ladder / SVF / Formant.
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

@@ -158,3 +158,7 @@ Dodaje harmoniczne lub teksturę w określonym zakresie częstotliwości.
 | MIX | 0–100% |
 Tryby: WARM, BRIGHT, CRISP, METALLIC, AGGRESSIVE, CUSTOM.
 Exciter generuje dodatkową zawartość harmoniczną lub odpowiednio wzmacnia istniejące składowe – nie wolno go zrobić jako zwykłego high-shelf EQ.
+### 5.5. Spectral Freeze — funkcja eksperymentalna
+Opcjonalne zamrażanie widma: analizuje aktualne widmo, zapisuje jego rozkład, utrzymuje wybraną teksturę, pozwala modulować zapisane widmo.
+Parametry: FREEZE, CAPTURE TIME, SPECTRAL DECAY, SMOOTHING, PITCH SHIFT, MIX.
+Może być oznaczona jako EXPERIMENTAL, ale jeśli jest w GUI – musi rzeczywiście działać.

@@ -87,3 +87,6 @@ Peak Detection, RMS Detection, wybór długości okna detekcji, regulacja Attack
 ### 3.4. Integracja z kickiem
 Dynamic EQ może działać osobno na PUNCH, BODY, TAIL, SUB i TEXTURE.
 Przykłady: ograniczanie zbyt mocnego kliknięcia w PUNCH, kontrolowanie agresywnego rezonansu BODY, redukowanie syczących częstotliwości SCREECH, utrzymywanie stabilnego subbasu, dynamiczne rozjaśnianie ogona.
+
+## 4. MULTIBAND ENGINE — wielopasmowe przetwarzanie
+Silnik dzieli sygnał na osobne zakresy częstotliwości, które można niezależnie przetwarzać.

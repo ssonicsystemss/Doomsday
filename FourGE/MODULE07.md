@@ -13,3 +13,7 @@ Pięć głównych silników:
 4. SPECTRAL SHAPER — zaawansowane kształtowanie widma i harmonicznych.
 5. STEREO FREQUENCY ENGINE — kontrola szerokości i rozmieszczenia częstotliwości w stereo.
 Każdy silnik niezależny, ale wszystkie współpracują z pozostałymi modułami 4GE.
+
+Schemat przepływu sygnału (domyślny):
+PUNCH / BODY / TAIL / SUB / TEXTURE → PARAMETRIC EQ → DYNAMIC EQ → MULTIBAND PROCESSING → SPECTRAL SHAPER → STEREO FREQUENCY ENGINE → OUTPUT
+To domyślna konfiguracja. Użytkownik musi móc zmienić kolejność i routing modułów.

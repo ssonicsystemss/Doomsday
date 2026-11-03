@@ -178,3 +178,6 @@ Kick ma możliwość precyzyjnego kontrolowania szerokości poszczególnych zakr
 ### 6.2. Mid/Side Processing
 Każde pasmo: MID GAIN, SIDE GAIN, MID EQ, SIDE EQ, MID WIDTH, SIDE WIDTH.
 Przykłady: subbas całkowicie w centrum, BODY w umiarkowanym stereo, poszerzone wysokie harmoniczne, charakter screechy rozdzielony pomiędzy kanały.
+### 6.3. Mono Compatibility
+Obowiązkowe: kontrola korelacji stereo, odsłuch mono, wykrywanie nadmiernych problemów fazowych, ograniczenie szerokości, wymuszenie mono poniżej ustawionej częstotliwości.
+Nie wolno automatycznie poszerzać subbasu tylko dlatego, że użytkownik zwiększył ogólny WIDTH.

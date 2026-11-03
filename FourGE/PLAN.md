@@ -38,14 +38,14 @@ Zasady jak w RE4GE: krok po kroku, po każdym kroku kompilacja + testy + A/B dla
 | Analysis / A/B / Morph (29, 34) | – | z RE4GE: Reference, A/B + MORPH, f0 |
 
 ## Kolejność (zgodnie z etapami SPEC 37, z tym co już mamy)
-0. **Porządek w środku** (jak RE4GE krok 0): komponenty `Source/DSP` / `Parameters` (IDs zamrożone) / `Presets` / `GUI`, brzmienie bit w bit
-   jak v0.4 (test porównawczy). + **makieta ekranu** (industrial, 5 bloków, waveform) do zatwierdzenia.
+0. **Makieta ekranu** + szkielet nowego projektu (komponenty `Source/DSP` / `Parameters` / `Presets` / `GUI`, nowe ID od zera); v0.4 zostaje
+   w historii gita jako wzór. (Wcześniej planowany refaktor bit w bit – niepotrzebny po decyzji „od nowa”.) Makieta (industrial, 5 bloków, waveform) do zatwierdzenia.
 1. **Core** – szczegółowa specyfikacja właściciela: **`MODULE01.md`** (PunchGenerator / BodyGenerator / TailGenerator / SubGenerator →
    CoreMixer: level / pan / mute / solo / phase invert / peak; LENGTH 100–2500 ms (domyślnie 450) + AUTO LENGTH, PHASE RESET, MASTER;
    PITCH ENGINE z trybami CLASSIC / FAST / SLOW / DOUBLE DROP, RISE, STABLE, CUSTOM, przygotowany na osobne krzywe P / B / T;
    TAIL CHARACTER CLEAN / TONAL / DIRTY / SCREAM / METALLIC / BUZZ / CRUSHED (realnie różne tory); głosy nakładające się, note-off nie ucina;
-   12 kryteriów akceptacji = testy RenderTest). Decyzja techniczna: TailGenerator stoi na dzisiejszym torze ogona (GeKick: osc A / B, stopnie
-   przesteru, scream / crunch), żeby kicki właściciela (OWNER / FULL) brzmiały jak dziś; BODY i SUB to nowe generatory.
+   12 kryteriów akceptacji = testy RenderTest). **Decyzja właściciela (2026-11-03): silnik budujemy OD NOWA w oparciu o doświadczenia** (Forge / 4GE v0.4 / RE4GE / LESSONS) –
+   bez obowiązku zgodności z presetami OWNER / FULL; stary kod to tylko źródło wiedzy (co brzmiało dobrze: smaczki w pamięci, LESSONS).
    Poprzedni opis kroku: silnik BODY, LENGTH ENGINE (profile + AUTO LENGTH + fazy), nowy ekran KICK (Main / Style / Length / Punch / Body / Tail / Pitch),
    waveform z klikalnymi strefami, eksport WAV. **Bramka: ucho właściciela.**
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).

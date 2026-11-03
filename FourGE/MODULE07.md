@@ -63,3 +63,15 @@ Linear Phase nie może być domyślnym trybem dla każdego zastosowania – przy
 ## 3. DYNAMIC EQ — dynamiczna korekcja
 Dynamic EQ musi reagować na rzeczywisty poziom sygnału w wybranym paśmie.
 Przykład: jeśli kick ma zbyt agresywny rezonans przy 3,5 kHz, Dynamic EQ automatycznie ogranicza tę częstotliwość tylko wtedy, kiedy rezonans staje się zbyt mocny.
+### 3.1. Parametry
+| Parametr | Zakres |
+|---|---|
+| THRESHOLD | -60 do 0 dBFS |
+| RANGE | -24 do +24 dB |
+| ATTACK | 0.1–500 ms |
+| RELEASE | 1–2000 ms |
+| RATIO | 1:1–20:1 |
+| KNEE | 0–24 dB |
+| FREQUENCY | 20 Hz–20 kHz |
+| Q | 0.1–30 |
+| MIX | 0–100% |

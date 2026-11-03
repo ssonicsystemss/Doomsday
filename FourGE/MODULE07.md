@@ -107,3 +107,14 @@ Wymagania techniczne: komplementarne charakterystyki filtrów, kontrola fazy, po
 ### 4.3. Procesory dostępne dla każdego pasma
 Każde pasmo ma własny zestaw: Gain, EQ, Saturation Send, Distortion Send, Filter Send, Dynamic Control, Stereo Width, Phase Invert, Mute, Solo.
 Bez osobnych kopii silników distortion i filter – korzystać z instancji i punktów routingu z Module 05 i Module 06.
+### 4.4. Multiband Dynamics
+Każde pasmo może posiadać własny procesor dynamiki.
+| Parametr | Zakres |
+|---|---|
+| THRESHOLD | -60 do 0 dBFS |
+| RATIO | 1:1–20:1 |
+| ATTACK | 0.1–500 ms |
+| RELEASE | 1–2000 ms |
+| KNEE | 0–24 dB |
+| MAKEUP | -24 do +24 dB |
+| MIX | 0–100% |

@@ -243,3 +243,7 @@ Presety zawierają komplet ustawień odpowiednich sekcji, a nie tylko kilka wart
 Wszystkie procesory zgłaszają i poprawnie obsługują latencję – szczególnie Linear Phase EQ, FFT Spectral Processing, Multiband Processing, procesory z lookahead.
 Ścieżki równoległe – automatyczne wyrównanie opóźnienia (bez problemów fazowych).
 Procesor z latencją wybrany przez użytkownika → wtyczka poprawnie zgłasza latencję do hosta.
+### 12.3. Optymalizacja
+Brak alokacji pamięci, blokad i operacji plikowych w callbacku audio; brak kosztownych analiz widmowych wykonywanych bezpośrednio przez GUI; możliwość ograniczenia liczby aktywnych procesorów; SIMD jeśli uzasadnione; oddzielenie DSP od warstwy wizualnej; poprawne zarządzanie stanem przy zmianie presetu.
+### 12.4. Determinizm
+Identyczne ustawienia + identyczny sygnał wejściowy = identyczny wynik. Przyszłe losowe procesy spectral – z kontrolą seed.

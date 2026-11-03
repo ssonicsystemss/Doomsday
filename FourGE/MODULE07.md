@@ -194,3 +194,4 @@ Nie wolno automatycznie poszerzać subbasu tylko dlatego, że użytkownik zwięk
 | WIDTH | Steruje szerokością stereo |
 | TONE | Ogólny balans tonalny |
 Każde makro musi mieć konfigurowalną mapę parametrów.
+Przykład: BRIGHTNESS jednocześnie zwiększa High Shelf, zmienia Spectral Tilt, zwiększa udział wysokich harmonicznych, delikatnie zmienia cutoff w odpowiedniej sekcji – ale nie może powodować niekontrolowanego wzrostu poziomu sygnału.

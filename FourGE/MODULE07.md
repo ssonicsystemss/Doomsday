@@ -206,3 +206,6 @@ Routing nie może tworzyć niejawnych kopii sygnału. Każda gałąź równoleg�
 
 ## 9. GUI — interfejs użytkownika
 Pięć zakładek: PARAMETRIC, DYNAMIC, MULTIBAND, SPECTRAL, STEREO.
+### 9.1. Główne okno EQ
+Koncept właściciela: `Design/M07_eq_concept.png`. Okno „4GE / EQ & SPECTRAL”: pasek 5 zakładek u góry; FREQUENCY RESPONSE (8-BAND EQ) – krzywa z punktami pasm, oś 20 Hz – 1 kHz – 20 kHz; pod spodem pola wybranego pasma: FREQUENCY (np. 120 Hz), GAIN (+3.5 dB), Q (1.20), TYPE (Bell), MIX (100%), MODE (Stereo); na dole MULTIBAND OVERVIEW – 4 kolorowe kafelki SUB 20–80 Hz / LOW 80–250 Hz / MID 250–2.5k / HIGH 2.5–20k.
+Ilustracja koncepcyjna – wszystkie wykresy w finalnej wtyczce muszą przedstawiać rzeczywiste dane DSP.

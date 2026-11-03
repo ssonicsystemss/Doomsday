@@ -156,3 +156,5 @@ Dodaje harmoniczne lub teksturę w określonym zakresie częstotliwości.
 | DRIVE | 0–100% |
 | HARMONIC MODE | Even / Odd / Both |
 | MIX | 0–100% |
+Tryby: WARM, BRIGHT, CRISP, METALLIC, AGGRESSIVE, CUSTOM.
+Exciter generuje dodatkową zawartość harmoniczną lub odpowiednio wzmacnia istniejące składowe – nie wolno go zrobić jako zwykłego high-shelf EQ.

@@ -268,3 +268,18 @@ Identyczne ustawienia + identyczny sygnał wejściowy = identyczny wynik. Przysz
 | Offline Render | Zgodność z realtime |
 | CPU Stress Test | Stabilność przy maksymalnej konfiguracji |
 Warunki zaliczenia: 1. min. 8-pasmowy parametryczny EQ; 2. Dynamic EQ z prawdziwym detektorem; 3. min. 4-pasmowy Multiband Engine; 4. crossover bez niekontrolowanych zmian poziomu; 5. Spectral Shaper z realnym przetwarzaniem widma; 6. kontrola Mid/Side; 7. Spectrum Analyzer pokazuje rzeczywisty sygnał; 8. wszystkie procesory automatyzowalne; 9. routing z pozostałymi modułami; 10. testy CPU, stabilności i latencji.
+
+## 14. OSTATECZNY REZULTAT MODULE 07
+Użytkownik może: precyzyjnie kontrolować częstotliwości kicka; wzmacniać i ograniczać wybrane harmoniczne; kontrolować subbas bez wpływu na BODY; rozjaśniać screech bez zwiększania całej głośności; dynamicznie usuwać niepożądane rezonanse; przetwarzać niezależnie 4+ pasma; kontrolować szerokość stereo dla wybranych częstotliwości; uzyskać profesjonalny balans tonalny przed eksportem kicka.
+Test końcowy: kick z 4GE → analizator → znaleźć problematyczny rezonans → ograniczyć go przez Dynamic EQ → rozjaśnić harmoniczne przez Spectral Exciter → SUB w mono, poszerzona wyłącznie góra — bez utraty kontroli nad transientem.
+
+---
+## NOTES (Claude, 2026-11-03) – decyzje techniczne
+- EQ: biquady TPT / SVF (minimum phase) z wygładzaniem współczynników per blok; RE4GE `Eq8.h` jako punkt startowy (rozszerzyć do 16 i 9 typów). Linear phase = osobna ścieżka FIR (FFT conv.), domyślnie OFF, latencja zgłaszana do hosta.
+- Dynamic EQ: pasmo = filtr dzwonowy z gainem sterowanym detektorem (peak / RMS z oknem), detektor na osobnym filtrze sidechain; sidechain zewnętrzny tylko gdy host da wejście (VST3 aux bus).
+- Multiband: kaskada Linkwitz-Riley + all-pass kompensujące fazę (suma płaska, test sumy ±0.1 dB); Butterworth / Bessel oznaczone jako niepłaska suma (opis w tooltipie).
+- Spectral compression / freeze na FFT (STFT, Hann, overlap 75 %), latencja zgłaszana; dla krótkich kicków mały rozmiar FFT + tryb „transient bypass”, żeby nie było metalicznego rozmycia ataku.
+- Harmonic shaper / exciter = nieliniowości z `Shared/DoomsdayLab.h` (ADAA) na odfiltrowanym paśmie, z korekcją poziomu (auto-gain), w strefie oversamplingu głosu.
+- Stereo: M/S per pasmo, MONO BELOW zawsze przed WIDTH (WIDTH nie rusza subu), korelometr do GUI.
+- Analizator: FIFO lock-free z audio → FFT w wątku GUI (jak RE4GE / Mirror of Souls).
+- Moduł 07 makra (BODY / SUB CONTROL / BRIGHTNESS …) – mapy z normalizacją głośności; do ustalenia jak łączą się z 8 głównymi makrami 4GE (pytanie na koniec, razem z SCREAM z M06).

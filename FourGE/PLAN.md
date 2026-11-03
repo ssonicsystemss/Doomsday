@@ -110,10 +110,15 @@ Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznyc
    BITCRUSH (1–24 bit / SR reduction / quantization / dither), RECTIFIER (half / full / positive / negative / custom), ASYMMETRIC…
    Klocki: `Shared/DoomsdayLab.h` (ADAA: saturation / diode / wavefold / rectifier / bitcrush / custom), RE4GE WaveshaperView.
    **Makieta ekranu:** `Design/mock.html` → `Design/4GE_makieta_main.png` (do zatwierdzenia).
-1f. **Moduł 06 – Filter, Resonance & Screech Engine** (specyfikacja: **`MODULE06.md`**, na razie początek): trzy niezależne silniki
+1f. **Moduł 06 – Filter, Resonance & Screech Engine** (specyfikacja: **`MODULE06.md`**, kompletna + NOTES / 3 pytania): trzy niezależne silniki
    z przesyłaniem sygnału między nimi – FILTER (wieloetapowy), RESONANCE (własne źródła wzbudzenia, obwiednia, modulacja, routing,
    kontrola stabilności), SCREECH (synteza screechy od podstaw – nie sampel, nie sam high-pass). Doświadczenie do wzięcia:
    Prophecy of Scream / 5CR34M 4LPH4 (`Tools/screech`, LESSONS o screechach), `Shared` Ladder / SVF / Formant.
+1g. **Moduł 07 – EQ, Multiband & Spectral Shaping** (specyfikacja: **`MODULE07.md`**, kompletna + NOTES): PARAMETRIC EQ 8→16 pasm
+   (9 typów, min / linear phase), DYNAMIC EQ (5 trybów, detektor peak / RMS / sidechain), MULTIBAND 4→6 pasm (crossover LR 12/24/48 /
+   Butterworth / Bessel, dynamika + transient per pasmo, sendy do M05 / M06 – bez kopii silników), SPECTRAL SHAPER (tilt / harmonic /
+   spectral compression / exciter / freeze), STEREO per pasmo + M/S + mono below; poziomy GLOBAL / GROUP / LAYER, 8 makr częstotliwości,
+   analizator, 8 presetów, latencja zgłaszana do hosta. Klocki: RE4GE `DSP/Eq8.h` + EqView, `Shared` Crossover3, Mirror of Souls (EQ).
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

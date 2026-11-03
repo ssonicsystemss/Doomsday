@@ -119,6 +119,12 @@ Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznyc
    Butterworth / Bessel, dynamika + transient per pasmo, sendy do M05 / M06 – bez kopii silników), SPECTRAL SHAPER (tilt / harmonic /
    spectral compression / exciter / freeze), STEREO per pasmo + M/S + mono below; poziomy GLOBAL / GROUP / LAYER, 8 makr częstotliwości,
    analizator, 8 presetów, latencja zgłaszana do hosta. Klocki: RE4GE `DSP/Eq8.h` + EqView, `Shared` Crossover3, Mirror of Souls (EQ).
+   Kolejność wewnątrz modułu: EQ → analizator → dynamic EQ → multiband → dynamika pasm → spectral → stereo → integracja → testy;
+   JEDNA wspólna klasa procesora dla warstwy / grupy / mastera.
+1h. **Moduł 08 – Dynamics, Compressor, Transient & Limiter** (specyfikacja: **`MODULE08.md`**, PDF `Specs/MODULE08_owner.pdf`):
+   kompresor 8 typów (VCA / FET / Opto / Vari-Mu / Digital / Upward / Parallel / Sidechain) z detekcją peak / RMS / hybrid / true peak,
+   multiband dynamics na crossoverach M07, transient shaper per grupa, clipper 7 krzywych + oversampling, limiter 5 trybów z true peak,
+   crest factor, auto gain (okno, nie próbka po próbce), 8 makr dynamiki, 8 presetów. Klocki: RE4GE `Comp`, Throne of Titans (limiter, LUFS).
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

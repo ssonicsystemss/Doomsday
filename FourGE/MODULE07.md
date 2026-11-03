@@ -175,3 +175,6 @@ Kick ma możliwość precyzyjnego kontrolowania szerokości poszczególnych zakr
 | MONO BELOW | 20–500 Hz |
 | STEREO MIX | 0–100% |
 0% = mono, 100% = oryginalna szerokość, 200% = poszerzenie.
+### 6.2. Mid/Side Processing
+Każde pasmo: MID GAIN, SIDE GAIN, MID EQ, SIDE EQ, MID WIDTH, SIDE WIDTH.
+Przykłady: subbas całkowicie w centrum, BODY w umiarkowanym stereo, poszerzone wysokie harmoniczne, charakter screechy rozdzielony pomiędzy kanały.

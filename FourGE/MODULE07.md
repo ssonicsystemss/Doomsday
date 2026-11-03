@@ -235,3 +235,11 @@ Nie może blokować wątku audio – dane do GUI przez bezpieczny mechanizm komu
 | EXPERIMENTAL | Spectral Chaos | Ekstremalne manipulacje widmem |
 | EXPERIMENTAL | Metallic Frequency | Metaliczne harmoniczne |
 Presety zawierają komplet ustawień odpowiednich sekcji, a nie tylko kilka wartości EQ.
+
+## 12. WYMAGANIA DSP I IMPLEMENTACYJNE
+### 12.1. Jakość przetwarzania
+44.1 / 48 / 88.2 / 96 / 192 kHz; wysoka precyzja obliczeń; stabilne filtry przy skrajnych wartościach; poprawna rekonstrukcja pasm crossover; smoothowanie automatyzowanych parametrów; ochrona przed DC offsetem, denormalami, NaN i Infinity; brak niekontrolowanych skoków poziomu.
+### 12.2. Latency Management
+Wszystkie procesory zgłaszają i poprawnie obsługują latencję – szczególnie Linear Phase EQ, FFT Spectral Processing, Multiband Processing, procesory z lookahead.
+Ścieżki równoległe – automatyczne wyrównanie opóźnienia (bez problemów fazowych).
+Procesor z latencją wybrany przez użytkownika → wtyczka poprawnie zgłasza latencję do hosta.

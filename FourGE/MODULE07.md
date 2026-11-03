@@ -222,3 +222,16 @@ Niezależny analizator widma prezentuje rzeczywisty sygnał.
 Wymagane: FFT Analyzer, Peak Hold, Average Spectrum, Pre/Post Comparison, regulowana rozdzielczość FFT, regulowany czas uśredniania, skala częstotliwości Linear / Logarithmic, wyświetlanie częstotliwości dominującej, odczyt poziomu w dBFS.
 Pozwala obserwować: subbas, podstawową częstotliwość kicka, harmoniczne, rezonanse, wysokie częstotliwości screechy.
 Nie może blokować wątku audio – dane do GUI przez bezpieczny mechanizm komunikacji.
+
+## 11. PRESET SYSTEM
+| Styl | Preset | Charakter |
+|---|---|---|
+| EARLY | Classic Warmth | Ciepły, klasyczny balans |
+| EARLY | Oldschool Punch | Podkreślony atak |
+| MODERN | Modern Balance | Zrównoważone widmo |
+| MODERN | Bright Festival | Jasne harmoniczne |
+| RAWSTYLE | Raw Aggression | Mocny środek i góra |
+| RAWSTYLE | Heavy Sub Control | Kontrolowany dół |
+| EXPERIMENTAL | Spectral Chaos | Ekstremalne manipulacje widmem |
+| EXPERIMENTAL | Metallic Frequency | Metaliczne harmoniczne |
+Presety zawierają komplet ustawień odpowiednich sekcji, a nie tylko kilka wartości EQ.

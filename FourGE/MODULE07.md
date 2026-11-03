@@ -17,3 +17,11 @@ Każdy silnik niezależny, ale wszystkie współpracują z pozostałymi modułam
 Schemat przepływu sygnału (domyślny):
 PUNCH / BODY / TAIL / SUB / TEXTURE → PARAMETRIC EQ → DYNAMIC EQ → MULTIBAND PROCESSING → SPECTRAL SHAPER → STEREO FREQUENCY ENGINE → OUTPUT
 To domyślna konfiguracja. Użytkownik musi móc zmienić kolejność i routing modułów.
+
+## 2. PARAMETRIC EQ — korektor parametryczny
+### 2.1. Liczba pasm
+- Minimum 8 niezależnych pasm EQ, docelowo 16.
+- Każde pasmo ma osobny zestaw parametrów.
+- Pasma dowolnie rozmieszczane w zakresie 20 Hz–20 kHz.
+- Aktywowanie / dezaktywowanie poszczególnych pasm.
+- Kopiowanie, duplikowanie i usuwanie pasm.

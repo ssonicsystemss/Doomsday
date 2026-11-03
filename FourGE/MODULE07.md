@@ -124,3 +124,7 @@ Transient Control osobno wzmacnia lub ogranicza atak w wybranym paśmie – na r
 - Rawstyle: SUB – kontrola stabilności dołu; LOW – mocny, skoncentrowany fundament; MID – agresywne harmoniczne; HIGH – wyraźny, ostry atak i screech.
 - Early Hardstyle: SUB – czysty dół; LOW – zaokrąglone BODY; MID – subtelne harmoniczne; HIGH – ograniczone, kontrolowane wysokie częstotliwości.
 - Experimental: niezależne przesterowanie pasm, przesuwanie punktów crossover, szerokie manipulacje widmem, nietypowe relacje fazowe.
+
+## 5. SPECTRAL SHAPER — zaawansowane kształtowanie widma
+Silnik zmieniający rozkład energii częstotliwościowej w sposób bardziej zaawansowany niż klasyczny EQ.
+Nie może być wyłącznie kolejnym korektorem parametrycznym pod inną nazwą.

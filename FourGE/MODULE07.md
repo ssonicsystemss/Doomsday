@@ -104,3 +104,6 @@ Wymagane: minimum 4 niezależne pasma, docelowo 6; wyłączenie dowolnego pasma;
 Punkty podziału korzystają z poprawnych filtrów crossoverowych. Tryby: Linkwitz-Riley 12 dB/oct, Linkwitz-Riley 24 dB/oct, Linkwitz-Riley 48 dB/oct, Butterworth, Bessel, Custom.
 Możliwie płaska suma częstotliwościowa po ponownym połączeniu pasm – bez niezamierzonych dziur lub podbić w okolicach crossoverów.
 Wymagania techniczne: komplementarne charakterystyki filtrów, kontrola fazy, poprawna rekonstrukcja sygnału, smoothowanie zmian crossoverów, brak kliknięć przy przesuwaniu punktów podziału, obsługa różnych częstotliwości próbkowania.
+### 4.3. Procesory dostępne dla każdego pasma
+Każde pasmo ma własny zestaw: Gain, EQ, Saturation Send, Distortion Send, Filter Send, Dynamic Control, Stereo Width, Phase Invert, Mute, Solo.
+Bez osobnych kopii silników distortion i filter – korzystać z instancji i punktów routingu z Module 05 i Module 06.

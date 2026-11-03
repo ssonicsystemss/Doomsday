@@ -98,3 +98,5 @@ Domyślnie 4 pasma:
 | LOW | 80–250 Hz | Masa i uderzenie |
 | MID | 250 Hz–2,5 kHz | Charakter BODY |
 | HIGH | 2,5–20 kHz | Klik, screech, harmoniczne |
+To tylko ustawienia początkowe – użytkownik dowolnie przesuwa punkty podziału.
+Wymagane: minimum 4 niezależne pasma, docelowo 6; wyłączenie dowolnego pasma; łączenie pasm; solo i mute każdego pasma; odsłuch pasm przed i po przetwarzaniu.

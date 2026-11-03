@@ -84,3 +84,6 @@ Przykład: jeśli kick ma zbyt agresywny rezonans przy 3,5 kHz, Dynamic EQ autom
 ### 3.3. Detektor
 Peak Detection, RMS Detection, wybór długości okna detekcji, regulacja Attack i Release, filtr sidechain, wybór źródła detekcji.
 Źródła detekcji: aktualne pasmo, pełny sygnał kicka, inna grupa, zewnętrzny sygnał sidechain (jeśli host udostępnia wejście).
+### 3.4. Integracja z kickiem
+Dynamic EQ może działać osobno na PUNCH, BODY, TAIL, SUB i TEXTURE.
+Przykłady: ograniczanie zbyt mocnego kliknięcia w PUNCH, kontrolowanie agresywnego rezonansu BODY, redukowanie syczących częstotliwości SCREECH, utrzymywanie stabilnego subbasu, dynamiczne rozjaśnianie ogona.

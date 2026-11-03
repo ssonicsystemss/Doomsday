@@ -128,3 +128,12 @@ Transient Control osobno wzmacnia lub ogranicza atak w wybranym paśmie – na r
 ## 5. SPECTRAL SHAPER — zaawansowane kształtowanie widma
 Silnik zmieniający rozkład energii częstotliwościowej w sposób bardziej zaawansowany niż klasyczny EQ.
 Nie może być wyłącznie kolejnym korektorem parametrycznym pod inną nazwą.
+### 5.1. Spectral Tilt
+Sterowanie ogólnym balansem tonalnym.
+| Parametr | Zakres |
+|---|---|
+| TILT | -100 do +100% |
+| PIVOT FREQUENCY | 20 Hz–20 kHz |
+| INTENSITY | 0–100% |
+| MIX | 0–100% |
+Wartość ujemna: ciemniejsze brzmienie; dodatnia: jaśniejsze. Pivot Frequency = częstotliwość, wokół której następuje zmiana balansu.

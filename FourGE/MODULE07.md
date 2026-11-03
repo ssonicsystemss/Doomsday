@@ -162,3 +162,6 @@ Exciter generuje dodatkową zawartość harmoniczną lub odpowiednio wzmacnia is
 Opcjonalne zamrażanie widma: analizuje aktualne widmo, zapisuje jego rozkład, utrzymuje wybraną teksturę, pozwala modulować zapisane widmo.
 Parametry: FREEZE, CAPTURE TIME, SPECTRAL DECAY, SMOOTHING, PITCH SHIFT, MIX.
 Może być oznaczona jako EXPERIMENTAL, ale jeśli jest w GUI – musi rzeczywiście działać.
+
+## 6. STEREO FREQUENCY ENGINE — kontrola częstotliwości w stereo
+Kick ma możliwość precyzyjnego kontrolowania szerokości poszczególnych zakresów częstotliwości.

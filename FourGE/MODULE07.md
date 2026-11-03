@@ -75,3 +75,12 @@ Przykład: jeśli kick ma zbyt agresywny rezonans przy 3,5 kHz, Dynamic EQ autom
 | FREQUENCY | 20 Hz–20 kHz |
 | Q | 0.1–30 |
 | MIX | 0–100% |
+### 3.2. Tryby działania
+- DYNAMIC CUT — automatyczne ograniczanie wybranego pasma.
+- DYNAMIC BOOST — automatyczne podbijanie pasma.
+- UPWARD DYNAMIC — wzmacnianie pasma poniżej ustalonego poziomu.
+- DOWNWARD DYNAMIC — ograniczanie pasma powyżej ustalonego poziomu.
+- SIDECHAIN EQ — detektor sterowany z innego źródła.
+### 3.3. Detektor
+Peak Detection, RMS Detection, wybór długości okna detekcji, regulacja Attack i Release, filtr sidechain, wybór źródła detekcji.
+Źródła detekcji: aktualne pasmo, pełny sygnał kicka, inna grupa, zewnętrzny sygnał sidechain (jeśli host udostępnia wejście).

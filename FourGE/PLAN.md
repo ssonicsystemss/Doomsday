@@ -40,7 +40,13 @@ Zasady jak w RE4GE: krok po kroku, po każdym kroku kompilacja + testy + A/B dla
 ## Kolejność (zgodnie z etapami SPEC 37, z tym co już mamy)
 0. **Porządek w środku** (jak RE4GE krok 0): komponenty `Source/DSP` / `Parameters` (IDs zamrożone) / `Presets` / `GUI`, brzmienie bit w bit
    jak v0.4 (test porównawczy). + **makieta ekranu** (industrial, 5 bloków, waveform) do zatwierdzenia.
-1. **Core**: silnik BODY, LENGTH ENGINE (profile + AUTO LENGTH + fazy), nowy ekran KICK (Main / Style / Length / Punch / Body / Tail / Pitch),
+1. **Core** – szczegółowa specyfikacja właściciela: **`MODULE01.md`** (PunchGenerator / BodyGenerator / TailGenerator / SubGenerator →
+   CoreMixer: level / pan / mute / solo / phase invert / peak; LENGTH 100–2500 ms (domyślnie 450) + AUTO LENGTH, PHASE RESET, MASTER;
+   PITCH ENGINE z trybami CLASSIC / FAST / SLOW / DOUBLE DROP, RISE, STABLE, CUSTOM, przygotowany na osobne krzywe P / B / T;
+   TAIL CHARACTER CLEAN / TONAL / DIRTY / SCREAM / METALLIC / BUZZ / CRUSHED (realnie różne tory); głosy nakładające się, note-off nie ucina;
+   12 kryteriów akceptacji = testy RenderTest). Decyzja techniczna: TailGenerator stoi na dzisiejszym torze ogona (GeKick: osc A / B, stopnie
+   przesteru, scream / crunch), żeby kicki właściciela (OWNER / FULL) brzmiały jak dziś; BODY i SUB to nowe generatory.
+   Poprzedni opis kroku: silnik BODY, LENGTH ENGINE (profile + AUTO LENGTH + fazy), nowy ekran KICK (Main / Style / Length / Punch / Body / Tail / Pitch),
    waveform z klikalnymi strefami, eksport WAV. **Bramka: ucho właściciela.**
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.

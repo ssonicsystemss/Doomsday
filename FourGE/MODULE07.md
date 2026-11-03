@@ -50,3 +50,12 @@ Każdy typ musi posiadać własną prawidłową charakterystykę.
 | MIX | 0–100% |
 | STEREO MODE | Stereo / Left / Right / Mid / Side |
 Dla typów filtrów, które nie obsługują GAIN lub Q, odpowiednie parametry muszą zostać wyłączone.
+### 2.4. Charakterystyka i jakość dźwięku
+- Precyzyjna regulacja częstotliwości.
+- Płynne zmiany gain bez kliknięć.
+- Stabilność przy ekstremalnych wartościach Q.
+- Brak niepotrzebnych zmian fazowych poza charakterystyką danego filtra.
+- Możliwość wyboru trybu Linear Phase, jeżeli implementacja jest dostępna i uzasadniona.
+- W trybie minimum phase poprawne zachowanie fazowe.
+- Odpowiednia kompensacja latencji w trybie linear phase.
+Linear Phase nie może być domyślnym trybem dla każdego zastosowania – przy bardzo krótkich transientach może powodować pre-ringing, więc użytkownik wybiera tryb odpowiedni do materiału.

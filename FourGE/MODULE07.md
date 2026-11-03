@@ -165,3 +165,13 @@ Może być oznaczona jako EXPERIMENTAL, ale jeśli jest w GUI – musi rzeczywi�
 
 ## 6. STEREO FREQUENCY ENGINE — kontrola częstotliwości w stereo
 Kick ma możliwość precyzyjnego kontrolowania szerokości poszczególnych zakresów częstotliwości.
+### 6.1. Stereo Width
+| Parametr | Zakres |
+|---|---|
+| WIDTH | 0–200% |
+| LOW WIDTH | 0–200% |
+| MID WIDTH | 0–200% |
+| HIGH WIDTH | 0–200% |
+| MONO BELOW | 20–500 Hz |
+| STEREO MIX | 0–100% |
+0% = mono, 100% = oryginalna szerokość, 200% = poszerzenie.

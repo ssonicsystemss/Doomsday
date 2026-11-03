@@ -216,3 +216,9 @@ Ilustracja koncepcyjna – wszystkie wykresy w finalnej wtyczce muszą przedstaw
 - Spectrum Analyzer z regulacją szybkości i rozdzielczości; Pre/Post Spectrum Comparison.
 - Undo/Redo, A/B Compare, Copy/Paste ustawień.
 - MIDI Learn, automatyzacja DAW, Preset Browser, reset pojedynczego parametru.
+
+## 10. SPECTRUM ANALYZER
+Niezależny analizator widma prezentuje rzeczywisty sygnał.
+Wymagane: FFT Analyzer, Peak Hold, Average Spectrum, Pre/Post Comparison, regulowana rozdzielczość FFT, regulowany czas uśredniania, skala częstotliwości Linear / Logarithmic, wyświetlanie częstotliwości dominującej, odczyt poziomu w dBFS.
+Pozwala obserwować: subbas, podstawową częstotliwość kicka, harmoniczne, rezonanse, wysokie częstotliwości screechy.
+Nie może blokować wątku audio – dane do GUI przez bezpieczny mechanizm komunikacji.

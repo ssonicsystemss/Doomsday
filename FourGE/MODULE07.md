@@ -141,3 +141,8 @@ Wartość ujemna: ciemniejsze brzmienie; dodatnia: jaśniejsze. Pivot Frequency 
 Kształtowanie istniejących harmonicznych. Parametry: EVEN HARMONICS, ODD HARMONICS, LOW HARMONICS, HIGH HARMONICS, HARMONIC DRIVE, HARMONIC MIX, HARMONIC BALANCE.
 Użytkownik kontroluje udział parzystych i nieparzystych harmonicznych.
 Może korzystać z nieliniowych algorytmów generowania harmonicznych, ale musi rzeczywiście zmieniać zawartość widma – nie jedynie regulacja głośności pasma.
+### 5.3. Spectral Compression
+Ogranicza nadmierne skupienie energii w wybranych częstotliwościach.
+Parametry: SENSITIVITY, THRESHOLD, REDUCTION, ATTACK, RELEASE, FREQUENCY RANGE, SPECTRAL SMOOTHING, MIX.
+Działanie: 1. analizuje rozkład energii częstotliwościowej; 2. wykrywa pasma przekraczające określony poziom; 3. ogranicza ich energię; 4. zachowuje pozostałe części widma.
+Jeśli korzysta z FFT: poprawne okienkowanie, overlap-add i kontrola artefaktów; bez niepotrzebnego opóźnienia i metalicznych artefaktów przy krótkich sygnałach.

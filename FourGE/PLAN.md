@@ -48,6 +48,13 @@ Zasady jak w RE4GE: krok po kroku, po każdym kroku kompilacja + testy + A/B dla
    bez obowiązku zgodności z presetami OWNER / FULL; stary kod to tylko źródło wiedzy (co brzmiało dobrze: smaczki w pamięci, LESSONS).
    Poprzedni opis kroku: silnik BODY, LENGTH ENGINE (profile + AUTO LENGTH + fazy), nowy ekran KICK (Main / Style / Length / Punch / Body / Tail / Pitch),
    waveform z klikalnymi strefami, eksport WAV. **Bramka: ucho właściciela.**
+1b. **Moduł 02 – Advanced Pitch & Envelope** (specyfikacja: **`MODULE02.md`**): wielopunktowe krzywe do 64 punktów (TIME / VALUE / CURVE /
+   TENSION; LINEAR / EXP / LOG / EASE IN / OUT / IN-OUT / BEZIER / STEP – wszystkie w DSP), osobny pitch dla PUNCH / BODY / TAIL / SUB
+   (ENABLE / AMOUNT / TIME SCALE / OFFSET / COPY / PASTE, SUB FOLLOW BODY), PITCH LINK (INDEPENDENT / FOLLOW / COPY / LINKED, bez cykli),
+   uniwersalny silnik obwiedni (AMP / PITCH / CUTOFF / DRIVE / RESO / NOISE / FM / WIDTH / FOLD; ADSR + DELAY / CURVE / POLARITY,
+   ONE SHOT / RETRIGGER / LEGATO), TIME SCALE 10–400 % + OFFSET + sync do BPM, przypisania źródło → cel (suma z clampem), edytor
+   (zoom, snap, wielokrotne zaznaczenie, undo, presety kształtów). Pitch liczony w półtonach (f = f0 · 2^(st/12)), base osobno od krzywej.
+   Klocki do wzięcia: `Shared` `mod::Shape` + RE4GE `ShapeDesigner` (rozbudować o typy interpolacji / tension / Bezier / 64 punkty).
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

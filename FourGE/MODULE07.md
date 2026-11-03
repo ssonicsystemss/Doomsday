@@ -137,3 +137,7 @@ Sterowanie ogólnym balansem tonalnym.
 | INTENSITY | 0–100% |
 | MIX | 0–100% |
 Wartość ujemna: ciemniejsze brzmienie; dodatnia: jaśniejsze. Pivot Frequency = częstotliwość, wokół której następuje zmiana balansu.
+### 5.2. Harmonic Shaper
+Kształtowanie istniejących harmonicznych. Parametry: EVEN HARMONICS, ODD HARMONICS, LOW HARMONICS, HIGH HARMONICS, HARMONIC DRIVE, HARMONIC MIX, HARMONIC BALANCE.
+Użytkownik kontroluje udział parzystych i nieparzystych harmonicznych.
+Może korzystać z nieliniowych algorytmów generowania harmonicznych, ale musi rzeczywiście zmieniać zawartość widma – nie jedynie regulacja głośności pasma.

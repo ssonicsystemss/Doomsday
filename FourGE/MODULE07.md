@@ -183,3 +183,14 @@ Obowiązkowe: kontrola korelacji stereo, odsłuch mono, wykrywanie nadmiernych p
 Nie wolno automatycznie poszerzać subbasu tylko dlatego, że użytkownik zwiększył ogólny WIDTH.
 
 ## 7. FREQUENCY MACROS — makra modułu
+| Makro | Funkcja |
+|---|---|
+| BODY | Wzmacnia lub kształtuje środkową część kicka |
+| SUB CONTROL | Kontroluje energię najniższych częstotliwości |
+| BRIGHTNESS | Rozjaśnia widmo |
+| CLARITY | Ogranicza maskowanie częstotliwości |
+| HARMONICS | Zwiększa udział harmonicznych |
+| AGGRESSION | Podkreśla agresywne pasma |
+| WIDTH | Steruje szerokością stereo |
+| TONE | Ogólny balans tonalny |
+Każde makro musi mieć konfigurowalną mapę parametrów.

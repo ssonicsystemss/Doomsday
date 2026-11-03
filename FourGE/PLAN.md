@@ -34,6 +34,13 @@ Reszta funkcji (unison, wavetable, harmonic engine, ring, sync, kolejne oscylato
 Wniosek do modułu 05: wśród typów stopnia potrzebne też **DIGITAL CLIP** i **RING MOD** (mnożenie przez wewnętrzny nośnik
 o częstotliwości względem nuty) – nie tylko ring mod między oscylatorami z modułu 03. Styl ustawia tylko te łańcuchy na start.
 
+## OBOWIĄZKOWE: routing distortion per warstwa (właściciel, 2026-11-03)
+Nie każda warstwa jest przesterowana tak samo. **SUB musi móc zostać całkiem czysty, nawet gdy TAIL jest ekstremalnie zniszczony.**
+Routing przesteru na poziomie pojedynczej warstwy to funkcja obowiązkowa (od modułu 05, architektura gotowa od modułu 01):
+każda warstwa / komponent ma własny wybór „do których stopni idzie” (łańcuch per PUNCH / BODY / TAIL / SUB / warstwa + DRY / bypass),
+SUB domyślnie BYPASS (czysty), żadnego wspólnego przesteru na sumie, który by go łapał bez wiedzy użytkownika.
+Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznych (THD ~ 0), sinus identyczny jak solo.
+
 ## Co już jest (v0.4) → czego brakuje
 | Spec | 4GE v0.4 | Brakuje |
 |---|---|---|

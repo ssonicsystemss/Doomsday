@@ -195,3 +195,11 @@ Nie wolno automatycznie poszerzać subbasu tylko dlatego, że użytkownik zwięk
 | TONE | Ogólny balans tonalny |
 Każde makro musi mieć konfigurowalną mapę parametrów.
 Przykład: BRIGHTNESS jednocześnie zwiększa High Shelf, zmienia Spectral Tilt, zwiększa udział wysokich harmonicznych, delikatnie zmienia cutoff w odpowiedniej sekcji – ale nie może powodować niekontrolowanego wzrostu poziomu sygnału.
+
+## 8. ROUTING I INTEGRACJA Z 4GE
+Trzy poziomy: 1. GLOBAL — korekcja całego kicka; 2. GROUP — PUNCH, BODY, TAIL, SUB, TEXTURE; 3. LAYER — pojedyncza warstwa z Module 04.
+Punkty routingu: przed / po Distortion Engine, przed / po Filter Engine, przed / po Screech Engine, przed Master Output.
+Własne łańcuchy i zmiana kolejności procesorów.
+Przykład Rawstyle: `SUB → EQ → MULTIBAND → DISTORTION → SPECTRAL SHAPER → MASTER`
+Przykład screechy: `SCREECH → FILTER → DISTORTION → DYNAMIC EQ → STEREO ENGINE → TAIL`
+Routing nie może tworzyć niejawnych kopii sygnału. Każda gałąź równoległa ma kontrolę poziomu i wyrównanie latencji.

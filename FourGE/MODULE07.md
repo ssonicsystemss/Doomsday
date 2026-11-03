@@ -148,3 +148,11 @@ Działanie: 1. analizuje rozkład energii częstotliwościowej; 2. wykrywa pasma
 Jeśli korzysta z FFT: poprawne okienkowanie, overlap-add i kontrola artefaktów; bez niepotrzebnego opóźnienia i metalicznych artefaktów przy krótkich sygnałach.
 ### 5.4. Spectral Exciter
 Dodaje harmoniczne lub teksturę w określonym zakresie częstotliwości.
+| Parametr | Zakres |
+|---|---|
+| FREQUENCY RANGE | 20 Hz–20 kHz |
+| EXCITATION | 0–100% |
+| COLOR | 0–100% |
+| DRIVE | 0–100% |
+| HARMONIC MODE | Even / Odd / Both |
+| MIX | 0–100% |

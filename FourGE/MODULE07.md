@@ -209,3 +209,10 @@ Pięć zakładek: PARAMETRIC, DYNAMIC, MULTIBAND, SPECTRAL, STEREO.
 ### 9.1. Główne okno EQ
 Koncept właściciela: `Design/M07_eq_concept.png`. Okno „4GE / EQ & SPECTRAL”: pasek 5 zakładek u góry; FREQUENCY RESPONSE (8-BAND EQ) – krzywa z punktami pasm, oś 20 Hz – 1 kHz – 20 kHz; pod spodem pola wybranego pasma: FREQUENCY (np. 120 Hz), GAIN (+3.5 dB), Q (1.20), TYPE (Bell), MIX (100%), MODE (Stereo); na dole MULTIBAND OVERVIEW – 4 kolorowe kafelki SUB 20–80 Hz / LOW 80–250 Hz / MID 250–2.5k / HIGH 2.5–20k.
 Ilustracja koncepcyjna – wszystkie wykresy w finalnej wtyczce muszą przedstawiać rzeczywiste dane DSP.
+### 9.2. Wymagane funkcje interfejsu
+- Przeciąganie punktów EQ myszą; podwójne kliknięcie punktu = edycja wartości.
+- Zoom i przesuwanie wykresu.
+- Solo i bypass poszczególnych pasm.
+- Spectrum Analyzer z regulacją szybkości i rozdzielczości; Pre/Post Spectrum Comparison.
+- Undo/Redo, A/B Compare, Copy/Paste ustawień.
+- MIDI Learn, automatyzacja DAW, Preset Browser, reset pojedynczego parametru.

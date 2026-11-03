@@ -24,6 +24,16 @@ Nie każdy komponent ma te same funkcje włączone na start – początkujący o
 | SUB | Sine |
 Reszta funkcji (unison, wavetable, harmonic engine, ring, sync, kolejne oscylatory) – dostępna, ale wyłączona w INIT.
 
+## Domyślne łańcuchy distortion per styl (właściciel, 2026-11-03) → STYLE ENGINE
+| Styl | Charakter | Łańcuch stopni |
+|---|---|---|
+| EARLY | ciepły, kontrolowany, klasyczny | SOFT CLIP → TUBE |
+| MODERN | gęsty, mocny, precyzyjny | HARD CLIP → SOFT CLIP → DIGITAL CLIP |
+| RAW | agresywny, asymetryczny, mocno nasycony | ASYMMETRIC → HARD CLIP → WAVEFOLD |
+| EXPERIMENTAL | nietypowe harmoniczne, metaliczne tekstury | WAVEFOLD → RING MOD → CUSTOM SHAPER |
+Wniosek do modułu 05: wśród typów stopnia potrzebne też **DIGITAL CLIP** i **RING MOD** (mnożenie przez wewnętrzny nośnik
+o częstotliwości względem nuty) – nie tylko ring mod między oscylatorami z modułu 03. Styl ustawia tylko te łańcuchy na start.
+
 ## Co już jest (v0.4) → czego brakuje
 | Spec | 4GE v0.4 | Brakuje |
 |---|---|---|

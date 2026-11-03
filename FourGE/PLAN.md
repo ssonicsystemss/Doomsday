@@ -125,6 +125,11 @@ Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznyc
    kompresor 8 typów (VCA / FET / Opto / Vari-Mu / Digital / Upward / Parallel / Sidechain) z detekcją peak / RMS / hybrid / true peak,
    multiband dynamics na crossoverach M07, transient shaper per grupa, clipper 7 krzywych + oversampling, limiter 5 trybów z true peak,
    crest factor, auto gain (okno, nie próbka po próbce), 8 makr dynamiki, 8 presetów. Klocki: RE4GE `Comp`, Throne of Titans (limiter, LUFS).
+1i. **Moduł 09 – Modulation Matrix & Advanced Modulation** (specyfikacja: **`MODULE09.md`**, PDF `Specs/MODULE09_owner.pdf`):
+   NAJPIERW Parameter Registry (fundament dla wszystkich modułów – realnie budowany już w kroku 0 / 1), potem centralny Modulation Engine
+   (32→64 sloty, ADD / MULTIPLY / MAX / MIN / REPLACE), źródła (obwiednie, LFO 1–8, velocity, key, makra, sekwencer 1–64, random z seedem,
+   audio follower, MIDI CC), 8 makr startowych PUNCH / BODY / TAIL / GRIT / SCREAM / MOVEMENT / DENSITY / SPACE (do 16) + Macro Morph,
+   MIDI Learn, monitory BASE / MOD SUM / FINAL. Klocki: RE4GE ModMatrix / LFO / Trigger / Randomizer / MorphBar / ParamBridge.
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

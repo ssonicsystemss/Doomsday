@@ -118,3 +118,5 @@ Każde pasmo może posiadać własny procesor dynamiki.
 | KNEE | 0–24 dB |
 | MAKEUP | -24 do +24 dB |
 | MIX | 0–100% |
+Dodatkowe tryby: Compressor, Expander, Gate, Limiter, Transient Control.
+Transient Control osobno wzmacnia lub ogranicza atak w wybranym paśmie – na rzeczywistej detekcji obwiedni, a nie zwykłym podbiciu EQ.

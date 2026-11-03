@@ -103,7 +103,7 @@ Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznyc
    + rezonans (TEXTURE), 05 MAIN TAIL saw + FM + distortion (TAIL), 06 HIGH SCREAM wysoka tekstura z FM (TAIL), 07 SUB czysta sinusoida
    mono (SUB), 08 NOISE TAIL filtrowany szum z długim zanikiem (TEXTURE) → test: ten stos musi dać się zbudować i ma być presetem
    „MODERN · Layer Stack” w presetach startowych.
-1e. **Moduł 05 – Distortion & Waveshaper Engine** (specyfikacja: **`MODULE05.md`**, **urwana na 3.8 – czekamy na resztę**): min. 4 stopnie
+1e. **Moduł 05 – Distortion & Waveshaper Engine** (specyfikacja: **`MODULE05.md`**, kompletna + NOTES): min. 4 stopnie
    (docelowo 8), każdy: enable / type / drive / in / out / mix / bias / symmetry / pre + post filter / oversampling / routing, zmienna
    kolejność (także z filtrem między stopniami); typy z własnymi parametrami: SOFT CLIP (threshold / knee), HARD CLIP (ceiling / symmetry),
    TUBE (bias / warmth / even / odd), DIODE (bias / asym / threshold), WAVEFOLD (amount / threshold / bias / symmetry / 1–8 stopni),

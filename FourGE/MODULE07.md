@@ -181,3 +181,5 @@ Przykłady: subbas całkowicie w centrum, BODY w umiarkowanym stereo, poszerzone
 ### 6.3. Mono Compatibility
 Obowiązkowe: kontrola korelacji stereo, odsłuch mono, wykrywanie nadmiernych problemów fazowych, ograniczenie szerokości, wymuszenie mono poniżej ustawionej częstotliwości.
 Nie wolno automatycznie poszerzać subbasu tylko dlatego, że użytkownik zwiększył ogólny WIDTH.
+
+## 7. FREQUENCY MACROS — makra modułu

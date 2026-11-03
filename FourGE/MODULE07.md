@@ -38,3 +38,15 @@ To domyślna konfiguracja. Użytkownik musi móc zmienić kolejność i routing 
 | Tilt EQ | Jednoczesne rozjaśnianie i przyciemnianie |
 | Resonant Peak | Wzmocnienie wybranego rezonansu |
 Każdy typ musi posiadać własną prawidłową charakterystykę.
+### 2.3. Parametry każdego pasma
+| Parametr | Zakres |
+|---|---|
+| ENABLE | ON/OFF |
+| TYPE | Lista typów |
+| FREQUENCY | 20 Hz–20 kHz |
+| GAIN | -24 do +24 dB |
+| Q | 0.1–30 |
+| SLOPE | 6–48 dB/oct |
+| MIX | 0–100% |
+| STEREO MODE | Stereo / Left / Right / Mid / Side |
+Dla typów filtrów, które nie obsługują GAIN lub Q, odpowiednie parametry muszą zostać wyłączone.

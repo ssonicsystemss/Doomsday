@@ -14,6 +14,16 @@ Zasady jak w RE4GE: krok po kroku, po każdym kroku kompilacja + testy + A/B dla
 - Zawsze widoczne: preset, STYLE, LENGTH, makra (IMPACT / BODY / TAIL / PITCH / GRIT / SCREAM / WEIGHT / CHAOS), master, BPM,
   Play, Random, miernik, Export + mały waveform.
 
+## Domyślna konfiguracja komponentów (rekomendacja właściciela, 2026-11-03)
+Nie każdy komponent ma te same funkcje włączone na start – początkujący od razu robi sensowny kick, zaawansowany ma całą maszynerię:
+| Komponent | Domyślnie |
+|---|---|
+| PUNCH | Sine + Click |
+| BODY | Sine + Saw |
+| TAIL | Saw + FM |
+| SUB | Sine |
+Reszta funkcji (unison, wavetable, harmonic engine, ring, sync, kolejne oscylatory) – dostępna, ale wyłączona w INIT.
+
 ## Co już jest (v0.4) → czego brakuje
 | Spec | 4GE v0.4 | Brakuje |
 |---|---|---|

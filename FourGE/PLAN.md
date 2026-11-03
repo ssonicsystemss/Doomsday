@@ -55,6 +55,14 @@ Zasady jak w RE4GE: krok po kroku, po każdym kroku kompilacja + testy + A/B dla
    ONE SHOT / RETRIGGER / LEGATO), TIME SCALE 10–400 % + OFFSET + sync do BPM, przypisania źródło → cel (suma z clampem), edytor
    (zoom, snap, wielokrotne zaznaczenie, undo, presety kształtów). Pitch liczony w półtonach (f = f0 · 2^(st/12)), base osobno od krzywej.
    Klocki do wzięcia: `Shared` `mod::Shape` + RE4GE `ShapeDesigner` (rozbudować o typy interpolacji / tension / Bezier / 64 punkty).
+1c. **Moduł 03 – Oscillator & Waveform Engine** (specyfikacja: **`MODULE03.md`**): min. 4 oscylatory (architektura do 8), każdy z własną fazą;
+   SINE / TRI / SAW / SQUARE / PULSE (1–99 %) / NOISE (white / pink / brown / metallic / digital) / CUSTOM (rysowany / import cyklu z WAV);
+   anti-aliasing u źródła (PolyBLEP / band-limited, oversampling dla FM / ring / sync); WAVETABLE (position / morph / scan: static / linear /
+   env / LFO / random z seedem, mipmapy); HARMONIC ENGINE 32–64 harmonicznych (amp / phase / on, odd / even / roll-off / tilt / spread / random);
+   UNISON 1–16 (detune / spread / blend, tryby, gain pod kontrolą); PHASE (reset / random / free / synced, align, invert); FM MATRIX
+   (ratio 0.1–32, fine, feedback, env); RING MOD (osobny algorytm); HARD / SOFT SYNC; routing osc → PUNCH / BODY / TAIL / SUB / CUSTOM BUS
+   (single / multi / split, poziom na połączenie); 8 makr osc; widok OSCILLATORS + spectrum z prawdziwego sygnału; presety osc.
+   Klocki: `Shared` polyBLEP / `Oscillator`, RE4GE `OscBank` (PM, unison), 5CR34M 4LPH4 (FM / wavetable – sprawdzić).
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

@@ -90,3 +90,11 @@ Przykłady: ograniczanie zbyt mocnego kliknięcia w PUNCH, kontrolowanie agresyw
 
 ## 4. MULTIBAND ENGINE — wielopasmowe przetwarzanie
 Silnik dzieli sygnał na osobne zakresy częstotliwości, które można niezależnie przetwarzać.
+### 4.1. Podział pasm
+Domyślnie 4 pasma:
+| Pasmo | Zakres początkowy | Typowe zastosowanie |
+|---|---|---|
+| SUB | 20–80 Hz | Fundament niskich częstotliwości |
+| LOW | 80–250 Hz | Masa i uderzenie |
+| MID | 250 Hz–2,5 kHz | Charakter BODY |
+| HIGH | 2,5–20 kHz | Klik, screech, harmoniczne |

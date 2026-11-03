@@ -25,3 +25,16 @@ To domyślna konfiguracja. Użytkownik musi móc zmienić kolejność i routing 
 - Pasma dowolnie rozmieszczane w zakresie 20 Hz–20 kHz.
 - Aktywowanie / dezaktywowanie poszczególnych pasm.
 - Kopiowanie, duplikowanie i usuwanie pasm.
+### 2.2. Typy filtrów EQ
+| Typ | Funkcja |
+|---|---|
+| Bell | Podbijanie lub wycinanie wybranego pasma |
+| Low Shelf | Regulacja niskich częstotliwości |
+| High Shelf | Regulacja wysokich częstotliwości |
+| Low Cut | Odcinanie niskich częstotliwości |
+| High Cut | Odcinanie wysokich częstotliwości |
+| Band Pass | Przepuszczanie wybranego pasma |
+| Notch | Precyzyjne wycinanie częstotliwości |
+| Tilt EQ | Jednoczesne rozjaśnianie i przyciemnianie |
+| Resonant Peak | Wzmocnienie wybranego rezonansu |
+Każdy typ musi posiadać własną prawidłową charakterystykę.

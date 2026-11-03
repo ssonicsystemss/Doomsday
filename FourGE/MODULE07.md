@@ -247,3 +247,23 @@ Procesor z latencją wybrany przez użytkownika → wtyczka poprawnie zgłasza l
 Brak alokacji pamięci, blokad i operacji plikowych w callbacku audio; brak kosztownych analiz widmowych wykonywanych bezpośrednio przez GUI; możliwość ograniczenia liczby aktywnych procesorów; SIMD jeśli uzasadnione; oddzielenie DSP od warstwy wizualnej; poprawne zarządzanie stanem przy zmianie presetu.
 ### 12.4. Determinizm
 Identyczne ustawienia + identyczny sygnał wejściowy = identyczny wynik. Przyszłe losowe procesy spectral – z kontrolą seed.
+
+## 13. TESTY I KRYTERIA AKCEPTACJI
+| Test | Oczekiwany rezultat |
+|---|---|
+| 8-pasmowy EQ | Wszystkie pasma działają niezależnie |
+| 16 pasm | Poprawna praca rozszerzonego EQ |
+| Dynamic EQ | Reaguje na rzeczywisty poziom sygnału |
+| Multiband Split | Prawidłowy podział częstotliwości |
+| Crossover Sum | Brak niezamierzonych dziur i podbić |
+| Solo Band | Odsłuch wybranego pasma |
+| Harmonic Shaper | Rzeczywista zmiana harmonicznych |
+| Spectral Exciter | Generowanie dodatkowej zawartości |
+| Spectral Compression | Kontrola energii widmowej |
+| Mid/Side | Poprawne rozdzielenie kanałów |
+| Mono Compatibility | Poprawna kontrola fazy i subbasu |
+| Linear Phase | Poprawna latencja i działanie |
+| Preset Recall | Pełne odtworzenie ustawień |
+| DAW Automation | Płynna automatyzacja |
+| Offline Render | Zgodność z realtime |
+| CPU Stress Test | Stabilność przy maksymalnej konfiguracji |

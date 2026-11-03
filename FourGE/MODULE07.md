@@ -267,3 +267,4 @@ Identyczne ustawienia + identyczny sygnał wejściowy = identyczny wynik. Przysz
 | DAW Automation | Płynna automatyzacja |
 | Offline Render | Zgodność z realtime |
 | CPU Stress Test | Stabilność przy maksymalnej konfiguracji |
+Warunki zaliczenia: 1. min. 8-pasmowy parametryczny EQ; 2. Dynamic EQ z prawdziwym detektorem; 3. min. 4-pasmowy Multiband Engine; 4. crossover bez niekontrolowanych zmian poziomu; 5. Spectral Shaper z realnym przetwarzaniem widma; 6. kontrola Mid/Side; 7. Spectrum Analyzer pokazuje rzeczywisty sygnał; 8. wszystkie procesory automatyzowalne; 9. routing z pozostałymi modułami; 10. testy CPU, stabilności i latencji.

@@ -355,6 +355,30 @@ Diode / Foldback / Rectifier, Reverse Shape Designer z ANCHOR END, matrix 16 wie
 Narzędzia do zbadania: **pluginval** (Tracktion, walidacja hosta w CI). Przed sprzedażą: aktualne warunki licencji JUCE.
 
 ---
+## Style kicka CLASSIC / MODERN / RAW / EXPERIMENTAL (2026-11-03) → Randomizer 4GE
+Źródła: musicproductionwiki „How to recreate the hardstyle kick”, Wikipedia „Hardstyle”, wątek r/hardstyle „modern vs older kicks power”,
+NI „hardstyle music” (wyżej) + **nasze pomiary** `ForgeOfWrath/Tools/ref_features.csv` (20 kicków starszego / klasycznego typu: Noisecontrollers,
+Wildstylez, Zatox, FHSP, OPS Vulcano…) i `ref2_features.csv` (18 nowszych: OPS zaag / psy, Tritone, rawstyle, uptempo).
+Anatomia zawsze ta sama (tok / punch → pitch drop do nuty → ogon przez kilka stopni przesteru, EQ przed każdym stopniem); **styl zmienia
+głównie: ile przesteru, gdzie siedzi energia nad subem, długość ogona, agresję pitch dropu i „ściśnięcie” do 0 dB.**
+
+| | CLASSIC (~2008–2012, 140–150 BPM) | MODERN (euphoric, ~150) | RAW (rawstyle / zaag, 155–160) | EXPERIMENTAL |
+|---|---|---|---|---|
+| Pomiar (mediana) | RMS −8,5 dB, crest 6,3 dB, sub 91 %, mid 7 %, hi 0,7 %, punch ~840 Hz | (między) | RMS −3,4 dB, crest 3,4 dB, sub 85 %, mid 12 %, hi 3 %, punch ~1350 Hz | szeroki rozrzut (zaag: mid 19 %, hi 7 %) |
+| Punch / tok | wyraźny, „sprężysty”, klik nisko (100–200 Hz), nieprzesterowany | czysty, trochę miększy front, krótki | twardy, wyższy (do ~1,5 kHz), często przez przester | typy CLICK / RESO, dziwne krzywe |
+| Ogon | krótszy, **crunch w niskim środku** (200–500 Hz), mniej ściany przesteru, nie dobija do 0 dB | czystszy, sub na przodzie, umiarkowany drive, miejsce na lead | dłuższy, dysonansowy, **góra wypełniona rezonansem / przesterem** | fold / crush / rezonans, nietypowe stroje |
+| Pitch drop | umiarkowany (START ~×4–5, DROP 60–150 ms) | ~24 st w ~120 ms (klasyka „Kick Designer”) | agresywniejszy, szybszy, czasem ślizg | szeroko, także rysowany |
+| Przester | 1–2 stopnie, TUBE / SOFT, mało | 2 stopnie, kontrolowany, AUTO GAIN | 2+ stopnie, HARD / RAW / FOLD, asymetria (BIAS), CRUNCH / GRIT | wszystkie typy + bitcrush |
+| Głośność | dynamiczny (crest ~6 dB) | ~ −5 dB RMS | ściśnięty pod 0 dB (crest ~3 dB, modern ~ −3 LUFS) | — |
+Ważne z dyskusji: nowe kicki często **tracą punch i „głębię”** (oddech / pogłos w ogonie zamiast ataku) – Randomizer ma zawsze pilnować
+puncha na czas i tego, żeby ogon siedział na nucie; stare kicki mają **rumble w niskim środku**, którego nie da się zrobić samą górą.
+**Mapowanie na 4GE (propozycja do zatwierdzenia):** CLASSIC = `drive` 8–16, `dist_type` SOFT / TUBE, `mid_hz` 250–500 z `mid_gain` +,
+`crunch` 0–0,3, `high_cut` 6–10 kHz, `punch_start` 150–300 Hz, `tail_drop` 60–150 ms, `clip_drive` niski; MODERN = `drive` 12–20, AUTO GAIN,
+`clean_sub` on, `punch_type` Tonal / Hard, `tail_drop` ~120 ms / DROP 24 st, `osc_b` mało; RAW = `drive` 18–30 + `drive2` 10–20, `dist_type`
+HARD / RAW / FOLD, `bias1` 0,1–0,5, `scream` / `grit` / `crunch` w górę, `pre_type` z `pre_env` (sweep), `length` dłuższy, `clip_drive` wysoki;
+EXPERIMENTAL = szerokie zakresy, `chaos`, `osc_b_type` szum / pulse, LAB (gdy przeniesiemy Distortion Lab). Zawsze: ogon na nucie
+(`tune` / `tail_fine` nieruszane przez losowanie), `clean_sub` dół mono, punch nie później niż 10 ms, długość ≤ beat przy danym BPM.
+
 ## Wspólne wzorce (wszystkie analizy)
 - **Słuchanie różnicy**: delta / audition / unity gain (Pro-L 2, nasze MATCH) – producent od razu słyszy, co robi efekt.
 - **Rysowanie zamiast kręcenia**: EQ Sketch, krzywe Béziera w Kick 2, nasze obwiednie w Forge.

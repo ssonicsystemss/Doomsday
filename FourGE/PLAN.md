@@ -30,6 +30,7 @@ Zasady jak w RE4GE: krok po kroku, po każdym kroku kompilacja + testy + A/B dla
 **Decyzja architektoniczna (właściciel, 2026-11-04):** GUI (moduł 17) projektujemy NA PODSTAWIE rzeczywistych parametrów i funkcji
 modułów 01–16 (Parameter Registry) – żadnego „pięknego” interfejsu, którego nie da się sensownie połączyć z DSP. Makieta `Design/mock.html`
 jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po DSP.
+**Paleta zatwierdzona (właściciel, 2026-11-04): `Design/PALETTE.md` – BLACK INDUSTRIAL / BLOOD RED, stały kod kolorów PUNCH / BODY / TAIL / SUB / SCREECH / TEXTURE, proporcje 80 / 15 / 5.**
 
 ## Odpowiedzi na pytania końcowe (2026-11-04)
 - **Makra = trzy poziomy, jeden nadrzędny system** (właściciel): poziom 1 = MASTER MACROS – jedyne 8 makr stale w głównym GUI,

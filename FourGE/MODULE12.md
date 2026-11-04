@@ -71,3 +71,4 @@ Wybór folderu docelowego. Bez nadpisywania istniejących plików bez wyraźnej 
 
 ## 12. FILE NAMING SYSTEM
 Generator nazw plików. Elementy: PRESET NAME, STYLE, ROOT NOTE, BPM, GROUP, VARIANT, VERSION, SEED.
+Przykład: `4GE_MODERN_KICK01_F#_150BPM_TAIL_V02.wav`. Użytkownik może stworzyć własny schemat nazewnictwa.

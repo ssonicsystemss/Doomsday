@@ -55,6 +55,9 @@ jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po
   **Kluczowa zasada techniczna (właściciel): makro NIE jest parametrem DSP.** Każde makro to nadrzędny kontroler, który wysyła wartości
   do parametrów wyłącznie przez system mapowania (M09). Żaden kod DSP nie czyta wartości makra bezpośrednio.
   Przykładowa logika GRIT → M05 Distortion Drive, M05 Waveshaper Fold, M05 Asymmetry, M08 Clipper Drive, M08 Saturation Amount.
+  Każde przypisanie: Source Macro, Destination Parameter, Minimum Value, Maximum Value, Response Curve, Modulation Depth, Polarity,
+  Smoothing, Enable/Disable, Priority/Combination Mode. Wiele źródeł na jeden parametr – jasno zdefiniowana kolejność i sposób łączenia.
+  BARDZO WAŻNE: wartości bazowe niezależne od makr – ruch makra nigdy nie nadpisuje parametru bazowego; FINAL = f(BASE, aktywne modulacje).
 - Reverse bass przy EARLY: bez preferencji → 4GE robi kick pod RE4GE (bez dublowania); ewentualnie później prosta warstwa reverse.
 - Sample w presetach: bez preferencji → osadzane w presecie / stanie (jak RE4GE), RELINK gdy brak i nie ma kopii.
 - PRE-ROLL screecha: bez preferencji → ciche rozkręcenie silnika przed START (słychać od START).

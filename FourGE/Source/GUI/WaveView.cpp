@@ -10,11 +10,14 @@ namespace fge::gui
     WaveView::WaveView() : Thread ("4GE wave") { startThread (Thread::Priority::low); }
     WaveView::~WaveView() { signalThreadShouldExit(); wake.signal(); stopThread (3000); }
 
-    void WaveView::update (const ParamFrame& f, int note)
+    void WaveView::update (const ParamFrame& f, int note, const env::Bank* shapes, uint32_t shapesVersion)
     {
-        if (lastNote == note && std::equal (f.v.begin(), f.v.end(), lastAsked.v.begin())) return;
+        if (lastNote == note && shapesVersion == lastVersion && std::equal (f.v.begin(), f.v.end(), lastAsked.v.begin())) return;
         lastAsked = f; lastNote = note;
-        { std::lock_guard<std::mutex> l (lock); pending = f; pendingNote = note; wanted = true; }
+        std::unique_ptr<env::Bank> copy;
+        if (shapes != nullptr && shapesVersion != lastVersion) copy = std::make_unique<env::Bank> (*shapes);
+        lastVersion = shapesVersion;
+        { std::lock_guard<std::mutex> l (lock); pending = f; pendingNote = note; wanted = true; if (copy) pendingBank = std::move (copy); }
         wake.signal();
     }
 
@@ -24,12 +27,14 @@ namespace fge::gui
         {
             wake.wait (200);
             ParamFrame f; int note;
-            { std::lock_guard<std::mutex> l (lock); if (! wanted) continue; f = pending; note = pendingNote; wanted = false; }
+            { std::lock_guard<std::mutex> l (lock); if (! wanted) continue; f = pending; note = pendingNote; wanted = false;
+              if (pendingBank) bank = std::move (pendingBank); }
+            const env::Bank* b0 = bank.get();
             const float lenMs = juce::jlimit (150.f, 2600.f, f[P::coreLength] + 60.f);
             const double secs = lenMs / 1000.0;
             Render r;
             r.ms = lenMs;
-            auto full = renderKick (f, note, rate, secs);
+            auto full = renderKick (f, note, rate, secs, -1, 1.f, b0);
             const int n = full.getNumSamples();
             r.full.resize ((size_t) n); r.stereoL.resize ((size_t) n); r.stereoR.resize ((size_t) n);
             for (int i = 0; i < n; ++i)
@@ -39,7 +44,7 @@ namespace fge::gui
             }
             for (int p = 0; p < 4 && ! threadShouldExit(); ++p)
             {
-                auto b = renderKick (f, note, rate, secs, p);
+                auto b = renderKick (f, note, rate, secs, p, 1.f, b0);
                 auto& v = r.part[(size_t) p];
                 v.resize ((size_t) n);
                 for (int i = 0; i < n; ++i) v[(size_t) i] = 0.5f * (b.getSample (0, i) + b.getSample (1, i));

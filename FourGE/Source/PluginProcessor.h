@@ -9,10 +9,11 @@
 
 namespace fge { inline constexpr const char* versionText = "0.5"; }      // keep in step with CMakeLists.txt
 
-class GeProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost
+class GeProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener
 {
 public:
     GeProcessor();
+    ~GeProcessor() override { apvts.state.removeListener (this); }
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
     bool isBusesLayoutSupported (const BusesLayout& l) const override { return l.getMainOutputChannelSet() == juce::AudioChannelSet::stereo(); }
@@ -57,9 +58,29 @@ public:
     fge::ParamFrame frame() const { fge::ParamFrame f = fge::ParamFrame::defaults(); pointers.gather (f); return f; }
     fge::Engine& getEngine() { return engine; }
     const doomsday::PresetIO io { "4GE", "4gp" };
+
+    // ---- DRAWN shapes (module 02): pitch CUSTOM curves + DRAWN envelopes, stored in the state child ENVS
+    //      (saved with the project and user presets, undoable). Message thread only; the audio thread reads a lock-free copy.
+    static constexpr const char* envsTag = "ENVS";
+    const fge::env::Shape& shape (int slot) const { return current.s[(size_t) juce::jlimit (0, (int) fge::env::NumSlots - 1, slot)]; }
+    void setShape (int slot, const fge::env::Shape&, bool undoable = true);
+    void resetShapes (bool undoable = true);
+    const fge::env::Bank& shapes() const { return current; }
+    uint32_t shapesVersion() const { return version; }
+    static float slotMin (int slot) { return fge::env::isPitch (slot) ? -1.f : 0.f; }
     int auditionNote = 31;          // G1 in FL (49 Hz)
 
 private:
+    juce::ValueTree envTree (bool create);
+    void rebuildShapes();
+    void valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&) override { rebuildShapes(); }
+    void valueTreeChildAdded (juce::ValueTree&, juce::ValueTree&) override { rebuildShapes(); }
+    void valueTreeChildRemoved (juce::ValueTree&, juce::ValueTree&, int) override { rebuildShapes(); }
+    void valueTreeRedirected (juce::ValueTree&) override { rebuildShapes(); }
+    fge::env::BankExchange bankX;
+    fge::env::Bank current;                 // message-thread copy (GUI, waveform)
+    uint32_t version = 1;
+    juce::SpinLock shapeWriteLock;          // writers only (the host may set the state from another thread)
     fge::Engine engine;
     fge::ParamPointers pointers;
     int currentProgram = 0;

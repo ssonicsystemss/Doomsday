@@ -35,7 +35,9 @@ GeProcessor::GeProcessor()
       apvts (*this, &undo, "FOURGE", createLayout())
 {
     for (int i = 0; i < P::count; ++i) pointers.ptr[(size_t) i] = apvts.getRawParameterValue (def (i).id);
+    apvts.state.addListener (this);
     setCurrentProgram (0);
+    rebuildShapes();
 }
 
 void GeProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -56,8 +58,47 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     if (! prepared.isLocked()) return;
     ParamFrame f = ParamFrame::defaults();
     pointers.gather (f);
+    double bpm = 0.0;                                      // no tempo from the host = LOCAL BPM (MODULE02 GLOBAL SYNC)
+    if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) if (auto hb = pos->getBpm()) bpm = *hb;
+    engine.setHostBpm (bpm);
+    engine.setBank (&bankX.front());
     if (pendingAudition.exchange (false)) { engine.cookOnly (f); engine.trigger (auditionNote, 1.f); }
     engine.process (buffer, midi, f);
+}
+
+// ------------------------------------------------------------ DRAWN shapes (state child ENVS)
+ValueTree GeProcessor::envTree (bool create)
+{
+    auto t = apvts.state.getChildWithName (envsTag);
+    if (! t.isValid() && create) { t = ValueTree (envsTag); apvts.state.appendChild (t, nullptr); }
+    return t;
+}
+void GeProcessor::setShape (int slot, const env::Shape& s, bool undoable)
+{
+    if (! isPositiveAndBelow (slot, (int) env::NumSlots)) return;
+    if (undoable) undo.beginNewTransaction ("Envelope");
+    envTree (true).setProperty (env::slotKey (slot), s.toString(), undoable ? &undo : nullptr);
+}
+void GeProcessor::resetShapes (bool undoable)
+{
+    auto t = envTree (false);
+    if (t.isValid()) t.removeAllProperties (undoable ? &undo : nullptr);
+    rebuildShapes();
+}
+void GeProcessor::rebuildShapes()
+{
+    const SpinLock::ScopedLockType l (shapeWriteLock);
+    const auto t = apvts.state.getChildWithName (envsTag);
+    env::Bank b;
+    for (int i = 0; i < env::NumSlots; ++i)
+    {
+        const auto txt = t.isValid() ? t.getProperty (env::slotKey (i)).toString() : String();
+        if (txt.isEmpty() || ! env::Shape::fromString (txt, b.s[(size_t) i], slotMin (i), 1.f)) b.s[(size_t) i] = env::defaultShape (i);
+    }
+    current = b;
+    bankX.back() = b;
+    bankX.publish();
+    ++version;
 }
 
 // ------------------------------------------------------------ presets
@@ -69,10 +110,19 @@ void GeProcessor::setCurrentProgram (int i)
     currentProgram = i;
     presetName = factoryPresets()[(size_t) i].name;
     doomsday::PresetIO::apply (*this, apvts, factoryPresets()[(size_t) i].values);
+    resetShapes (false);
 }
 bool GeProcessor::loadUserPresetFile (const File& f)
 {
     if (! doomsday::PresetIO::load (*this, apvts, f)) return false;
+    {
+        auto t = envTree (true);                       // the drawn shapes saved with the preset (or the defaults)
+        t.removeAllProperties (nullptr);
+        if (auto xml = XmlDocument::parse (f))
+            if (auto* e = xml->getChildByName (envsTag))
+                for (int i = 0; i < e->getNumAttributes(); ++i) t.setProperty (e->getAttributeName (i), e->getAttributeValue (i), nullptr);
+        rebuildShapes();
+    }
     presetName = f.getFileNameWithoutExtension();
     return true;
 }

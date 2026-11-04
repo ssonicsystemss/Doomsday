@@ -305,7 +305,7 @@ void GeCanvas::updateEnabled()
 void GeCanvas::timerCallback()
 {
     presetBar.refresh();
-    wave.update (proc.frame(), proc.auditionNote);
+    wave.update (proc.frame(), proc.auditionNote, &proc.shapes(), proc.shapesVersion());
     auto& e = proc.getEngine();
     for (int i = 0; i < 4; ++i) meter[(size_t) i] = jmax (e.partPeak[(size_t) i].exchange (0.f), meter[(size_t) i] * 0.85f);
     outMeter = jmax (e.outPeak.exchange (0.f), outMeter * 0.85f);

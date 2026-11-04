@@ -448,6 +448,32 @@ int main (int argc, char** argv)
         }
         check (bad == 0, "14.12 save / load of the state restores every parameter", String (bad) + " differ");
     }
+    // ---------------------------------------------------------------- module 02 wiring: DRAWN shapes in the state (ENVS), undo, presets, audio
+    {
+        auto hit = [] (GeProcessor& p) { return hitProc (p, { { 0, MidiMessage::noteOn (1, 31, (uint8) 127) } }, 0.6); };
+        GeProcessor a; setP (a, "tail_amp_env_mode", 1.f);                 // TAIL AMP = DRAWN
+        const auto before = hit (a);
+        const auto cut = env::Shape::make ({ { 0.f, 1.f }, { 0.08f, 1.f }, { 0.1f, 0.f }, { 1.f, 0.f } });
+        a.setShape (env::AmpTail, cut);
+        const auto after = hit (a);
+        const bool audio = diff (before, after) > 0.05 * rms (before);
+        MemoryBlock mb; a.getStateInformation (mb);
+        GeProcessor b; b.setStateInformation (mb.getData(), (int) mb.getSize());
+        const bool saved = b.shape (env::AmpTail).toString() == cut.toString() && diff (hit (b), after) < 1.0e-6;
+        a.undo.undo();
+        const bool undone = a.shape (env::AmpTail).toString() == env::defaultShape (env::AmpTail).toString();
+        a.undo.redo();
+        a.setCurrentProgram (1);
+        const bool reset = a.shape (env::AmpTail).toString() == env::defaultShape (env::AmpTail).toString();
+        // a user preset file carries the shapes too
+        b.setShape (env::PitchTail, env::Shape::make ({ { 0.f, 1.f }, { 0.5f, 1.f }, { 0.55f, 0.f }, { 1.f, 0.f } }));
+        std::unique_ptr<XmlElement> xml (b.apvts.copyState().createXml());
+        auto tmp = File::createTempFile (".4gp"); xml->writeTo (tmp);
+        GeProcessor c; c.loadUserPresetFile (tmp); tmp.deleteFile();
+        const bool preset = c.shape (env::PitchTail).toString() == b.shape (env::PitchTail).toString() && c.shape (env::AmpTail).toString() == cut.toString();
+        check (audio && saved && undone && reset && preset, "M02 drawn shapes: change the sound, saved in project + preset, undo, factory reset",
+               String (audio ? "" : "no-audio ") + (saved ? "" : "not-saved ") + (undone ? "" : "no-undo ") + (reset ? "" : "no-reset ") + (preset ? "" : "no-preset"));
+    }
     // ---------------------------------------------------------------- factory presets: all play, sane levels
     {
         GeProcessor p;

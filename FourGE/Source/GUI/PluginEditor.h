@@ -16,7 +16,7 @@
 class GeCanvas : public juce::Component, private juce::Timer
 {
 public:
-    static constexpr int W = 1280, H = 830;
+    static constexpr int W = 1280, H = 930;
     explicit GeCanvas (GeProcessor&);
     ~GeCanvas() override;
     void paint (juce::Graphics&) override;
@@ -34,6 +34,9 @@ private:
     Knob* knob (const char* id, const juce::String& label, juce::Colour accent, int d = 40, bool bipolar = false);
     Toggle* toggle (const char* id, const juce::String& text, Toggle::Style, juce::Colour accent);
     Seg* seg (const char* id, juce::StringArray labels, juce::Colour accent);
+    juce::ComboBox* combo (const char* id);
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAtt;
+    std::vector<juce::Component*> masterRow;
     void layoutDetail();
 public:
     void updateEnabled();

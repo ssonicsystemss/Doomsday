@@ -60,9 +60,25 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         if (i < 2) d.push_back (knob ((s + "_glide").toRawUTF8(), "GLIDE", col));
         if (i == 2) d.push_back (knob ("tail_pulse_width", "PULSE W", col));
         d.push_back (knob ((s + "_phase").toRawUTF8(), "PHASE", col));
+        if (i == 2)
+        {
+            // sound pass: UNISON / WIDTH, the cuts and the mid bell, STAGE 2
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "tail_uni_voices", "UNISON" }, { "tail_uni_detune", "DETUNE" }, { "tail_uni_drift", "DRIFT" }, { "tail_uni_mix", "UNI MIX" },
+                     { "tail_width", "WIDTH" }, { "tail_width_from", "WIDTH FROM" }, { "tail_low_cut", "LOW CUT" }, { "tail_high_cut", "HIGH CUT" },
+                     { "tail_mid_hz", "MID FREQ" }, { "tail_mid_gain", "MID GAIN" }, { "tail_mid_q", "MID Q" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            d.push_back (combo ("tail_st2_type"));
+            d.push_back (knob ("tail_st2_drive", "ST2 DRIVE", col));
+            d.push_back (knob ("tail_st2_bias", "ST2 BIAS", col, 40, true));
+            d.push_back (knob ("tail_st2_mix", "ST2 MIX", col));
+        }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };
     }
+    masterRow = { knob ("master_clip_drive", "CLIP", c.red, 34), knob ("master_clip_soft", "SOFT", c.red, 34) };
     for (auto& [id, comp] : byId)
     {
         const int idx = [&] { for (int i = 0; i < P::count; ++i) if (id == def (i).id) return i; return -1; }();
@@ -95,12 +111,20 @@ GeCanvas::Seg* GeCanvas::seg (const char* id, StringArray labels, Colour accent)
     auto s = std::make_unique<Seg> (proc.apvts, id, labels, accent);
     auto* raw = s.get(); addAndMakeVisible (raw); byId.insert ({ id, raw }); owned.push_back (std::move (s)); return raw;
 }
+ComboBox* GeCanvas::combo (const char* id)
+{
+    auto cb = std::make_unique<ComboBox>();
+    const int idx = [&] { for (int i = 0; i < P::count; ++i) if (String (id) == def (i).id) return i; return 0; }();
+    cb->addItemList (def (idx).choices(), 1);
+    comboAtt.push_back (std::make_unique<AudioProcessorValueTreeState::ComboBoxAttachment> (proc.apvts, id, *cb));
+    auto* raw = cb.get(); addAndMakeVisible (raw); byId.insert ({ id, raw }); owned.push_back (std::move (cb)); return raw;
+}
 Component* GeCanvas::findControl (const String& id) { auto it = byId.find (id); return it == byId.end() ? nullptr : it->second; }
 
 void GeCanvas::selectPart (int i)
 {
     selected = jlimit (0, 3, i);
-    for (int p = 0; p < 4; ++p) for (auto* c : detail[(size_t) p]) c->setVisible (p == selected);
+    for (int p = 0; p < 4; ++p) for (auto* c : detail[(size_t) p]) if (c != nullptr) c->setVisible (p == selected);
     layoutDetail();
     repaint();
 }
@@ -138,15 +162,20 @@ void GeCanvas::resized()
         card[(size_t) i][4]->setBounds (a.getRight() - 136, a.getY() + 4, 60, 20);
         card[(size_t) i][5]->setBounds (a.getRight() - 70, a.getY() + 4, 60, 20);
     }
-    detailArea = { 16, 600, 860, 214 };
-    mixerArea = { detailArea.getRight() + 12, 600, W - 16 - detailArea.getRight() - 12, 214 };
+    detailArea = { 16, 600, 860, 314 };
+    mixerArea = { detailArea.getRight() + 12, 600, W - 16 - detailArea.getRight() - 12, 314 };
+    if (masterRow.size() == 2)
+    {
+        masterRow[0]->setBounds (mixerArea.getX() + 90, mixerArea.getBottom() - 86, 80, Knob::heightFor (34));
+        masterRow[1]->setBounds (mixerArea.getX() + 180, mixerArea.getBottom() - 86, 80, Knob::heightFor (34));
+    }
     const int mw = mixerArea.getWidth() / 4;
     for (int i = 0; i < 4; ++i)
     {
         const int mx = mixerArea.getX() + i * mw;
         mixer[(size_t) i][0]->setBounds (mx + 4, mixerArea.getY() + 40, mw - 22, Knob::heightFor (34));
         mixer[(size_t) i][1]->setBounds (mx + 4, mixerArea.getY() + 112, mw - 22, Knob::heightFor (30));
-        mixer[(size_t) i][2]->setBounds (mx + 6, mixerArea.getBottom() - 30, mw - 26, 22);
+        mixer[(size_t) i][2]->setBounds (mx + 6, mixerArea.getY() + 186, mw - 26, 22);
         mixMeterArea[(size_t) i] = { mx + mw - 16, mixerArea.getY() + 44, 6, 132 };
     }
     layoutDetail();
@@ -166,7 +195,13 @@ void GeCanvas::layoutDetail()
         ++k;
     }
     y += 36;
-    for (int i = 0; k < d.size(); ++k, ++i) d[k]->setBounds (x + i * 76, y, 74, Knob::heightFor (40));
+    for (int i = 0; k < d.size(); ++k)
+    {
+        if (d[k] == nullptr) { y += Knob::heightFor (40) + 6; i = 0; continue; }       // row break
+        if (dynamic_cast<ComboBox*> (d[k]) != nullptr) { d[k]->setBounds (x + i * 76, y + 22, 150, 26); i += 2; continue; }
+        d[k]->setBounds (x + i * 76, y, 74, Knob::heightFor (40));
+        ++i;
+    }
 }
 
 void GeCanvas::paint (Graphics& g)
@@ -220,6 +255,15 @@ void GeCanvas::paint (Graphics& g)
         g.setColour (c.control); g.fillRect (r);
         g.setColour (c.part[(size_t) i]); g.fillRect (r.withTop (r.getBottom() - roundToInt ((float) r.getHeight() * m)));
     }
+    g.setColour (c.silver.withAlpha (0.8f)); g.setFont (lnf.font (10.5f, doomsday::flat::Bold, 0.06f));
+    g.drawText ("MASTER CLIP", mixerArea.getX() + 12, mixerArea.getBottom() - 100, 200, 14, Justification::left);
+    g.setColour (c.textDim); g.setFont (lnf.font (9.5f, doomsday::flat::Medium));
+    g.drawFittedText ("the SUB goes\naround it", mixerArea.getX() + 12, mixerArea.getBottom() - 70, 76, 30, Justification::topLeft, 2);
+    if (selected == 2) if (auto* cb = findControl ("tail_st2_type"))
+    {
+        g.setColour (c.textDim); g.setFont (lnf.font (10.5f, doomsday::flat::Bold, 0.06f));
+        g.drawText ("STAGE 2", cb->getX(), cb->getY() - 18, 150, 14, Justification::left);
+    }
     // output meter
     {
         const float m = jlimit (0.f, 1.f, (Decibels::gainToDecibels (outMeter, -60.f) + 60.f) / 66.f);
@@ -245,7 +289,15 @@ void GeCanvas::updateEnabled()
     for (auto* id : { "pe_start", "pe_time", "pe_curve", "pe_amount" }) en (id, ! stable);
     en ("sub_pitch", raw (proc, P::coreKeyTrack) < 0.5f);          // with tracking the sub sits on the note
     en ("tail_pulse_width", (int) raw (proc, P::tailSrc) == 4);
-    en ("punch_tone", (int) raw (proc, P::punchSrc) != 5);           // CLICK tunes its own band from the PITCH
+    en ("punch_tone", (int) raw (proc, P::punchSrc) != 5);           // CLICK tunes its own band
+    const bool uni = raw (proc, P::tailUniVoices) > 1.5f;
+    for (auto* id : { "tail_uni_detune", "tail_uni_drift", "tail_uni_mix", "tail_width" }) en (id, uni);
+    en ("tail_width_from", uni && raw (proc, P::tailWidth) > 0.001f);
+    const bool st2 = (int) raw (proc, P::tailSt2Type) > 0;
+    for (auto* id : { "tail_st2_drive", "tail_st2_bias", "tail_st2_mix" }) en (id, st2);
+    const bool mid = std::abs (raw (proc, P::tailMidGain)) > 0.05f;
+    en ("tail_mid_hz", mid); en ("tail_mid_q", mid);
+    en ("master_clip_soft", raw (proc, P::clipDrive) > 0.01f);
 }
 
 void GeCanvas::timerCallback()

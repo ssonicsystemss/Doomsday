@@ -39,6 +39,7 @@ namespace fge
         const juce::StringArray& triggers();
         const juce::StringArray& linkModes();
         const juce::StringArray& parts();
+        const juce::StringArray& stageTypes();
         const juce::StringArray& none();
     }
 
@@ -169,7 +170,25 @@ namespace fge
     FGE_MOD_SLOT (F, B, C, tailDrv,  "tail_drive_env",   "Tail Drive Env") \
     FGE_MOD_SLOT (F, B, C, subDrv,   "sub_drive_env",    "Sub Drive Env") \
     FGE_MOD_SLOT (F, B, C, bodyRes,  "body_reso_env",    "Body Resonance Env") \
-    FGE_MOD_SLOT (F, B, C, tailRes,  "tail_reso_env",    "Tail Resonance Env")
+    FGE_MOD_SLOT (F, B, C, tailRes,  "tail_reso_env",    "Tail Resonance Env") \
+    /* ================= SOUND PASS (2026-11-04, after the owner's first A/B) - early parts of modules 03 / 05 / 07 / 08 ================= */ \
+    F (tailUniVoices,"tail_uni_voices", "Tail Unison Voices",  Unit::None,  1.f,    7.f,   5.f,   0.f,   FNone) \
+    F (tailUniDetune,"tail_uni_detune", "Tail Unison Detune",  Unit::Cents, 0.f,   60.f,  18.f,   0.f,   FMod) \
+    F (tailUniDrift, "tail_uni_drift",  "Tail Unison Drift",   Unit::Cents, 0.f,   30.f,   6.f,   0.f,   FMod) \
+    F (tailUniMix,   "tail_uni_mix",    "Tail Unison Mix",     Unit::Pct,   0.f,    1.f,   0.6f,  0.f,   FMod) \
+    F (tailWidth,    "tail_width",      "Tail Width",          Unit::Pct,   0.f,    1.f,   0.4f,  0.f,   FMod) \
+    F (tailWidthFrom,"tail_width_from", "Tail Width From",     Unit::Hz,    80.f, 1500.f, 350.f, 350.f,  FMod) \
+    C (tailSt2Type,  "tail_st2_type",   "Tail Stage 2 Type",   stageTypes, 0, FNone) \
+    F (tailSt2Drive, "tail_st2_drive",  "Tail Stage 2 Drive",  Unit::Db,    0.f,   36.f,   6.f,  10.f,   FMod) \
+    F (tailSt2Bias,  "tail_st2_bias",   "Tail Stage 2 Bias",   Unit::Bip,   -1.f,   1.f,   0.f,   0.f,   FMod) \
+    F (tailSt2Mix,   "tail_st2_mix",    "Tail Stage 2 Mix",    Unit::Pct,   0.f,    1.f,   1.f,   0.f,   FMod) \
+    F (tailMidHz,    "tail_mid_hz",     "Tail Mid EQ Freq",    Unit::Hz,    80.f, 8000.f, 800.f, 800.f,  FMod) \
+    F (tailMidGain,  "tail_mid_gain",   "Tail Mid EQ Gain",    Unit::Db,   -18.f,  18.f,   0.f,   0.f,   FMod) \
+    F (tailMidQ,     "tail_mid_q",      "Tail Mid EQ Q",       Unit::None,  0.3f,   8.f,   1.f,   1.2f,  FMod) \
+    F (tailLowCut,   "tail_low_cut",    "Tail Low Cut",        Unit::Hz,    20.f,  400.f,  20.f,  80.f,  FMod) \
+    F (tailHighCut,  "tail_high_cut",   "Tail High Cut",       Unit::Hz,   500.f, 20000.f, 20000.f, 5000.f, FMod) \
+    F (clipDrive,    "master_clip_drive","Clip Drive",         Unit::Db,    0.f,   24.f,   0.f,   6.f,   FMod | FGlobal) \
+    F (clipSoft,     "master_clip_soft","Clip Softness",       Unit::Pct,   0.f,    1.f,   0.5f,  0.f,   FMod | FGlobal)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

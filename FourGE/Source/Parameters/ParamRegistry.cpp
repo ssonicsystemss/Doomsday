@@ -18,6 +18,8 @@ namespace fge
         const juce::StringArray& triggers()       { static const juce::StringArray a { "ONE SHOT", "RETRIGGER", "LEGATO" }; return a; }
         const juce::StringArray& linkModes()      { static const juce::StringArray a { "INDEPENDENT", "FOLLOW", "LINKED" }; return a; }
         const juce::StringArray& parts()          { static const juce::StringArray a { "PUNCH", "BODY", "TAIL", "SUB" }; return a; }
+        const juce::StringArray& stageTypes()     { static const juce::StringArray a { "OFF", "SOFT CLIP", "HARD CLIP", "TUBE", "DIODE", "WAVEFOLD", "BITCRUSH",
+                                                                                       "RECTIFIER", "ASYMMETRIC", "FOLDBACK", "DIGITAL CLIP" }; return a; }
         const juce::StringArray& none()           { static const juce::StringArray a; return a; }
     }
 
@@ -55,7 +57,7 @@ namespace fge
             case Unit::Deg:   return String ((int) std::lround (v)) + juce::String (juce::CharPointer_UTF8 ("\xc2\xb0"));
             case Unit::None:  break;
         }
-        return std::abs (v) >= 10.f ? String ((int) std::lround (v)) : String (v, 2);
+        return (std::abs (v) >= 10.f || std::abs (v - std::round (v)) < 1.0e-3f) ? String ((int) std::lround (v)) : String (v, 2);
     }
 
     float parseValue (const ParamDef& d, const juce::String& t)
@@ -103,6 +105,23 @@ namespace fge
             case punchGlide:   return "How fast the punch falls from its own PITCH into the kick's pitch.";
             case bodyGlide:    return "How fast the body falls from its own PITCH into the kick's pitch.";
             case subPitch:     return "Sub frequency when PITCH TRACKING is off (with tracking the sub sits on the note).";
+            case tailUniVoices:return "Unison: extra detuned copies of the tail on the left / right that drift slowly - the distortion turns them into a dense, moving tail.";
+            case tailUniDetune:return "How far the unison copies are detuned.";
+            case tailUniDrift: return "How much the unison copies slowly drift (movement).";
+            case tailUniMix:   return "Level of the unison copies.";
+            case tailWidth:    return "Stereo width of the tail's mids / highs (the lows stay mono).";
+            case tailWidthFrom:return "Below this frequency the tail stays mono.";
+            case tailSt2Type:  return "A second distortion stage after the CHARACTER (10 different curves).";
+            case tailSt2Drive: return "Drive into stage 2.";
+            case tailSt2Bias:  return "Shifts stage 2's curve: even harmonics.";
+            case tailSt2Mix:   return "Dry / wet of stage 2.";
+            case tailMidHz:    return "Frequency of the bell between the CHARACTER and stage 2.";
+            case tailMidGain:  return "Boost / cut of the mid bell - shapes what the stage 2 distorts.";
+            case tailMidQ:     return "Width of the mid bell.";
+            case tailLowCut:   return "Removes the tail's low end so the clean SUB carries it (20 Hz = off).";
+            case tailHighCut:  return "Removes the tail's top (fizz).";
+            case clipDrive:    return "Master clipper: louder and denser. The SUB goes around it and stays clean.";
+            case clipSoft:     return "Softness of the master clipper's knee.";
             default: break;
         }
         const auto& d = def (id);

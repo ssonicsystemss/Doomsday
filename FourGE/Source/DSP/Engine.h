@@ -13,6 +13,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include "Core/Generators.h"
 #include "Env/KickEnvelopes.h"
+#include "DoomsdayKick.h"
 #include "../Parameters/ParamFrame.h"
 #include <array>
 #include <atomic>
@@ -33,6 +34,10 @@ namespace fge
         std::array<float, 4> partEnd {};          // ms after which the part is silent
         float endHz = 49.f, fineMul = 1.f, subHz = 49.f;
         bool keyTrack = true;
+        bool wide = false;                        // TAIL UNISON + WIDTH: the left / right tail chains run too
+        float width = 0.f;
+        dsp::SvfCoefs widthSplit;                 // LR4 split: lows from the centre, mids / highs from left / right
+        float clipG = 1.f, clipSoft = 0.5f;       // MASTER CLIP (the sub goes around it)
     };
 
     // ------------------------------------------------------------------ pitch: semitones of one part at a time (links resolved)
@@ -72,7 +77,9 @@ namespace fge
             const uint32_t seed = 0x9e3779b9u * (uint32_t) (note + 1);
             punch.start (cfg.ks.part[PPunch], phases01[PPunch], seed ^ 0x1234u);
             body.start  (cfg.ks.part[PBody],  phases01[PBody],  seed ^ 0x5678u);
-            tail.start  (cfg.ks.part[PTail],  phases01[PTail],  seed ^ 0x9abcu);
+            tail.start  (cfg.ks.part[PTail],  phases01[PTail],  seed ^ 0x9abcu, 0);
+            tailL.start (cfg.ks.part[PTail],  phases01[PTail],  seed ^ 0x9abcu, 1);
+            tailR.start (cfg.ks.part[PTail],  phases01[PTail],  seed ^ 0x9abcu, 2);
             sub.start   (cfg.ks.part[PSub],   phases01[PSub],   seed);
             for (auto* set : { &stAmp, &stFlt, &stDrv, &stRes })
                 for (auto& s : *set) s = {};
@@ -137,7 +144,16 @@ namespace fge
                     const float f = juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f));
                     bus[PBody][i] += body.tick (ks.part[PBody], ks, f, ampOf (cfg, PBody, ms), mod[PBody]) * gate;
                 }
-                if (ms < cfg.partEnd[PTail]) bus[PTail][i] += tail.tick (ks.part[PTail], ks, fTail, ampOf (cfg, PTail, ms), mod[PTail]) * gate;
+                if (ms < cfg.partEnd[PTail])
+                {
+                    const float a = ampOf (cfg, PTail, ms) * gate;
+                    bus[PTail][i] += tail.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail]) * a;
+                    if (cfg.wide)
+                    {
+                        bus[4][i] += tailL.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail]) * a;
+                        bus[5][i] += tailR.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail]) * a;
+                    }
+                }
                 if (ms < cfg.partEnd[PSub])
                 {
                     const float f = juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f));
@@ -184,7 +200,7 @@ namespace fge
                 mod[(size_t) p] = m;
             }
         }
-        dsp::PunchGenerator punch; dsp::BodyGenerator body; dsp::TailGenerator tail; dsp::SubGenerator sub;
+        dsp::PunchGenerator punch; dsp::BodyGenerator body; dsp::TailGenerator tail, tailL, tailR; dsp::SubGenerator sub;
         std::array<dsp::EnvRunState, 4> stAmp {}, stFlt {}, stDrv {}, stRes {};
         std::array<dsp::ModNow, 4> mod {};
         PitchEval pe;
@@ -209,7 +225,8 @@ namespace fge
             maxBlockSize = juce::jmax (16, maxBlock);
             os->reset();
             os->initProcessing ((size_t) maxBlockSize);
-            bus.setSize (dsp::NumParts, maxBlockSize * osFactor);
+            bus.setSize (dsp::NumParts + 2, maxBlockSize * osFactor);
+            wl1 = wl2 = wh1 = wh2 = wr1 = wr2 = {}; clipped = false;
             stereo.setSize (2, maxBlockSize);
             for (auto& v : voices) v = KickVoice();
             for (auto& g : gainNow) g = { 0.f, 0.f };
@@ -337,6 +354,19 @@ namespace fge
             for (int p = 0; p < 4; ++p) setDrive (mb[(size_t) p], cfg.driveBase[(size_t) p], cfg.driveMaxDb[(size_t) p]);
             if (ta.character == 5) { mb[PTail].driveG = db (12.f + ta.drive * 36.f); mb[PTail].driveNorm = 1.f / std::tanh (mb[PTail].driveG); }
             ks.scream = svfCoefs (1200.f * (0.7f + 0.8f * ta.drive), 1.f / 6.f, rate);
+            // ---- sound pass: tail unison / stage 2 / mid bell / cuts, width, master clip
+            auto& tx = ks.tail;
+            tx.uniVoices = juce::jlimit (1, 7, (int) std::lround (f[P::tailUniVoices]));
+            tx.uniDetuneCt = f[P::tailUniDetune]; tx.uniDriftCt = f[P::tailUniDrift]; tx.uniMix = f[P::tailUniMix];
+            tx.st2Type = f.idx (P::tailSt2Type); tx.st2G = db (f[P::tailSt2Drive]); tx.st2Bias = f[P::tailSt2Bias]; tx.st2Mix = f[P::tailSt2Mix];
+            tx.midOn = std::abs (f[P::tailMidGain]) > 0.05f;
+            tx.mid = doomsday::dsp::BiquadCoefs::make (doomsday::dsp::BiquadCoefs::Bell, rate, f[P::tailMidHz], juce::jmax (0.2f, f[P::tailMidQ]), f[P::tailMidGain]);
+            tx.lowCutOn = f[P::tailLowCut] > 20.5f; tx.lowCut = svfCoefs (f[P::tailLowCut], 1.414f, rate);
+            tx.highCutOn = f[P::tailHighCut] < 19500.f; tx.highCut = svfCoefs (f[P::tailHighCut], 1.414f, rate);
+            cfg.width = f[P::tailWidth];
+            cfg.wide = tx.uniVoices > 1 && cfg.width > 0.001f;
+            cfg.widthSplit = svfCoefs (f[P::tailWidthFrom], 1.414f, rate);
+            cfg.clipG = db (f[P::clipDrive]); cfg.clipSoft = f[P::clipSoft];
 
             // ---- envelope slots (module 02, 7)
             const int aMode[4] { P::punchAmpMode, P::bodyAmpMode, P::tailAmpMode, P::subAmpMode };
@@ -458,8 +488,9 @@ namespace fge
         void renderChunk (juce::AudioBuffer<float>& out, int start, int n)
         {
             const int on = n * osFactor;
-            for (int c = 0; c < dsp::NumParts; ++c) juce::FloatVectorOperations::clear (bus.getWritePointer (c), on);
-            float* b[dsp::NumParts] { bus.getWritePointer (0), bus.getWritePointer (1), bus.getWritePointer (2), bus.getWritePointer (3) };
+            for (int c = 0; c < dsp::NumParts + 2; ++c) juce::FloatVectorOperations::clear (bus.getWritePointer (c), on);
+            float* b[dsp::NumParts + 2] { bus.getWritePointer (0), bus.getWritePointer (1), bus.getWritePointer (2), bus.getWritePointer (3),
+                                          bus.getWritePointer (4), bus.getWritePointer (5) };
             for (auto& v : voices) v.render (cfg, b, on);
 
             stereo.clear (0, 0, n); stereo.clear (1, 0, n);
@@ -469,16 +500,31 @@ namespace fge
             float* R = up.getChannelPointer (1);
             const float inv = 1.f / (float) on;
             std::array<float, dsp::NumParts> pk {};
-            for (int c = 0; c < dsp::NumParts; ++c)
+            // order: PUNCH, BODY, TAIL (-> MASTER CLIP on these three), then the SUB around the clip
+            for (int c : { 0, 1, 2, 3 })
             {
+                if (c == 3 && cfg.clipG > 1.0001f)
+                {
+                    for (int i = 0; i < on; ++i) { L[i] = doomsday::kick::masterClip (L[i], cfg.clipG, cfg.clipSoft); R[i] = doomsday::kick::masterClip (R[i], cfg.clipG, cfg.clipSoft); }
+                }
                 const auto g0 = gainNow[(size_t) c], g1 = gainTarget[(size_t) c];
                 const float* x = b[c];
+                const bool wideTail = c == 2 && cfg.wide;
                 float p = 0.f;
                 for (int i = 0; i < on; ++i)
                 {
                     const float u = (float) (i + 1) * inv;
                     const float gl = g0.first + (g1.first - g0.first) * u, gr = g0.second + (g1.second - g0.second) * u;
-                    const float yl = x[i] * gl, yr = x[i] * gr;
+                    float yl, yr;
+                    if (wideTail)
+                    {
+                        // lows of the plain centre + mids / highs of the detuned sides as mid / side (LR4: sums flat)
+                        const float low = wl2.lp (wl1.lp (x[i], cfg.widthSplit), cfg.widthSplit);
+                        const float hl = wh2.hp (wh1.hp (b[4][i], cfg.widthSplit), cfg.widthSplit), hr = wr2.hp (wr1.hp (b[5][i], cfg.widthSplit), cfg.widthSplit);
+                        const float m = 0.5f * (hl + hr), sd = 0.5f * (hl - hr) * cfg.width;
+                        yl = (low + m + sd) * gl; yr = (low + m - sd) * gr;
+                    }
+                    else { yl = x[i] * gl; yr = x[i] * gr; }
                     L[i] = (c == 0 ? 0.f : L[i]) + yl;
                     R[i] = (c == 0 ? 0.f : R[i]) + yr;
                     p = juce::jmax (p, std::abs (yl), std::abs (yr));
@@ -518,6 +564,8 @@ namespace fge
         float masterNow = 0.f, masterTarget = 1.f;
         bool first = true;
         dsp::DcBlock dcL, dcR;
+        doomsday::dsp::Svf wl1, wl2, wh1, wh2, wr1, wr2;
+        bool clipped = false;
         uint64_t counter = 0;
     };
 

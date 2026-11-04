@@ -290,3 +290,9 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - **A/B z kickiem właściciela (2026-11-02): „w tym 33 coś zjebane”** – kick_hardstyle_84 ma root 53,6 Hz = A1 −45 centów (prawie pół tonu
   od A), a bas grał czyste A → zgrzyt. Do demo zawsze: `RenderTest --analyse` na kicku → nuta + FINE w centach (na obu slotach A / B),
   kick ucinany na beat z fade 6 ms (KICK2_D ma 0,84 s ogona i trzyma pełny poziom na 0,4 s – twarde cięcie = klik).
+- **4GE v0.5 (przebudowa) – A/B rdzenia z kickami właściciela (2026-11-04): „ni chuja nie przypominają referencyjnych”** –
+  jeden goły oscylator na część + jeden prosty przester = czyste, równe prążki w spektrogramie (sterylny ton), a referencje mają gęste,
+  brudne widmo. DIRTY z 24 dB gainu ma za miękkie krawędzie (góra kończy się ~1 kHz) – hardstyle'owy ogon potrzebuje ~40 dB+.
+  Wniosek: przy przebudowie NIE dawać właścicielowi A/B samego szkieletu; najpierw przenieść sprawdzony tor (unison + dryf na L / R,
+  dół mono, 2 stopnie z EQ pomiędzy, czysty sub obok clipu, clip na wyjściu), dopiero potem porównywać. Moduły z planu mogą poczekać,
+  dźwięk nie.

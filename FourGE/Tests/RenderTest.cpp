@@ -402,6 +402,9 @@ int main (int argc, char** argv)
                 if (sid == "env_sync") { for (auto* q : { "tail_amp_env_sync" }) a[idOf (q)] = b[idOf (q)] = 1.f; }
                 if (sid == "env_local_bpm") { a[idOf ("tail_amp_env_sync")] = b[idOf ("tail_amp_env_sync")] = 1.f; }
             }
+            if (sid.startsWith ("tail_st2_") && sid != "tail_st2_type") { a[P::tailSt2Type] = b[P::tailSt2Type] = 3.f; }
+            if (sid == "tail_mid_hz" || sid == "tail_mid_q") { a[P::tailMidGain] = b[P::tailMidGain] = 9.f; }
+            if (sid == "master_clip_soft") { a[P::clipDrive] = b[P::clipDrive] = 12.f; }
             if (sid.endsWith ("_trigger")) continue;                                                // MIDI behaviour (note-off / legato): checked below
             if (d.kind == Kind::Choice)
             {

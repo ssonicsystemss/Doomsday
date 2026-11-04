@@ -41,6 +41,10 @@ jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po
   Body Decay · TAIL → Tail Length, Tail Envelope, Release · PITCH → Pitch Envelope, Pitch Depth, Pitch Curve · GRIT → Distortion Drive,
   Fold, Asymmetry · SCREAM → Resonance, Screech Level, Screech Pitch · WEIGHT → Sub Level, Low Body, Sub Saturation · CHAOS → Random Amount,
   Modulation Depth, Phase Variation.
+  **Poziom 2:** moduł 09 = MACRO ROUTING & MAPPING (przypisania 8 MASTER MACROS); MOVEMENT / DENSITY / SPACE = lokalne kontrolery,
+  opcjonalnie jako makra użytkownika (sloty 9–16). **Poziom 3:** makra modułów 05–08 (GRIT/HARDNESS/WARMTH/FOLD/… z M05, SCREAM/
+  RESONANCE/METALLIC/… z M06, BRIGHTNESS/CLARITY/… z M07, PUNCH/LOUDNESS/CRUSH/GLUE/… z M08) zostają jako LOKALNE KONTROLERY w swoich
+  modułach – nie konkurują z MASTER MACROS (master macro może je sterować jako cel).
 - Reverse bass przy EARLY: bez preferencji → 4GE robi kick pod RE4GE (bez dublowania); ewentualnie później prosta warstwa reverse.
 - Sample w presetach: bez preferencji → osadzane w presecie / stanie (jak RE4GE), RELINK gdy brak i nie ma kopii.
 - PRE-ROLL screecha: bez preferencji → ciche rozkręcenie silnika przed START (słychać od START).

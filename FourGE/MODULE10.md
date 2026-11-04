@@ -87,3 +87,8 @@ Sample Engine współpracuje z pozostałymi generatorami 4GE.
 Przykład: `SAMPLE SLOT 01 → PUNCH → DISTORTION → MASTER OUTPUT`
 Drugi przykład: `SAMPLE SLOT 02 → TAIL → FILTER → DISTORTION → DYNAMICS → MASTER OUTPUT`
 Próbkę można kierować przed lub po wybranych procesorach zgodnie z architekturą routingu. Routing nie może tworzyć niekontrolowanych pętli sprzężenia.
+
+## 10. SAMPLE BROWSER
+Wyszukiwanie po nazwie i tagach, filtrowanie kategorii, Favorites, ostatnio używane, Preview bez przypisywania do slotu.
+Brakujący plik w presecie → komunikat + RELINK. Nie wolno po cichu zastępować brakującej próbki innym plikiem.
+COLLECT SAMPLES kopiuje potrzebne pliki do folderu projektu wyłącznie po świadomej decyzji użytkownika.

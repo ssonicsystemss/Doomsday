@@ -4,7 +4,7 @@
 
 ## MODULE 13 — STYLE ENGINE (Priorytet) · EARLY / MODERN / RAW / EXPERIMENTAL
 Silnik charakteru brzmienia. Każdy styl ustawia wartości początkowe, konfigurację generatorów, pitch, distortion, filtrów, screechu i dynamiki.
-- EARLY — klasyczny hardstyle, charakterystyczny punch, reverse bass i starsza estetyka.
+- EARLY — klasyczny hardstyle, charakterystyczny punch i starsza estetyka (BEZ reverse bassu – to RE4GE; definicja stylów: RULES.md pkt 5).
 - MODERN — czysty, mocny, kontrolowany kick z nowoczesną strukturą harmoniczną.
 - RAW — agresywny, przesterowany, ostry i ciężki charakter.
 - EXPERIMENTAL — nietypowe modulacje, tekstury, niestandardowe przebiegi i routing.

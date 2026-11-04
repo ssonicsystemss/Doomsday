@@ -23,3 +23,12 @@ Każda widoczna kontrolka zmienia dźwięk (test min vs max); DSP, GUI i pliki n
 - **4GE — Hardstyle Kick Designer** (główny instrument): tworzenie pełnych kicków hardstyle od podstaw – transient, punch, body, tail, pitch, sub, distortion, screech i warstwy.
 - **RE4GE** – wyspecjalizowany instrument do tworzenia reverse bassu.
 (Przy stylu EARLY „reverse bass” = estetyka / kick pasujący pod reverse z RE4GE, nie generowanie reverse w 4GE.)
+
+### Co 4GE generuje w każdym stylu (właściciel, 2026-11-04)
+| Styl | Co powinien generować 4GE |
+|---|---|
+| EARLY | Klasyczne, melodyjne kicki hardstyle z charakterystycznym punch'em, tonalnym body, prostszym distortion i wyraźnym pitch dropem. |
+| MODERN | Mocne, czyste i kontrolowane kicki z precyzyjnym transientem, wielowarstwowym body, dopracowanym tail'em i nowoczesną dynamiką. |
+| RAW | Agresywne kicki z mocnym distortion, ostrym screech'em, asymetrią, wyraźnymi harmonicznymi i surowym charakterem. |
+| EXPERIMENTAL | Nietypowe, hybrydowe i eksperymentalne kicki wykorzystujące niestandardową syntezę, modulację, warstwowanie i przetwarzanie. |
+(Zastępuje „reverse bass” w opisie EARLY w MODULES13-17_overview.md.)

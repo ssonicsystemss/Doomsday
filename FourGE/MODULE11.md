@@ -37,3 +37,10 @@ Jedna z najważniejszych funkcji modułu. Hardstyle wymaga stabilnego, centralne
 - CHANNEL DELAY: opóźnienie L lub R w Samples / Milliseconds – precyzyjna korekta i kreatywne kształtowanie przestrzeni.
 - PHASE OFFSET: tylko dla źródeł, gdzie architektura pozwala na poprawną realizację; bez pozornego parametru dla każdego sygnału.
 - PHASE ALIGNMENT: analiza relacji fazowej między warstwami – korelacja, porównanie początku przebiegów, wykrywanie problemów fazowych, opcjonalne dopasowanie offsetu warstw. Automatyczne dopasowanie nie nadpisuje ustawień bez potwierdzenia użytkownika.
+
+## 6. STEREO WIDTH ALGORITHMS
+- MODE 01 — M/S WIDTH: podstawowy, przewidywalny – regulacja poziomu Side.
+- MODE 02 — CONTROLLED DECORRELATION: kontrolowana dekorelacja kanałów; niewielkie różnice L/R, ograniczone ryzyko grzebieniowania i problemów fazowych.
+- MODE 03 — HAAS EFFECT: opcjonalny tryb kreatywny (różnica czasowa L/R); DELAY TIME, WIDTH, MIX, CHANNEL SELECT, MONO CHECK; oznaczony jako efekt kreatywny, który może pogorszyć zgodność mono.
+- MODE 04 — DISABLED: wyłączenie przetwarzania przestrzennego.
+Każdy tryb: MIX 0–100%, OUTPUT GAIN, BYPASS, MONO AUDITION.

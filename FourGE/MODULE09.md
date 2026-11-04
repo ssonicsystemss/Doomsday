@@ -1,4 +1,5 @@
 <!-- Owner specification of module 09 (2026-11-03), from his PDF (original: Specs/MODULE09_owner.pdf). Plan: PLAN.md 1i. Claude's notes at the end. -->
+> **Zasada nadrzędna:** 4GE ma dokładnie 8 MASTER MACROS (IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS). Makra / kontrolery opisane w tym module są LOKALNE i sterowane przez Macro Mapping (M09) – patrz `RULES.md`.
 # 4GE — MODULE 09: MODULATION MATRIX & ADVANCED MODULATION ENGINE
 
 Cel: centralny system modulacji całej wtyczki – dynamiczne sterowanie parametrami wszystkich silników (oscylatory, pitch envelope, warstwy, distortion, filtry, screech, kompresja, transient shaper, limiter). Nie wizualna macierz – każde połączenie rzeczywiście wpływa na DSP.

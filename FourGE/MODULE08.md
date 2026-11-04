@@ -1,4 +1,5 @@
 <!-- Owner specification of module 08 (2026-11-03), from his PDF (original: Specs/MODULE08_owner.pdf). Plan: PLAN.md 1h. Claude's notes at the end. -->
+> **Zasada nadrzędna:** 4GE ma dokładnie 8 MASTER MACROS (IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS). Makra / kontrolery opisane w tym module są LOKALNE i sterowane przez Macro Mapping (M09) – patrz `RULES.md`.
 # 4GE — MODULE 08: DYNAMICS, COMPRESSOR, TRANSIENT & LIMITER ENGINE
 
 CEL: kompletny silnik kontroli dynamiki kicka. Każdy parametr steruje rzeczywistym algorytmem DSP – bez atrap, pustych kontrolek i trybów różniących się tylko nazwą.

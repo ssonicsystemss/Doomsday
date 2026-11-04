@@ -1,4 +1,5 @@
 <!-- Owner specification of module 07 (2026-11-03), collected from chat piece by piece. Plan: PLAN.md. -->
+> **Zasada nadrzędna:** 4GE ma dokładnie 8 MASTER MACROS (IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS). Makra / kontrolery opisane w tym module są LOKALNE i sterowane przez Macro Mapping (M09) – patrz `RULES.md`.
 # 4GE — MODULE 07: EQ, MULTIBAND PROCESSING & SPECTRAL SHAPING ENGINE
 
 Cel modułu: stworzenie profesjonalnego systemu kształtowania widma, który pozwoli precyzyjnie kontrolować częstotliwości wszystkich elementów kicka — od subbasu i uderzenia PUNCH, przez BODY, aż po wysokie harmoniczne, screech i ogon TAIL.

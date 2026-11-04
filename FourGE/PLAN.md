@@ -1,5 +1,7 @@
 # 4GE – plan przebudowy (2026-11-03)
 
+> **Najpierw przeczytaj `RULES.md`** – zasady nadrzędne dla wszystkich 17 modułów (8 MASTER MACROS, makro ≠ parametr DSP, GUI z parametrów).
+
 Pełna specyfikacja właściciela: **`SPEC.md`** (bez zmian). Ten plik: co już jest w 4GE v0.4, czego brakuje i w jakiej kolejności budujemy.
 Zasady jak w RE4GE: krok po kroku, po każdym kroku kompilacja + testy + A/B dla właściciela (z JEGO kickami, nastrojonymi – LESSONS),
 żadnych atrap (każda gałka zmienia DSP – test min / max), nowe ID parametrów tylko dopisywane, DSP / GUI / pliki osobno.

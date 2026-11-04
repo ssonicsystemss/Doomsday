@@ -1,4 +1,5 @@
 <!-- Owner specification of module 12 (2026-11-04), collected from chat piece by piece. Plan: PLAN.md 1l. -->
+> **Zasada nadrzędna:** 4GE ma dokładnie 8 MASTER MACROS (IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS). Makra / kontrolery opisane w tym module są LOKALNE i sterowane przez Macro Mapping (M09) – patrz `RULES.md`.
 # 4GE — MODULE 12: MASTER OUTPUT & EXPORT ENGINE
 
 ## 1. CEL MODUŁU

@@ -1,4 +1,5 @@
 <!-- Owner specification of module 11 (2026-11-04), collected from chat piece by piece. Plan: PLAN.md 1k. -->
+> **Zasada nadrzędna:** 4GE ma dokładnie 8 MASTER MACROS (IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS). Makra / kontrolery opisane w tym module są LOKALNE i sterowane przez Macro Mapping (M09) – patrz `RULES.md`.
 # 4GE — MODULE 11: STEREO & SPATIAL ENGINE
 Specyfikacja techniczna dla AI / developera · SonicSystems • 4GE Kick Synthesizer • Module 11
 

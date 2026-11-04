@@ -1,4 +1,5 @@
 <!-- Owner overview of modules 13-17 (2026-11-04) – the management layer of 4GE. Detailed specs per module may follow (MODULE13.md …). Plan: PLAN.md 1m. -->
+> **Zasada nadrzędna:** 4GE ma dokładnie 8 MASTER MACROS (IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS). Makra / kontrolery opisane w tym module są LOKALNE i sterowane przez Macro Mapping (M09) – patrz `RULES.md`.
 # 4GE — MODULES 13–17: warstwa zarządzająca instrumentem (przegląd właściciela)
 
 ## MODULE 13 — STYLE ENGINE (Priorytet) · EARLY / MODERN / RAW / EXPERIMENTAL

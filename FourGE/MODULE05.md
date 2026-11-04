@@ -1,4 +1,5 @@
 <!-- Owner specification of module 05 (2026-11-03), verbatim, COMPLETE (sent again in full the same evening). Plan: PLAN.md 1e. Claude notes at the end. -->
+> **Zasada nadrzędna:** 4GE ma dokładnie 8 MASTER MACROS (IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS). Makra / kontrolery opisane w tym module są LOKALNE i sterowane przez Macro Mapping (M09) – patrz `RULES.md`.
 # 4GE — HARDSTYLE KICK DESIGNER
 ## MODULE 05: DISTORTION & WAVESHAPER ENGINE
 

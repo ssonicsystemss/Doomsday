@@ -303,3 +303,7 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - **4GE – „brakuje powera” (2026-11-04)** – nasze kicki były GŁOŚNIEJSZE (RMS), a mimo to słabsze: tok tak głośny jak ogon (w oryginale
   ~4–5 dB ciszej, więc wejście basu uderza) i ~6 dB za dużo 60–300 Hz (błoto) przy tym samym 25–60 Hz. Power = kontrast tok → ogon
   + czysty dół + wycięte niskie środki, nie głośność. Dodany TOK LEVEL (poziom ogona w czasie HOLD).
+- **4GE – „brakuje stuknięcia i głębi, brzmi jak z taniego chińskiego plastiku” (2026-11-04)** – pomiar: (1) referencje mają w pierwszych
+  8 ms wyraźny błysk >2 kHz (+6–7 dB ponad resztę) – u nas brak → PUNCH = CLICK; (2) tok referencji jest GĘSTY (płaskość widma
+  ~−12 dB: dużo szumu / nieharmonicznych składowych między prążkami), nasz był czystymi prążkami (−37…−41 dB) = „plastik” → pod tokiem
+  BODY = NOISE (filtr ~7 kHz, długość = HOLD). Czyste harmoniczne bez szumu zawsze brzmią tanio. A/B dawać w STEREO.

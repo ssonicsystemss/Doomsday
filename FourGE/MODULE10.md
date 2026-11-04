@@ -100,3 +100,15 @@ Style EARLY / MODERN / RAWSTYLE / EXPERIMENTAL mogą zmieniać ustawienia domyś
 
 ## 12. DSP I WYDAJNOŚĆ
 Bezwzględnie: brak operacji dyskowych, dynamicznej alokacji i blokujących mutexów w audio callback; bezpieczne zarządzanie pamięcią próbek; ochrona przed NaN / Inf i denormals; brak kliknięć przy zmianie próbki; deterministyczny offline rendering.
+
+## 13. TESTY AKCEPTACYJNE
+1. Import WAV i AIFF działa dla mono i stereo.
+2. START i END nie powodują kliknięć.
+3. Reverse działa poprawnie.
+4. Loop działa bez słyszalnych przerw.
+5. Pitch i playback rate działają zgodnie z dokumentacją.
+6. Brakujący plik nie powoduje crasha.
+7. Próbki mogą być łączone z syntezą.
+8. Wszystkie sloty zapisują i przywracają ustawienia.
+9. Sample Engine nie blokuje wątku audio.
+10. Ten sam preset i seed dają powtarzalny render offline.

@@ -16,3 +16,11 @@ Zasada projektowa: szerokość stereo nie może być uzyskiwana kosztem przypadk
 
 ## 3. MID/SIDE ENGINE
 Pełna obsługa Mid/Side. Sygnał dzielony na MID (centralna część) i SIDE (różnica między kanałami).
+| Parametr | Zakres |
+|---|---|
+| MID LEVEL | -24 do +12 dB |
+| SIDE LEVEL | -24 do +12 dB |
+| M/S WIDTH | 0–200% |
+| MID SOLO | ON/OFF |
+| SIDE SOLO | ON/OFF |
+| M/S ENABLE | ON/OFF |

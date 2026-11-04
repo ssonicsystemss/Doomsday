@@ -58,6 +58,14 @@ jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po
   Każde przypisanie: Source Macro, Destination Parameter, Minimum Value, Maximum Value, Response Curve, Modulation Depth, Polarity,
   Smoothing, Enable/Disable, Priority/Combination Mode. Wiele źródeł na jeden parametr – jasno zdefiniowana kolejność i sposób łączenia.
   BARDZO WAŻNE: wartości bazowe niezależne od makr – ruch makra nigdy nie nadpisuje parametru bazowego; FINAL = f(BASE, aktywne modulacje).
+  **Ostateczna rekomendacja (właściciel):**
+  | Poziom | Nazwy | Funkcja |
+  |---|---|---|
+  | Master Macros | IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS | Główne sterowanie całym kickiem |
+  | Macro Mapping | System modułu 09 | Łączenie makr z parametrami |
+  | Local Controls | BRIGHTNESS, CRUSH, LOUDNESS itd. | Sterowanie konkretnymi modułami |
+  | User Macros | Dowolne nazwy użytkownika | Własne kontrolery i przypisania |
+  Moduł 09 pozwala tworzyć np. 4 własne makra użytkownika, niezależne od ośmiu głównych (MOVEMENT / DENSITY / SPACE mogą tam trafić).
 - Reverse bass przy EARLY: bez preferencji → 4GE robi kick pod RE4GE (bez dublowania); ewentualnie później prosta warstwa reverse.
 - Sample w presetach: bez preferencji → osadzane w presecie / stanie (jak RE4GE), RELINK gdy brak i nie ma kopii.
 - PRE-ROLL screecha: bez preferencji → ciche rozkręcenie silnika przed START (słychać od START).

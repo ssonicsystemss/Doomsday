@@ -237,3 +237,16 @@ Zakaz: atrapy parametrów, kontrolki bez wpływu na DSP, tryby korzystające z t
 ## DODATEK (właściciel, 2026-11-04): SCREECH START MODE
 Odpowiedź na pytanie o SYNC TO BODY END: TAK – jako osobny system SCREECH START MODE, a nie zwykłe automatyczne przesuwanie parametru START.
 System określa, kiedy generator screechu rozpoczyna pracę względem pozostałych elementów kicka.
+### 1. Dostępne tryby
+| Tryb | Działanie |
+|---|---|
+| MANUAL | Użytkownik ręcznie ustawia START |
+| SYNC TO BODY END | Screech rozpoczyna się dokładnie w momencie zakończenia BODY |
+| SYNC TO BODY END - OFFSET | Screech rozpoczyna się po zakończeniu BODY, z regulowanym opóźnieniem |
+| SYNC TO TAIL | Screech synchronizuje się z początkiem TAIL |
+| SYNC TO KICK | Screech rozpoczyna się względem początku całego kicka |
+| HOST SYNC | Opcjonalna synchronizacja do pozycji rytmicznej DAW |
+Domyślny tryb: MANUAL.
+### 2. SYNC TO BODY END — szczegółowa logika
+Schemat: `0 ms | PUNCH | BODY | ← BODY END → SCREECH | KICK END` – screech rozpoczyna się automatycznie w punkcie BODY END.
+Zasada: `SCREECH_START = BODY_START + BODY_DURATION + SCREECH_OFFSET`

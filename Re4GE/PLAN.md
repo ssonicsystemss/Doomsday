@@ -160,3 +160,8 @@ Pracuj przyrostowo, moduł po module; przed modułem wyjaśnij jego DSP i tor; k
 działa, jeśli nie ma DSP i testu; po każdej zmianie kompiluj, testuj, naprawiaj; nie zastępuj działającego DSP atrapą; nie psuj tego, co
 działa; prowadź dokumentację parametrów, zakresów, routingu i zależności; przy niejasności – opisz ją i zaproponuj precyzyjne rozwiązanie
 przed kodowaniem.
+
+## ODŁOŻONE (właściciel, 2026-11-04 – wrócimy przy powrocie do RE4GE)
+- RE4GE FX: detektor łapie tylko pierwszy kick, gdy kicki mają długi, głośny ogon (brak ponownego uzbrojenia). Propozycja: detekcja po
+  skoku energii / spectral flux zamiast progu poziomu. Niedokończony tryb testowy `RenderTest --hits`: `Re4GE/Pending/fx_hits_test_mode.patch`
+  (`git apply`).

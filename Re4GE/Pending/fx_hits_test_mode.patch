@@ -1,0 +1,49 @@
+diff --git a/Re4GE/Tests/RenderTest.cpp b/Re4GE/Tests/RenderTest.cpp
+index 63f0d10..4175f5b 100644
+--- a/Re4GE/Tests/RenderTest.cpp
++++ b/Re4GE/Tests/RenderTest.cpp
+@@ -1,5 +1,6 @@
+ // Offline checks for RE4GE (reverse bass)
+ //   RenderTest <outdir>       tests, preset renders (with a short kick on top, for listening), GUI snapshots
++#include "../Source/Presets/SampleFile.h"
+ #include "../Source/PluginProcessor.h"
+ #include "../Source/GUI/PluginEditor.h"
+ #include <juce_audio_formats/juce_audio_formats.h>
+@@ -129,6 +130,37 @@ int main (int argc, char** argv)
+         writeWav (File::getCurrentWorkingDirectory().getChildFile (argv[3]), all);
+         return 0;
+     }
++    // RenderTest <outdir> --hits <kick.wav> [bpm]: the kick looped on every beat (cut at the next one, like FL), 8 beats through RE4GE FX:
++    // how many kicks the detector finds and when
++    if (argc > 3 && String (argv[2]) == "--hits")
++    {
++        auto s = re4ge::readSampleFile (File::getCurrentWorkingDirectory().getChildFile (argv[3]));
++        if (s == nullptr) { printf ("cannot load\n"); return 1; }
++        const double bpm = argc > 4 ? String (argv[4]).getDoubleValue() : 150.0;
++        ReProcessor fx (true); Host h; h.bpm = bpm; fx.setPlayHead (&h);
++        fx.setCurrentProgram (byName (fx, "CLASSIC - Dense Rise"));
++        const int beat = (int) (sr * 60.0 / bpm), N = beat * 8;
++        AudioBuffer<float> in (2, N); in.clear();
++        for (int b = 0; b < 8; ++b) for (int i = 0; i < beat; ++i)
++        {
++            const double src = i * s->rate / sr; const int k = (int) src;
++            const float v = k + 1 < (int) s->data.size() ? s->data[(size_t) k] * 0.9f : 0.f;
++            in.setSample (0, b * beat + i, v); in.setSample (1, b * beat + i, v);
++        }
++        fx.prepareToPlay (sr, block);
++        String when; int last = fx.fxHits.load();
++        for (int pos = 0; pos < N; pos += block)
++        {
++            const int n = jmin (block, N - pos);
++            AudioBuffer<float> b (4, n); b.clear(); MidiBuffer m;
++            for (int ch = 0; ch < 2; ++ch) b.copyFrom (ch, 0, in, ch, pos, n);
++            fx.processBlock (b, m);
++            if (fx.fxHits.load() != last) { last = fx.fxHits.load(); when << String (pos * 1000.0 / sr, 0) << " "; }
++        }
++        printf ("%d hits in 8 beats at: %s ms (beats every %.0f ms)\n", fx.fxHits.load(), when.toRawUTF8(), 60000.0 / bpm);
++        fx.setPlayHead (nullptr);
++        return 0;
++    }
+     // RenderTest <outdir> --render <settings.txt> <out.wav> [bpm] [beats]: 'preset <name>' / '<id> <value>' lines -> a WAV (for matching)
+     if (argc > 4 && String (argv[2]) == "--render")
+     {

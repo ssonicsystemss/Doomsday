@@ -371,7 +371,38 @@ int main (int argc, char** argv)
             if (id == P::coreVoice || id == P::coreVelocity) continue;                 // MIDI behaviour, checked above
             if (id == P::coreAutoLen) { a[P::coreLength] = b[P::coreLength] = 1200.f; }
             if (id == P::peEnd || id == P::subPitch) { a[P::coreKeyTrack] = b[P::coreKeyTrack] = 0.f; }
-            if (id == P::mixPunchSolo || id == P::mixBodySolo || id == P::mixTailSolo || id == P::mixSubSolo) {}
+            // module 02 contexts: an envelope slot's settings work when the slot is ON; FOLLOW settings when the link is FOLLOW;
+            // the sub's own pitch envelope when it has a DEPTH; SYNC / LOCAL BPM with the global SYNC on (tempo != 150)
+            const String sid (d.id);
+            auto slotBase = [&] (const String& pre) { for (int k = 0; k < P::count; ++k) if (String (def (k).id) == pre + "_on") return k; return -1; };
+            for (auto* pre : { "punch_filter_env", "body_filter_env", "tail_filter_env", "punch_drive_env", "body_drive_env", "tail_drive_env",
+                               "sub_drive_env", "body_reso_env", "tail_reso_env" })
+                if (sid.startsWith (pre) && ! sid.endsWith ("_on")) { const int on = slotBase (pre); a[on] = b[on] = 1.f; a[on + 1] = b[on + 1] = 0.f;
+                                                                        if (sid.contains ("filter")) { a[id - 0] = a[id]; } }
+            if (sid.contains ("drive_env")) { a[P::tailChar] = b[P::tailChar] = 1.f; a[P::punchDrive] = b[P::punchDrive] = a[P::bodyDrive] = b[P::bodyDrive] = a[P::tailDrive] = b[P::tailDrive] = a[P::subDrive] = b[P::subDrive] = 0.3f; }
+            if (sid.contains ("filter_env") || sid.contains ("reso_env")) { a[P::punchTone] = b[P::punchTone] = a[P::bodyTone] = b[P::bodyTone] = a[P::tailTone] = b[P::tailTone] = 2000.f; a[P::bodyReso] = b[P::bodyReso] = a[P::tailReso] = b[P::tailReso] = 0.4f;
+                                                                            a[P::bodySrc] = b[P::bodySrc] = 2.f; a[P::bodyLevel] = b[P::bodyLevel] = 0.f; }
+            if (sid.endsWith ("_env_mode") && ! sid.contains ("amp")) {}                       // DRAWN vs ADSR differ with the default shapes
+            if (sid.endsWith ("_follow_depth") || sid.endsWith ("_follow_offset") || sid.endsWith ("_follow_time") || sid.endsWith ("_link_source"))
+            {
+                const String part = sid.upToFirstOccurrenceOf ("_", false, false);
+                const int lk = idOf (part + "_link");
+                a[lk] = b[lk] = 1.f;                                                                 // FOLLOW
+                const int srcId = idOf (part + "_link_source");
+                if (! sid.endsWith ("_link_source")) a[srcId] = b[srcId] = part == "tail" ? 0.f : 2.f;
+                a[P::subPDepth] = b[P::subPDepth] = -12.f;                                            // the sub moves too (a source with a movement)
+            }
+            if (sid == "tail_link") { a[P::tailLinkSrc] = b[P::tailLinkSrc] = 0.f; }
+            if (sid.startsWith ("sub_penv") || sid == "sub_link") { a[P::subPDepth] = b[P::subPDepth] = -12.f; if (sid == "sub_penv_depth") { a[id] = 0.f; } }
+            if (sid == "sub_link") { a[P::subLinkSrc] = b[P::subLinkSrc] = 1.f; }
+            if (sid.endsWith ("_sync") || sid == "env_local_bpm")
+            {
+                a[P::envSync] = b[P::envSync] = 1.f; a[P::envLocalBpm] = b[P::envLocalBpm] = 100.f;
+                if (sid.endsWith ("_sync") && sid != "env_sync") { const String pre = sid.dropLastCharacters (5); const int on = idOf (pre + "_on"); if (on >= 0) a[on] = b[on] = 1.f; }
+                if (sid == "env_sync") { for (auto* q : { "tail_amp_env_sync" }) a[idOf (q)] = b[idOf (q)] = 1.f; }
+                if (sid == "env_local_bpm") { a[idOf ("tail_amp_env_sync")] = b[idOf ("tail_amp_env_sync")] = 1.f; }
+            }
+            if (sid.endsWith ("_trigger")) continue;                                                // MIDI behaviour (note-off / legato): checked below
             if (d.kind == Kind::Choice)
             {
                 bool any = false;

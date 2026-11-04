@@ -10,8 +10,14 @@ namespace fge
         const juce::StringArray& tailSources()    { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW", "SQUARE", "PULSE", "NOISE" }; return a; }
         const juce::StringArray& subSources()     { static const juce::StringArray a { "SINE", "TRIANGLE" }; return a; }
         const juce::StringArray& tailCharacters() { static const juce::StringArray a { "CLEAN", "TONAL", "DIRTY", "SCREAM", "METALLIC", "BUZZ", "CRUSHED" }; return a; }
-        const juce::StringArray& pitchModes()     { static const juce::StringArray a { "CLASSIC DROP", "FAST DROP", "SLOW DROP", "DOUBLE DROP", "RISE", "STABLE TONE" }; return a; }
+        const juce::StringArray& pitchModes()     { static const juce::StringArray a { "CLASSIC DROP", "FAST DROP", "SLOW DROP", "DOUBLE DROP", "RISE", "STABLE TONE",
+                                                                                       "DROP + RISE", "HARDSTYLE KICK", "CUSTOM" }; return a; }
         const juce::StringArray& voiceModes()     { static const juce::StringArray a { "CHOKE", "POLY" }; return a; }
+        const juce::StringArray& envModes()       { static const juce::StringArray a { "ADSR", "DRAWN" }; return a; }
+        const juce::StringArray& polarities()     { static const juce::StringArray a { "UNIPOLAR", "BIPOLAR" }; return a; }
+        const juce::StringArray& triggers()       { static const juce::StringArray a { "ONE SHOT", "RETRIGGER", "LEGATO" }; return a; }
+        const juce::StringArray& linkModes()      { static const juce::StringArray a { "INDEPENDENT", "FOLLOW", "LINKED" }; return a; }
+        const juce::StringArray& parts()          { static const juce::StringArray a { "PUNCH", "BODY", "TAIL", "SUB" }; return a; }
         const juce::StringArray& none()           { static const juce::StringArray a; return a; }
     }
 
@@ -49,7 +55,7 @@ namespace fge
             case Unit::Deg:   return String ((int) std::lround (v)) + juce::String (juce::CharPointer_UTF8 ("\xc2\xb0"));
             case Unit::None:  break;
         }
-        return String (v, 2);
+        return std::abs (v) >= 10.f ? String ((int) std::lround (v)) : String (v, 2);
     }
 
     float parseValue (const ParamDef& d, const juce::String& t)

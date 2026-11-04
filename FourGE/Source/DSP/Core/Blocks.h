@@ -104,23 +104,34 @@ namespace fge::dsp
         const float q = 1.f + (curve - 0.5f) * 2.f * 4.f;                    // 1 = stays up, falls late
         return 1.f - std::pow (x, q);
     }
-    inline float pitchShape (int mode, float ms, float timeMs, float curve)
+    //  x = time / TIME (0..1 and beyond). Modes 0..7 are analytic; 8 CUSTOM is the drawn curve (env::Shape) - not here.
+    inline float pitchShapeX (int mode, float x, float curve)
     {
-        const float T = juce::jmax (1.f, timeMs);
+        auto ease = [] (float u) { u = juce::jlimit (0.f, 1.f, u); return u * u * (3.f - 2.f * u); };
         switch (mode)
         {
-            case 1:  return dropShape (ms / (T * 0.45f), juce::jmax (0.f, curve - 0.2f));              // FAST: shorter, more convex
-            case 2:  return dropShape (ms / (T * 2.2f), juce::jmin (1.f, curve + 0.2f));               // SLOW: longer, gentler
-            case 3:
+            case 1:  return dropShape (x / 0.45f, juce::jmax (0.f, curve - 0.2f));                    // FAST: shorter, more convex
+            case 2:  return dropShape (x / 2.2f, juce::jmin (1.f, curve + 0.2f));                     // SLOW: longer, gentler
+            case 3:                                                                                  // DOUBLE: drop, short bounce up, drop
             {
-                const float x = ms / T;                                                               // DOUBLE: half, hold, the rest
-                if (x < 0.35f) return 1.f - 0.5f * (1.f - dropShape (x / 0.35f, curve));
-                if (x < 0.6f)  return 0.5f;
-                return 0.5f * dropShape ((x - 0.6f) / 0.4f, curve);
+                if (x < 0.3f)  return 0.35f + 0.65f * dropShape (x / 0.3f, curve);
+                if (x < 0.42f) return 0.35f + 0.2f * ease ((x - 0.3f) / 0.12f);
+                return 0.55f * dropShape ((x - 0.42f) / 0.58f, curve);
             }
-            case 4:  return 1.f - dropShape (ms / T, curve);                                         // RISE: END -> START
-            case 5:  return 0.f;                                                                     // STABLE TONE
-            default: return dropShape (ms / T, curve);                                               // CLASSIC
+            case 4:  return 1.f - dropShape (x, curve);                                             // RISE: END -> START
+            case 5:  return 0.f;                                                                    // STABLE TONE
+            case 6:                                                                                  // DROP + RISE
+            {
+                if (x < 0.5f) return dropShape (x / 0.5f, curve);
+                return 0.35f * ease ((x - 0.5f) / 0.5f);
+            }
+            case 7:                                                                                  // HARDSTYLE KICK: fast transient, then the drop
+            {
+                if (x < 0.06f) return 0.55f + 0.45f * dropShape (x / 0.06f, 0.f);
+                return 0.55f * dropShape ((x - 0.06f) / 0.94f, curve);
+            }
+            default: return dropShape (x, curve);                                                   // CLASSIC
         }
     }
+    inline float pitchShape (int mode, float ms, float timeMs, float curve) { return pitchShapeX (mode, ms / juce::jmax (1.f, timeMs), curve); }
 }

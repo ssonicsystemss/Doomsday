@@ -34,6 +34,11 @@ namespace fge
         const juce::StringArray& tailCharacters();
         const juce::StringArray& pitchModes();
         const juce::StringArray& voiceModes();
+        const juce::StringArray& envModes();
+        const juce::StringArray& polarities();
+        const juce::StringArray& triggers();
+        const juce::StringArray& linkModes();
+        const juce::StringArray& parts();
         const juce::StringArray& none();
     }
 
@@ -134,8 +139,72 @@ namespace fge
     F (mixSubPan,    "mix_sub_pan",     "Mixer Sub Pan",       Unit::Bip,   -1.f,   1.f,   0.f,   0.f,   FMod | FSmooth | FGlobal) \
     B (mixSubMute,   "mix_sub_mute",    "Sub Mute",            false, FGlobal) \
     B (mixSubSolo,   "mix_sub_solo",    "Sub Solo",            false, FGlobal) \
-    B (mixSubInv,    "mix_sub_invert",  "Sub Phase Invert",    false, FGlobal)
-    // ---- APPEND NEW MODULES BELOW (module 02 ...) - never insert above
+    B (mixSubInv,    "mix_sub_invert",  "Sub Phase Invert",    false, FGlobal) \
+    /* ================= MODULE 02 - ADVANCED PITCH & ENVELOPE ENGINE ================= */ \
+    F (envTimeScale, "env_time_scale",  "Envelope Time Scale", Unit::Pct,   0.1f,   4.f,   1.f,   1.f,   FMod | FGlobal) \
+    F (envTimeOffset,"env_time_offset", "Envelope Time Offset",Unit::Ms,    0.f,  2500.f,  0.f,  200.f,  FMod | FGlobal) \
+    B (envSync,      "env_sync",        "Envelope Global Sync",false, FGlobal) \
+    F (envLocalBpm,  "env_local_bpm",   "Local BPM",           Unit::None,  60.f,  220.f, 150.f,  0.f,   FGlobal) \
+    FGE_PITCH_PART (F, B, C, punch, "punch", "Punch") \
+    FGE_PITCH_PART (F, B, C, body,  "body",  "Body") \
+    FGE_PITCH_PART (F, B, C, tail,  "tail",  "Tail") \
+    FGE_PITCH_PART (F, B, C, sub,   "sub",   "Sub") \
+    C (punchPMode,   "punch_penv_mode", "Punch Pitch Mode",    pitchModes, 0, FNone) \
+    F (punchPCurve,  "punch_penv_curve","Punch Pitch Curve",   Unit::Pct,   0.f,    1.f,   0.15f, 0.f,   FMod) \
+    C (bodyPMode,    "body_penv_mode",  "Body Pitch Mode",     pitchModes, 0, FNone) \
+    F (bodyPCurve,   "body_penv_curve", "Body Pitch Curve",    Unit::Pct,   0.f,    1.f,   0.3f,  0.f,   FMod) \
+    C (subPMode,     "sub_penv_mode",   "Sub Pitch Mode",      pitchModes, 0, FNone) \
+    F (subPCurve,    "sub_penv_curve",  "Sub Pitch Curve",     Unit::Pct,   0.f,    1.f,   0.3f,  0.f,   FMod) \
+    F (subPDepth,    "sub_penv_depth",  "Sub Pitch Depth",     Unit::Semi,  -48.f, 48.f,   0.f,   0.f,   FMod) \
+    F (subPTime,     "sub_penv_time",   "Sub Pitch Time",      Unit::Ms,    1.f,  1000.f, 60.f,  60.f,   FMod) \
+    FGE_AMP_SLOT (F, B, C, punchAmp, "punch_amp_env", "Punch Amp Env") \
+    FGE_AMP_SLOT (F, B, C, bodyAmp,  "body_amp_env",  "Body Amp Env") \
+    FGE_AMP_SLOT (F, B, C, tailAmp,  "tail_amp_env",  "Tail Amp Env") \
+    FGE_AMP_SLOT (F, B, C, subAmp,   "sub_amp_env",   "Sub Amp Env") \
+    FGE_MOD_SLOT (F, B, C, punchFlt, "punch_filter_env", "Punch Filter Env") \
+    FGE_MOD_SLOT (F, B, C, bodyFlt,  "body_filter_env",  "Body Filter Env") \
+    FGE_MOD_SLOT (F, B, C, tailFlt,  "tail_filter_env",  "Tail Filter Env") \
+    FGE_MOD_SLOT (F, B, C, punchDrv, "punch_drive_env",  "Punch Drive Env") \
+    FGE_MOD_SLOT (F, B, C, bodyDrv,  "body_drive_env",   "Body Drive Env") \
+    FGE_MOD_SLOT (F, B, C, tailDrv,  "tail_drive_env",   "Tail Drive Env") \
+    FGE_MOD_SLOT (F, B, C, subDrv,   "sub_drive_env",    "Sub Drive Env") \
+    FGE_MOD_SLOT (F, B, C, bodyRes,  "body_reso_env",    "Body Resonance Env") \
+    FGE_MOD_SLOT (F, B, C, tailRes,  "tail_reso_env",    "Tail Resonance Env")
+    // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
+
+    // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
+#define FGE_PITCH_PART(F, B, C, e, id, nm) \
+    B (e##POn,      id "_penv_on",      nm " Pitch Env On",      true, FNone) \
+    F (e##PAmount,  id "_penv_amount",  nm " Pitch Env Amount",  Unit::Pct,  0.f,   2.f,   1.f,   1.f,   FMod) \
+    F (e##PScale,   id "_penv_scale",   nm " Pitch Time Scale",  Unit::Pct,  0.1f,  4.f,   1.f,   1.f,   FMod) \
+    F (e##POffset,  id "_penv_offset",  nm " Pitch Env Offset",  Unit::Ms,   0.f, 2500.f,  0.f,  100.f,  FMod) \
+    C (e##Link,     id "_link",         nm " Pitch Link",        linkModes, 0, FNone) \
+    C (e##LinkSrc,  id "_link_source",  nm " Pitch Link Source", parts, 2, FNone) \
+    F (e##FDepth,   id "_follow_depth", nm " Follow Depth",      Unit::Pct,  0.f,   2.f,   1.f,   1.f,   FMod) \
+    F (e##FOffset,  id "_follow_offset",nm " Follow Offset",     Unit::Semi, -48.f, 48.f,  0.f,   0.f,   FMod) \
+    F (e##FTime,    id "_follow_time",  nm " Follow Time",       Unit::Pct,  0.1f,  4.f,   1.f,   1.f,   FMod)
+    // amplitude envelope (the A / D / S / R knobs of module 01 are its ADSR mode)
+#define FGE_AMP_SLOT(F, B, C, e, id, nm) \
+    C (e##Mode,     id "_mode",         nm " Mode",              envModes, 0, FNone) \
+    F (e##Delay,    id "_delay",        nm " Delay",             Unit::Ms,   0.f, 2500.f,  0.f,  100.f,  FMod) \
+    F (e##Curve,    id "_curve",        nm " Curve",             Unit::Pct,  0.f,   1.f,   0.5f,  0.f,   FMod) \
+    F (e##Amount,   id "_amount",       nm " Amount",            Unit::Pct,  0.f,   1.f,   1.f,   0.f,   FMod) \
+    C (e##Trig,     id "_trigger",      nm " Trigger",           triggers, 0, FNone) \
+    B (e##Sync,     id "_sync",         nm " Sync",              false, FNone)
+    // a modulation envelope (filter cutoff / drive / resonance)
+#define FGE_MOD_SLOT(F, B, C, e, id, nm) \
+    B (e##On,       id "_on",           nm " On",                false, FNone) \
+    C (e##Mode,     id "_mode",         nm " Mode",              envModes, 0, FNone) \
+    F (e##Attack,   id "_attack",       nm " Attack",            Unit::Ms,   0.f, 2500.f,  0.f,   20.f,  FMod) \
+    F (e##Decay,    id "_decay",        nm " Decay",             Unit::Ms,   0.f, 2500.f, 120.f, 150.f,  FMod) \
+    F (e##Sustain,  id "_sustain",      nm " Sustain",           Unit::Pct,  0.f,   1.f,   0.f,   0.f,   FMod) \
+    F (e##Release,  id "_release",      nm " Release",           Unit::Ms,   0.f, 2500.f,  40.f,  80.f,  FMod) \
+    F (e##Delay,    id "_delay",        nm " Delay",             Unit::Ms,   0.f, 2500.f,  0.f,  100.f,  FMod) \
+    F (e##Curve,    id "_curve",        nm " Curve",             Unit::Pct,  0.f,   1.f,   0.5f,  0.f,   FMod) \
+    F (e##Amount,   id "_amount",       nm " Amount",            Unit::Bip,  -1.f,  1.f,   0.5f,  0.f,   FMod) \
+    C (e##Polarity, id "_polarity",     nm " Polarity",          polarities, 0, FNone) \
+    C (e##Trig,     id "_trigger",      nm " Trigger",           triggers, 0, FNone) \
+    B (e##Sync,     id "_sync",         nm " Sync",              false, FNone)
 
     namespace P
     {

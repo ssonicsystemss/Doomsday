@@ -17,3 +17,9 @@ GUI (M17) powstaje na podstawie rzeczywistych parametrów i funkcji modułów 01
 
 ## 4. Bez atrap
 Każda widoczna kontrolka zmienia dźwięk (test min vs max); DSP, GUI i pliki nigdy w jednym komponencie.
+
+## 5. 4GE ≠ RE4GE – rozdział odpowiedzialności (właściciel, 2026-11-04)
+4GE NIE generuje reverse bassu i nie ma jego silnika – to funkcja osobnej wtyczki RE4GE. Dwa produkty jednego ekosystemu SonicSystems, różne zadania:
+- **4GE — Hardstyle Kick Designer** (główny instrument): tworzenie pełnych kicków hardstyle od podstaw – transient, punch, body, tail, pitch, sub, distortion, screech i warstwy.
+- **RE4GE** – wyspecjalizowany instrument do tworzenia reverse bassu.
+(Przy stylu EARLY „reverse bass” = estetyka / kick pasujący pod reverse z RE4GE, nie generowanie reverse w 4GE.)

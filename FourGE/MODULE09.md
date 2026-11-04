@@ -189,3 +189,8 @@ Definition of Done: dowolne źródło → dowolny zarejestrowany cel, kontrola g
 - Klocki z RE4GE: `DSP/ModMatrix.h` (16 wierszy → rozszerzyć do 32/64 + tryby łączenia), LFO 1–4 (→ 8), `DSP/Trigger.h` sekwencer na ppq hosta, Randomizer (style / LOCK / 1 klik = 1 undo, loudness przez offline render), MorphBar (A/B morph z przeskokiem przełączników przy 50 %).
 - Makra: 8 głównych makr 4GE = te z pkt 7.2 (PUNCH, BODY, TAIL, GRIT, SCREAM, MOVEMENT, DENSITY, SPACE). Makra „modułowe” z M06 (SCREAM, METALLIC…), M07 (BRIGHTNESS…) i M08 (LOUDNESS, CRUSH…) proponuję jako gotowe MAPY / presety przypisań do tych samych 16 slotów makr, a nie osobne gałki – do potwierdzenia na koniec.
 - Owner PDF: `Specs/MODULE09_owner.pdf`.
+
+---
+## ZMIANA WŁAŚCICIELA (2026-11-04) – pkt 7.2
+Moduł 09 NIE ma własnego zestawu makr (PUNCH / BODY / TAIL / GRIT / SCREAM / MOVEMENT / DENSITY / SPACE nie są drugim zestawem 8 makr głównych).
+Zamiast tego moduł 09 ma **Macro Routing & Mapping** – system przypisywania 8 MASTER MACROS (IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS – patrz PLAN) do parametrów w całej wtyczce (MIN / MAX / CURVE / POLARITY / ENABLE, wiele celów z różnych modułów, Macro Morph bez zmian).

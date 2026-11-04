@@ -36,7 +36,7 @@ jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po
   CRUSH…) to wewnętrzne narzędzia pod spodem – nigdy drugi konkurencyjny zestaw głównych makr. **MASTER MACROS (właściciel, 2026-11-04):** 01 IMPACT – siła i charakter uderzenia ·
   02 BODY – masa i charakter korpusu · 03 TAIL – długość i charakter ogona · 04 PITCH – charakter i ruch pitchu · 05 GRIT – brud, agresja,
   nasycenie · 06 SCREAM – rezonans i screech · 07 WEIGHT – ciężar i energia niskich częstotliwości · 08 CHAOS – kontrolowana niestabilność
-  i eksperymentowanie. (= zestaw z głównej SPEC; M09 „makra startowe” zastąpione tymi. Opis poziomów 2–3: czekamy na właściciela.)
+  i eksperymentowanie. (= zestaw z głównej SPEC; moduł 09 nie ma własnych makr – ma MACRO ROUTING & MAPPING, czyli przypisywanie tych 8 do parametrów całej wtyczki. Opis poziomów 2–3: czekamy na właściciela.)
   Przykładowe cele w Modulation Matrix (właściciel): IMPACT → Transient Level, Punch Drive, Attack · BODY → Body Level, Oscillator Mix,
   Body Decay · TAIL → Tail Length, Tail Envelope, Release · PITCH → Pitch Envelope, Pitch Depth, Pitch Curve · GRIT → Distortion Drive,
   Fold, Asymmetry · SCREAM → Resonance, Screech Level, Screech Pitch · WEIGHT → Sub Level, Low Body, Sub Saturation · CHAOS → Random Amount,

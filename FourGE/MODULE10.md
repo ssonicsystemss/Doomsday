@@ -28,3 +28,8 @@ Głębie bitowe: 16-bit PCM, 24-bit PCM, 32-bit float.
 Częstotliwości próbkowania: 44.1, 48, 88.2, 96, 176.4, 192 kHz.
 Pliki mono i stereo. Pliki wielokanałowe odpowiednio zmapowane albo odrzucone z czytelnym komunikatem.
 Konwersja sample rate: wysokiej jakości resampling z filtrowaniem antyaliasingowym. Nie wolno modyfikować oryginalnego pliku użytkownika.
+
+## 3. ARCHITEKTURA SLOTÓW SAMPLE
+Minimum 8 niezależnych slotów, docelowo 16 lub więcej. Każdy slot jest niezależnym źródłem dźwięku.
+Każdy slot: ENABLE, MUTE, SOLO, LEVEL, PAN, PITCH, FINE TUNE, START, END, REVERSE, PLAY MODE, ROOT NOTE, WIDTH, OUTPUT ROUTING.
+Przypisanie do grupy: PUNCH, BODY, TAIL, SUB, TEXTURE, CUSTOM. Zmiana grupy nie kasuje ustawień próbki.

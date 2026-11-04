@@ -24,3 +24,7 @@ Silnik musi umożliwiać:
 | AIFF | Wymagana |
 | FLAC | Opcjonalna |
 | MP3 | Opcjonalna |
+Głębie bitowe: 16-bit PCM, 24-bit PCM, 32-bit float.
+Częstotliwości próbkowania: 44.1, 48, 88.2, 96, 176.4, 192 kHz.
+Pliki mono i stereo. Pliki wielokanałowe odpowiednio zmapowane albo odrzucone z czytelnym komunikatem.
+Konwersja sample rate: wysokiej jakości resampling z filtrowaniem antyaliasingowym. Nie wolno modyfikować oryginalnego pliku użytkownika.

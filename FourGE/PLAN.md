@@ -137,7 +137,11 @@ Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznyc
    CHANNEL SWAP, Mid/Side, LOW FREQUENCY MONO (domyślnie 120 Hz) + SUB MONO LOCK (priorytet nad WIDTH), polaryzacja / channel delay /
    phase alignment (tylko z potwierdzeniem), tryby M/S / dekorelacja / Haas / off, poziomy layer / group / master, korelometr, vector scope,
    odsłuch mono; domyślnie SUB 0 %, TAIL 120 %, TEXTURE 130 %. Jedna klasa stereo razem z M07 pkt 6.
-1l. **Moduł 12 – Master Output & Export Engine** (specyfikacja: **`MODULE12.md`**, w trakcie).
+1l. **Moduł 12 – Master Output & Export Engine** (specyfikacja: **`MODULE12.md`**, kompletna + NOTES): MASTER LEVEL / MUTE / BYPASS /
+   MONO-STEREO, SAFETY CLIP / LIMITER domyślnie OFF; mierniki Peak / True Peak / RMS / LUFS / DC; eksport WAV / AIFF / FLAC, 16 / 24 / 32f,
+   SR + resampling, dither raz na końcu (domyślnie OFF), normalizacja bez ukrytego limitera, źródło FULL / grupa / warstwa, długość AUTO /
+   FIXED / UNTIL SILENCE z pre / post-roll, offline = realtime, seedy FIXED / NEW / PRESET / CUSTOM, batch + nazwy, historia, plik .part.
+   Klocki: RE4GE Exporter / ExportPanel, Throne of Titans (LUFS / true peak).
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

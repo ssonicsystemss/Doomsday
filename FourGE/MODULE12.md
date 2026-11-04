@@ -72,3 +72,51 @@ Wybór folderu docelowego. Bez nadpisywania istniejących plików bez wyraźnej 
 ## 12. FILE NAMING SYSTEM
 Generator nazw plików. Elementy: PRESET NAME, STYLE, ROOT NOTE, BPM, GROUP, VARIANT, VERSION, SEED.
 Przykład: `4GE_MODERN_KICK01_F#_150BPM_TAIL_V02.wav`. Użytkownik może stworzyć własny schemat nazewnictwa.
+
+## 13. EXPORT HISTORY
+Zapamiętuje ostatnie eksporty: nazwa pliku, nazwa presetu, data, format, bit depth, sample rate, długość, Peak, True Peak, LUFS (jeśli dostępny), seed. Ponowny eksport z identycznymi ustawieniami.
+
+## 14. EXPORT USER INTERFACE
+Panel EXPORT czytelny, podzielony na sekcje:
+- SOURCE: Export Source, Selected Layer, Selected Group.
+- LENGTH: Auto, Fixed, Until Silence, Pre-Roll, Post-Roll.
+- FORMAT: WAV, AIFF, FLAC.
+- QUALITY: Bit Depth, Sample Rate, Dither.
+- NORMALIZATION: Mode, Target, True Peak Ceiling.
+- DESTINATION: Folder, File Name, Naming Template.
+- RENDER: Preview, Export, Batch Export, Cancel.
+Pasek postępu podczas eksportu; anulowanie bezpiecznie zwalnia zasoby. Po zakończeniu: ścieżka, format, sample rate, bit depth, długość, Peak, LUFS (jeśli dostępny).
+
+## 15. ERROR HANDLING
+Obsługa: brak miejsca na dysku, brak uprawnień do folderu, nieprawidłowa ścieżka, nieobsługiwany format, błąd zapisu, przerwanie renderowania, brak wymaganych zasobów, nieprawidłowa konfiguracja eksportu.
+Nie wolno zostawić uszkodzonego pliku, który wygląda na ukończony – render do pliku tymczasowego, po poprawnym zakończeniu przeniesienie pod docelową nazwę.
+Render na spójnej migawce ustawień – zmiany parametrów w trakcie eksportu nie zmieniają rozpoczętego renderu.
+
+## 16. INTEGRACJA Z POZOSTAŁYMI MODUŁAMI
+Wszystkie moduły, szczególnie 04 (Layer), 05 (Distortion & Waveshaper), 06 (Filter & Screech), 08 (Dynamics), 09 (Modulation Matrix), 10 (Advanced Sample), 11 (Stereo & Spatial). Eksport respektuje routing, długość kicka, modulacje, stereo i wszystkie aktywne procesory.
+
+## 17. TESTY AKCEPTACYJNE
+1. WAV z prawidłowym nagłówkiem.
+2. Bit Depth zgodny z ustawieniem.
+3. Sample Rate zgodny z ustawieniem.
+4. Eksport stereo i mono poprawny.
+5. Dithering tylko gdy potrzebny i włączony.
+6. Normalizacja nie uruchamia ukrytego limitera.
+7. True Peak i Sample Peak mierzone oddzielnie.
+8. Render uwzględnia latency compensation.
+9. Render nie ucina ogonów efektów.
+10. Fixed Seed daje powtarzalny wynik.
+11. Batch Export tworzy wszystkie wybrane pliki.
+12. Anulowanie nie zostawia uszkodzonego pliku oznaczonego jako ukończony.
+13. Zmiana parametrów podczas eksportu nie zmienia rozpoczętego renderu.
+14. Brak miejsca na dysku nie powoduje crasha.
+
+---
+## NOTES (Claude, 2026-11-04) – decyzje techniczne
+- Baza: RE4GE `Source/Export/Exporter.h` – render na wątku tła na KOPII parametrów i sampla (migawka = pkt 15), ta sama klasa Engine co realtime (pkt 9), przeciąganie gotowego WAV do FL.
+- Zapis do `nazwa.wav.part` → po sukcesie rename; anulowanie / błąd = usunięcie pliku tymczasowego.
+- Mierniki: Sample Peak + True Peak 4x (ITU-R BS.1770) + RMS + LUFS z Throne of Titans (`Shared` loudness), DC detection.
+- Długość: AUTO = z Length Engine + post-roll aż ogony (screech / reverb) spadną poniżej progu z histerezą; MAX RENDER LENGTH jako bezpiecznik.
+- Seedy: jeden globalny generator z seedem dla randomizera / random LFO / per-trigger (M09); FIXED / NEW / PRESET / CUSTOM.
+- Nazwy plików: opcja zamiany „#” na „s” (F# → Fs) dla programów, które źle znoszą „#”.
+- SAFETY CLIP / LIMITER domyślnie OFF; normalizacja nigdy nie włącza limitera sama – tylko komunikat.

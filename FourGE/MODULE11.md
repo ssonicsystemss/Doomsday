@@ -24,3 +24,4 @@ Pełna obsługa Mid/Side. Sygnał dzielony na MID (centralna część) i SIDE (r
 | MID SOLO | ON/OFF |
 | SIDE SOLO | ON/OFF |
 | M/S ENABLE | ON/OFF |
+Przy 0% WIDTH sygnał mono; przy 100% WIDTH nominalna relacja Mid/Side. Zmiany poziomu Mid i Side wygładzane (bez kliknięć).

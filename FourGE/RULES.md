@@ -32,3 +32,13 @@ Każda widoczna kontrolka zmienia dźwięk (test min vs max); DSP, GUI i pliki n
 | RAW | Agresywne kicki z mocnym distortion, ostrym screech'em, asymetrią, wyraźnymi harmonicznymi i surowym charakterem. |
 | EXPERIMENTAL | Nietypowe, hybrydowe i eksperymentalne kicki wykorzystujące niestandardową syntezę, modulację, warstwowanie i przetwarzanie. |
 (Zastępuje „reverse bass” w opisie EARLY w MODULES13-17_overview.md.)
+
+### EARLY – rozróżnienie (właściciel)
+EARLY MOŻE zawierać: klasyczne pitch dropy; tonalne body; klasyczne punch'e; analogowo brzmiące distortion; prostsze, wyraźne warstwy; klasyczną dynamikę kicka.
+EARLY NIE MOŻE zawierać: generatora reverse bassu, jego obwiedni ani dedykowanego silnika syntezy.
+
+### Współpraca 4GE ↔ RE4GE – tak, ale bez kopiowania funkcji
+1. Standalone – oba pluginy działają całkowicie niezależnie.
+2. DAW Routing – wyjście RE4GE do ścieżki z 4GE lub odwrotnie, standardowym routingiem DAW.
+3. Preset Compatibility – wspólna koncepcja bibliotek, tagów i metadanych, ale BEZ założenia, że presety jednego pluginu otwierają się w drugim.
+Bez obowiązkowego połączenia między wtyczkami – każda działa samodzielnie.

@@ -25,3 +25,9 @@ Pełna obsługa Mid/Side. Sygnał dzielony na MID (centralna część) i SIDE (r
 | SIDE SOLO | ON/OFF |
 | M/S ENABLE | ON/OFF |
 Przy 0% WIDTH sygnał mono; przy 100% WIDTH nominalna relacja Mid/Side. Zmiany poziomu Mid i Side wygładzane (bez kliknięć).
+
+## 4. LOW FREQUENCY MONO
+Jedna z najważniejszych funkcji modułu. Hardstyle wymaga stabilnego, centralnego dołu; szerokość przydatna w górnych harmonicznych, screechach i teksturach, ale nie może destabilizować subbasu.
+- LOW FREQUENCY MONO: ON/OFF.
+- CROSSOVER FREQUENCY: 20–300 Hz, domyślnie 120 Hz. Wszystko poniżej crossovera → mono. Odpowiednio dobrane filtry ograniczające zmiany fazowe i skoki poziomu.
+- SUB MONO LOCK: ON/OFF. Aktywny → grupa SUB mono i centralna niezależnie od szerokości innych grup; wyższy priorytet niż globalny WIDTH.

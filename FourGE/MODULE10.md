@@ -33,3 +33,10 @@ Konwersja sample rate: wysokiej jakości resampling z filtrowaniem antyaliasingo
 Minimum 8 niezależnych slotów, docelowo 16 lub więcej. Każdy slot jest niezależnym źródłem dźwięku.
 Każdy slot: ENABLE, MUTE, SOLO, LEVEL, PAN, PITCH, FINE TUNE, START, END, REVERSE, PLAY MODE, ROOT NOTE, WIDTH, OUTPUT ROUTING.
 Przypisanie do grupy: PUNCH, BODY, TAIL, SUB, TEXTURE, CUSTOM. Zmiana grupy nie kasuje ustawień próbki.
+
+## 4. TRYBY ODTWARZANIA
+- ONE SHOT — od początku wybranego regionu do końca, niezależnie od długości nuty MIDI.
+- GATE — zależne od długości nuty; po zwolnieniu kontrolowany release.
+- LOOP — zapętlenie fragmentu; Loop Start, Loop End, Loop Crossfade, Loop Enable; crossfade zapobiega kliknięciom na granicy pętli.
+- PING-PONG — naprzemiennie do przodu i do tyłu.
+- REVERSE — odwrócenie kierunku bez destrukcyjnej zmiany pliku źródłowego.

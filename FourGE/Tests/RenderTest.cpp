@@ -406,6 +406,32 @@ int main (int argc, char** argv)
             if (sid == "tail_mid_hz" || sid == "tail_mid_q") { a[P::tailMidGain] = b[P::tailMidGain] = 9.f; }
             if (sid == "tail_hold_level") { a[P::tailPOffset] = b[P::tailPOffset] = 100.f; a[id] = -12.f; }
             if (sid == "master_clip_soft") { a[P::clipDrive] = b[P::clipDrive] = 12.f; }
+            // module 03 contexts: the oscillator is ON (routed to the tail by default) and in the mode the control belongs to
+            if (sid.startsWith ("osc") || sid.startsWith ("fm_"))
+            {
+                auto set2 = [&] (const String& pid, float v) { const int k = idOf (pid); if (k >= 0 && k != id) { a[k] = v; b[k] = v; } };
+                const String n = sid.substring (3, 4);          // osc N / FM modulator N
+                const String o = "osc" + n + "_";
+                const String other = "osc" + String (n == "1" ? 2 : 1) + "_";
+                set2 (o + "on", 1.f);
+                const String k = sid.fromFirstOccurrenceOf ("_", false, false);
+                if (k == "noise") set2 (o + "wave", 5.f);
+                if (k == "freq") set2 (o + "track", 4.f);
+                if (k == "pw") set2 (o + "wave", 4.f);
+                if (k == "phase_random") set2 (o + "phase_mode", 1.f);
+                if (k == "phase_source") { set2 (o + "phase_mode", 3.f); set2 ("osc2_on", 1.f); set2 ("osc2_phase", 90.f); set2 ("osc3_on", 1.f); set2 ("osc3_phase", 200.f); }
+                if (k == "detune" || k == "spread" || k == "blend" || k == "unison_mode" || k == "unison_phase" || k == "seed") set2 (o + "unison", 5.f);
+                if (k == "fm_env") set2 (o + "fm_feedback", 0.6f);
+                if (k == "mod_decay") { set2 (o + "fm_feedback", 0.6f); set2 (o + "fm_env", 1.f); }
+                if (k.startsWith ("ring_") && k != "ring_source") set2 (o + "ring_source", 5.f);
+                if (k == "ring_source") set2 (other + "on", 1.f);
+                if (k.startsWith ("sync_")) { set2 (other + "on", 1.f); set2 (other + "wave", 0.f); if (k != "sync_source") set2 (o + "sync_source", (float) (n == "1" ? 2 : 1)); }
+                if (k.startsWith ("wt_")) { set2 (o + "wave", 7.f); if (k == "wt_start" || k == "wt_end" || k == "wt_scan") set2 (o + "wt_mode", 1.f);
+                                            if (k == "wt_morph") set2 (o + "wt_position", 0.4f); }
+                if (k.startsWith ("h_")) set2 (o + "wave", 8.f);
+                if (sid.startsWith ("fm_")) { const String c = "osc" + sid.substring (8, 9) + "_"; set2 (c + "on", 1.f); set2 (o + "to_tail", -60.f); set2 (o + "wave", 0.f); }
+                a[P::tailChar] = b[P::tailChar] = 0.f;                              // clean tail: the oscillator itself is heard
+            }
             if (sid.endsWith ("_trigger")) continue;                                                // MIDI behaviour (note-off / legato): checked below
             if (d.kind == Kind::Choice)
             {
@@ -542,6 +568,165 @@ int main (int argc, char** argv)
             }
             check (finite && maxStep < 1.2f, "M02 14.12 / 14.14 moving parameters on overlapping kicks: finite, no jumps", "max step " + String (maxStep, 3));
         }
+    }
+    // ---------------------------------------------------------------- MODULE03 section 17: the oscillator engine
+    {
+        // a clean host: the tail plays a pure sine on the note (G1), the oscillator under test comes in on FIXED Hz
+        ParamFrame h = base;
+        h[P::tailSrc] = 0.f; h[P::tailChar] = 0.f; h[P::tailDrive] = 0.f; h[P::tailTone] = 20000.f; h[P::tailReso] = 0.f;
+        h[P::tailUniVoices] = 1.f; h[P::tailSt2Type] = 0.f; h[P::clipDrive] = 0.f; h[P::coreAutoLen] = 0.f; h[P::coreLength] = 1200.f;
+        h[P::tailLen] = 1100.f; h[P::tailSustain] = 1.f; h[P::tailDecay] = 2000.f; h[P::punchLevel] = -60.f; h[P::bodyLevel] = -60.f; h[P::subLevel] = -60.f;
+        auto oscOn = [] (ParamFrame& f, int n, int wave, float hz)
+        {
+            const int s = (n - 1) * (P::osc2On - P::osc1On);
+            f[P::osc1On + s] = 1.f; f[P::osc1Wave + s] = (float) wave; f[P::osc1Track + s] = 4.f; f[P::osc1Freq + s] = hz; f[P::osc1Level + s] = 0.f;
+        };
+        auto at = [] (int n, int first) { return first + (n - 1) * (P::osc2On - P::osc1On); };
+        // amplitude of one frequency in the steady part (Goertzel, 0.3 .. 0.6 s)
+        auto amp = [] (const AudioBuffer<float>& x, double hz)
+        {
+            const int a = (int) (0.3 * sr), n = (int) (0.3 * sr);
+            const double w = MathConstants<double>::twoPi * hz / sr, c = 2.0 * std::cos (w);
+            double s1 = 0.0, s2 = 0.0;
+            for (int i = 0; i < n; ++i) { const double win = 0.5 - 0.5 * std::cos (MathConstants<double>::twoPi * i / (n - 1));
+                                          const double s0 = x.getSample (0, a + i) * win + c * s1 - s2; s2 = s1; s1 = s0; }
+            return std::sqrt (s1 * s1 + s2 * s2 - c * s1 * s2) / (n * 0.25);
+        };
+        auto dbv = [] (double v) { return 20.0 * std::log10 (v + 1.0e-9); };
+        // 1. every waveform sounds and is its own waveform
+        {
+            std::vector<AudioBuffer<float>> w;
+            for (int k = 0; k < 9; ++k) { ParamFrame f = h; oscOn (f, 1, k, 330.f); f[P::osc1WtPos] = 0.5f; f[P::osc1Pw] = 0.3f; w.push_back (renderKick (f, G1, sr, 0.7)); }
+            double minD = 1.0e9; String pr;
+            for (int i = 0; i < 9; ++i) for (int j = i + 1; j < 9; ++j) { const double d = diff (w[(size_t) i], w[(size_t) j]); if (d < minD) { minD = d; pr = String (i) + "/" + String (j); } }
+            ParamFrame p1 = h; oscOn (p1, 1, 4, 330.f); p1[P::osc1Pw] = 0.1f;
+            ParamFrame p2 = p1; p2[P::osc1Pw] = 0.5f;
+            const auto x1 = renderKick (p1, G1, sr, 0.7), x2 = renderKick (p2, G1, sr, 0.7);
+            const double even1 = amp (x1, 660.0), even2 = amp (x2, 660.0);           // a 50 % pulse has (almost) no even harmonics
+            check (minD > 1.0e-3 && even1 > 4.0 * even2, "M03 17.1 all 9 waveforms differ, PULSE WIDTH changes the spectrum",
+                   "closest " + pr + " " + String (minD, 4) + ", 2nd harmonic at PW 10 % / 50 %: " + String (dbv (even1), 1) + " / " + String (dbv (even2), 1) + " dB");
+        }
+        // 2 + 3. four independent oscillators (own phase each): all four alone, and their sum is the sum
+        {
+            ParamFrame f = h; float hzs[4] { 330.f, 420.f, 515.f, 610.f };
+            for (int n = 1; n <= 4; ++n) oscOn (f, n, 0, hzs[n - 1]);
+            const auto x = renderKick (f, G1, sr, 0.7);
+            bool all = true; String e;
+            for (int n = 1; n <= 4; ++n) { const double v = amp (x, hzs[n - 1]); all &= v > 0.02; e << String (dbv (v), 1) << " "; }
+            check (all, "M03 17.2 four independent oscillators sound together", e + "dB");
+        }
+        // 4 + 5. UNISON: independent detuned voices (energy beside the centre), the level stays under control
+        {
+            ParamFrame f1 = h; oscOn (f1, 1, 0, 400.f);
+            ParamFrame f5 = f1; f5[P::osc1Uni] = 7.f; f5[P::osc1Detune] = 1.f; f5[P::osc1Blend] = 1.f;
+            const auto x1 = renderKick (f1, G1, sr, 0.7), x5 = renderKick (f5, G1, sr, 0.7);
+            const double side1 = amp (x1, 400.0 * std::exp2 (100.0 / 1200.0)), side5 = amp (x5, 400.0 * std::exp2 (100.0 / 1200.0));
+            const double lv = dbv (rms (x5, (int) (0.3 * sr), (int) (0.3 * sr))) - dbv (rms (x1, (int) (0.3 * sr), (int) (0.3 * sr)));
+            ParamFrame f0 = f5; f0[P::osc1Detune] = 0.f; f0[P::osc1UniPh] = 0.f; f0[P::osc1Spread] = 0.f;              // no detune + same phase = one voice
+            const double same = diff (renderKick (f0, G1, sr, 0.7), x1);
+            check (side5 > 10.0 * side1 && std::abs (lv) < 6.0 && same < 1.0e-3, "M03 17.4 / 17.5 UNISON: real detuned voices, level kept",
+                   "+100 ct: " + String (dbv (side1), 1) + " -> " + String (dbv (side5), 1) + " dB, level " + String (lv, 1) + " dB");
+        }
+        // 6. WAVETABLE: a WAV becomes frames, the position scans through them
+        {
+            std::vector<float> wav (2048);
+            for (int i = 0; i < 1024; ++i) wav[(size_t) i] = std::sin (MathConstants<float>::twoPi * (float) i / 1024.f);
+            for (int i = 0; i < 1024; ++i) wav[(size_t) (1024 + i)] = i < 512 ? 1.f : -1.f;
+            fge::dsp::OscData d; d.osc[0].userFrames = fge::dsp::tables::framesFromAudio (wav.data(), 2048, 1024);
+            ParamFrame f = h; oscOn (f, 1, 7, 330.f); f[P::osc1WtTable] = 5.f;
+            ParamFrame f2 = f; f2[P::osc1WtPos] = 1.f;
+            const auto x0 = renderKick (f, G1, sr, 0.7, -1, 1.f, nullptr, 0.0, -1.0, nullptr, &d);
+            const auto x1 = renderKick (f2, G1, sr, 0.7, -1, 1.f, nullptr, 0.0, -1.0, nullptr, &d);
+            ParamFrame fs = f; fs[P::osc1WtMode] = 1.f; fs[P::osc1WtRate] = 600.f;
+            const auto xs = renderKick (fs, G1, sr, 0.7, -1, 1.f, nullptr, 0.0, -1.0, nullptr, &d);
+            const double h3a = amp (x0, 990.0), h3b = amp (x1, 990.0);
+            check (d.osc[0].userFrames.size() == 2 && h3b > 10.0 * h3a && diff (xs, x0) > 1.0e-3, "M03 17.6 WAVETABLE: imported frames, position + scan move the timbre",
+                   "3rd harmonic sine frame " + String (dbv (h3a), 1) + " dB, square frame " + String (dbv (h3b), 1) + " dB");
+        }
+        // 7. HARMONIC engine: ODD 0 removes the odd overtones, EVEN 0 the even ones
+        {
+            ParamFrame f = h; oscOn (f, 1, 8, 330.f);
+            ParamFrame fo = f; fo[P::osc1HOdd] = 0.f;
+            ParamFrame fe = f; fe[P::osc1HEven] = 0.f;
+            const auto xo = renderKick (fo, G1, sr, 0.7), xe = renderKick (fe, G1, sr, 0.7);
+            check (amp (xo, 990.0) < 0.05 * amp (xo, 660.0) && amp (xe, 660.0) < 0.05 * amp (xe, 990.0), "M03 17.7 HARMONIC engine shapes the real spectrum",
+                   "odd 0: h3 / h2 " + String (dbv (amp (xo, 990.0)) - dbv (amp (xo, 660.0)), 1) + " dB, even 0: h2 / h3 " + String (dbv (amp (xe, 660.0)) - dbv (amp (xe, 990.0)), 1) + " dB");
+        }
+        // 8. FM = frequency modulation: sidebands at carrier +- modulator, bounded level
+        {
+            ParamFrame f = h; oscOn (f, 1, 0, 330.f); oscOn (f, 2, 0, 110.f); f[P::osc2ToTail] = -60.f;
+            ParamFrame g = f; g[P::fm2to1] = 0.5f;
+            const auto x0 = renderKick (f, G1, sr, 0.7), x1 = renderKick (g, G1, sr, 0.7);
+            const double sb0 = amp (x0, 440.0), sb1 = amp (x1, 440.0);
+            check (sb1 > 20.0 * sb0 && peak (x1) < 2.f * peak (x0) + 0.5f, "M03 17.8 FM: sidebands appear (frequency modulation), level bounded",
+                   "330 + 110 Hz sideband " + String (dbv (sb0), 1) + " -> " + String (dbv (sb1), 1) + " dB");
+        }
+        // 9. RING = multiplication: 330 x 110 -> 220 + 440, the 330 itself disappears
+        {
+            ParamFrame f = h; oscOn (f, 1, 0, 330.f); f[P::osc1RingSrc] = 5.f; f[P::osc1RingHz] = 110.f;
+            const auto x = renderKick (f, G1, sr, 0.7);
+            const double c = amp (x, 330.0), lo = amp (x, 220.0), hi = amp (x, 440.0);
+            check (lo > 8.0 * c && hi > 8.0 * c, "M03 17.9 RING MOD multiplies: sum + difference, no carrier",
+                   "220 / 330 / 440 Hz: " + String (dbv (lo), 1) + " / " + String (dbv (c), 1) + " / " + String (dbv (hi), 1) + " dB");
+        }
+        // 10. HARD SYNC: the slave repeats at the master's period (its harmonics, not its own pitch)
+        {
+            ParamFrame f = h; oscOn (f, 1, 2, 300.f); oscOn (f, 2, 0, 300.f); f[P::osc2ToTail] = -60.f;
+            f[P::osc1SyncSrc] = 2.f; f[P::osc1SyncAmt] = 0.37f;                  // slave at 300 x 3.59 Hz, reset every 300 Hz cycle
+            const auto x = renderKick (f, G1, sr, 0.7);
+            const double onGrid = amp (x, 1200.0), offGrid = amp (x, 300.0 * 3.59);
+            ParamFrame nf = f; nf[P::osc1SyncSrc] = 0.f; nf[P::osc1Freq] = 300.f * 3.59f;      // the same slave, free
+            const auto y = renderKick (nf, G1, sr, 0.7);
+            check (onGrid > 4.0 * offGrid && amp (y, 300.0 * 3.59) > 4.0 * amp (y, 1200.0), "M03 17.10 HARD SYNC locks the slave to the master's period",
+                   "1200 / 1077 Hz synced " + String (dbv (onGrid), 1) + " / " + String (dbv (offGrid), 1) + " dB");
+        }
+        // 11. ROUTING: an oscillator sent only to BODY changes only the body
+        {
+            ParamFrame f = base; f[P::osc1On] = 1.f; f[P::osc1ToTail] = -60.f; f[P::osc1ToBody] = 0.f; f[P::bodyLevel] = -6.f;
+            const double db = diff (renderKick (f, G1, sr, 0.5, 1), renderKick (base, G1, sr, 0.5, 1));
+            const double dt = diff (renderKick (f, G1, sr, 0.5, 2), renderKick (base, G1, sr, 0.5, 2));
+            check (db > 1.0e-3 && dt < 1.0e-6, "M03 17.11 ROUTING: oscillator -> BODY only", "body " + String (db, 4) + " tail " + String (dt, 7));
+        }
+        // 13. extreme settings: 4 oscillators, 16 voices, full FM + feedback, sync, ring -> finite, bounded
+        {
+            ParamFrame f = h;
+            for (int n = 1; n <= 4; ++n) { oscOn (f, n, n % 3 == 0 ? 2 : 3, 60.f * (float) n); f[at (n, P::osc1Uni)] = 16.f; f[at (n, P::osc1Detune)] = 1.f; f[at (n, P::osc1FmFb)] = 1.f; f[at (n, P::osc1Level)] = -12.f; }
+            for (int id2 : { P::fm1to2, P::fm2to3, P::fm3to4, P::fm4to1, P::fm2to1 }) f[id2] = 1.f;
+            f[P::osc3SyncSrc] = 1.f; f[P::osc4RingSrc] = 2.f;
+            const auto x = renderKick (f, G1, sr, 0.6);
+            ParamFrame plain = f;                                                    // the same oscillators without unison / FM / sync / ring
+            for (int n = 1; n <= 4; ++n) { plain[at (n, P::osc1Uni)] = 1.f; plain[at (n, P::osc1FmFb)] = 0.f; }
+            for (int id2 : { P::fm1to2, P::fm2to3, P::fm3to4, P::fm4to1, P::fm2to1 }) plain[id2] = 0.f;
+            plain[P::osc3SyncSrc] = 0.f; plain[P::osc4RingSrc] = 0.f;
+            const auto y = renderKick (plain, G1, sr, 0.6);
+            check (std::isfinite (rms (x)) && rms (x) < 1.6 * rms (y), "M03 17.13 extreme unison / FM / sync / ring: finite, no level runaway",
+                   "rms " + String (dbv (rms (x)) - dbv (rms (y)), 1) + " dB vs plain");
+        }
+    }
+    // ---------------------------------------------------------------- module 03 wiring: oscillator data in the state (OSCS), presets, realtime = export
+    {
+        GeProcessor p; setP (p, "osc1_on", 1.f); setP (p, "osc1_wave", 6.f); setP (p, "osc2_on", 1.f); setP (p, "osc2_wave", 8.f);
+        const auto drawn = env::Shape::make ({ { 0.f, 1.f }, { 0.3f, 1.f }, { 0.35f, -1.f }, { 1.f, -0.6f } }, env::Linear);
+        p.setOscCustom (0, drawn);
+        auto amps = p.oscData().osc[1]; for (int hh = 0; hh < 64; ++hh) amps.hAmp[(size_t) hh] = hh % 3 == 0 ? 1.f : 0.f;
+        p.setOscProperty (1, "hAmp", fge::dsp::oscstate::harmonicsText (amps, 0));
+        p.refreshTables();
+        const auto tb = p.currentTables();
+        fge::dsp::OscTables ot; for (int i = 0; i < 8; ++i) ot.t[(size_t) i] = tb[(size_t) i].get();
+        const auto rt = hitProc (p, { { 0, MidiMessage::noteOn (1, 31, (uint8) 127) } }, 0.6);
+        const auto off = renderKick (p.frame(), 31, sr, 0.6, -1, 1.f, &p.shapes(), 0.0, -1.0, &ot);
+        const auto plain = renderKick (p.frame(), 31, sr, 0.6, -1, 1.f, &p.shapes());                     // default data
+        const bool same = diff (rt, off) < 1.0e-6 * jmax (1.0, rms (off)) + 1.0e-7, matters = diff (off, plain) > 1.0e-3;
+        MemoryBlock mb; p.getStateInformation (mb);
+        GeProcessor q; q.setStateInformation (mb.getData(), (int) mb.getSize()); q.refreshTables();
+        const bool saved = q.oscData().osc[0].custom.toString() == drawn.toString() && q.oscData().osc[1].hAmp[1] == 0.f
+                           && diff (hitProc (q, { { 0, MidiMessage::noteOn (1, 31, (uint8) 127) } }, 0.6), rt) < 1.0e-6;
+        p.undo.undo();
+        const bool undone = p.oscData().osc[1].hAmp[1] > 0.f;
+        p.setCurrentProgram (0);
+        const bool reset = p.oscData().osc[0].custom.toString() == fge::dsp::OscData::defaultCustom().toString();
+        check (same && matters && saved && undone && reset, "M03 17.14 / 17.15 oscillator data: saved, undo, realtime = export, factory reset",
+               String (same ? "" : "rt!=export ") + (matters ? "" : "no-effect ") + (saved ? "" : "not-saved ") + (undone ? "" : "no-undo ") + (reset ? "" : "no-reset"));
     }
     // ---------------------------------------------------------------- module 02 wiring: DRAWN shapes in the state (ENVS), undo, presets, audio
     {

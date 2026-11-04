@@ -67,7 +67,7 @@ namespace fge::dsp
         void start (const PartSettings& s, float phase01, uint32_t seed) { osc.reset (phase01); nz.reset (seed); tone = {}; click = {}; }
         float phase() const { return osc.ph; }
         // hz = this part's pitch now, amp = its amplitude envelope now, m = its tone / drive now
-        inline float tick (const PartSettings& s, const KickSettings& ks, float ms, float hz, float amp, const ModNow& m)
+        inline float tick (const PartSettings& s, const KickSettings& ks, float ms, float hz, float amp, const ModNow& m, float ext = 0.f)
         {
             float raw;
             switch (s.source)
@@ -82,6 +82,7 @@ namespace fge::dsp
                 }
                 default: raw = osc.tick (s.source, hz, ks.inv); break;                                      // SINE .. SQUARE
             }
+            raw += ext;                                                                                     // module 03 oscillators in
             float y = m.toneOpen ? raw : tone.lp (raw, m.tone);
             y = drive (y, m.driveG, m.driveNorm);
             const float out = raw + (y - raw) * s.mix;
@@ -97,9 +98,9 @@ namespace fge::dsp
     public:
         void start (const PartSettings&, float phase01, uint32_t seed) { osc.reset (phase01); nz.reset (seed); tone = {}; }
         float phase() const { return osc.ph; }
-        inline float tick (const PartSettings& s, const KickSettings& ks, float hz, float amp, const ModNow& m)
+        inline float tick (const PartSettings& s, const KickSettings& ks, float hz, float amp, const ModNow& m, float ext = 0.f)
         {
-            const float raw = s.source == 4 ? nz.tick() * 0.8f : osc.tick (s.source, hz, ks.inv);
+            const float raw = (s.source == 4 ? nz.tick() * 0.8f : osc.tick (s.source, hz, ks.inv)) + ext;
             float y = m.toneOpen ? raw : tone.lp (raw, m.tone);
             y = drive (y, m.driveG, m.driveNorm);
             const float out = raw + (y - raw) * s.mix;
@@ -134,7 +135,7 @@ namespace fge::dsp
             }
         }
         float phase() const { return osc.ph; }
-        inline float tick (const PartSettings& s, const KickSettings& ks, float hz, float amp, const ModNow& m)
+        inline float tick (const PartSettings& s, const KickSettings& ks, float hz, float amp, const ModNow& m, float ext = 0.f)
         {
             const auto& tx = ks.tail;
             float raw = s.source == 5 ? nz.tick() * 0.8f : osc.tick (s.source, hz, ks.inv, s.pw);
@@ -158,6 +159,7 @@ namespace fge::dsp
                 raw += xu * tx.uniMix / std::sqrt ((float) nu);
             }
             tUni += (double) ks.inv;
+            raw += ext;                                                                                     // module 03 oscillators in
             const float d = m.drive;
             float y;
             switch (s.character)
@@ -233,9 +235,9 @@ namespace fge::dsp
     public:
         void start (const PartSettings&, float phase01, uint32_t) { osc.reset (phase01); }
         float phase() const { return osc.ph; }
-        inline float tick (const PartSettings& s, const KickSettings& ks, float hz, float amp, const ModNow& m)
+        inline float tick (const PartSettings& s, const KickSettings& ks, float hz, float amp, const ModNow& m, float ext = 0.f)
         {
-            const float raw = osc.tick (s.source == 1 ? Triangle : Sine, hz, ks.inv);
+            const float raw = osc.tick (s.source == 1 ? Triangle : Sine, hz, ks.inv) + ext;
             return drive (raw, m.driveG, m.driveNorm) * amp;
         }
     private:

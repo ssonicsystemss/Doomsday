@@ -20,6 +20,18 @@ namespace fge
         const juce::StringArray& parts()          { static const juce::StringArray a { "PUNCH", "BODY", "TAIL", "SUB" }; return a; }
         const juce::StringArray& stageTypes()     { static const juce::StringArray a { "OFF", "SOFT CLIP", "HARD CLIP", "TUBE", "DIODE", "WAVEFOLD", "BITCRUSH",
                                                                                        "RECTIFIER", "ASYMMETRIC", "FOLDBACK", "DIGITAL CLIP" }; return a; }
+        const juce::StringArray& oscWaves()       { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW", "SQUARE", "PULSE", "NOISE", "CUSTOM", "WAVETABLE", "HARMONIC" }; return a; }
+        const juce::StringArray& noiseTypes()     { static const juce::StringArray a { "WHITE", "PINK", "BROWN", "METALLIC", "DIGITAL" }; return a; }
+        const juce::StringArray& oscTracks()      { static const juce::StringArray a { "PUNCH", "BODY", "TAIL", "SUB", "FIXED Hz" }; return a; }
+        const juce::StringArray& phaseModes()     { static const juce::StringArray a { "RESET", "RANDOM", "FREE RUN", "SYNCED" }; return a; }
+        const juce::StringArray& oscSelect()      { static const juce::StringArray a { "OSC 1", "OSC 2", "OSC 3", "OSC 4" }; return a; }
+        const juce::StringArray& uniModes()       { static const juce::StringArray a { "CENTERED", "SYMMETRIC", "ASYMMETRIC", "RANDOM" }; return a; }
+        const juce::StringArray& uniPhases()      { static const juce::StringArray a { "RESET", "RANDOM", "FREE" }; return a; }
+        const juce::StringArray& ringSources()    { static const juce::StringArray a { "OFF", "OSC 1", "OSC 2", "OSC 3", "OSC 4", "SINE" }; return a; }
+        const juce::StringArray& syncSources()    { static const juce::StringArray a { "OFF", "OSC 1", "OSC 2", "OSC 3", "OSC 4" }; return a; }
+        const juce::StringArray& syncModes()      { static const juce::StringArray a { "HARD", "SOFT" }; return a; }
+        const juce::StringArray& wtTables()       { static const juce::StringArray a { "BASIC", "HARDSTYLE", "FORMANT", "METAL", "PWM SWEEP", "USER" }; return a; }
+        const juce::StringArray& wtModes()        { static const juce::StringArray a { "STATIC", "LINEAR SCAN", "ENVELOPE SCAN", "LFO SCAN", "RANDOM SCAN" }; return a; }
         const juce::StringArray& none()           { static const juce::StringArray a; return a; }
     }
 

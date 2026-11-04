@@ -40,6 +40,19 @@ namespace fge
         const juce::StringArray& linkModes();
         const juce::StringArray& parts();
         const juce::StringArray& stageTypes();
+        // module 03
+        const juce::StringArray& oscWaves();
+        const juce::StringArray& noiseTypes();
+        const juce::StringArray& oscTracks();
+        const juce::StringArray& phaseModes();
+        const juce::StringArray& oscSelect();
+        const juce::StringArray& uniModes();
+        const juce::StringArray& uniPhases();
+        const juce::StringArray& ringSources();
+        const juce::StringArray& syncSources();
+        const juce::StringArray& syncModes();
+        const juce::StringArray& wtTables();
+        const juce::StringArray& wtModes();
         const juce::StringArray& none();
     }
 
@@ -189,7 +202,10 @@ namespace fge
     F (tailHighCut,  "tail_high_cut",   "Tail High Cut",       Unit::Hz,   500.f, 20000.f, 20000.f, 5000.f, FMod) \
     F (clipDrive,    "master_clip_drive","Clip Drive",         Unit::Db,    0.f,   24.f,   0.f,   6.f,   FMod | FGlobal) \
     F (clipSoft,     "master_clip_soft","Clip Softness",       Unit::Pct,   0.f,    1.f,   0.5f,  0.f,   FMod | FGlobal) \
-    F (tailHoldLvl,  "tail_hold_level", "Tok Level",           Unit::Db,   -24.f,   6.f,   0.f,   0.f,   FMod)
+    F (tailHoldLvl,  "tail_hold_level", "Tok Level",           Unit::Db,   -24.f,   6.f,   0.f,   0.f,   FMod) \
+    FGE_OSC (F, B, C, 1) FGE_OSC (F, B, C, 2) FGE_OSC (F, B, C, 3) FGE_OSC (F, B, C, 4) \
+    FGE_FM (F, 1, 2) FGE_FM (F, 1, 3) FGE_FM (F, 1, 4) FGE_FM (F, 2, 1) FGE_FM (F, 2, 3) FGE_FM (F, 2, 4) \
+    FGE_FM (F, 3, 1) FGE_FM (F, 3, 2) FGE_FM (F, 3, 4) FGE_FM (F, 4, 1) FGE_FM (F, 4, 2) FGE_FM (F, 4, 3)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -211,6 +227,68 @@ namespace fge
     F (e##Amount,   id "_amount",       nm " Amount",            Unit::Pct,  0.f,   1.f,   1.f,   0.f,   FMod) \
     C (e##Trig,     id "_trigger",      nm " Trigger",           triggers, 0, FNone) \
     B (e##Sync,     id "_sync",         nm " Sync",              false, FNone)
+    // module 03: one oscillator (4 now, the engine is sized for 8). Routed INTO the parts (before their tone / drive),
+    // so an oscillator sent to TAIL goes through the tail's character, envelope and cuts.
+#define FGE_OSC(F, B, C, n) \
+    B (osc##n##On,       "osc" #n "_on",         "Osc " #n " On",            false, FNone) \
+    C (osc##n##Wave,     "osc" #n "_wave",       "Osc " #n " Waveform",      oscWaves, 2, FNone) \
+    C (osc##n##Noise,    "osc" #n "_noise",      "Osc " #n " Noise Type",    noiseTypes, 0, FNone) \
+    C (osc##n##Track,    "osc" #n "_track",      "Osc " #n " Pitch From",    oscTracks, 2, FNone) \
+    F (osc##n##Freq,     "osc" #n "_freq",       "Osc " #n " Frequency",     Unit::Hz,    20.f,  4000.f, 110.f, 200.f, FMod) \
+    F (osc##n##Oct,      "osc" #n "_octave",     "Osc " #n " Octave",        Unit::None,  -4.f,   4.f,   0.f,   0.f,   FMod) \
+    F (osc##n##Semi,     "osc" #n "_semitone",   "Osc " #n " Semitone",      Unit::Semi, -24.f,  24.f,   0.f,   0.f,   FMod) \
+    F (osc##n##Fine,     "osc" #n "_fine",       "Osc " #n " Fine",          Unit::Cents,-100.f, 100.f,  0.f,   0.f,   FMod) \
+    F (osc##n##Ratio,    "osc" #n "_ratio",      "Osc " #n " FM Ratio",      Unit::None,   0.1f,  32.f,  1.f,   2.f,   FMod) \
+    F (osc##n##RatioFine,"osc" #n "_ratio_fine", "Osc " #n " FM Fine",       Unit::Bip,   -1.f,   1.f,   0.f,   0.f,   FMod) \
+    F (osc##n##Level,    "osc" #n "_level",      "Osc " #n " Level",         Unit::Db,   -60.f,  12.f,  -6.f,   0.f,   FMod | FSmooth) \
+    F (osc##n##Pan,      "osc" #n "_pan",        "Osc " #n " Pan",           Unit::Bip,   -1.f,   1.f,   0.f,   0.f,   FMod) \
+    F (osc##n##Phase,    "osc" #n "_phase",      "Osc " #n " Phase",         Unit::Deg,    0.f, 360.f,   0.f,   0.f,   FNone) \
+    C (osc##n##PhMode,   "osc" #n "_phase_mode", "Osc " #n " Phase Mode",    phaseModes, 0, FNone) \
+    F (osc##n##PhRand,   "osc" #n "_phase_random","Osc " #n " Phase Random", Unit::Pct,   0.f,   1.f,   1.f,   0.f,   FNone) \
+    C (osc##n##PhSrc,    "osc" #n "_phase_source","Osc " #n " Phase Source", oscSelect, 0, FNone) \
+    B (osc##n##Invert,   "osc" #n "_invert",     "Osc " #n " Phase Invert",  false, FNone) \
+    F (osc##n##Pw,       "osc" #n "_pw",         "Osc " #n " Pulse Width",   Unit::Pct,  0.01f,  0.99f, 0.5f,  0.f,   FMod) \
+    F (osc##n##Uni,      "osc" #n "_unison",     "Osc " #n " Unison",        Unit::None,   1.f,  16.f,  1.f,   0.f,   FMod) \
+    F (osc##n##Detune,   "osc" #n "_detune",     "Osc " #n " Detune",        Unit::Pct,    0.f,   1.f,   0.2f,  0.f,   FMod) \
+    F (osc##n##Spread,   "osc" #n "_spread",     "Osc " #n " Stereo Spread", Unit::Pct,    0.f,   1.f,   0.5f,  0.f,   FMod) \
+    F (osc##n##Blend,    "osc" #n "_blend",      "Osc " #n " Unison Blend",  Unit::Pct,    0.f,   1.f,   1.f,   0.f,   FMod) \
+    C (osc##n##UniMode,  "osc" #n "_unison_mode","Osc " #n " Unison Mode",   uniModes, 0, FNone) \
+    C (osc##n##UniPh,    "osc" #n "_unison_phase","Osc " #n " Unison Phase", uniPhases, 1, FNone) \
+    F (osc##n##Seed,     "osc" #n "_seed",       "Osc " #n " Seed",          Unit::None,   0.f, 9999.f, (float) n, 0.f, FNone) \
+    F (osc##n##FmFb,     "osc" #n "_fm_feedback","Osc " #n " FM Feedback",   Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod) \
+    F (osc##n##FmEnv,    "osc" #n "_fm_env",     "Osc " #n " FM Envelope",   Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod) \
+    F (osc##n##ModDecay, "osc" #n "_mod_decay",  "Osc " #n " FM / Ring Decay",Unit::Ms,    1.f, 2000.f, 150.f, 150.f, FMod) \
+    C (osc##n##RingSrc,  "osc" #n "_ring_source","Osc " #n " Ring Source",   ringSources, 0, FNone) \
+    F (osc##n##RingAmt,  "osc" #n "_ring_amount","Osc " #n " Ring Amount",   Unit::Pct,    0.f,   1.f,   1.f,   0.f,   FMod) \
+    F (osc##n##RingMix,  "osc" #n "_ring_mix",   "Osc " #n " Ring Mix",      Unit::Pct,    0.f,   1.f,   1.f,   0.f,   FMod) \
+    F (osc##n##RingHz,   "osc" #n "_ring_freq",  "Osc " #n " Ring Frequency",Unit::Hz,    20.f, 8000.f, 440.f, 500.f, FMod) \
+    F (osc##n##RingEnv,  "osc" #n "_ring_env",   "Osc " #n " Ring Envelope", Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod) \
+    C (osc##n##SyncSrc,  "osc" #n "_sync_source","Osc " #n " Sync Master",   syncSources, 0, FNone) \
+    C (osc##n##SyncMode, "osc" #n "_sync_mode",  "Osc " #n " Sync Mode",     syncModes, 0, FNone) \
+    F (osc##n##SyncAmt,  "osc" #n "_sync_amount","Osc " #n " Sync Amount",   Unit::Pct,    0.f,   1.f,   0.3f,  0.f,   FMod) \
+    F (osc##n##ToPunch,  "osc" #n "_to_punch",   "Osc " #n " -> Punch",      Unit::Db,   -60.f,  12.f, -60.f,   0.f,   FMod | FSmooth) \
+    F (osc##n##ToBody,   "osc" #n "_to_body",    "Osc " #n " -> Body",       Unit::Db,   -60.f,  12.f, -60.f,   0.f,   FMod | FSmooth) \
+    F (osc##n##ToTail,   "osc" #n "_to_tail",    "Osc " #n " -> Tail",       Unit::Db,   -60.f,  12.f,   0.f,   0.f,   FMod | FSmooth) \
+    F (osc##n##ToSub,    "osc" #n "_to_sub",     "Osc " #n " -> Sub",        Unit::Db,   -60.f,  12.f, -60.f,   0.f,   FMod | FSmooth) \
+    C (osc##n##WtTable,  "osc" #n "_wt_table",   "Osc " #n " Wavetable",     wtTables, 0, FNone) \
+    F (osc##n##WtPos,    "osc" #n "_wt_position","Osc " #n " WT Position",   Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod) \
+    F (osc##n##WtMorph,  "osc" #n "_wt_morph",   "Osc " #n " WT Morph",      Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod) \
+    C (osc##n##WtMode,   "osc" #n "_wt_mode",    "Osc " #n " WT Mode",       wtModes, 0, FNone) \
+    F (osc##n##WtStart,  "osc" #n "_wt_start",   "Osc " #n " WT Start",      Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod) \
+    F (osc##n##WtEnd,    "osc" #n "_wt_end",     "Osc " #n " WT End",        Unit::Pct,    0.f,   1.f,   1.f,   0.f,   FMod) \
+    F (osc##n##WtRate,   "osc" #n "_wt_scan",    "Osc " #n " WT Scan Time",  Unit::Ms,     5.f, 4000.f, 300.f, 300.f, FMod) \
+    F (osc##n##HAmount,  "osc" #n "_h_amount",   "Osc " #n " Harmonic Amount",Unit::Pct,   0.f,   2.f,   1.f,   1.f,   FMod) \
+    F (osc##n##HOdd,     "osc" #n "_h_odd",      "Osc " #n " Odd Harmonics", Unit::Pct,    0.f,   2.f,   1.f,   1.f,   FMod) \
+    F (osc##n##HEven,    "osc" #n "_h_even",     "Osc " #n " Even Harmonics",Unit::Pct,    0.f,   2.f,   1.f,   1.f,   FMod) \
+    F (osc##n##HRoll,    "osc" #n "_h_rolloff",  "Osc " #n " Harmonic Roll-off",Unit::Pct, 0.f,   1.f,   0.f,   0.f,   FMod) \
+    F (osc##n##HTilt,    "osc" #n "_h_tilt",     "Osc " #n " Harmonic Tilt", Unit::Bip,   -1.f,   1.f,   0.f,   0.f,   FMod) \
+    F (osc##n##HSpread,  "osc" #n "_h_spread",   "Osc " #n " Harmonic Spread",Unit::Pct,   0.f,   1.f,   0.f,   0.f,   FMod) \
+    F (osc##n##HPhase,   "osc" #n "_h_phase",    "Osc " #n " Harmonic Phase",Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod) \
+    F (osc##n##HRandom,  "osc" #n "_h_random",   "Osc " #n " Harmonic Random",Unit::Pct,   0.f,   1.f,   0.f,   0.f,   FMod)
+    // FM MATRIX: modulator a -> carrier b (frequency modulation, the diagonal is each oscillator's FEEDBACK)
+#define FGE_FM(F, a, b) \
+    F (fm##a##to##b,     "fm_" #a "_to_" #b,     "FM Osc " #a " -> Osc " #b, Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod)
+
     // a modulation envelope (filter cutoff / drive / resonance)
 #define FGE_MOD_SLOT(F, B, C, e, id, nm) \
     B (e##On,       id "_on",           nm " On",                false, FNone) \

@@ -7,6 +7,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../Parameters/ParamFrame.h"
 #include "../DSP/Env/MultiEnv.h"
+#include "../DSP/Osc/Wavetable.h"
 #include <array>
 #include <atomic>
 #include <mutex>
@@ -20,7 +21,9 @@ namespace fge::gui
         WaveView();
         ~WaveView() override;
         // call from the editor timer: re-renders (in the background) when the parameters changed
-        void update (const ParamFrame&, int note, const env::Bank* shapes = nullptr, uint32_t shapesVersion = 0);
+        using Tables = std::array<dsp::TablePtr, 8>;
+        void update (const ParamFrame&, int note, const env::Bank* shapes = nullptr, uint32_t shapesVersion = 0,
+                     const Tables* tables = nullptr);
         void paint (juce::Graphics&) override;
         void mouseDrag (const juce::MouseEvent&) override;
         void mouseMove (const juce::MouseEvent&) override { setMouseCursor (juce::MouseCursor::DraggingHandCursor); }
@@ -38,7 +41,9 @@ namespace fge::gui
         std::mutex lock;
         ParamFrame pending; int pendingNote = 31; bool wanted = false;
         ParamFrame lastAsked; int lastNote = -1; uint32_t lastVersion = 0;
-        std::unique_ptr<env::Bank> pendingBank, bank;   // the drawn shapes (copied when they change)
+        Tables lastTables;
+        std::unique_ptr<env::Bank> pendingBank, bank;
+        Tables pendingTables, tables;   // the drawn shapes (copied when they change)
         Render shown;
         std::atomic<bool> ready { false };
         juce::WaitableEvent wake;

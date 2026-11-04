@@ -9,11 +9,11 @@
 
 namespace fge { inline constexpr const char* versionText = "0.5"; }      // keep in step with CMakeLists.txt
 
-class GeProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener
+class GeProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener, private juce::Timer
 {
 public:
     GeProcessor();
-    ~GeProcessor() override { apvts.state.removeListener (this); }
+    ~GeProcessor() override { stopTimer(); apvts.state.removeListener (this); }
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
     bool isBusesLayoutSupported (const BusesLayout& l) const override { return l.getMainOutputChannelSet() == juce::AudioChannelSet::stereo(); }
@@ -74,16 +74,41 @@ public:
         if (child.isValid()) child.setProperty ("value", plainValue, &undo);
         else if (auto* a = apvts.getParameter (id)) a->setValueNotifyingHost (a->convertTo0to1 (plainValue));
     }
+    // ---- OSCILLATOR data (module 03): drawn CUSTOM cycle, imported cycle, harmonic profile, USER wavetable frames.
+    //      Stored in the state child OSCS (undoable, saved with projects / presets). Tables are built here, off the audio thread.
+    static constexpr const char* oscsTag = "OSCS";
+    const fge::dsp::OscData& oscData() const { return oscDataNow; }
+    uint32_t oscDataVersion() const { return oscVersion; }
+    void setOscProperty (int osc, const juce::String& key, const juce::String& text, bool undoable = true);
+    void setOscCustom (int osc, const fge::env::Shape& s) { setOscProperty (osc, "custom", s.toString()); }
+    // the tables the engine plays now (shared copies for the waveform renderer)
+    std::array<fge::dsp::TablePtr, fge::dsp::maxOsc> currentTables() const { const juce::SpinLock::ScopedLockType l (tableLock); return tablesNow; }
+    void refreshTables();                                    // message thread (timer) / state load; cheap when nothing changed
     static float slotMin (int slot) { return fge::env::isPitch (slot) ? -1.f : 0.f; }
     int auditionNote = 31;          // G1 in FL (49 Hz)
 
 private:
     juce::ValueTree envTree (bool create);
     void rebuildShapes();
-    void valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&) override { rebuildShapes(); }
-    void valueTreeChildAdded (juce::ValueTree&, juce::ValueTree&) override { rebuildShapes(); }
-    void valueTreeChildRemoved (juce::ValueTree&, juce::ValueTree&, int) override { rebuildShapes(); }
-    void valueTreeRedirected (juce::ValueTree&) override { rebuildShapes(); }
+    void valueTreePropertyChanged (juce::ValueTree& t, const juce::Identifier&) override { onTreeChange (t); }
+    void valueTreeChildAdded (juce::ValueTree& t, juce::ValueTree&) override { onTreeChange (t); }
+    void valueTreeChildRemoved (juce::ValueTree& t, juce::ValueTree&, int) override { onTreeChange (t); }
+    void valueTreeRedirected (juce::ValueTree&) override { rebuildShapes(); rebuildOscData(); }
+    void onTreeChange (juce::ValueTree& t)
+    {
+        if (t.getType() == juce::Identifier ("PARAM")) return;            // parameter values: the tables follow on the timer
+        if (t.getType() == juce::Identifier (oscsTag) || t.getParent().getType() == juce::Identifier (oscsTag)) rebuildOscData();
+        else rebuildShapes();
+    }
+    void timerCallback() override { refreshTables(); }
+    void rebuildOscData();
+    fge::dsp::OscData oscDataNow;
+    uint32_t oscVersion = 1;
+    std::array<fge::dsp::TablePtr, fge::dsp::maxOsc> tablesNow;
+    std::array<juce::String, fge::dsp::maxOsc> tableKeys;
+    std::vector<std::array<fge::dsp::TablePtr, fge::dsp::maxOsc>> retired;   // tables the audio thread may still read
+    fge::dsp::Exchange<fge::dsp::OscTables> tablesX;
+    mutable juce::SpinLock tableLock;
     fge::env::BankExchange bankX;
     fge::env::Bank current;                 // message-thread copy (GUI, waveform)
     uint32_t version = 1;

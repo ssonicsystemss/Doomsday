@@ -13,6 +13,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include "Core/Generators.h"
 #include "Env/KickEnvelopes.h"
+#include "Osc/OscTables.h"
 #include "DoomsdayKick.h"
 #include "../Parameters/ParamFrame.h"
 #include <array>
@@ -38,7 +39,8 @@ namespace fge
         float width = 0.f;
         dsp::SvfCoefs widthSplit;                 // LR4 split: lows from the centre, mids / highs from left / right
         float clipG = 1.f, clipSoft = 0.5f;       // MASTER CLIP (the sub goes around it)
-        float holdMs = 0.f, holdGain = 1.f;       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
+        float holdMs = 0.f, holdGain = 1.f;
+        dsp::OscBankSettings osc;                 // module 03: the oscillators routed into the parts       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
     };
 
     // ------------------------------------------------------------------ pitch: semitones of one part at a time (links resolved)
@@ -70,7 +72,8 @@ namespace fge
     class KickVoice
     {
     public:
-        void trigger (int note, float velocityGain, const KickConfig& cfg, const float* phases01, uint64_t order, float legatoMs)
+        void trigger (int note, float velocityGain, const KickConfig& cfg, const float* phases01, uint64_t order, float legatoMs,
+                      double absTimeSec = 0.0, uint32_t hitCount = 0)
         {
             using namespace dsp;
             active = true; t = 0.0; age = order; vel = velocityGain; fade = 1.f; fadeStep = 0.f; held = true; ctl = 0;
@@ -91,6 +94,17 @@ namespace fge
             legato (cfg.amp, stAmp); legato (cfg.filter, stFlt); legato (cfg.drive, stDrv); legato (cfg.reso, stRes);
             pe = {};
             mod = cfg.modBase;
+            if (cfg.osc.any)
+            {
+                pe.c = &cfg;
+                const float endEff = (cfg.keyTrack ? noteHz : cfg.endHz) * cfg.fineMul;
+                const float subBase = (cfg.keyTrack ? noteHz : cfg.subHz) * cfg.fineMul;
+                const float fTail = endEff * std::exp2 (pe.semis (dsp::PTail, 0.f) / 12.f);
+                const std::array<float, 4> hz { fTail * std::exp2 (pe.semis (dsp::PPunch, 0.f) / 12.f), fTail * std::exp2 (pe.semis (dsp::PBody, 0.f) / 12.f),
+                                                fTail, subBase * std::exp2 (pe.semis (dsp::PSub, 0.f) / 12.f) };
+                oscs.start (cfg.osc, hz, absTimeSec, hitCount);
+                pe = {};
+            }
         }
         void noteOff (const KickConfig& cfg)
         {
@@ -112,6 +126,7 @@ namespace fge
         void phases (float* out) const { out[0] = punch.phase(); out[1] = body.phase(); out[2] = tail.phase(); out[3] = sub.phase(); }
 
         // adds this voice into the four part buses (oversampled rate)
+        const dsp::OscTables* tables = nullptr;
         void render (const KickConfig& cfg, float* const* bus, int n)
         {
             using namespace dsp;
@@ -135,32 +150,42 @@ namespace fge
                 // ---- pitch of every part
                 const float fTail = juce::jlimit (5.f, nyq, endEff * std::exp2 (pe.semis (PTail, ms) / 12.f));
                 const float gate = juce::jlimit (0.f, 1.f, (ks.lengthMs - ms) / juce::jmax (0.5f, fadeLen)) * vel * fade;
+                // ---- module 03: the oscillators, pitched by the part they follow, feed the part inputs
+                std::array<float, 4> ext {};
+                float extL = 0.f, extR = 0.f;
+                if (cfg.osc.any)
+                {
+                    const std::array<float, 4> hz { juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
+                                                    juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f)), fTail,
+                                                    juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f)) };
+                    oscs.tick (cfg.osc, tables != nullptr ? *tables : noTables, hz, ms, ks.inv, ext, extL, extR);
+                }
                 if (ms < cfg.partEnd[PPunch])
                 {
                     const float f = juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f));
-                    bus[PPunch][i] += punch.tick (ks.part[PPunch], ks, ms, f, ampOf (cfg, PPunch, ms), mod[PPunch]) * gate;
+                    bus[PPunch][i] += punch.tick (ks.part[PPunch], ks, ms, f, ampOf (cfg, PPunch, ms), mod[PPunch], ext[PPunch]) * gate;
                 }
                 if (ms < cfg.partEnd[PBody])
                 {
                     const float f = juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f));
-                    bus[PBody][i] += body.tick (ks.part[PBody], ks, f, ampOf (cfg, PBody, ms), mod[PBody]) * gate;
+                    bus[PBody][i] += body.tick (ks.part[PBody], ks, f, ampOf (cfg, PBody, ms), mod[PBody], ext[PBody]) * gate;
                 }
                 if (ms < cfg.partEnd[PTail])
                 {
                     float a = ampOf (cfg, PTail, ms) * gate;
                     if (cfg.holdMs > 0.f && cfg.holdGain != 1.f)                       // TOK LEVEL, 3 ms into the drop
                         a *= cfg.holdGain + (1.f - cfg.holdGain) * juce::jlimit (0.f, 1.f, (ms - cfg.holdMs) / 3.f);
-                    bus[PTail][i] += tail.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail]) * a;
+                    bus[PTail][i] += tail.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail], ext[PTail]) * a;
                     if (cfg.wide)
                     {
-                        bus[4][i] += tailL.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail]) * a;
-                        bus[5][i] += tailR.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail]) * a;
+                        bus[4][i] += tailL.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail], extL) * a;
+                        bus[5][i] += tailR.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail], extR) * a;
                     }
                 }
                 if (ms < cfg.partEnd[PSub])
                 {
                     const float f = juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f));
-                    bus[PSub][i] += sub.tick (ks.part[PSub], ks, f, ampOf (cfg, PSub, ms), mod[PSub]) * gate;
+                    bus[PSub][i] += sub.tick (ks.part[PSub], ks, f, ampOf (cfg, PSub, ms), mod[PSub], ext[PSub]) * gate;
                 }
                 if (fadeStep > 0.f) { fade -= fadeStep; if (fade <= 0.f) { fade = 0.f; active = false; break; } }
                 t += dt;
@@ -203,6 +228,8 @@ namespace fge
                 mod[(size_t) p] = m;
             }
         }
+        dsp::OscBankVoice oscs;
+        static inline const dsp::OscTables noTables {};
         dsp::PunchGenerator punch; dsp::BodyGenerator body; dsp::TailGenerator tail, tailL, tailR; dsp::SubGenerator sub;
         std::array<dsp::EnvRunState, 4> stAmp {}, stFlt {}, stDrv {}, stRes {};
         std::array<dsp::ModNow, 4> mod {};
@@ -239,6 +266,8 @@ namespace fge
         int latencySamples() const { return (int) std::lround (os->getLatencyInSamples()); }
         // the drawn shapes (module 02) - set before process() each block; nullptr = the defaults
         void setBank (const env::Bank* b) { bank = b; }
+        // the oscillator tables (module 03: CUSTOM / WAVETABLE / HARMONIC) - set before process() each block; nullptr = none
+        void setTables (const dsp::OscTables* t) { tables = t; }
         // host tempo (module 02 SYNC); <= 0 = not known (the LOCAL BPM is used)
         void setHostBpm (double b) { hostBpm = b; }
 
@@ -275,7 +304,7 @@ namespace fge
             for (auto& v : voices) if (! v.isActive()) { slot = &v; break; }
             if (slot == nullptr) { slot = &voices[0]; for (auto& v : voices) if (v.order() < slot->order()) slot = &v; }
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
-            slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs);
+            slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter);
             hits.fetch_add (1);
         }
         void release (int) { for (auto& v : voices) v.noteOff (cfg); }
@@ -371,6 +400,7 @@ namespace fge
             cfg.widthSplit = svfCoefs (f[P::tailWidthFrom], 1.414f, rate);
             cfg.clipG = db (f[P::clipDrive]); cfg.clipSoft = f[P::clipSoft];
             cfg.holdGain = db (f[P::tailHoldLvl]);
+            cookOscillators (f);
 
             // ---- envelope slots (module 02, 7)
             const int aMode[4] { P::punchAmpMode, P::bodyAmpMode, P::tailAmpMode, P::subAmpMode };
@@ -481,6 +511,57 @@ namespace fge
             if (first) { gainNow = gainTarget; masterNow = masterTarget; first = false; }
         }
 
+        // module 03: oscillator parameters -> cooked settings (unison layout, routes, FM matrix)
+        void cookOscillators (const ParamFrame& f)
+        {
+            using namespace dsp;
+            auto db = [] (float v) { return std::pow (10.f, v / 20.f); };
+            auto& ob = cfg.osc;
+            ob.any = false; ob.tailStereo = false;
+            const int stride = P::osc2On - P::osc1On;
+            for (int i = 0; i < numOsc; ++i)
+            {
+                auto& o = ob.o[(size_t) i];
+                auto at = [&] (int first) { return first + i * stride; };
+                o.on = f.on (at (P::osc1On));
+                if (! o.on) continue;
+                o.wave = f.idx (at (P::osc1Wave)); o.noise = f.idx (at (P::osc1Noise)); o.track = f.idx (at (P::osc1Track));
+                o.fixedHz = f[at (P::osc1Freq)];
+                const float ratio = juce::jmax (0.05f, f[at (P::osc1Ratio)] + f[at (P::osc1RatioFine)]);
+                o.mul = std::exp2 (std::round (f[at (P::osc1Oct)]) + std::round (f[at (P::osc1Semi)]) / 12.f + f[at (P::osc1Fine)] / 1200.f) * ratio;
+                const float lvl = f[at (P::osc1Level)] <= -59.9f ? 0.f : db (f[at (P::osc1Level)]);
+                o.gain = lvl * (f.on (at (P::osc1Invert)) ? -1.f : 1.f);
+                const float a = (juce::jlimit (-1.f, 1.f, f[at (P::osc1Pan)]) + 1.f) * juce::MathConstants<float>::pi * 0.25f;
+                o.panL = std::cos (a) * 1.41421356f; o.panR = std::sin (a) * 1.41421356f;
+                o.phase01 = f[at (P::osc1Phase)] / 360.f; o.phaseMode = f.idx (at (P::osc1PhMode)); o.phaseRand = f[at (P::osc1PhRand)];
+                o.phaseSrc = f.idx (at (P::osc1PhSrc));
+                o.pw = f[at (P::osc1Pw)];
+                o.uni = juce::jlimit (1, maxUnison, (int) std::lround (f[at (P::osc1Uni)]));
+                o.detuneCt = f[at (P::osc1Detune)] * 100.f; o.spread = f[at (P::osc1Spread)]; o.blend = f[at (P::osc1Blend)];
+                o.uniMode = f.idx (at (P::osc1UniMode)); o.uniPhase = f.idx (at (P::osc1UniPh));
+                o.seed = (uint32_t) std::lround (f[at (P::osc1Seed)]);
+                layoutUnison (o);
+                o.fmFb = f[at (P::osc1FmFb)]; o.fmEnv = f[at (P::osc1FmEnv)]; o.decayMs = f[at (P::osc1ModDecay)];
+                o.ringSrc = f.idx (at (P::osc1RingSrc)); o.ringAmt = f[at (P::osc1RingAmt)]; o.ringMix = f[at (P::osc1RingMix)];
+                o.ringHz = f[at (P::osc1RingHz)]; o.ringEnv = f[at (P::osc1RingEnv)];
+                o.syncSrc = f.idx (at (P::osc1SyncSrc)); o.syncMode = f.idx (at (P::osc1SyncMode));
+                o.syncRatio = 1.f + 7.f * f[at (P::osc1SyncAmt)];
+                const int to[4] { P::osc1ToPunch, P::osc1ToBody, P::osc1ToTail, P::osc1ToSub };
+                for (int d = 0; d < 4; ++d) o.route[(size_t) d] = f[at (to[d])] <= -59.9f ? 0.f : db (f[at (to[d])]);
+                o.wtMode = f.idx (at (P::osc1WtMode)); o.wtPos = f[at (P::osc1WtPos)]; o.wtMorph = f[at (P::osc1WtMorph)];
+                o.wtStart = f[at (P::osc1WtStart)]; o.wtEnd = f[at (P::osc1WtEnd)]; o.wtRateMs = f[at (P::osc1WtRate)];
+                const bool routed = o.route[0] + o.route[1] + o.route[2] + o.route[3] > 0.f && lvl > 0.f;
+                ob.any = true; juce::ignoreUnused (routed);       // (an unrouted oscillator can still be an FM / ring / sync source)
+                if (o.route[2] > 0.f && (std::abs (f[at (P::osc1Pan)]) > 0.001f || (o.uni > 1 && o.spread > 0.001f))) ob.tailStereo = true;
+            }
+            const int fmIds[numOsc][numOsc] { { -1, P::fm1to2, P::fm1to3, P::fm1to4 }, { P::fm2to1, -1, P::fm2to3, P::fm2to4 },
+                                              { P::fm3to1, P::fm3to2, -1, P::fm3to4 }, { P::fm4to1, P::fm4to2, P::fm4to3, -1 } };
+            for (int a2 = 0; a2 < numOsc; ++a2)
+                for (int b2 = 0; b2 < numOsc; ++b2)
+                    ob.fm[a2][b2] = fmIds[a2][b2] < 0 || ! ob.o[(size_t) a2].on ? 0.f : f[fmIds[a2][b2]];
+            if (ob.tailStereo) cfg.wide = true;
+        }
+
         void render (juce::AudioBuffer<float>& out, int start, int len)
         {
             while (len > 0)
@@ -496,7 +577,8 @@ namespace fge
             for (int c = 0; c < dsp::NumParts + 2; ++c) juce::FloatVectorOperations::clear (bus.getWritePointer (c), on);
             float* b[dsp::NumParts + 2] { bus.getWritePointer (0), bus.getWritePointer (1), bus.getWritePointer (2), bus.getWritePointer (3),
                                           bus.getWritePointer (4), bus.getWritePointer (5) };
-            for (auto& v : voices) v.render (cfg, b, on);
+            for (auto& v : voices) { v.tables = tables; v.render (cfg, b, on); }
+            clockSec += (double) n / sr;
 
             stereo.clear (0, 0, n); stereo.clear (1, 0, n);
             juce::dsp::AudioBlock<float> blk (stereo.getArrayOfWritePointers(), 2, 0, (size_t) n);
@@ -563,6 +645,8 @@ namespace fge
         std::array<KickVoice, maxVoices> voices;
         KickConfig cfg;
         const env::Bank* bank = nullptr;
+        const dsp::OscTables* tables = nullptr;
+        double clockSec = 0.0;                    // the engine's own clock (FREE RUN oscillator phases)
         ParamFrame frame = ParamFrame::defaults();
         std::array<std::pair<float, float>, dsp::NumParts> gainNow {}, gainTarget {};
         std::array<float, dsp::NumParts> freePhase {};
@@ -577,8 +661,20 @@ namespace fge
     // ------------------------------------------------------------------ offline render (GUI waveform, tests, export)
     //  one kick at 'rate', 'seconds' long; soloPart = -1 the full kick, 0..3 = only that part (mixer settings kept)
     inline juce::AudioBuffer<float> renderKick (ParamFrame f, int note, double rate, double seconds, int soloPart = -1, float velocity = 1.f,
-                                                const env::Bank* bank = nullptr, double bpm = 0.0, double noteOffAt = -1.0)
+                                                const env::Bank* bank = nullptr, double bpm = 0.0, double noteOffAt = -1.0,
+                                                const dsp::OscTables* tables = nullptr, const dsp::OscData* oscData = nullptr)
     {
+        // no tables given: build them here from the parameters (+ the given / default oscillator data) - offline only
+        std::array<dsp::TablePtr, dsp::maxOsc> keep;
+        dsp::OscTables own;
+        if (tables == nullptr)
+        {
+            static const dsp::OscData defaults;
+            const auto& d = oscData != nullptr ? *oscData : defaults;
+            for (int i = 0; i < dsp::numOsc; ++i)
+                if (f.on (P::osc1On + i * (P::osc2On - P::osc1On))) { keep[(size_t) i] = dsp::osctables::build (f, d, i); own.t[(size_t) i] = keep[(size_t) i].get(); }
+            tables = &own;
+        }
         if (soloPart >= 0)
         {
             const int solo[4] { P::mixPunchSolo, P::mixBodySolo, P::mixTailSolo, P::mixSubSolo };
@@ -591,6 +687,7 @@ namespace fge
         engine->prepare (rate, block);
         engine->setBank (bank);
         engine->setHostBpm (bpm);
+        engine->setTables (tables);
         juce::AudioBuffer<float> out (2, total), tmp (2, block);
         out.clear();
         for (int pos = 0; pos < total; pos += block)

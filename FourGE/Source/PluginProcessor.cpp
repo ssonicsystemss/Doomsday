@@ -38,6 +38,9 @@ GeProcessor::GeProcessor()
     apvts.state.addListener (this);
     setCurrentProgram (0);
     rebuildShapes();
+    rebuildOscData();
+    refreshTables();
+    startTimerHz (20);
 }
 
 void GeProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -45,6 +48,7 @@ void GeProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     // FL may call this while an audio callback is still running (Replace, sample-rate change, loading a project):
     // processBlock outputs silence instead of rendering into voices that are being re-prepared (sonic-toolbox bugs/fl-replace-crash.md)
     const SpinLock::ScopedLockType l (prepareLock);
+    refreshTables();
     engine.prepare (sampleRate, samplesPerBlock);
     engine.cookOnly (frame());
     setLatencySamples (engine.latencySamples());
@@ -62,6 +66,7 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) if (auto hb = pos->getBpm()) bpm = *hb;
     engine.setHostBpm (bpm);
     engine.setBank (&bankX.front());
+    engine.setTables (&tablesX.front());
     if (pendingAudition.exchange (false)) { engine.cookOnly (f); engine.trigger (auditionNote, 1.f); }
     engine.process (buffer, midi, f);
 }
@@ -85,6 +90,56 @@ void GeProcessor::resetShapes (bool undoable)
     if (t.isValid()) t.removeAllProperties (undoable ? &undo : nullptr);
     rebuildShapes();
 }
+void GeProcessor::setOscProperty (int osc, const String& key, const String& text, bool undoable)
+{
+    if (! isPositiveAndBelow (osc, fge::dsp::numOsc)) return;
+    auto root = apvts.state.getChildWithName (oscsTag);
+    if (! root.isValid()) { root = ValueTree (oscsTag); apvts.state.appendChild (root, nullptr); }
+    const Identifier id ("osc" + String (osc + 1));
+    auto t = root.getChildWithName (id);
+    if (! t.isValid()) { t = ValueTree (id); root.appendChild (t, nullptr); }
+    if (undoable) undo.beginNewTransaction ("Oscillator");
+    t.setProperty (key, text, undoable ? &undo : nullptr);
+}
+void GeProcessor::rebuildOscData()
+{
+    const auto root = apvts.state.getChildWithName (oscsTag);
+    fge::dsp::OscData d;
+    for (int i = 0; i < fge::dsp::numOsc; ++i) d.osc[(size_t) i] = fge::dsp::oscstate::fromTree (root.getChildWithName (Identifier ("osc" + String (i + 1))));
+    {
+        const SpinLock::ScopedLockType l (tableLock);
+        oscDataNow = std::move (d);
+        ++oscVersion;
+    }
+    refreshTables();
+}
+void GeProcessor::refreshTables()
+{
+    const auto f = frame();
+    std::array<fge::dsp::TablePtr, fge::dsp::maxOsc> next;
+    bool changed = false;
+    {
+        const SpinLock::ScopedLockType l (tableLock);
+        next = tablesNow;
+        for (int i = 0; i < fge::dsp::numOsc; ++i)
+        {
+            const bool on = f.on (P::osc1On + i * (P::osc2On - P::osc1On));
+            const auto key = on ? fge::dsp::osctables::keyOf (f, i, oscVersion) : String ("off");
+            if (key == tableKeys[(size_t) i]) continue;
+            tableKeys[(size_t) i] = key;
+            next[(size_t) i] = on ? fge::dsp::osctables::build (f, oscDataNow, i) : nullptr;
+            changed = true;
+        }
+        if (! changed) return;
+        retired.push_back (tablesNow);                       // the audio thread may hold the old pointers for a block or two
+        if (retired.size() > 4) retired.erase (retired.begin());
+        tablesNow = next;
+    }
+    auto& b = tablesX.back();
+    for (int i = 0; i < fge::dsp::maxOsc; ++i) b.t[(size_t) i] = next[(size_t) i].get();
+    tablesX.publish();
+}
+
 void GeProcessor::rebuildShapes()
 {
     const SpinLock::ScopedLockType l (shapeWriteLock);
@@ -111,6 +166,8 @@ void GeProcessor::setCurrentProgram (int i)
     presetName = factoryPresets()[(size_t) i].name;
     doomsday::PresetIO::apply (*this, apvts, factoryPresets()[(size_t) i].values);
     resetShapes (false);
+    auto oscs = apvts.state.getChildWithName (oscsTag);
+    if (oscs.isValid()) { apvts.state.removeChild (oscs, nullptr); rebuildOscData(); }
 }
 bool GeProcessor::loadUserPresetFile (const File& f)
 {
@@ -122,6 +179,12 @@ bool GeProcessor::loadUserPresetFile (const File& f)
             if (auto* e = xml->getChildByName (envsTag))
                 for (int i = 0; i < e->getNumAttributes(); ++i) t.setProperty (e->getAttributeName (i), e->getAttributeValue (i), nullptr);
         rebuildShapes();
+        // the oscillator data (drawn / imported cycles, harmonic profiles, user wavetables)
+        auto old = apvts.state.getChildWithName (oscsTag);
+        if (old.isValid()) apvts.state.removeChild (old, nullptr);
+        if (auto xml = XmlDocument::parse (f))
+            if (auto* e = xml->getChildByName (oscsTag)) apvts.state.appendChild (ValueTree::fromXml (*e), nullptr);
+        rebuildOscData();
     }
     presetName = f.getFileNameWithoutExtension();
     return true;

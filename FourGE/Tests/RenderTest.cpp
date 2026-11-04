@@ -1,457 +1,458 @@
-// Offline checks + tools for 4GE (started as Forge of Wrath's test, + checks for the 4GE modules)
-//   RenderTest <outdir>                       tests, preset renders, GUI snapshot
-//   RenderTest batch <jobs.txt> <outdir>      one kick per line: "name note id=value ... amp=<shape> drive=<shape>"
+// 4GE offline checks (rebuild, module 01 Core Kick Engine - its acceptance list 14.1-14.12 + the registry / GUI)
+//   RenderTest <outdir>                                   tests, renders of the factory presets, GUI snapshot
+//   RenderTest <outdir> --render <settings.txt> <out.wav> one kick: lines "note N", "seconds S", "<param id> <value>"
 #include "../Source/PluginProcessor.h"
-#include "../Source/PluginEditor.h"
+#include "../Source/GUI/PluginEditor.h"
+#include "../Source/Presets/FactoryPresets.h"
 #include <juce_audio_formats/juce_audio_formats.h>
-#include <juce_dsp/juce_dsp.h>
-#include <chrono>
+#include <cmath>
+#include <set>
 
 using namespace juce;
-static double sr = 44100.0;
-static const int block = 512;
+using namespace fge;
 static bool ok = true;
-static void check (bool c, const char* what, const String& extra = {}) { printf ("%-50s %s %s\n", what, c ? "OK" : "FAIL", extra.toRawUTF8()); ok &= c; }
-static void set (GeProcessor& p, const String& id, float v) { if (auto* a = p.apvts.getParameter (id)) a->setValueNotifyingHost (a->convertTo0to1 (v)); }
+static void check (bool c, const char* what, const String& extra = {}) { printf ("%-62s %s %s\n", what, c ? "OK" : "FAIL", extra.toRawUTF8()); fflush (stdout); ok &= c; }
+static double sr = 44100.0;
 
-static AudioBuffer<float> hit (GeProcessor& p, int note, double seconds, float vel = 1.f)
+static void writeWav (const File& f, const AudioBuffer<float>& b, double rate = 44100.0)
 {
-    p.prepareToPlay (sr, block);
-    AudioBuffer<float> out (2, (int) (sr * seconds)); out.clear();
-    for (int pos = 0; pos < out.getNumSamples(); pos += block)
+    f.deleteFile();
+    WavAudioFormat wav;
+    std::unique_ptr<AudioFormatWriter> w (wav.createWriterFor (new FileOutputStream (f), rate, (unsigned) b.getNumChannels(), 24, {}, 0));
+    if (w) w->writeFromAudioSampleBuffer (b, 0, b.getNumSamples());
+}
+static float peak (const AudioBuffer<float>& b, int a = 0, int n = -1)
+{
+    if (n < 0) n = b.getNumSamples() - a;
+    float p = 0.f;
+    for (int ch = 0; ch < b.getNumChannels(); ++ch) for (int i = a; i < a + n && i < b.getNumSamples(); ++i) p = jmax (p, std::abs (b.getSample (ch, i)));
+    return p;
+}
+static double rms (const AudioBuffer<float>& b, int a = 0, int n = -1, int ch = 0)
+{
+    if (n < 0) n = b.getNumSamples() - a;
+    double s = 0; int c = 0;
+    for (int i = a; i < a + n && i < b.getNumSamples(); ++i) { s += (double) b.getSample (ch, i) * b.getSample (ch, i); ++c; }
+    return c > 0 ? std::sqrt (s / c) : 0.0;
+}
+static double diff (const AudioBuffer<float>& x, const AudioBuffer<float>& y)
+{
+    double s = 0;
+    const int n = jmin (x.getNumSamples(), y.getNumSamples());
+    for (int ch = 0; ch < 2; ++ch) for (int i = 0; i < n; ++i) { const double d = x.getSample (ch, i) - y.getSample (ch, i); s += d * d; }
+    return std::sqrt (s / (2.0 * n));
+}
+// fundamental by autocorrelation in a window (rate-aware)
+static double pitchAt (const AudioBuffer<float>& b, double rate, double fromS, double lenS)
+{
+    const int a = (int) (fromS * rate), n = (int) (lenS * rate);
+    const float* x = b.getReadPointer (0);
+    const int lo = (int) (rate / 1000), hi = (int) (rate / 25);
+    if (a + n + hi >= b.getNumSamples()) return 0.0;
+    std::vector<double> ac ((size_t) hi + 2, 0.0);
+    for (int lag = lo - 1; lag <= hi + 1; ++lag) { double s = 0; for (int i = 0; i < n; ++i) s += x[a + i] * x[a + i + lag]; ac[(size_t) lag] = s; }
+    double best = 0; int bestLag = 0;
+    for (int lag = lo; lag <= hi; ++lag) if (ac[(size_t) lag] > best) { best = ac[(size_t) lag]; bestLag = lag; }
+    for (int lag = lo; lag < bestLag; ++lag)
+        if (ac[(size_t) lag] > 0.9 * best && ac[(size_t) lag] >= ac[(size_t) lag - 1] && ac[(size_t) lag] >= ac[(size_t) lag + 1]) { bestLag = lag; break; }
+    if (bestLag <= lo) return 0.0;
+    // parabolic refinement
+    const double y0 = ac[(size_t) bestLag - 1], y1 = ac[(size_t) bestLag], y2 = ac[(size_t) bestLag + 1];
+    const double d = (y0 - y2) / (2.0 * (y0 - 2.0 * y1 + y2));
+    return rate / (bestLag + (std::isfinite (d) ? d : 0.0));
+}
+static double noteHz (int n) { return 440.0 * std::pow (2.0, (n - 69) / 12.0); }
+// render through the processor (MIDI path)
+static AudioBuffer<float> hitProc (GeProcessor& p, std::vector<std::pair<int, MidiMessage>> events, double seconds, double rate = 44100.0, int block = 512)
+{
+    p.prepareToPlay (rate, block);
+    const int total = (int) (rate * seconds);
+    AudioBuffer<float> out (2, total); out.clear();
+    for (int pos = 0; pos < total; pos += block)
     {
-        const int n = jmin (block, out.getNumSamples() - pos);
+        const int n = jmin (block, total - pos);
         AudioBuffer<float> b (2, n); b.clear();
         MidiBuffer m;
-        if (pos == 0) m.addEvent (MidiMessage::noteOn (1, note, vel), 0);
+        for (auto& [at, msg] : events) if (at >= pos && at < pos + n) m.addEvent (msg, at - pos);
         p.processBlock (b, m);
         for (int ch = 0; ch < 2; ++ch) out.copyFrom (ch, pos, b, ch, 0, n);
     }
     return out;
 }
-static void writeWav (const File& f, const AudioBuffer<float>& b)
-{
-    f.deleteFile();
-    WavAudioFormat wav;
-    std::unique_ptr<AudioFormatWriter> w (wav.createWriterFor (new FileOutputStream (f), sr, 2, 24, {}, 0));
-    if (w) w->writeFromAudioSampleBuffer (b, 0, b.getNumSamples());
-}
-// dominant frequency in a window by autocorrelation
-static double pitchAt (const AudioBuffer<float>& b, double fromS, double lenS)
-{
-    const int a = (int) (fromS * sr), n = (int) (lenS * sr);
-    const float* x = b.getReadPointer (0);
-    double best = 0; int bestLag = 0;
-    for (int lag = (int) (sr / 400); lag < (int) (sr / 25); ++lag)
-    {
-        double s = 0; for (int i = 0; i < n; ++i) s += x[a + i] * x[a + i + lag];
-        if (s > best) { best = s; bestLag = lag; }
-    }
-    // the first lag that is almost as good = the period (not a multiple of it)
-    for (int lag = (int) (sr / 400); lag < bestLag; ++lag)
-    {
-        double s = 0; for (int i = 0; i < n; ++i) s += x[a + i] * x[a + i + lag];
-        double prev = 0, next = 0;
-        for (int i = 0; i < n; ++i) { prev += x[a + i] * x[a + i + lag - 1]; next += x[a + i] * x[a + i + lag + 1]; }
-        if (s > 0.9 * best && s >= prev && s >= next) return sr / lag;
-    }
-    return bestLag > 0 ? sr / bestLag : 0.0;
-}
+static void setP (GeProcessor& p, const char* id, float v) { if (auto* a = p.apvts.getParameter (id)) a->setValueNotifyingHost (a->convertTo0to1 (v)); }
+static int idOf (const String& s) { for (int i = 0; i < P::count; ++i) if (s == def (i).id) return i; return -1; }
 
-using ge::Shape;
-static int batch (const File& jobs, const File& dir)
+static int renderMode (const File& settings, const File& outFile)
 {
-    dir.createDirectory();
-    GeProcessor p;
-    StringArray lines; jobs.readLines (lines);
-    for (auto& line : lines)
+    ParamFrame f = ParamFrame::defaults();
+    int note = 31; double seconds = 1.0;
+    StringArray lines; lines.addLines (settings.loadFileAsString());
+    for (auto& l : lines)
     {
-        auto tok = StringArray::fromTokens (line, " ", "");
-        if (tok.size() < 2) continue;
-        p.setCurrentProgram (0);
-        double secs = 1.2;
-        for (int i = 2; i < tok.size(); ++i)
-        {
-            const auto id = tok[i].upToFirstOccurrenceOf ("=", false, false), v = tok[i].fromFirstOccurrenceOf ("=", false, false);
-            if (id == "amp" || id == "denv") { Shape s; if (Shape::fromString (v, s)) p.setShape (id == "amp" ? 0 : 1, s); }
-            else if (id == "secs") secs = v.getDoubleValue();
-            else if (id == "sr") sr = v.getDoubleValue();
-            else set (p, id, v.getFloatValue());
-        }
-        writeWav (dir.getChildFile (tok[0] + ".wav"), hit (p, tok[1].getIntValue(), secs));
+        auto t = StringArray::fromTokens (l.trim(), " \t", "");
+        if (t.size() < 2) continue;
+        if (t[0] == "note") note = t[1].getIntValue();
+        else if (t[0] == "seconds") seconds = t[1].getDoubleValue();
+        else if (int id = idOf (t[0]); id >= 0) f[id] = (float) t[1].getDoubleValue();
+        else printf ("unknown parameter %s\n", t[0].toRawUTF8());
     }
-    return 0;
-}
-// PROTOTYPE (2026-10-28, "drętwe"): a preset rendered as centre + left + right voices at 4x, low band from the plain centre,
-// mids / highs from the detuned L / R copies -> stereo, dense. Writes <name>.wav at 4x (resample outside).
-//   RenderTest proto <outdir> <name> <preset prefix> <note> <seconds> uni=5 det=12 drift=4 split=180 [param=value ...]
-static int proto (int argc, char** argv)
-{
-    const File dir = File::getCurrentWorkingDirectory().getChildFile (argv[2]); dir.createDirectory();
-    GeProcessor p;
-    for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith (argv[4])) { p.setCurrentProgram (i); break; }
-    const int note = atoi (argv[5]); const double secs = atof (argv[6]);
-    int uni = 1; float det = 0.f, drift = 0.f, split = 180.f, mix = 0.6f, width = 1.f;
-    for (int a = 7; a < argc; ++a)
-    {
-        const String t (argv[a]); const auto id = t.upToFirstOccurrenceOf ("=", false, false); const float v = t.fromFirstOccurrenceOf ("=", false, false).getFloatValue();
-        if (id == "uni") uni = (int) v; else if (id == "det") det = v; else if (id == "drift") drift = v; else if (id == "split") split = v; else if (id == "umix") mix = v; else if (id == "width") width = v;
-        else set (p, id, v);
-    }
-    const double rate = 44100.0 * 4;
-    auto prm = p.gatherForGui();
-    ge::Params pc = prm.k, pl = prm.k, pr = prm.k;
-    for (auto* q : { &pl, &pr }) { q->uniVoices = uni; q->uniDetuneCt = det; q->driftCt = drift; q->uniMix = mix; }
-    pl.side = 1; pr.side = 2;
-    for (auto* q : { &pc, &pl, &pr }) q->cook (rate);
-    ge::Voice vc, vl, vr;
-    for (auto* v : { &vc, &vl, &vr }) v->prepare (rate);
-    vc.setRoom (pc.roomSize); vl.setRoom (pl.roomSize); vr.setRoom (pr.roomSize);
-    const float hz = 440.f * std::pow (2.f, (note - 69) / 12.f);
-    vc.trigger (hz, 1.f, pc); vl.trigger (hz, 1.f, pl); vr.trigger (hz, 1.f, pr);
-    const auto sc = doomsday::dsp::svfCoefs (split, 1.f / 0.707f, rate);
-    doomsday::dsp::Svf c1, c2, c3, c4, l1, l2, r1, r2;
-    const float g = std::pow (10.f, prm.clipDriveDb / 20.f), outG = std::pow (10.f, prm.outDb / 20.f);
-    const int n = (int) (secs * rate);
-    AudioBuffer<float> out (2, n);
-    for (int i = 0; i < n; ++i)
-    {
-        const float c = vc.render (pc), l = vl.render (pl), r = vr.render (pr);
-        const float low = c2.lp (c1.lp (c, sc), sc);
-        const float hc = c4.hp (c3.hp (c, sc), sc);
-        const float hl0 = l2.hp (l1.hp (l, sc), sc), hr0 = r2.hp (r1.hp (r, sc), sc);
-        const float hm = 0.5f * (hl0 + hr0), hs = 0.5f * (hl0 - hr0);                // mid / side of the detuned copies
-        juce::ignoreUnused (hc);
-        const float hl = hm + width * hs, hr = hm - width * hs;
-        out.setSample (0, i, ge::masterClip (low + hl, g, prm.clipSoft) * outG);
-        out.setSample (1, i, ge::masterClip (low + hr, g, prm.clipSoft) * outG);
-    }
-    const File f = dir.getChildFile (String (argv[3]) + ".wav"); f.deleteFile();
-    WavAudioFormat wav;
-    std::unique_ptr<AudioFormatWriter> w (wav.createWriterFor (new FileOutputStream (f), rate, 2, 24, {}, 0));
-    if (w) w->writeFromAudioSampleBuffer (out, 0, n);
+    writeWav (outFile, renderKick (f, note, sr, seconds));
     return 0;
 }
 
 int main (int argc, char** argv)
 {
-    ScopedJuceInitialiser_GUI gui;
-    if (argc >= 2 && String (argv[1]) == "guistress")
-    {
-        // the editor with its timer + paint running while every parameter is moved (FL crash hunt, 2026-10-22)
-        GeProcessor p; p.prepareToPlay (48000.0, 512);
-        std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
-        ed->setSize (Canvas::W, Canvas::H);
-        Random r (7);
-        for (int it = 0; it < 400; ++it)
-        {
-            if (it % 50 == 0) p.setCurrentProgram (r.nextInt (p.getNumPrograms()));
-            for (int k = 0; k < 6; ++k)
-            {
-                auto* prm = p.getParameters()[r.nextInt (p.getParameters().size())];
-                prm->setValueNotifyingHost (r.nextFloat());
-            }
-            AudioBuffer<float> b (2, 512); b.clear(); MidiBuffer m; if (it % 7 == 0) m.addEvent (MidiMessage::noteOn (1, 24 + r.nextInt (24), 1.f), 0);
-            p.processBlock (b, m);
-            dynamic_cast<GeEditor&> (*ed).getCanvas().tickForTest();
-            ed->createComponentSnapshot (ed->getLocalBounds(), true, 0.5f);
-        }
-        dynamic_cast<GeEditor&> (*ed).getCanvas().openPresetBrowserForTest();     // the click on the preset name (crashed FL, 2026-10-22)
-        printf ("guistress done\n");
-        return 0;
-    }
-    if (argc >= 7 && String (argv[1]) == "proto") return proto (argc, argv);
-    if (argc >= 4 && String (argv[1]) == "batch") return batch (File::getCurrentWorkingDirectory().getChildFile (argv[2]), File::getCurrentWorkingDirectory().getChildFile (argv[3]));
-    const File outDir = File::getCurrentWorkingDirectory().getChildFile (argc > 1 ? argv[1] : "fourge_out");
+    ScopedJuceInitialiser_GUI init;
+    const File outDir (argc > 1 ? File::getCurrentWorkingDirectory().getChildFile (argv[1]) : File::getCurrentWorkingDirectory().getChildFile ("4ge_out"));
     outDir.createDirectory();
-    using namespace ParamIDs;
-    GeProcessor p;
+    if (argc > 4 && String (argv[2]) == "--render") return renderMode (File::getCurrentWorkingDirectory().getChildFile (argv[3]), File::getCurrentWorkingDirectory().getChildFile (argv[4]));
 
-    // 1) default kick: sane level, tail lands on the played note, ends at LENGTH
+    const ParamFrame base = ParamFrame::defaults();
+    const int G1 = 31;
+
+    // ---------------------------------------------------------------- 0. registry / frozen IDs
     {
-        p.setCurrentProgram (0);
-        set (p, length, 500.f);
-        auto b = hit (p, 31, 0.8);
-        const float pk = b.getMagnitude (0, 0, b.getNumSamples());
-        check (pk > 0.5f && pk <= 0.99f, "default kick peak in range", String (pk, 3));
-        const double f = pitchAt (b, 0.25, 0.12);
-        check (std::abs (f - 49.0) < 3.0, "tail settles on the note (G1 = 49 Hz)", String (f, 1) + " Hz");
-        const float after = b.getMagnitude (0, (int) (0.52 * sr), (int) (0.2 * sr));
-        check (after < 1e-4f, "silent after LENGTH", String (after, 6));
-        bool finite = true; for (int i = 0; i < b.getNumSamples(); ++i) finite &= std::isfinite (b.getSample (0, i));
-        check (finite, "no NaN / inf");
-        const double f2 = pitchAt (hit (p, 34, 0.8), 0.25, 0.12);
-        check (std::abs (f2 - 58.3) < 3.5, "note A#1 -> 58 Hz", String (f2, 1) + " Hz");
+        const File ids = File (__FILE__).getSiblingFile ("param_ids.txt");
+        StringArray frozen; frozen.addLines (ids.loadFileAsString()); frozen.removeEmptyStrings();
+        bool same = true;
+        for (int i = 0; i < frozen.size(); ++i) same &= i < P::count && frozen[i] == def (i).id;
+        StringArray all; for (int i = 0; i < P::count; ++i) all.add (def (i).id);
+        std::set<std::string> uniq; for (auto& s : all) uniq.insert (s.toStdString());
+        check (same && (int) uniq.size() == P::count, "REGISTRY: frozen IDs unchanged, only appended, unique",
+               String (frozen.size()) + " frozen / " + String (P::count) + " now");
+        if (frozen.size() < P::count) ids.replaceWithText (all.joinIntoString ("\n") + "\n");      // append the new ones
+        GeProcessor p;
+        check ((int) p.getParameters().size() == P::count, "REGISTRY: the APVTS has every parameter, in registry order",
+               String (p.getParameters().size()));
     }
-    // 1b) CLEAN SUB: the lows of a hard-distorted tail become a clean sine (2nd / 3rd harmonic drop)
+
+    // ---------------------------------------------------------------- 14.1 a complete kick from synthesis only
+    const auto kick = renderKick (base, G1, sr, 1.0);
     {
-        auto harmDb = [] (const AudioBuffer<float>& b)
+        const float pk = peak (kick);
+        int last = kick.getNumSamples() - 1; while (last > 0 && std::abs (kick.getSample (0, last)) < 1.0e-3f) --last;
+        const double lenMs = last * 1000.0 / sr;
+        check (pk > 0.5f && pk < 1.4f && lenMs > 400.0 && lenMs < 460.0, "14.1 INIT = a complete kick from synthesis (no sample)",
+               "peak " + String (pk, 2) + ", " + String (lenMs, 0) + " ms");
+        writeWav (outDir.getChildFile ("00_INIT.wav"), kick);
+    }
+    // ---------------------------------------------------------------- 14.2 the four parts are independent (full = sum of the solos)
+    {
+        AudioBuffer<float> sum (2, kick.getNumSamples()); sum.clear();
+        String e;
+        bool each = true;
+        for (int p = 0; p < 4; ++p)
         {
-            const int n = 1 << 14, a = (int) (0.12 * sr);
-            std::vector<float> w ((size_t) n * 2, 0.f);
-            for (int i = 0; i < n && a + i < b.getNumSamples(); ++i) w[(size_t) i] = b.getSample (0, a + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * i / n));
-            dsp::FFT fft (14); fft.performFrequencyOnlyForwardTransform (w.data());
-            auto at = [&] (double hz) { const int k = (int) std::round (hz * n / sr); float m = 0; for (int j = k - 2; j <= k + 2; ++j) m = jmax (m, w[(size_t) j]); return (double) m; };
-            return 20.0 * std::log10 ((at (98.0) + at (147.0)) / at (49.0));
-        };
-        p.setCurrentProgram (0);
-        set (p, distType, 2.f); set (p, drive, 30.f); set (p, length, 600.f); set (p, clipDrive, 0.f); set (p, uniVoices, 1.f);
-        const double off = harmDb (hit (p, 31, 0.6));
-        set (p, cleanSub, 250.f); set (p, uniVoices, 1.f);
-        const double on = harmDb (hit (p, 31, 0.6));
-        check (on < off - 10.0, "CLEAN SUB: low harmonics of the distortion removed", "(" + String (off, 1) + " -> " + String (on, 1) + " dB)");
+            auto s = renderKick (base, G1, sr, 1.0, p);
+            each &= rms (s) > 1.0e-3;
+            e << String (Decibels::gainToDecibels ((float) rms (s)), 1) << " ";
+            for (int ch = 0; ch < 2; ++ch) sum.addFrom (ch, 0, s, ch, 0, s.getNumSamples());
+        }
+        const double d = diff (sum, kick) / jmax (1.0e-9, rms (kick));
+        check (each && d < 1.0e-3, "14.2 PUNCH / BODY / TAIL / SUB each sound alone, full = their sum", "rms dB " + e + " rel diff " + String (d, 6));
     }
-    // 2) every preset: no NaN, peak <= 0 dBFS, not silent
+    // ---------------------------------------------------------------- 14.3 SOLO / MUTE per part
     {
-        int bad = 0; String worst;
+        bool good = true; String e;
+        const int mute[4] { P::mixPunchMute, P::mixBodyMute, P::mixTailMute, P::mixSubMute };
+        const int solo[4] { P::mixPunchSolo, P::mixBodySolo, P::mixTailSolo, P::mixSubSolo };
+        for (int p = 0; p < 4; ++p)
+        {
+            ParamFrame m = base; m[mute[p]] = 1.f;
+            auto muted = renderKick (m, G1, sr, 1.0);
+            auto alone = renderKick (base, G1, sr, 1.0, p);
+            AudioBuffer<float> rest (kick); for (int ch = 0; ch < 2; ++ch) rest.addFrom (ch, 0, alone, ch, 0, alone.getNumSamples(), -1.f);
+            const double dm = diff (muted, rest) / jmax (1.0e-9, rms (kick));
+            ParamFrame s = base; s[solo[p]] = 1.f;
+            const double ds = diff (renderKick (s, G1, sr, 1.0), alone) / jmax (1.0e-9, rms (alone));
+            good &= dm < 1.0e-3 && ds < 1.0e-3;
+            e << String (dm, 5) << "/" << String (ds, 5) << " ";
+        }
+        ParamFrame all = base; for (int p = 0; p < 4; ++p) all[mute[p]] = 1.f;
+        good &= peak (renderKick (all, G1, sr, 0.5)) < 1.0e-6f;
+        check (good, "14.3 MUTE removes exactly that part, SOLO plays only it, all muted = silence", e);
+    }
+    // ---------------------------------------------------------------- 14.4 LENGTH does not stretch the PUNCH
+    {
+        ParamFrame a = base, b = base; a[P::coreLength] = 250.f; b[P::coreLength] = 1500.f;
+        const double dp = diff (renderKick (a, G1, sr, 2.0, 0), renderKick (b, G1, sr, 2.0, 0));
+        auto ta = renderKick (a, G1, sr, 2.0, 2), tb = renderKick (b, G1, sr, 2.0, 2);
+        auto end = [] (const AudioBuffer<float>& x) { int l = x.getNumSamples() - 1; while (l > 0 && std::abs (x.getSample (0, l)) < 1.0e-3f) --l; return l * 1000.0 / sr; };
+        ParamFrame off = b; off[P::coreAutoLen] = 0.f;
+        const double tOff = end (renderKick (off, G1, sr, 2.0, 2));
+        check (dp < 1.0e-6 && end (tb) > 3.0 * end (ta) && std::abs (tOff - 420.0) < 15.0,
+               "14.4 LENGTH: punch untouched, tail follows (AUTO), AUTO OFF keeps own length",
+               "punch diff " + String (dp, 8) + ", tail " + String (end (ta), 0) + " -> " + String (end (tb), 0) + " ms, AUTO OFF " + String (tOff, 0) + " ms");
+    }
+    // ---------------------------------------------------------------- 14.5 every part has a working envelope
+    {
+        bool good = true; String e;
+        const int dec[4] { P::punchDecay, P::bodyDecay, P::tailDecay, P::subDecay };
+        const int att[4] { P::punchAttack, P::bodyAttack, P::tailAttack, P::subAttack };
+        for (int p = 0; p < 4; ++p)
+        {
+            ParamFrame s = base, l = base;
+            s[P::punchSustain] = s[P::bodySustain] = s[P::tailSustain] = s[P::subSustain] = 0.05f;
+            s[P::punchLen] = 150.f; s[P::coreAutoLen] = 0.f; s[P::coreLength] = 2000.f;
+            l = s;
+            s[dec[p]] = def (dec[p]).min + 4.f; l[dec[p]] = def (dec[p]).max * 0.3f;
+            auto xs = renderKick (s, G1, sr, 1.0, p), xl = renderKick (l, G1, sr, 1.0, p);
+            const int w = (int) ((p == 0 ? 0.012 : 0.06) * sr);
+            const double rS = rms (xs, w, w), rL = rms (xl, w, w);
+            ParamFrame a = base; a[att[p]] = def (att[p]).max; a[P::punchLen] = 150.f;
+            auto xa = renderKick (a, G1, sr, 1.0, p), x0 = renderKick (base, G1, sr, 1.0, p);
+            const int w2 = (int) (0.0015 * sr);
+            const double aSlow = rms (xa, 0, w2), aFast = rms (x0, 0, w2);
+            good &= rL > rS * 1.5 && aFast > aSlow * 1.5;
+            e << String (rL / jmax (1.0e-9, rS), 1) << "x/" << String (aFast / jmax (1.0e-9, aSlow), 1) << "x ";
+        }
+        check (good, "14.5 DECAY and ATTACK change every part's envelope", e);
+    }
+
+    // ---------------------------------------------------------------- 14.6 the pitch engine really moves the pitch (and lands on the note)
+    {
+        ParamFrame f = base; f[P::tailChar] = 0.f; f[P::tailDrive] = 0.f; f[P::tailTone] = 20000.f; f[P::tailReso] = 0.f;
+        f[P::coreLength] = 900.f; f[P::peTime] = 120.f;
+        auto x = renderKick (f, G1, sr, 1.2, 2);
+        const double early = pitchAt (x, sr, 0.004, 0.012), late = pitchAt (x, sr, 0.45, 0.12);
+        auto xa = renderKick (f, 33, sr, 1.2, 2);
+        const double lateA = pitchAt (xa, sr, 0.45, 0.12);
+        ParamFrame st = f; st[P::peMode] = 5.f;
+        const double stable = pitchAt (renderKick (st, G1, sr, 1.2, 2), sr, 0.004, 0.03);
+        ParamFrame rise = f; rise[P::peMode] = 4.f; rise[P::peStart] = 98.f; rise[P::peTime] = 300.f;
+        auto xr = renderKick (rise, G1, sr, 1.2, 2);
+        const double r0 = pitchAt (xr, sr, 0.01, 0.06), r1 = pitchAt (xr, sr, 0.45, 0.1);
+        check (early > 120.0 && std::abs (late - noteHz (G1)) < 1.0 && std::abs (lateA - noteHz (33)) < 1.2 && std::abs (stable - noteHz (G1)) < 1.5 && r1 > r0 * 1.6,
+               "14.6 PITCH: drops START -> note (G1 / A1), STABLE stays, RISE rises",
+               String (early, 0) + " -> " + String (late, 1) + " Hz (G1 " + String (noteHz (G1), 1) + "), A1 " + String (lateA, 1)
+               + ", stable " + String (stable, 1) + ", rise " + String (r0, 0) + " -> " + String (r1, 0));
+        // the modes are different curves
+        String e; bool differ = true;
+        std::vector<AudioBuffer<float>> m;
+        for (int i = 0; i < 6; ++i) { ParamFrame q = f; q[P::peMode] = (float) i; m.push_back (renderKick (q, G1, sr, 0.5, 2)); }
+        for (int i = 0; i < 6; ++i) for (int j = i + 1; j < 6; ++j) { const double d = diff (m[(size_t) i], m[(size_t) j]); differ &= d > 1.0e-3; }
+        check (differ, "14.6 the 6 pitch modes are 6 different movements");
+        // tracking off: fixed Hz, the note does not matter
+        ParamFrame fx = f; fx[P::coreKeyTrack] = 0.f; fx[P::peEnd] = 55.f;
+        const double fixedLate = pitchAt (renderKick (fx, 40, sr, 1.2, 2), sr, 0.45, 0.12);
+        check (std::abs (fixedLate - 55.0) < 1.2, "PITCH TRACKING off = END PITCH in Hz on any note", String (fixedLate, 1) + " Hz");
+        // the sub sits on the note
+        const double subP = pitchAt (renderKick (base, 33, sr, 1.0, 3), sr, 0.1, 0.12);
+        check (std::abs (subP - noteHz (33)) < 1.0, "SUB on the played note (tracking)", String (subP, 1) + " Hz");
+    }
+    // ---------------------------------------------------------------- tail CHARACTER: 7 different algorithms
+    {
+        std::vector<std::vector<double>> prof;
+        for (int c = 0; c < 7; ++c)
+        {
+            ParamFrame f = base; f[P::tailChar] = (float) c; f[P::tailDrive] = 0.7f;
+            auto x = renderKick (f, G1, sr, 0.5, 2);
+            // harmonic profile 1..12 at 0.15-0.35 s (Goertzel on the note)
+            std::vector<double> h;
+            const int a = (int) (0.15 * sr), n = (int) (0.2 * sr);
+            for (int k = 1; k <= 12; ++k)
+            {
+                const double w = 2.0 * MathConstants<double>::pi * noteHz (G1) * k / sr;
+                double re = 0, im = 0;
+                for (int i = 0; i < n; ++i) { re += x.getSample (0, a + i) * std::cos (w * i); im += x.getSample (0, a + i) * std::sin (w * i); }
+                h.push_back (10.0 * std::log10 (re * re + im * im + 1.0e-12));
+            }
+            const double h0 = h[0];
+            for (auto& v : h) v -= h0;
+            prof.push_back (h);
+        }
+        double minD = 1e9; String pair;
+        for (size_t i = 0; i < prof.size(); ++i) for (size_t j = i + 1; j < prof.size(); ++j)
+        {
+            double d = 0; for (size_t k = 1; k < 12; ++k) d += std::abs (prof[i][k] - prof[j][k]);
+            if (d / 11.0 < minD) { minD = d / 11.0; pair = Choices::tailCharacters()[(int) i] + "/" + Choices::tailCharacters()[(int) j]; }
+        }
+        check (minD > 1.5, "TAIL CHARACTER: 7 modes have 7 different harmonic profiles", "closest " + pair + " " + String (minD, 1) + " dB / harmonic");
+    }
+    // ---------------------------------------------------------------- 14.7 MIDI Note On triggers, Note Off does not cut
+    {
+        GeProcessor p;
+        auto silent = hitProc (p, {}, 0.3);
+        auto hit = hitProc (p, { { 100, MidiMessage::noteOn (1, G1, 1.f) } }, 0.6);
+        auto off = hitProc (p, { { 100, MidiMessage::noteOn (1, G1, 1.f) }, { 2300, MidiMessage::noteOff (1, G1) } }, 0.6);
+        check (peak (silent) == 0.f && peak (hit) > 0.2f && diff (hit, off) < 1.0e-7, "14.7 Note On plays the kick, Note Off never cuts it",
+               "peak " + String (peak (hit), 2) + ", off diff " + String (diff (hit, off), 9));
+        // velocity sensitivity
+        setP (p, "core_velocity", 1.f);
+        auto soft = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 0.5f) } }, 0.4);
+        auto hard = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.4);
+        check (std::abs (peak (soft) / peak (hard) - 0.5f) < 0.05f, "VELOCITY sensitivity scales the kick", String (peak (soft) / peak (hard), 3));
+    }
+    // ---------------------------------------------------------------- 14.8 overlapping triggers: CHOKE and POLY, no errors, no runaway
+    {
+        GeProcessor p;
+        std::vector<std::pair<int, MidiMessage>> ev;
+        for (int i = 0; i < 12; ++i) ev.push_back ({ i * 1500 + (i % 3) * 7, MidiMessage::noteOn (1, G1 + (i % 3) * 2, 1.f) });
+        auto choke = hitProc (p, ev, 1.2);
+        setP (p, "core_voice_mode", 1.f);
+        auto poly = hitProc (p, ev, 1.2);
+        bool finite = true;
+        for (auto* b : { &choke, &poly }) for (int ch = 0; ch < 2; ++ch) for (int i = 0; i < b->getNumSamples(); ++i) finite &= std::isfinite (b->getSample (ch, i));
+        // the choke fade is smooth: no sample jump bigger than the kick's own steepest slope x 1.5
+        double maxStep = 0, maxStepSingle = 0;
+        for (int i = 1; i < choke.getNumSamples(); ++i) maxStep = jmax (maxStep, (double) std::abs (choke.getSample (0, i) - choke.getSample (0, i - 1)));
+        for (int i = 1; i < kick.getNumSamples(); ++i) maxStepSingle = jmax (maxStepSingle, (double) std::abs (kick.getSample (0, i) - kick.getSample (0, i - 1)));
+        check (finite && peak (choke) < 3.f && peak (poly) < 8.f && peak (poly) > peak (choke) * 1.05f && maxStep < maxStepSingle * 1.6,
+               "14.8 12 fast overlapping kicks: CHOKE / POLY stable, choke without jumps",
+               "peaks " + String (peak (choke), 2) + " / " + String (peak (poly), 2) + ", step " + String (maxStep / maxStepSingle, 2) + "x");
+    }
+    // ---------------------------------------------------------------- 14.9 sample rates
+    {
+        String e; bool good = true;
+        double ref = 0; float refPk = 0.f;
+        for (double rate : { 44100.0, 48000.0, 88200.0, 96000.0 })
+        {
+            ParamFrame f = base;
+            auto x = renderKick (f, G1, rate, 0.8);
+            const double pl = pitchAt (renderKick (f, G1, rate, 0.8, 2), rate, 0.25, 0.1);
+            const float pk = peak (x);
+            if (ref == 0) { ref = pl; refPk = pk; }
+            good &= std::abs (pl - ref) < 0.5 && std::abs (Decibels::gainToDecibels (pk / refPk)) < 0.6f;
+            e << String (rate / 1000.0, 1) << "k: " << String (pl, 1) << " Hz " << String (Decibels::gainToDecibels (pk), 1) << " dB  ";
+        }
+        check (good, "14.9 44.1 / 48 / 88.2 / 96 kHz: same pitch, same level", e);
+    }
+    // ---------------------------------------------------------------- 14.10 no clicks: start, end of the kick, end of each part
+    {
+        // the slope right at the very end (last 3 ms before silence) must be tiny vs the peak
+        int last = kick.getNumSamples() - 1; while (last > 0 && std::abs (kick.getSample (0, last)) < 1.0e-5f) --last;
+        double endStep = 0;
+        for (int i = last - (int) (0.003 * sr); i <= last; ++i) endStep = jmax (endStep, (double) std::abs (kick.getSample (0, i)));
+        double startJump = std::abs (kick.getSample (0, 0)) + std::abs (kick.getSample (1, 0));
+        // short parts with abrupt settings: attack 0, release 0
+        ParamFrame f = base; f[P::punchRelease] = 0.f; f[P::bodyRelease] = 0.f; f[P::tailRelease] = 0.f; f[P::subRelease] = 0.f;
+        f[P::punchAttack] = 0.f; f[P::tailAttack] = 0.f; f[P::coreAutoLen] = 0.f;
+        auto x = renderKick (f, G1, sr, 1.0);
+        // energy above 8 kHz in a 5 ms window around each part's end vs the same window 20 ms earlier
+        bool good = true; String e;
+        for (int p = 0; p < 4; ++p)
+        {
+            const float endMs = p == 0 ? f[P::punchLen] : p == 1 ? f[P::bodyLen] : p == 2 ? f[P::tailLen] : f[P::subLen];
+            auto s = renderKick (f, G1, sr, 1.0, p);
+            const int at = (int) (endMs * 0.001 * sr);
+            // 4th-order high-pass at 3 kHz: what a click adds
+            doomsday::dsp::Svf h1, h2;
+            const auto c3 = doomsday::dsp::svfCoefs (3000.f, 1.414f, sr);
+            double hfEnd = 0, hfBefore = 0;
+            for (int i = 0; i < at + 400 && i < s.getNumSamples(); ++i)
+            {
+                const float y = h2.hp (h1.hp (s.getSample (0, i), c3), c3);
+                if (i > at - 200) hfEnd = jmax (hfEnd, (double) std::abs (y));
+                else if (i > at - 1400 && i < at - 600) hfBefore = jmax (hfBefore, (double) std::abs (y));
+            }
+            // a click = more highs at the end than the part had just before (or, for a clean part, highs at all)
+            const double rel = hfEnd / jmax (1.0e-9, (double) peak (s));
+            good &= hfEnd < hfBefore * 1.2 + 0.003 * peak (s);
+            e << String (Decibels::gainToDecibels ((float) rel), 0) << " dB ";
+        }
+        check (endStep < 0.01 * peak (kick) && startJump < 0.05 && good, "14.10 no clicks at the start, the end, the end of each part (release 0)",
+               "end " + String (endStep, 5) + ", start " + String (startJump, 4) + ", part ends " + e);
+    }
+    // ---------------------------------------------------------------- 14.11 every visible parameter changes the sound
+    {
+        StringArray dead;
+        int tested = 0;
+        for (int id = 0; id < P::count; ++id)
+        {
+            const auto& d = def (id);
+            ParamFrame a = base, b = base;
+            // context: parameters that only work in a mode get that mode (the GUI greys them out otherwise)
+            if (id == P::tailPw) { a[P::tailSrc] = b[P::tailSrc] = 4.f; }
+            if (id == P::subPitch) { a[P::coreKeyTrack] = b[P::coreKeyTrack] = 0.f; }
+            if (id == P::bodyReso || id == P::tailReso) { a[id - 1] = b[id - 1] = 1500.f; }
+            if (id == P::bodyMix || id == P::punchMix) { a[id - 1] = b[id - 1] = 0.8f; }
+            if (id == P::tailMix) { a[P::tailDrive] = b[P::tailDrive] = 0.8f; }
+            if (id == P::corePhaseRst) { /* needs two kicks: checked below */ continue; }
+            if (id == P::coreVoice || id == P::coreVelocity) continue;                 // MIDI behaviour, checked above
+            if (id == P::coreAutoLen) { a[P::coreLength] = b[P::coreLength] = 1200.f; }
+            if (id == P::peEnd || id == P::subPitch) { a[P::coreKeyTrack] = b[P::coreKeyTrack] = 0.f; }
+            if (id == P::mixPunchSolo || id == P::mixBodySolo || id == P::mixTailSolo || id == P::mixSubSolo) {}
+            if (d.kind == Kind::Choice)
+            {
+                bool any = false;
+                for (int c = 0; c < d.choices().size(); ++c) { if (c == (int) d.def) continue; b[id] = (float) c; any |= diff (renderKick (a, G1, sr, 0.6), renderKick (b, G1, sr, 0.6)) > 1.0e-4; }
+                ++tested; if (! any) dead.add (d.id);
+                continue;
+            }
+            a[id] = d.min; b[id] = d.kind == Kind::Bool ? 1.f - d.def : d.max;
+            if (d.unit == Unit::Deg) b[id] = 90.f;                                   // 0 and 360 degrees are the same phase
+            if (d.kind == Kind::Bool) a[id] = d.def;
+            ++tested;
+            if (diff (renderKick (a, G1, sr, 0.6), renderKick (b, G1, sr, 0.6)) < 1.0e-4) dead.add (d.id);
+        }
+        // PHASE RESET: two kicks in a row differ when it is off
+        {
+            GeProcessor p; setP (p, "core_voice_mode", 1.f);
+            std::vector<std::pair<int, MidiMessage>> ev { { 0, MidiMessage::noteOn (1, G1, 1.f) }, { 7777, MidiMessage::noteOn (1, G1, 1.f) } };
+            auto on = hitProc (p, ev, 0.5);
+            setP (p, "core_phase_reset", 0.f);
+            auto off = hitProc (p, ev, 0.5);
+            if (diff (on, off) < 1.0e-4) dead.add ("core_phase_reset");
+        }
+        check (dead.isEmpty(), "14.11 every parameter changes the sound (min vs max / every choice)",
+               String (tested) + " tested" + (dead.isEmpty() ? String() : ", DEAD: " + dead.joinIntoString (" ")));
+    }
+    // ---------------------------------------------------------------- 14.12 the state round trip restores everything
+    {
+        GeProcessor a;
+        Random rnd (7);
+        for (auto* prm : a.getParameters()) prm->setValueNotifyingHost (rnd.nextFloat());
+        MemoryBlock mb; a.getStateInformation (mb);
+        GeProcessor b; b.setStateInformation (mb.getData(), (int) mb.getSize());
+        int bad = 0;
+        for (int i = 0; i < P::count; ++i)
+        {
+            auto* pa = dynamic_cast<RangedAudioParameter*> (a.getParameters()[i]);
+            auto* pb = dynamic_cast<RangedAudioParameter*> (b.getParameters()[i]);
+            if (std::abs (pa->convertFrom0to1 (pa->getValue()) - pb->convertFrom0to1 (pb->getValue())) > 1.0e-3f * jmax (1.f, std::abs (pa->convertFrom0to1 (pa->getValue())))) ++bad;
+        }
+        check (bad == 0, "14.12 save / load of the state restores every parameter", String (bad) + " differ");
+    }
+    // ---------------------------------------------------------------- factory presets: all play, sane levels
+    {
+        GeProcessor p;
+        String e; bool good = true;
         for (int i = 0; i < p.getNumPrograms(); ++i)
         {
             p.setCurrentProgram (i);
-            auto b = hit (p, 31, 1.4);
-            const float pk = b.getMagnitude (0, 0, b.getNumSamples());
-            bool finite = true; for (int s = 0; s < b.getNumSamples(); ++s) finite &= std::isfinite (b.getSample (0, s));
-            // the owner's own kicks are kept exactly as he set them by ear (they may peak a little over 0 dBFS)
-            const float limit = p.getProgramName (i).startsWith ("OWNER") ? 2.f : 1.f;
-            if (! finite || pk > limit || pk < 0.2f) { ++bad; worst << p.getProgramName (i) << " (" << String (pk, 2) << ") "; }
-            writeWav (outDir.getChildFile (String (i).paddedLeft ('0', 2) + "_" + File::createLegalFileName (p.getProgramName (i)) + ".wav"), b);
+            auto x = renderKick (p.frame(), G1, sr, 1.5);
+            const float pk = peak (x);
+            good &= pk > 0.15f && pk < 4.f;
+            writeWav (outDir.getChildFile (String (i).paddedLeft ('0', 2) + "_" + p.getProgramName (i) + ".wav"), x);
+            e << String (Decibels::gainToDecibels (pk), 0) << " ";
         }
-        check (bad == 0, "all presets clean", String (p.getNumPrograms()) + " presets " + worst);
+        check (good, "PRESETS: every factory preset plays at a sane level", e);
     }
-    // 3) retrigger: a new hit fades the old one without a click (no jump bigger than the kick itself makes)
+    // ---------------------------------------------------------------- GUI: snapshot, the waveform shows the real kick
     {
-        p.setCurrentProgram (0);
-        p.prepareToPlay (sr, block);
-        AudioBuffer<float> b (2, block * 40); b.clear();
-        for (int k = 0; k < 40; ++k)
-        {
-            AudioBuffer<float> c (2, block); c.clear(); MidiBuffer m;
-            if (k == 0 || k == 20) m.addEvent (MidiMessage::noteOn (1, 31, 1.f), 100);
-            p.processBlock (c, m);
-            b.copyFrom (0, k * block, c, 0, 0, block);
-        }
-        check (b.getMagnitude (0, 20 * block, block * 20) > 0.5f, "retrigger plays a new hit");
-    }
-    // 4) envelopes: state round trip keeps the drawn shapes
-    {
-        p.setCurrentProgram (0);
-        auto s = Shape::make ({ { 0, 1 }, { 300, 0.2f }, { 650, 0.9f }, { 1000, 1 } });
-        p.setShape (1, s);
-        MemoryBlock mb; p.getStateInformation (mb);
-        GeProcessor q; q.setStateInformation (mb.getData(), (int) mb.getSize());
-        check (q.getShape (1).n == 4 && std::abs (q.getShape (1).pts[2].v - 0.9f) < 1e-3f, "drive envelope saved with the session");
-    }
-    // 5) CPU: plain (one voice set) and with UNISON (three voice sets: centre + left + right)
-    for (int uni : { 1, 5 })
-    {
-        p.setCurrentProgram (0); set (p, uniVoices, (float) uni);
-        p.prepareToPlay (48000.0, block);
-        AudioBuffer<float> b (2, block);
-        const int blocks = (int) (48000.0 * 10 / block);
-        auto t0 = std::chrono::high_resolution_clock::now();
-        for (int k = 0; k < blocks; ++k) { b.clear(); MidiBuffer m; if (k % 18 == 0) m.addEvent (MidiMessage::noteOn (1, 31, 1.f), 0); p.processBlock (b, m); }
-        const double secs = std::chrono::duration<double> (std::chrono::high_resolution_clock::now() - t0).count();
-        check (secs / 10.0 < (uni > 1 ? 0.30 : 0.15), uni > 1 ? "CPU with UNISON 5 (10 s of kicks)" : "CPU plain (10 s of kicks at 150 BPM)", String (secs / 10.0 * 100.0, 1) + " %");
-    }
-    // 8) PITCH / FINE move the tail only
-    {
-        p.setCurrentProgram (0); sr = 48000.0;
-        set (p, ParamIDs::tune, 5.f); set (p, ParamIDs::tailFine, 50.f);
-        auto b = hit (p, 31, 0.5);
-        const double hz = pitchAt (b, 0.3, 0.08), want = 49.0 * std::pow (2.0, 5.5 / 12.0);
-        check (std::abs (hz - want) < 3.0, "PITCH +5 st, FINE +50 ct -> tail on 66.7 Hz", String (hz, 1) + " Hz");
-        set (p, ParamIDs::tune, 0.f); set (p, ParamIDs::tailFine, 0.f);
-    }
-    // 9) PUNCH keeps its pitch on any note (only its START / END knobs set it)
-    {
-        p.setCurrentProgram (0); sr = 48000.0;
-        set (p, ParamIDs::punchInto, 0.f); set (p, ParamIDs::tailLevel, -24.f); set (p, ParamIDs::punchLevel, 0.f); set (p, ParamIDs::clickLevel, -60.f); set (p, ParamIDs::chaos, 0.f);
-        auto lo = hit (p, 31, 0.1), hi = hit (p, 43, 0.1);
-        double diff = 0, all = 0;
-        for (int i = 0; i < (int) (0.03 * sr); ++i) { const double a = lo.getSample (0, i), b = hi.getSample (0, i); diff += (a - b) * (a - b); all += a * a; }
-        // the tail is turned down, not off: allow a small rest
-        check (diff < all * 0.1, "PUNCH: same pitch on G1 and G2", "(difference " + String (10.0 * std::log10 (diff / (all + 1e-12) + 1e-12), 1) + " dB)");
-    }
-    // 10) PUNCH INTO DIST: A/B for the owner (INIT, G1 then C2: punch off-chain, then into the distortion)
-    {
-        sr = 48000.0;
-        AudioBuffer<float> ab (2, (int) (sr * 0.5) * 4); ab.clear();
-        int at = 0;
-        for (float into : { 0.f, 1.f })
-            for (int note : { 31, 36 })
-            {
-                p.setCurrentProgram (0); set (p, ParamIDs::punchInto, into);
-                auto b = hit (p, note, 0.5);
-                for (int ch = 0; ch < 2; ++ch) ab.copyFrom (ch, at, b, ch, 0, b.getNumSamples());
-                at += b.getNumSamples();
-            }
-        bool finite = true; for (int i = 0; i < ab.getNumSamples(); ++i) finite &= std::isfinite (ab.getSample (0, i));
-        check (finite && ab.getMagnitude (0, 0, ab.getNumSamples()) < 1.05f, "PUNCH INTO DIST: clean output");
-        writeWav (outDir.getChildFile ("punch_into_ab.wav"), ab);
-    }
-    // 11) FIXED HEAD: like the owner's reference kicks - the first part is identical on G1 and D2, the tail is on the note
-    {
-        sr = 48000.0;
-        p.setCurrentProgram (0); set (p, ParamIDs::headOn, 1.f); set (p, ParamIDs::headLen, 110.f);
-        hit (p, 31, 1.0);                                       // flush the previous voice
-        auto g1 = hit (p, 31, 1.0), d2 = hit (p, 38, 1.0);
-        double diff = 0, all = 0;
-        for (int i = 0; i < (int) (0.1 * sr); ++i) { const double a = g1.getSample (0, i), b = d2.getSample (0, i); diff += (a - b) * (a - b); all += a * a; }
-        const double tailG = pitchAt (g1, 0.25, 0.08), tailD = pitchAt (d2, 0.25, 0.08);
-        check (diff < all * 1e-6 && std::abs (tailG - 49.0) < 3.0 && std::abs (tailD - 73.4) < 4.0, "FIXED HEAD: same first 100 ms on every note, tail on the note",
-               "(head diff " + String (10.0 * std::log10 (diff / (all + 1e-20) + 1e-20), 1) + " dB, tails " + String (tailG, 1) + " / " + String (tailD, 1) + " Hz)");
-    }
-    // ===================== 4GE modules
-    auto finiteOf = [] (const AudioBuffer<float>& b) { for (int i = 0; i < b.getNumSamples(); ++i) if (! std::isfinite (b.getSample (0, i))) return false; return true; };
-    auto rmsOf = [] (const AudioBuffer<float>& b, double a, double e)
-    {
-        const int i0 = (int) (a * sr), i1 = jmin (b.getNumSamples(), (int) (e * sr));
-        double acc = 0; for (int i = i0; i < i1; ++i) acc += (double) b.getSample (0, i) * b.getSample (0, i);
-        return std::sqrt (acc / jmax (1, i1 - i0));
-    };
-    // 12) the same settings render bit-identical twice (phase reset, noise seeds)
-    {
-        sr = 48000.0;
-        p.setCurrentProgram (0); set (p, texLevel, -6.f); set (p, texSource, 1.f); set (p, punchType, 3.f); set (p, busType, 2.f);
-        hit (p, 31, 0.6);
-        auto a = hit (p, 31, 0.6), b = hit (p, 31, 0.6);
-        double diff = 0; for (int i = 0; i < a.getNumSamples(); ++i) diff += std::abs (a.getSample (0, i) - b.getSample (0, i));
-        check (diff == 0.0, "4GE: two renders are bit-identical", "(diff " + String (diff, 8) + ")");
-    }
-    // 13) every new option: clean output, makes sound
-    {
-        sr = 48000.0;
-        int bad = 0; String why;
-        auto test = [&] (const String& name, std::initializer_list<std::pair<const char*, float>> vals)
-        {
-            p.setCurrentProgram (0);
-            for (auto& [id, v] : vals) set (p, id, v);
-            auto b = hit (p, 31, 0.6);
-            const float pk = b.getMagnitude (0, 0, b.getNumSamples());
-            if (! finiteOf (b) || pk > 1.0f || pk < 0.1f) { ++bad; why << name << " (" << String (pk, 2) << ") "; }
-        };
-        for (int t = 0; t < 5; ++t) test ("punch type " + String (t), { { punchType, (float) t }, { punchInto, 0.f }, { punchDrive, 12.f }, { punchFiltType, (float) (t % 5) } });
-        for (int t = 0; t < 4; ++t) test ("texture " + String (t), { { texSource, (float) t }, { texLevel, 0.f }, { texDrive, 12.f }, { texReso, 0.9f } });
-        for (int t = 1; t < 7; ++t) test ("bus " + String (t), { { busType, (float) t }, { busDrive, 24.f } });
-        for (int t = 0; t < 3; ++t) test ("osc B " + String (t), { { oscBType, (float) t }, { oscBLevel, 0.f }, { oscBWidth, 0.2f } });
-        for (int t = 1; t < 5; ++t) test ("pre filter " + String (t), { { preType, (float) t }, { preReso, 1.f }, { preEnv, 1.f }, { preEnv, -1.f } });
-        test ("bias / mix", { { bias1, 0.8f }, { mix1, 0.5f }, { dist2Type, 5.f }, { bias2, -0.7f }, { mix2, 0.7f } });
-        test ("crush", { { distType, 5.f }, { dist2Type, 6.f } });
-        test ("start Hz + attack + phase + duck", { { tailStartMode, 1.f }, { tailStartHz, 600.f }, { tailAttack, 8.f }, { tailPhase, 90.f }, { punchPhase, 90.f }, { duck, 1.f }, { punchAttack, 3.f } });
-        test ("room + low cut", { { room, 1.f }, { roomLowCut, 400.f }, { roomInto, 0.f } });
-        check (bad == 0, "4GE: every new option is clean and audible", why);
-    }
-    // 14) START in Hz: the tail starts on the same pitch on G1 and D2
-    {
-        sr = 48000.0;
-        p.setCurrentProgram (0); set (p, headOn, 0.f); set (p, punchOn, 0.f); set (p, clickLevel, -60.f); set (p, chaos, 0.f); set (p, uniVoices, 1.f);
-        set (p, tailStartMode, 1.f); set (p, tailStartHz, 300.f); set (p, tailDrop, 200.f); set (p, tailCurve, 1.f); set (p, ParamIDs::drive, 0.f); set (p, clipDrive, 0.f);
-        set (p, distType, 0.f);
-        const double g = pitchAt (hit (p, 31, 0.3), 0.003, 0.012), d = pitchAt (hit (p, 38, 0.3), 0.003, 0.012);
-        check (std::abs (g - d) < 25.0 && g > 200.0, "4GE: START Hz is the same on every note", String (g, 0) + " / " + String (d, 0) + " Hz");
-    }
-    // 15) AUTO GAIN: drive 6 -> 40 dB changes the level much less than without it
-    {
-        sr = 48000.0;
-        auto lvl = [&] (bool autoOn, float drv)
-        {
-            p.setCurrentProgram (0); set (p, autoGain, autoOn ? 1.f : 0.f); set (p, distType, 0.f); set (p, ParamIDs::drive, drv);
-            set (p, punchOn, 0.f); set (p, clipDrive, 0.f); set (p, cleanSub, 0.f); set (p, output, -12.f);
-            return 20.0 * std::log10 (rmsOf (hit (p, 31, 0.5), 0.15, 0.3) + 1e-9);
-        };
-        const double offJump = lvl (false, 40.f) - lvl (false, 0.f), onJump = lvl (true, 40.f) - lvl (true, 0.f);
-        check (std::abs (onJump) < 2.0 && std::abs (onJump) < std::abs (offJump) - 1.0, "4GE: AUTO GAIN keeps the level when DRIVE goes up",
-               "(jump " + String (offJump, 1) + " dB -> " + String (onJump, 1) + " dB)");
-    }
-    // 16) SOLO / MUTE
-    {
-        sr = 48000.0;
-        p.setCurrentProgram (0);
-        p.muteMask.store (ge::LAll); const double all = rmsOf (hit (p, 31, 0.4), 0.0, 0.4);
-        p.muteMask.store (0); p.soloMask.store (ge::LPunch); set (p, punchInto, 0.f);
-        auto pb = hit (p, 31, 0.4);
-        const double late = rmsOf (pb, 0.2, 0.35), early = rmsOf (pb, 0.0, 0.03);
-        p.soloMask.store (0);
-        check (all < 1e-6 && early > 0.01 && late < early * 0.05, "4GE: MUTE all = silence, SOLO punch = only the punch", "(" + String (all, 6) + ", " + String (early, 3) + " / " + String (late, 4) + ")");
-    }
-    // 17) the same kick at 44.1 / 48 / 96 kHz: same pitch, same level
-    {
-        double hz[3], lv[3]; int k = 0;
-        for (double rate : { 44100.0, 48000.0, 96000.0 })
-        {
-            sr = rate; p.setCurrentProgram (0);
-            auto b = hit (p, 31, 0.5);
-            hz[k] = pitchAt (b, 0.25, 0.08); lv[k] = 20.0 * std::log10 (rmsOf (b, 0.0, 0.4) + 1e-9); ++k;
-        }
-        sr = 48000.0;
-        check (std::abs (hz[0] - hz[2]) < 2.0 && std::abs (lv[0] - lv[2]) < 1.0 && std::abs (lv[1] - lv[2]) < 1.0, "4GE: 44.1 / 48 / 96 kHz sound the same",
-               String (hz[0], 1) + " / " + String (hz[1], 1) + " / " + String (hz[2], 1) + " Hz, " + String (lv[0], 1) + " / " + String (lv[1], 1) + " / " + String (lv[2], 1) + " dB");
-    }
-    // 18) A/B for the owner: INIT, then the new modules one by one (G1, 0.5 s each)
-    {
-        sr = 48000.0;
-        struct V { const char* name; std::vector<std::pair<const char*, float>> vals; };
-        const std::vector<V> vs {
-            { "INIT", {} },
-            { "+ osc B saw -12 dB", { { oscBLevel, -12.f } } },
-            { "+ pre filter BP sweep", { { preType, 3.f }, { preHz, 500.f }, { preReso, 0.6f }, { preEnv, 0.6f }, { preDecay, 120.f } } },
-            { "+ stage 1 bias", { { bias1, 0.5f } } },
-            { "+ texture pink 3 kHz", { { texLevel, -10.f }, { texSource, 1.f }, { texHz, 3000.f }, { texDecay, 120.f } } },
-            { "+ bus tube", { { busType, 2.f }, { busDrive, 8.f } } },
-            { "punch RESO, into off", { { punchType, 4.f }, { punchInto, 0.f }, { punchDrive, 12.f }, { punchFiltType, 2.f }, { punchFiltHz, 250.f } } },
-            { "duck 70% + tail attack 4 ms", { { duck, 0.7f }, { tailAttack, 4.f } } } };
-        AudioBuffer<float> ab (2, (int) (sr * 0.5) * (int) vs.size()); ab.clear();
-        int at = 0;
-        std::vector<std::pair<const char*, float>> acc;
-        for (auto& v : vs)
-        {
-            p.setCurrentProgram (0);
-            for (auto& x : v.vals) acc.push_back (x);
-            for (auto& [id, val] : acc) set (p, id, val);
-            auto b = hit (p, 31, 0.5);
-            for (int ch = 0; ch < 2; ++ch) ab.copyFrom (ch, at, b, ch, 0, b.getNumSamples());
-            at += b.getNumSamples();
-        }
-        writeWav (outDir.getChildFile ("4ge_modules_ab.wav"), ab);
-    }
-    // 19) UNISON / WIDTH: stereo above WIDTH FROM, mono below it, the tail stays on the note
-    {
-        sr = 48000.0;
-        p.setCurrentProgram (0); set (p, uniVoices, 5.f); set (p, width, 0.5f); set (p, widthSplit, 350.f);
-        auto b = hit (p, 31, 0.5);
-        AudioBuffer<float> s (1, b.getNumSamples()), m (1, b.getNumSamples());
-        for (int i = 0; i < b.getNumSamples(); ++i) { s.setSample (0, i, 0.5f * (b.getSample (0, i) - b.getSample (1, i))); m.setSample (0, i, 0.5f * (b.getSample (0, i) + b.getSample (1, i))); }
-        auto bandE = [&] (const AudioBuffer<float>& x, double lo, double hi)
-        {
-            const int nfft = 1 << 15, a = (int) (0.1 * sr);
-            std::vector<float> w ((size_t) nfft * 2, 0.f);
-            for (int i = 0; i < nfft && a + i < x.getNumSamples(); ++i) w[(size_t) i] = x.getSample (0, a + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * i / nfft));
-            dsp::FFT fft (15); fft.performFrequencyOnlyForwardTransform (w.data());
-            double e = 0; for (int k = (int) (lo * nfft / sr); k < (int) (hi * nfft / sr); ++k) e += (double) w[(size_t) k] * w[(size_t) k];
-            return e;
-        };
-        const double lowSide = 10.0 * std::log10 (bandE (s, 20, 150) / (bandE (m, 20, 150) + 1e-20) + 1e-20);
-        const double highSide = 10.0 * std::log10 (bandE (s, 1000, 6000) / (bandE (m, 1000, 6000) + 1e-20) + 1e-20);
-        const double hz = pitchAt (m, 0.3, 0.08);
-        check (lowSide < -30.0 && highSide > -20.0 && highSide < -3.0 && std::abs (hz - 49.0) < 3.0, "4GE: WIDTH - mids / highs stereo, lows mono, on the note",
-               "(side/mid: lows " + String (lowSide, 1) + " dB, 1-6 kHz " + String (highSide, 1) + " dB, " + String (hz, 1) + " Hz)");
-        set (p, uniVoices, 1.f);
-    }
-    // 6) GUI snapshot
-    {
-        for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).startsWith ("OWNER - QL")) { p.setCurrentProgram (i); break; }
-        sr = 48000.0; hit (p, 31, 0.15);
+        GeProcessor p;
         std::unique_ptr<AudioProcessorEditor> ed (p.createEditor());
-        ed->setSize (Canvas::W, Canvas::H);
-        p.muteMask.store (ge::LTexture); p.soloMask.store (0);
-        for (int pg : { 4, 0, 1, 2, 3 })
+        auto* ge = dynamic_cast<GeEditor*> (ed.get());
+        ed->setSize (GeCanvas::W, GeCanvas::H);
+        ge->canvas.waveView().update (p.frame(), p.auditionNote);       // (the editor timer does this in the plugin)
+        for (int i = 0; i < 300 && ! ge->canvas.waveView().hasRender(); ++i) Thread::sleep (20);
+        const auto pk = ge->canvas.waveView().lastPeaks();
+        check (ge->canvas.waveView().hasRender() && std::abs (pk[0] - peak (kick) * 1.f) < 0.25f * peak (kick),
+               "GUI: the central waveform is the rendered kick", "peak " + String (pk[0], 2) + " vs " + String (peak (kick), 2));
+        // a disabled control: SUB PITCH with tracking on
+        auto* sp = ge->canvas.findControl ("sub_pitch");
+        check (sp != nullptr && ! sp->isEnabled(), "GUI: SUB PITCH greyed out while PITCH TRACKING is on");
+        for (int part : { 2, 0 })
         {
-            dynamic_cast<GeEditor&> (*ed).getCanvas().showPageForTest (pg);
-            auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.f);
-            const char* names[] { "gui_punch.png", "gui_tail.png", "gui_texture.png", "gui_bus.png", "gui_main.png" };
-            PNGImageFormat png; FileOutputStream fo (outDir.getChildFile (names[pg])); fo.setPosition (0); fo.truncate(); png.writeImageToStream (img, fo);
+            ge->canvas.selectPart (part);
+            auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            PNGImageFormat png;
+            FileOutputStream os (outDir.getChildFile (part == 2 ? "gui.png" : "gui_punch.png"));
+            if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
         }
-        p.muteMask.store (0);
+        auto wav = ge->canvas.waveView().writeWav (outDir);
+        check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());
     }
-    printf ("%s\n", ok ? "ALL OK" : "SOME FAILED");
+    printf ("%s\n", ok ? "ALL OK" : "SOMETHING FAILED");
     return ok ? 0 : 1;
 }

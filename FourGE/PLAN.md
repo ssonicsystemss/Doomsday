@@ -127,6 +127,14 @@ Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznyc
 ## Kolejność (zgodnie z etapami SPEC 37, z tym co już mamy)
 0. **Makieta ekranu** + szkielet nowego projektu (komponenty `Source/DSP` / `Parameters` / `Presets` / `GUI`, nowe ID od zera); v0.4 zostaje
    w historii gita jako wzór. (Wcześniej planowany refaktor bit w bit – niepotrzebny po decyzji „od nowa”.) Makieta (industrial, 5 bloków, waveform) do zatwierdzenia.
+**STAN (2026-11-04): ✅ krok 0 (szkielet + Parameter Registry) i ✅ moduł 01 (v0.5) zrobione – czekają na ucho właściciela (A/B).**
+Kod: `Source/Parameters/` (ParamRegistry = jedna tabela X-macro → APVTS / enum P:: / `Tests/param_ids.txt` / tooltipy; ParamFrame = migawka
+wartości na blok), `Source/DSP/Core/` (Blocks: Osc / Noise / kickEnv / pitchShape; Generators: Punch / Body / Tail / Sub), `Source/DSP/Engine.h`
+(KickVoice, 8 głosów CHOKE / POLY, CORE MIXER, 4x oversampling, `renderKick` offline), `Source/GUI/` (pierwszy ekran + WaveView z eksportem WAV),
+`Source/Presets/`. Testy: `Tests/RenderTest.cpp` = 14.1–14.12 z MODULE01 + rejestr + CHARACTER + GUI. Narzędzia: `Tools/` (dopasowanie do
+referencji `kmatch4.py`, A/B `kab4.py`, cechy `kana.py`, wykresy `kplot.py`). Nowy kod wtyczki `Fg5K` (stare projekty z v0.4 zostają na starym pliku).
+Wniosek z A/B: rdzeń (1 oscylator na część) daje czyste, „sterylne” prążki – gęstość referencji przyjdzie z M03 (unison / drift), M04 (szum),
+M05 (stopnie przesteru). DIRTY potrzebuje ~40 dB gainu, żeby mieć górę jak referencje (zakresy drive per CHARACTER w `Engine::cook`).
 1. **Core** – szczegółowa specyfikacja właściciela: **`MODULE01.md`** (PunchGenerator / BodyGenerator / TailGenerator / SubGenerator →
    CoreMixer: level / pan / mute / solo / phase invert / peak; LENGTH 100–2500 ms (domyślnie 450) + AUTO LENGTH, PHASE RESET, MASTER;
    PITCH ENGINE z trybami CLASSIC / FAST / SLOW / DOUBLE DROP, RISE, STABLE, CUSTOM, przygotowany na osobne krzywe P / B / T;

@@ -250,3 +250,4 @@ Domyślny tryb: MANUAL.
 ### 2. SYNC TO BODY END — szczegółowa logika
 Schemat: `0 ms | PUNCH | BODY | ← BODY END → SCREECH | KICK END` – screech rozpoczyna się automatycznie w punkcie BODY END.
 Zasada: `SCREECH_START = BODY_START + BODY_DURATION + SCREECH_OFFSET`
+Przykład: BODY duration 350 ms, SCREECH offset 0 ms → SCREECH start 350 ms. Po zmianie BODY duration na 500 ms SCREECH start automatycznie przesuwa się na 500 ms – użytkownik nic nie przestawia ręcznie.

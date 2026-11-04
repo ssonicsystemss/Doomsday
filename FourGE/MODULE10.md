@@ -65,3 +65,17 @@ Każdy slot ma edytor przebiegu. Pokazuje: waveform mono / stereo, START i END m
 Wymagane: Zoom In / Out, Horizontal Scroll, Fit to Sample, Region Preview, precyzyjna edycja markerów, Undo, Redo.
 Dodatkowe: Transient Detection, Silence Trimming, DC Offset Removal, Normalize.
 Normalizacja i inne operacje destrukcyjne działają na kopii roboczej, nie na oryginalnym pliku.
+
+## 8. Przetwarzanie slotu (tytuł punktu nie dotarł)
+Każdy slot ma niezależne przetwarzanie:
+| Parametr | Zakres |
+|---|---|
+| LEVEL | -60 do +12 dB |
+| PAN | -100 do +100 |
+| WIDTH | 0–200% |
+| PITCH | -48 do +48 semitones |
+| FINE | -100 do +100 cents |
+| PHASE OFFSET | kontrolowany zakres |
+| POLARITY | Normal / Invert |
+| FILTER SEND | 0–100% |
+| DISTORTION SEND | 0–100% |

@@ -92,3 +92,8 @@ Próbkę można kierować przed lub po wybranych procesorach zgodnie z architekt
 Wyszukiwanie po nazwie i tagach, filtrowanie kategorii, Favorites, ostatnio używane, Preview bez przypisywania do slotu.
 Brakujący plik w presecie → komunikat + RELINK. Nie wolno po cichu zastępować brakującej próbki innym plikiem.
 COLLECT SAMPLES kopiuje potrzebne pliki do folderu projektu wyłącznie po świadomej decyzji użytkownika.
+
+## 11. INTEGRACJA Z POZOSTAŁYMI MODUŁAMI
+Współpraca z: Module 04 (Noise, Transient & Layer), Module 05 (Distortion & Waveshaper), Module 06 (Filter, Resonance & Screech), Module 08 (Dynamics), Module 09 (Modulation Matrix).
+Wszystkie parametry sampli dostępne dla automatyzacji i modulacji.
+Style EARLY / MODERN / RAWSTYLE / EXPERIMENTAL mogą zmieniać ustawienia domyślne, ale nie ograniczają funkcjonalności silnika.

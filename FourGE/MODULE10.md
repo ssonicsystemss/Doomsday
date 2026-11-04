@@ -86,3 +86,4 @@ Parametry slotów dostępne w Modulation Matrix.
 Sample Engine współpracuje z pozostałymi generatorami 4GE.
 Przykład: `SAMPLE SLOT 01 → PUNCH → DISTORTION → MASTER OUTPUT`
 Drugi przykład: `SAMPLE SLOT 02 → TAIL → FILTER → DISTORTION → DYNAMICS → MASTER OUTPUT`
+Próbkę można kierować przed lub po wybranych procesorach zgodnie z architekturą routingu. Routing nie może tworzyć niekontrolowanych pętli sprzężenia.

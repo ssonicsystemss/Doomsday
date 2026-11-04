@@ -60,3 +60,14 @@ Wszystkie generatory losowe korzystają z kontrolowanego systemu seedów. Render
 
 ## 11. BATCH EXPORT ENGINE
 Wiele wariantów bez ręcznego uruchamiania każdego renderu: wiele presetów, grup, wariantów, seedów, wybranych warstw; automatyczne nazewnictwo plików.
+Przykładowa struktura:
+```
+4GE_EXPORT/
+    EARLY/KICK_01/     KICK_FULL.wav  KICK_PUNCH.wav  KICK_BODY.wav  KICK_TAIL.wav
+    MODERN/KICK_02/    KICK_FULL.wav  KICK_PUNCH.wav  KICK_BODY.wav  KICK_TAIL.wav
+    RAWSTYLE/KICK_03/  KICK_FULL.wav  KICK_PUNCH.wav  KICK_BODY.wav  KICK_TAIL.wav
+```
+Wybór folderu docelowego. Bez nadpisywania istniejących plików bez wyraźnej zgody.
+
+## 12. FILE NAMING SYSTEM
+Generator nazw plików. Elementy: PRESET NAME, STYLE, ROOT NOTE, BPM, GROUP, VARIANT, VERSION, SEED.

@@ -29,6 +29,16 @@ Zasady jak w RE4GE: krok po kroku, po każdym kroku kompilacja + testy + A/B dla
 modułów 01–16 (Parameter Registry) – żadnego „pięknego” interfejsu, którego nie da się sensownie połączyć z DSP. Makieta `Design/mock.html`
 jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po DSP.
 
+## Odpowiedzi na pytania końcowe (2026-11-04)
+- **Makra = trzy poziomy, jeden nadrzędny system** (właściciel): poziom 1 = MASTER MACROS – jedyne 8 makr stale w głównym GUI,
+  każde steruje kilkoma parametrami z różnych modułów (np. GRIT: drive M05 + harmoniczne + agresywność wybranych elementów),
+  z zaprojektowaną krzywą działania i określonymi celami – NIE podnosi wszystkiego naraz. Makra modułów 05–08 (BRIGHTNESS, LOUDNESS,
+  CRUSH…) to wewnętrzne narzędzia pod spodem – nigdy drugi konkurencyjny zestaw głównych makr. (Nazwy 8 MASTER MACROS i opis
+  poziomów 2–3: czekamy na właściciela.)
+- Reverse bass przy EARLY: bez preferencji → 4GE robi kick pod RE4GE (bez dublowania); ewentualnie później prosta warstwa reverse.
+- Sample w presetach: bez preferencji → osadzane w presecie / stanie (jak RE4GE), RELINK gdy brak i nie ma kopii.
+- PRE-ROLL screecha: bez preferencji → ciche rozkręcenie silnika przed START (słychać od START).
+
 ## Domyślna konfiguracja komponentów (rekomendacja właściciela, 2026-11-03)
 Nie każdy komponent ma te same funkcje włączone na start – początkujący od razu robi sensowny kick, zaawansowany ma całą maszynerię:
 | Komponent | Domyślnie |

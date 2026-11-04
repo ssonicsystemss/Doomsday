@@ -81,3 +81,6 @@ Każdy slot ma niezależne przetwarzanie:
 | DISTORTION SEND | 0–100% |
 Każdy slot ma własną obwiednię amplitudy: ADSR, One Shot, Multi-Point Envelope.
 Parametry slotów dostępne w Modulation Matrix.
+
+## 9. SAMPLE ROUTING
+Sample Engine współpracuje z pozostałymi generatorami 4GE.

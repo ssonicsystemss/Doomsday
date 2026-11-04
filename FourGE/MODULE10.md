@@ -54,3 +54,8 @@ Każdy slot ma niezależną kontrolę odtwarzania.
 | ROOT NOTE | Nuta bazowa próbki |
 | PITCH TRACKING | ON/OFF – reakcja na nuty MIDI względem nuty bazowej |
 | FINE TUNE | -100 do +100 centów |
+
+## 6. TIME STRETCH
+Opcjonalny algorytm zmieniający długość próbki bez zmiany wysokości.
+Wymagania: zachowanie transjentów; minimalizacja artefaktów; zachowanie oryginalnej długości lub dopasowanie do określonego czasu; mono i stereo.
+Ciężkie obliczenia – przygotowanie danych poza wątkiem audio; nie blokować audio callback.

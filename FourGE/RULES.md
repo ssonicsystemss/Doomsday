@@ -42,3 +42,8 @@ EARLY NIE MOŻE zawierać: generatora reverse bassu, jego obwiedni ani dedykowan
 2. DAW Routing – wyjście RE4GE do ścieżki z 4GE lub odwrotnie, standardowym routingiem DAW.
 3. Preset Compatibility – wspólna koncepcja bibliotek, tagów i metadanych, ale BEZ założenia, że presety jednego pluginu otwierają się w drugim.
 Bez obowiązkowego połączenia między wtyczkami – każda działa samodzielnie.
+
+### PRODUCT SCOPE — 4GE (właściciel)
+**IN SCOPE:** Full Hardstyle Kick Synthesis · Punch / Body / Tail / Sub Generation · Pitch Envelope Engine · Transient & Layer Engine · Distortion & Waveshaping · Filter & Screech Engine · Dynamics & Stereo Processing · Advanced Modulation · Style & Length Engines · Presets & Kick Analysis.
+**OUT OF SCOPE:** Dedicated Reverse Bass Synthesizer · Reverse Bass Oscillation Engine · Reverse Bass Envelope System · Dedicated Reverse Bass Pattern Generator · RE4GE-specific synthesis algorithms.
+(Step sequencer z M09 zostaje – to źródło MODULACJI parametrów kicka, nie generator patternów reverse bassu.)

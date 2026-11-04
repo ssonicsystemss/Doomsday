@@ -232,3 +232,8 @@ Zakaz: atrapy parametrów, kontrolki bez wpływu na DSP, tryby korzystające z t
 - Pitch screecha: jedna suma w półtonach (nuta + pitch engine przy SYNC + obwiednia screecha), clamp.
 - MIDI Learn – własny (prawy klik na gałce).
 - PYTANIA: (1) PRE-ROLL – ciche rozkręcenie silnika przed START czy słyszalne wejście wcześniej? (2) dodać SYNC TO BODY END (screech startuje z końcem BODY – układ z przykładu w pkt 6)? (3) makro SCREAM modułu 06 = to samo co główne makro SCREAM z 8 makr 4GE, czy osobne?
+
+---
+## DODATEK (właściciel, 2026-11-04): SCREECH START MODE
+Odpowiedź na pytanie o SYNC TO BODY END: TAK – jako osobny system SCREECH START MODE, a nie zwykłe automatyczne przesuwanie parametru START.
+System określa, kiedy generator screechu rozpoczyna pracę względem pozostałych elementów kicka.

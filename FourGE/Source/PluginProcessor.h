@@ -79,7 +79,7 @@ public:
     static constexpr const char* oscsTag = "OSCS";
     const fge::dsp::OscData& oscData() const { return oscDataNow; }
     uint32_t oscDataVersion() const { return oscVersion; }
-    void setOscProperty (int osc, const juce::String& key, const juce::String& text, bool undoable = true);
+    void setOscProperty (int osc, const juce::String& key, const juce::String& text, bool undoable = true, bool newUndoStep = true);
     void setOscCustom (int osc, const fge::env::Shape& s) { setOscProperty (osc, "custom", s.toString()); }
     // the tables the engine plays now (shared copies for the waveform renderer)
     std::array<fge::dsp::TablePtr, fge::dsp::maxOsc> currentTables() const { const juce::SpinLock::ScopedLockType l (tableLock); return tablesNow; }

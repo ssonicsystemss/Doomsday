@@ -92,8 +92,10 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     }
     envPage = std::make_unique<fge::gui::EnvPage> (proc, lnf);
     addChildComponent (*envPage);
-    const char* pages[2] { "MAIN", "ENVELOPES" };
-    for (int i = 0; i < 2; ++i)
+    oscPage = std::make_unique<fge::gui::OscPage> (proc, lnf);
+    addChildComponent (*oscPage);
+    const char* pages[3] { "MAIN", "ENVELOPES", "OSCILLATORS" };
+    for (int i = 0; i < 3; ++i)
     {
         pageBtn[(size_t) i].setButtonText (pages[i]);
         pageBtn[(size_t) i].onClick = [this, i] { showPage (i); };
@@ -101,6 +103,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     }
     pageBtn[0].setTooltip ("The kick: parts, sources, mixer.");
     pageBtn[1].setTooltip ("Draw the pitch / amplitude / filter / distortion / resonance envelope of every part.");
+    pageBtn[2].setTooltip ("Four extra oscillators (waveforms, wavetables, harmonics, unison, FM, ring, sync) routed into the parts.");
     selectPart (2);
     showPage (0);
     updateEnabled();
@@ -144,7 +147,7 @@ void GeCanvas::selectPart (int i)
 
 void GeCanvas::showPage (int i)
 {
-    pageIdx = jlimit (0, 1, i);
+    pageIdx = jlimit (0, 2, i);
     const bool main = pageIdx == 0;
     for (int p = 0; p < 4; ++p)
     {
@@ -153,9 +156,11 @@ void GeCanvas::showPage (int i)
         for (auto* c : detail[(size_t) p]) if (c != nullptr) c->setVisible (main && p == selected);
     }
     for (auto* c : masterRow) c->setVisible (main);
-    envPage->setVisible (! main);
+    envPage->setVisible (pageIdx == 1);
+    oscPage->setVisible (pageIdx == 2);
+    wave.setVisible (pageIdx != 2);
     const auto& c = palette();
-    for (int k = 0; k < 2; ++k)
+    for (int k = 0; k < 3; ++k)
     {
         pageBtn[(size_t) k].setColour (TextButton::buttonColourId, k == pageIdx ? c.red : c.control);
         pageBtn[(size_t) k].setColour (TextButton::textColourOffId, k == pageIdx ? c.ground : c.silver);
@@ -178,7 +183,7 @@ void GeCanvas::resized()
     int x = 330;
     for (int i = 0; i < 3; ++i) { header[(size_t) i]->setBounds (x, 10, 70, Knob::heightFor (44)); x += 74; }
     for (int i = 0; i < 3; ++i) header[(size_t) 3 + (size_t) i]->setBounds (x + 14, 14 + i * 26, 150, 22);
-    header[6]->setBounds (x + 190, 40, 150, 26);
+    header[6]->setBounds (x + 190, 40, 136, 26);
     // pitch engine
     pitchArea = { 16, 104, W - 32, 84 };
     pitchRow[0]->setBounds (pitchArea.getX() + 14, pitchArea.getY() + 40, 520, 28);
@@ -215,8 +220,10 @@ void GeCanvas::resized()
     }
     layoutDetail();
     if (envPage != nullptr) envPage->setBounds (16, 430, W - 32, H - 430 - 16);
-    pageBtn[0].setBounds (896, 14, 64, 30);
-    pageBtn[1].setBounds (896, 52, 64, 30);
+    if (oscPage != nullptr) oscPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
+    pageBtn[0].setBounds (884, 8, 76, 26);
+    pageBtn[1].setBounds (884, 37, 76, 26);
+    pageBtn[2].setBounds (884, 66, 76, 26);
 }
 
 void GeCanvas::layoutDetail()

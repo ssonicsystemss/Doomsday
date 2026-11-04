@@ -416,6 +416,7 @@ int main (int argc, char** argv)
                 set2 (o + "on", 1.f);
                 const String k = sid.fromFirstOccurrenceOf ("_", false, false);
                 if (k == "noise") set2 (o + "wave", 5.f);
+                if (k == "solo") set2 (other + "on", 1.f);
                 if (k == "freq") set2 (o + "track", 4.f);
                 if (k == "pw") set2 (o + "wave", 4.f);
                 if (k == "phase_random") set2 (o + "phase_mode", 1.f);
@@ -830,6 +831,35 @@ int main (int argc, char** argv)
             FileOutputStream os (outDir.getChildFile ("gui_envelopes.png"));
             if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
             ge->canvas.showPage (0);
+        }
+        // OSCILLATORS page (module 03): every tab wired, the scope shows the REAL spectrum
+        {
+            ge->canvas.showPage (2);
+            auto& op = ge->canvas.oscillators();
+            setP (p, "osc1_on", 1.f); setP (p, "osc1_wave", 8.f); setP (p, "osc1_h_even", 0.f);
+            p.refreshTables();
+            op.selectOsc (0);
+            bool wired = true; String missing;
+            const char* need[8] { "osc1_noise", "osc1_wt_position", "osc1_h_odd", "osc1_detune", "fm_2_to_1", "osc1_ring_mix", "osc1_phase_mode", "osc1_sync_amount" };
+            for (int t = 0; t < 8; ++t) { op.selectTab (t); if (op.findControl (need[t]) == nullptr) { wired = false; missing << need[t] << " "; } }
+            op.selectTab (2);
+            op.scope().update (p.frame(), p.currentTables(), 0, false, true);
+            for (int i = 0; i < 300 && ! op.scope().hasRender(); ++i) Thread::sleep (20);
+            Thread::sleep (200);
+            const auto sp = op.scope().lastSpectrum();
+            const float oddMinusEven = sp[2] - sp[1];                         // harmonic 3 vs harmonic 2
+            check (wired && op.scope().hasRender() && oddMinusEven > 30.f, "M03 GUI: 8 tabs wired, the scope spectrum is the real signal (EVEN 0 -> no h2)",
+                   "h3 - h2 = " + String (oddMinusEven, 1) + " dB " + missing);
+            auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            PNGImageFormat png;
+            FileOutputStream os (outDir.getChildFile ("gui_oscillators.png"));
+            if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            op.selectTab (0);
+            auto img2 = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os2 (outDir.getChildFile ("gui_oscillators_wave.png"));
+            if (os2.openedOk()) { os2.setPosition (0); os2.truncate(); png.writeImageToStream (img2, os2); }
+            ge->canvas.showPage (0);
+            setP (p, "osc1_on", 0.f);
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);
         check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());

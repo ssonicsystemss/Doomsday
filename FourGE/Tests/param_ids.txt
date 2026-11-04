@@ -513,3 +513,11 @@ fm_3_to_4
 fm_4_to_1
 fm_4_to_2
 fm_4_to_3
+osc1_mute
+osc1_solo
+osc2_mute
+osc2_solo
+osc3_mute
+osc3_solo
+osc4_mute
+osc4_solo

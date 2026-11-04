@@ -25,6 +25,7 @@ namespace fge::gui
             std::function<float (float v)> toUser;                  // value -> number the user types
             std::function<float (float x)> fromUser;                // and back
             juce::String unit;                                      // "st", "%"
+            juce::String timeUnit { " ms" };                         // " ms" (envelopes) / the cycle in degrees
         };
 
         EnvEditor();

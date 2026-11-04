@@ -111,7 +111,7 @@ namespace fge::gui
             const float x = xOf (ms / jmax (1.0e-3f, axis.spanMs));
             g.setColour (c.grid); g.drawVerticalLine (roundToInt (x), p.getY(), p.getBottom());
             g.setColour (c.textDim);
-            g.drawText (String (roundToInt (ms + axis.offsetMs)) + " ms", jmin ((int) x - 30, getWidth() - 62), (int) p.getBottom() + 4, 60, 14, Justification::centred);
+            g.drawText (String (roundToInt (ms + axis.offsetMs)) + axis.timeUnit, jmin ((int) x - 30, getWidth() - 62), (int) p.getBottom() + 4, 60, 14, Justification::centred);
         }
         for (int k = 0; k <= 8; ++k)
         {
@@ -174,7 +174,7 @@ namespace fge::gui
         if (hover >= 0 && hover < sh.n)
         {
             const auto& q = sh.p[(size_t) hover];
-            info << "   |   " << String (q.t * axis.spanMs + axis.offsetMs, 1) << " ms, " << (axis.label ? axis.label (q.v) : String (q.v, 2))
+            info << "   |   " << String (q.t * axis.spanMs + axis.offsetMs, 1) << axis.timeUnit << ", " << (axis.label ? axis.label (q.v) : String (q.v, 2))
                  << ", " << env::curveName (q.curve) << (std::abs (q.tension) > 0.005f ? " " + String (q.tension, 2) : String());
         }
         g.drawText (info, p.reduced (8.f, 4.f).toNearestInt(), Justification::topRight);

@@ -10,5 +10,5 @@ doomsday_plugin(FourGE FLAT
     CODE Fg5K
     VENDOR "sonicsystems"
     CATEGORIES Instrument Drum
-    SOURCES Source/PluginProcessor.cpp Source/GUI/PluginEditor.cpp Source/GUI/WaveView.cpp Source/GUI/EnvEditor.cpp Source/GUI/EnvPage.cpp Source/Parameters/ParamRegistry.cpp Source/Presets/FactoryPresets.cpp
+    SOURCES Source/PluginProcessor.cpp Source/GUI/PluginEditor.cpp Source/GUI/WaveView.cpp Source/GUI/EnvEditor.cpp Source/GUI/EnvPage.cpp Source/GUI/OscPage.cpp Source/GUI/OscScope.cpp Source/Parameters/ParamRegistry.cpp Source/Presets/FactoryPresets.cpp
     TEST Tests/RenderTest.cpp)

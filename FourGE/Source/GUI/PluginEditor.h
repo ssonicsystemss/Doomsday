@@ -12,6 +12,7 @@
 #include "../PluginProcessor.h"
 #include "WaveView.h"
 #include "EnvPage.h"
+#include "OscPage.h"
 #include "Palette.h"
 
 class GeCanvas : public juce::Component, private juce::Timer
@@ -27,7 +28,8 @@ public:
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
-    void showPage (int);                                             // 0 = MAIN, 1 = ENVELOPES (module 02)
+    void showPage (int);                                             // 0 = MAIN, 1 = ENVELOPES (module 02), 2 = OSCILLATORS (module 03)
+    fge::gui::OscPage& oscillators() { return *oscPage; }
     int page() const { return pageIdx; }
     fge::gui::EnvPage& envelopes() { return *envPage; }
 private:
@@ -67,7 +69,8 @@ private:
     int selected = 2;
     int pageIdx = 0;
     std::unique_ptr<fge::gui::EnvPage> envPage;
-    std::array<juce::TextButton, 2> pageBtn;
+    std::unique_ptr<fge::gui::OscPage> oscPage;
+    std::array<juce::TextButton, 3> pageBtn;
     std::array<float, 4> meter {};
     float outMeter = 0.f;
 };

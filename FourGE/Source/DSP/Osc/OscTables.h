@@ -35,6 +35,63 @@ namespace fge::dsp
         }
     };
 
+inline void cookOscBank (const ParamFrame& f, OscBankSettings& ob)
+{
+        auto db = [] (float v) { return std::pow (10.f, v / 20.f); };
+        ob.any = false; ob.tailStereo = false;
+        const int stride = P::osc2On - P::osc1On;
+        for (int i = 0; i < numOsc; ++i)
+        {
+            auto& o = ob.o[(size_t) i];
+            auto at = [&] (int first) { return first + i * stride; };
+            o.on = f.on (at (P::osc1On));
+            if (! o.on) continue;
+            o.wave = f.idx (at (P::osc1Wave)); o.noise = f.idx (at (P::osc1Noise)); o.track = f.idx (at (P::osc1Track));
+            o.fixedHz = f[at (P::osc1Freq)];
+            const float ratio = juce::jmax (0.05f, f[at (P::osc1Ratio)] + f[at (P::osc1RatioFine)]);
+            o.mul = std::exp2 (std::round (f[at (P::osc1Oct)]) + std::round (f[at (P::osc1Semi)]) / 12.f + f[at (P::osc1Fine)] / 1200.f) * ratio;
+            const float lvl = f[at (P::osc1Level)] <= -59.9f ? 0.f : db (f[at (P::osc1Level)]);
+            o.gain = lvl * (f.on (at (P::osc1Invert)) ? -1.f : 1.f);
+            const float a = (juce::jlimit (-1.f, 1.f, f[at (P::osc1Pan)]) + 1.f) * juce::MathConstants<float>::pi * 0.25f;
+            o.panL = std::cos (a) * 1.41421356f; o.panR = std::sin (a) * 1.41421356f;
+            o.phase01 = f[at (P::osc1Phase)] / 360.f; o.phaseMode = f.idx (at (P::osc1PhMode)); o.phaseRand = f[at (P::osc1PhRand)];
+            o.phaseSrc = f.idx (at (P::osc1PhSrc));
+            o.pw = f[at (P::osc1Pw)];
+            o.uni = juce::jlimit (1, maxUnison, (int) std::lround (f[at (P::osc1Uni)]));
+            o.detuneCt = f[at (P::osc1Detune)] * 100.f; o.spread = f[at (P::osc1Spread)]; o.blend = f[at (P::osc1Blend)];
+            o.uniMode = f.idx (at (P::osc1UniMode)); o.uniPhase = f.idx (at (P::osc1UniPh));
+            o.seed = (uint32_t) std::lround (f[at (P::osc1Seed)]);
+            layoutUnison (o);
+            o.fmFb = f[at (P::osc1FmFb)]; o.fmEnv = f[at (P::osc1FmEnv)]; o.decayMs = f[at (P::osc1ModDecay)];
+            o.ringSrc = f.idx (at (P::osc1RingSrc)); o.ringAmt = f[at (P::osc1RingAmt)]; o.ringMix = f[at (P::osc1RingMix)];
+            o.ringHz = f[at (P::osc1RingHz)]; o.ringEnv = f[at (P::osc1RingEnv)];
+            o.syncSrc = f.idx (at (P::osc1SyncSrc)); o.syncMode = f.idx (at (P::osc1SyncMode));
+            o.syncRatio = 1.f + 7.f * f[at (P::osc1SyncAmt)];
+            const int to[4] { P::osc1ToPunch, P::osc1ToBody, P::osc1ToTail, P::osc1ToSub };
+            for (int d = 0; d < 4; ++d) o.route[(size_t) d] = f[at (to[d])] <= -59.9f ? 0.f : db (f[at (to[d])]);
+            o.wtMode = f.idx (at (P::osc1WtMode)); o.wtPos = f[at (P::osc1WtPos)]; o.wtMorph = f[at (P::osc1WtMorph)];
+            o.wtStart = f[at (P::osc1WtStart)]; o.wtEnd = f[at (P::osc1WtEnd)]; o.wtRateMs = f[at (P::osc1WtRate)];
+            const bool routed = o.route[0] + o.route[1] + o.route[2] + o.route[3] > 0.f && lvl > 0.f;
+            ob.any = true; juce::ignoreUnused (routed);       // (an unrouted oscillator can still be an FM / ring / sync source)
+        }
+        // MUTE: silent, still a modulation source; SOLO: only the soloed oscillators are heard
+        const int muteIds[numOsc] { P::osc1Mute, P::osc2Mute, P::osc3Mute, P::osc4Mute }, soloIds[numOsc] { P::osc1Solo, P::osc2Solo, P::osc3Solo, P::osc4Solo };
+        bool anySolo = false;
+        for (int i = 0; i < numOsc; ++i) anySolo |= ob.o[(size_t) i].on && f.on (soloIds[i]);
+        for (int i = 0; i < numOsc; ++i)
+        {
+            auto& o = ob.o[(size_t) i];
+            o.audible = o.on && ! f.on (muteIds[i]) && (! anySolo || f.on (soloIds[i]));
+            if (o.audible && o.route[2] > 0.f && (std::abs (f[P::osc1Pan + i * (P::osc2On - P::osc1On)]) > 0.001f || (o.uni > 1 && o.spread > 0.001f))) ob.tailStereo = true;
+        }
+        const int fmIds[numOsc][numOsc] { { -1, P::fm1to2, P::fm1to3, P::fm1to4 }, { P::fm2to1, -1, P::fm2to3, P::fm2to4 },
+                                          { P::fm3to1, P::fm3to2, -1, P::fm3to4 }, { P::fm4to1, P::fm4to2, P::fm4to3, -1 } };
+        for (int a2 = 0; a2 < numOsc; ++a2)
+            for (int b2 = 0; b2 < numOsc; ++b2)
+                ob.fm[a2][b2] = fmIds[a2][b2] < 0 || ! ob.o[(size_t) a2].on ? 0.f : f[fmIds[a2][b2]];
+    }
+
+
     namespace osctables
     {
         inline int idx (int osc, int first) { return first + osc * (P::osc2On - P::osc1On); }
@@ -184,5 +241,35 @@ namespace fge::dsp
             for (auto& f : frames) all.insert (all.end(), f.begin(), f.end());
             return all.empty() ? juce::String() : floatsToText (all.data(), all.size());
         }
+    }
+}
+
+namespace fge::dsp
+{
+    // ---- preview for the GUI (runs on the GUI's background thread): the oscillators at a steady pitch, no part chain.
+    //      only = -1 the audible sum, 0..3 one oscillator (its raw output); post = false switches FM / ring / sync off.
+    inline std::vector<float> renderOscPreview (const ParamFrame& f, const OscTables& tb, int only, bool post, float hz, int n, double rate)
+    {
+        OscBankSettings s;
+        cookOscBank (f, s);
+        if (! post)
+        {
+            for (auto& o : s.o) { o.ringSrc = 0; o.syncSrc = 0; o.fmFb = 0.f; }
+            for (auto& row : s.fm) for (auto& v : row) v = 0.f;
+        }
+        for (auto& o : s.o) { o.route = { 0.f, 0.f, 1.f, 0.f }; o.panL = o.panR = 1.f; }
+        auto v = std::make_unique<OscBankVoice>();
+        const std::array<float, 4> partHz { hz, hz, hz, hz };
+        v->start (s, partHz, 0.0, 0);
+        std::vector<float> out ((size_t) n, 0.f);
+        const float inv = (float) (1.0 / rate);
+        for (int i = 0; i < n; ++i)
+        {
+            std::array<float, 4> dest {}; float l = 0.f, r = 0.f;
+            v->tick (s, tb, partHz, 1000.f * (float) i / (float) rate, inv, dest, l, r);
+            if (only < 0) out[(size_t) i] = dest[2];
+            else { const auto& o = s.o[(size_t) only]; out[(size_t) i] = o.on ? v->unitOf (only).out * std::abs (o.gain) * (o.gain < 0.f ? -1.f : 1.f) : 0.f; }
+        }
+        return out;
     }
 }

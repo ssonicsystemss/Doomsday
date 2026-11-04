@@ -205,7 +205,11 @@ namespace fge
     F (tailHoldLvl,  "tail_hold_level", "Tok Level",           Unit::Db,   -24.f,   6.f,   0.f,   0.f,   FMod) \
     FGE_OSC (F, B, C, 1) FGE_OSC (F, B, C, 2) FGE_OSC (F, B, C, 3) FGE_OSC (F, B, C, 4) \
     FGE_FM (F, 1, 2) FGE_FM (F, 1, 3) FGE_FM (F, 1, 4) FGE_FM (F, 2, 1) FGE_FM (F, 2, 3) FGE_FM (F, 2, 4) \
-    FGE_FM (F, 3, 1) FGE_FM (F, 3, 2) FGE_FM (F, 3, 4) FGE_FM (F, 4, 1) FGE_FM (F, 4, 2) FGE_FM (F, 4, 3)
+    FGE_FM (F, 3, 1) FGE_FM (F, 3, 2) FGE_FM (F, 3, 4) FGE_FM (F, 4, 1) FGE_FM (F, 4, 2) FGE_FM (F, 4, 3) \
+    B (osc1Mute, "osc1_mute", "Osc 1 Mute", false, FNone) B (osc1Solo, "osc1_solo", "Osc 1 Solo", false, FNone) \
+    B (osc2Mute, "osc2_mute", "Osc 2 Mute", false, FNone) B (osc2Solo, "osc2_solo", "Osc 2 Solo", false, FNone) \
+    B (osc3Mute, "osc3_mute", "Osc 3 Mute", false, FNone) B (osc3Solo, "osc3_solo", "Osc 3 Solo", false, FNone) \
+    B (osc4Mute, "osc4_mute", "Osc 4 Mute", false, FNone) B (osc4Solo, "osc4_solo", "Osc 4 Solo", false, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

@@ -1,5 +1,6 @@
 #include "EnvPage.h"
 #include "Palette.h"
+#include "../Presets/OscFiles.h"
 
 using namespace juce;
 
@@ -259,31 +260,24 @@ namespace fge::gui
     void EnvPage::saveShapeFile()
     {
         if (slot() < 0) return;
-        auto dir = File::getSpecialLocation (File::userDocumentsDirectory).getChildFile ("4GE").getChildFile ("Envelopes");
-        dir.createDirectory();
         const String name = String (partName[part]) + " " + viewName[view];
-        chooser = std::make_unique<FileChooser> ("Save envelope", dir.getChildFile (name + ".4genv"), "*.4genv");
-        const String text = "4GE-ENV " + proc.shape (slot()).toString();
-        chooser->launchAsync (FileBrowserComponent::saveMode | FileBrowserComponent::warnAboutOverwriting, [text] (const FileChooser& fc)
+        chooser = std::make_unique<FileChooser> ("Save envelope", files::folder ("Envelopes").getChildFile (name + ".4genv"), "*.4genv");
+        const auto shape = proc.shape (slot());
+        chooser->launchAsync (FileBrowserComponent::saveMode | FileBrowserComponent::warnAboutOverwriting, [shape] (const FileChooser& fc)
         {
             auto f = fc.getResult();
-            if (f != File()) f.withFileExtension ("4genv").replaceWithText (text);
+            if (f != File()) files::writeShape (f.withFileExtension ("4genv"), shape);
         });
     }
     void EnvPage::loadShapeFile()
     {
         if (slot() < 0) return;
-        auto dir = File::getSpecialLocation (File::userDocumentsDirectory).getChildFile ("4GE").getChildFile ("Envelopes");
-        chooser = std::make_unique<FileChooser> ("Load envelope", dir, "*.4genv");
+        chooser = std::make_unique<FileChooser> ("Load envelope", files::folder ("Envelopes"), "*.4genv");
         SafePointer<EnvPage> self (this);
         chooser->launchAsync (FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles, [self] (const FileChooser& fc)
         {
-            auto f = fc.getResult();
-            if (self == nullptr || ! f.existsAsFile()) return;
-            const auto t = f.loadFileAsString().trim();
             env::Shape s;
-            if (t.startsWith ("4GE-ENV ") && env::Shape::fromString (t.fromFirstOccurrenceOf (" ", false, false), s, GeProcessor::slotMin (self->slot()), 1.f))
-                self->commitShape (s);
+            if (self != nullptr && files::readShape (fc.getResult(), s, GeProcessor::slotMin (self->slot()))) self->commitShape (s);
         });
     }
 

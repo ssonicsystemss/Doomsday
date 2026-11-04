@@ -27,7 +27,7 @@ namespace fge::dsp
 
     struct OscSettings
     {
-        bool on = false;
+        bool on = false, audible = false;
         int wave = WSaw, noise = NoiseWhite, track = TrackTail;
         float fixedHz = 110.f, mul = 1.f;                 // octave x semitone x fine x FM ratio
         float gain = 0.5f, panL = 1.f, panR = 1.f;        // level (and INVERT sign) / constant-power pan
@@ -236,6 +236,7 @@ namespace fge::dsp
                 const float outL = u.L + u.pending, outR = u.R + u.pending;
                 u.pending = 0.f;
                 u.L = yL; u.R = yR;
+                if (! o.audible) continue;                                      // MUTE / not SOLO: still a modulation source
                 const float gl = outL * o.gain * o.panL, gr = outR * o.gain * o.panR, mono = 0.5f * (gl + gr);
                 for (int d = 0; d < 4; ++d) dest[(size_t) d] += mono * o.route[(size_t) d];
                 tailL += gl * o.route[2]; tailR += gr * o.route[2];

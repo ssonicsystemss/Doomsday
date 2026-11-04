@@ -90,7 +90,7 @@ void GeProcessor::resetShapes (bool undoable)
     if (t.isValid()) t.removeAllProperties (undoable ? &undo : nullptr);
     rebuildShapes();
 }
-void GeProcessor::setOscProperty (int osc, const String& key, const String& text, bool undoable)
+void GeProcessor::setOscProperty (int osc, const String& key, const String& text, bool undoable, bool newUndoStep)
 {
     if (! isPositiveAndBelow (osc, fge::dsp::numOsc)) return;
     auto root = apvts.state.getChildWithName (oscsTag);
@@ -98,7 +98,7 @@ void GeProcessor::setOscProperty (int osc, const String& key, const String& text
     const Identifier id ("osc" + String (osc + 1));
     auto t = root.getChildWithName (id);
     if (! t.isValid()) { t = ValueTree (id); root.appendChild (t, nullptr); }
-    if (undoable) undo.beginNewTransaction ("Oscillator");
+    if (undoable && newUndoStep) undo.beginNewTransaction ("Oscillator");
     t.setProperty (key, text, undoable ? &undo : nullptr);
 }
 void GeProcessor::rebuildOscData()

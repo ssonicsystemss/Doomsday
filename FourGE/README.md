@@ -2,7 +2,8 @@
 
 Syntezator kicków hardstyle (instrument VST3, FL Studio). **v0.5 to nowy 4GE budowany od zera** według Twojej specyfikacji
 17 modułów (`SPEC.md`, `MODULE01.md`…`MODULE12.md`, `MODULES13-17_overview.md`, zasady nadrzędne w `RULES.md`, plan w `PLAN.md`).
-Ta wersja to **moduł 01 – CORE KICK ENGINE** (cztery niezależne części kicka i ich mikser) + **moduł 02 – obwiednie** (strona ENVELOPES).
+Ta wersja to **moduł 01 – CORE KICK ENGINE** (cztery niezależne części kicka i ich mikser) + **moduł 02 – obwiednie** (strona ENVELOPES)
++ **moduł 03 – oscylatory** (strona OSCILLATORS).
 Kolejne moduły dokładają resztę.
 
 > **Ważne przy instalacji:** nowy 4GE ma wszystkie parametry nowe, więc ma też **nowy identyfikator wtyczki**.
@@ -73,6 +74,23 @@ Przycisk **ENVELOPES** u góry (obok **MAIN**). Po lewej wybierasz **część** 
   **SYNC** (czasy zsynchronizowanych obwiedni idą za BPM z FL; bez BPM z hosta – LOCAL BPM).
 - Narysowane obwiednie zapisują się w projekcie FL i w presetach użytkownika.
 
+## Strona OSCILLATORS (moduł 03)
+Przycisk **OSCILLATORS** u góry. **Cztery dodatkowe oscylatory** – każdy wpada DO wybranej części (PUNCH / BODY / TAIL / SUB) przed jej
+filtrem i przesterem, więc oscylator wysłany do TAIL przechodzi przez CHARACTER, obwiednię i cięcia ogona. Domyślnie wyłączone (dźwięk się nie zmienia).
+- **Sekcja oscylatora**: ON, MUTE (cichy, ale dalej moduluje FM / ring / sync), SOLO, RESET, PRESET (kategorie: CLEAN SINE, CLASSIC HARDSTYLE,
+  AGGRESSIVE SAW, METALLIC, FM TONES, SCREAM SOURCES, EXPERIMENTAL, SUB SOURCES + zapis / odczyt), WAVEFORM, PITCH FROM (wysokość z PUNCH / BODY /
+  TAIL / SUB albo stałe Hz), LEVEL, OCT, SEMI, FINE, PHASE, UNISON, wysyłki **> PUNCH / > BODY / > TAIL / > SUB** (każda z własnym poziomem), PAN.
+- **Przebiegi**: SINE, TRIANGLE, SAW, SQUARE, PULSE (szerokość 1–99 %), NOISE (WHITE / PINK / BROWN / METALLIC / DIGITAL),
+  **CUSTOM** (rysujesz jeden cykl albo IMPORT WAV – z pliku brany jest jeden okres, to źródło przebiegu, nie sampel kicka),
+  **WAVETABLE** (BASIC, HARDSTYLE, FORMANT, METAL, PWM SWEEP albo USER = Twój WAV pocięty na klatki; POSITION, MORPH, skan STATIC / LINEAR /
+  ENVELOPE / LFO / RANDOM z seedem), **HARMONIC** (64 harmoniczne do narysowania + AMOUNT, ODD, EVEN, ROLL-OFF, TILT, SPREAD, PHASE, RANDOM).
+- **Zakładki** wybranego oscylatora: WAVEFORM, WAVETABLE, HARMONICS, UNISON (1–16 głosów, DETUNE, SPREAD, BLEND, tryby, fazy głosów),
+  FM MATRIX (wiersz = modulator, kolumna = nośna, przekątna = FEEDBACK; RATIO, FM ENV, DECAY), RING MOD (mnożenie przez inny oscylator
+  albo sinus), PHASE (RESET / RANDOM / FREE RUN / SYNCED do innego oscylatora, INVERT), HARD SYNC (HARD / SOFT, AMOUNT).
+  Każdą zakładkę można zapisać osobno (SAVE / LOAD), cały oscylator (SAVE OSC) albo wszystkie cztery (SAVE ALL 4) – `Dokumenty\4GE\Oscillators`.
+- **Podgląd po prawej**: prawdziwy przebieg i prawdziwe widmo (harmoniczne 1–64) wybranego oscylatora albo SUMY, przed / po FM, ringu i syncu.
+- Makra oscylatorów (OSC MIX, HARMONICS, DETUNE…) przyjdą jako lokalne kontrolery z mapowaniem w module 09 (zasada 8 MASTER MACROS).
+
 ## Presety
 INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
@@ -80,6 +98,6 @@ MODERN / RAW: CLICK na początku (stuknięcie), tok na HOLD z szumem pod spodem 
 TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – stąd power.
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 03 oscylatory → 04 szum / transient / warstwy →
+Moduł po module wg `PLAN.md`: 04 szum / transient / warstwy → 04 szum / transient / warstwy →
 05 przester → 06 filtry / screech → 07 EQ → 08 dynamika → 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
 13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.

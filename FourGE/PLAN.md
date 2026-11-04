@@ -135,6 +135,10 @@ wartości na blok), `Source/DSP/Core/` (Blocks: Osc / Noise / kickEnv / pitchSha
 referencji `kmatch4.py`, A/B `kab4.py`, cechy `kana.py`, wykresy `kplot.py`). Nowy kod wtyczki `Fg5K` (stare projekty z v0.4 zostają na starym pliku).
 Wniosek z A/B: rdzeń (1 oscylator na część) daje czyste, „sterylne” prążki – gęstość referencji przyjdzie z M03 (unison / drift), M04 (szum),
 M05 (stopnie przesteru). DIRTY potrzebuje ~40 dB gainu, żeby mieć górę jak referencje (zakresy drive per CHARACTER w `Engine::cook`).
+**STAN 2026-11-05: MODUŁ 03 GOTOWY** (silnik `DSP/Osc/` OscBank / Noise / Wavetable / OscTables, dane w child OSCS, tablice budowane w procesorze
+poza wątkiem audio i oddawane lock-free; GUI `GUI/OscPage.*` + `GUI/OscScope.*`; pliki / presety oscylatorów `Presets/OscFiles.h`,
+`Presets/OscPresets.h`; testy M03 17.1–17.15 + GUI). Makra oscylatorów (spec 13) odłożone do M09 (RULES: lokalne kontrolery + mapowanie).
+NASTĘPNY: moduł 04 (noise / transient / layers) – NoiseEngine z M03 do ponownego użycia.
 **STAN 2026-11-04 23:00: MODUŁ 02 GOTOWY.** SOUND PASS zrobiony + po A/B właściciela: PITCH HOLD (tok trzymany, potem skok – „pup pup”),
 TOK LEVEL (`tail_hold_level`), presety MODERN / RAW: CLICK + NOISE pod tokiem + sub / body po toku (power), EARLY = nowa referencja
 kick_hardstyle_28 (stary kick_84 właściciel odrzucił). Procesor: child ENVS (undo, presety użytkownika, reset przy presetach fabrycznych),

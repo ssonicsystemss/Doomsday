@@ -511,55 +511,11 @@ namespace fge
             if (first) { gainNow = gainTarget; masterNow = masterTarget; first = false; }
         }
 
-        // module 03: oscillator parameters -> cooked settings (unison layout, routes, FM matrix)
+        // module 03: oscillator parameters -> cooked settings (shared with the GUI previews)
         void cookOscillators (const ParamFrame& f)
         {
-            using namespace dsp;
-            auto db = [] (float v) { return std::pow (10.f, v / 20.f); };
-            auto& ob = cfg.osc;
-            ob.any = false; ob.tailStereo = false;
-            const int stride = P::osc2On - P::osc1On;
-            for (int i = 0; i < numOsc; ++i)
-            {
-                auto& o = ob.o[(size_t) i];
-                auto at = [&] (int first) { return first + i * stride; };
-                o.on = f.on (at (P::osc1On));
-                if (! o.on) continue;
-                o.wave = f.idx (at (P::osc1Wave)); o.noise = f.idx (at (P::osc1Noise)); o.track = f.idx (at (P::osc1Track));
-                o.fixedHz = f[at (P::osc1Freq)];
-                const float ratio = juce::jmax (0.05f, f[at (P::osc1Ratio)] + f[at (P::osc1RatioFine)]);
-                o.mul = std::exp2 (std::round (f[at (P::osc1Oct)]) + std::round (f[at (P::osc1Semi)]) / 12.f + f[at (P::osc1Fine)] / 1200.f) * ratio;
-                const float lvl = f[at (P::osc1Level)] <= -59.9f ? 0.f : db (f[at (P::osc1Level)]);
-                o.gain = lvl * (f.on (at (P::osc1Invert)) ? -1.f : 1.f);
-                const float a = (juce::jlimit (-1.f, 1.f, f[at (P::osc1Pan)]) + 1.f) * juce::MathConstants<float>::pi * 0.25f;
-                o.panL = std::cos (a) * 1.41421356f; o.panR = std::sin (a) * 1.41421356f;
-                o.phase01 = f[at (P::osc1Phase)] / 360.f; o.phaseMode = f.idx (at (P::osc1PhMode)); o.phaseRand = f[at (P::osc1PhRand)];
-                o.phaseSrc = f.idx (at (P::osc1PhSrc));
-                o.pw = f[at (P::osc1Pw)];
-                o.uni = juce::jlimit (1, maxUnison, (int) std::lround (f[at (P::osc1Uni)]));
-                o.detuneCt = f[at (P::osc1Detune)] * 100.f; o.spread = f[at (P::osc1Spread)]; o.blend = f[at (P::osc1Blend)];
-                o.uniMode = f.idx (at (P::osc1UniMode)); o.uniPhase = f.idx (at (P::osc1UniPh));
-                o.seed = (uint32_t) std::lround (f[at (P::osc1Seed)]);
-                layoutUnison (o);
-                o.fmFb = f[at (P::osc1FmFb)]; o.fmEnv = f[at (P::osc1FmEnv)]; o.decayMs = f[at (P::osc1ModDecay)];
-                o.ringSrc = f.idx (at (P::osc1RingSrc)); o.ringAmt = f[at (P::osc1RingAmt)]; o.ringMix = f[at (P::osc1RingMix)];
-                o.ringHz = f[at (P::osc1RingHz)]; o.ringEnv = f[at (P::osc1RingEnv)];
-                o.syncSrc = f.idx (at (P::osc1SyncSrc)); o.syncMode = f.idx (at (P::osc1SyncMode));
-                o.syncRatio = 1.f + 7.f * f[at (P::osc1SyncAmt)];
-                const int to[4] { P::osc1ToPunch, P::osc1ToBody, P::osc1ToTail, P::osc1ToSub };
-                for (int d = 0; d < 4; ++d) o.route[(size_t) d] = f[at (to[d])] <= -59.9f ? 0.f : db (f[at (to[d])]);
-                o.wtMode = f.idx (at (P::osc1WtMode)); o.wtPos = f[at (P::osc1WtPos)]; o.wtMorph = f[at (P::osc1WtMorph)];
-                o.wtStart = f[at (P::osc1WtStart)]; o.wtEnd = f[at (P::osc1WtEnd)]; o.wtRateMs = f[at (P::osc1WtRate)];
-                const bool routed = o.route[0] + o.route[1] + o.route[2] + o.route[3] > 0.f && lvl > 0.f;
-                ob.any = true; juce::ignoreUnused (routed);       // (an unrouted oscillator can still be an FM / ring / sync source)
-                if (o.route[2] > 0.f && (std::abs (f[at (P::osc1Pan)]) > 0.001f || (o.uni > 1 && o.spread > 0.001f))) ob.tailStereo = true;
-            }
-            const int fmIds[numOsc][numOsc] { { -1, P::fm1to2, P::fm1to3, P::fm1to4 }, { P::fm2to1, -1, P::fm2to3, P::fm2to4 },
-                                              { P::fm3to1, P::fm3to2, -1, P::fm3to4 }, { P::fm4to1, P::fm4to2, P::fm4to3, -1 } };
-            for (int a2 = 0; a2 < numOsc; ++a2)
-                for (int b2 = 0; b2 < numOsc; ++b2)
-                    ob.fm[a2][b2] = fmIds[a2][b2] < 0 || ! ob.o[(size_t) a2].on ? 0.f : f[fmIds[a2][b2]];
-            if (ob.tailStereo) cfg.wide = true;
+            dsp::cookOscBank (f, cfg.osc);
+            if (cfg.osc.tailStereo) cfg.wide = true;
         }
 
         void render (juce::AudioBuffer<float>& out, int start, int len)

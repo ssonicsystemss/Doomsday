@@ -97,3 +97,6 @@ COLLECT SAMPLES kopiuje potrzebne pliki do folderu projektu wyłącznie po świa
 Współpraca z: Module 04 (Noise, Transient & Layer), Module 05 (Distortion & Waveshaper), Module 06 (Filter, Resonance & Screech), Module 08 (Dynamics), Module 09 (Modulation Matrix).
 Wszystkie parametry sampli dostępne dla automatyzacji i modulacji.
 Style EARLY / MODERN / RAWSTYLE / EXPERIMENTAL mogą zmieniać ustawienia domyślne, ale nie ograniczają funkcjonalności silnika.
+
+## 12. DSP I WYDAJNOŚĆ
+Bezwzględnie: brak operacji dyskowych, dynamicznej alokacji i blokujących mutexów w audio callback; bezpieczne zarządzanie pamięcią próbek; ochrona przed NaN / Inf i denormals; brak kliknięć przy zmianie próbki; deterministyczny offline rendering.

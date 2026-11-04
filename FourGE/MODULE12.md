@@ -6,3 +6,13 @@ Master Output & Export Engine odpowiada za końcowy sygnał wyjściowy instrumen
 Moduł nie zastępuje procesorów dynamiki z Module 08 – zarządza wyjściem i prawidłowym renderowaniem dźwięku.
 Najważniejsze cele: profesjonalny master output; dokładne mierniki poziomu; pomiar True Peak; pomiar RMS i LUFS; eksport pojedynczych kicków; eksport wybranych grup i warstw; Batch Export; Offline Rendering; kontrola formatu i jakości plików; powtarzalność renderowania.
 WAŻNE: wtyczka nie może automatycznie zmieniać głośności, normalizować ani limitować sygnału bez wiedzy użytkownika.
+
+## 2. MASTER OUTPUT
+| Parametr | Zakres |
+|---|---|
+| MASTER LEVEL | -60 do +12 dB |
+| MASTER MUTE | ON/OFF |
+| MASTER BYPASS | ON/OFF |
+| OUTPUT MODE | MONO/STEREO |
+| SAFETY CLIP | ON/OFF |
+| SAFETY LIMITER | ON/OFF |

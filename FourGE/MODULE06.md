@@ -261,3 +261,21 @@ Przykład: BODY duration 350 ms, SCREECH offset 0 ms → SCREECH start 350 ms. P
 | START QUANTIZE | OFF / 1 ms / 5 ms / 10 ms |
 | FOLLOW BODY | ON / OFF |
 PRE-TRIGGER uruchamia wewnętrzny generator screechu przed jego słyszalnym wejściem (np. stabilizacja oscylatora lub filtra), ale NIE przesuwa faktycznego punktu słyszalnego START. (= odpowiedź na pytanie o PRE-ROLL z pkt 6: ciche rozkręcenie.)
+### 4. Ważne zasady techniczne
+1. Synchronizacja korzysta z rzeczywistego czasu zakończenia BODY, nie z ręcznie wpisanej długości całego kicka.
+2. Zmiana długości BODY automatycznie aktualizuje pozycję screechu.
+3. Zmiana długości TAIL nie przesuwa screechu w trybie BODY END.
+4. Zmiana trybu na MANUAL zachowuje ostatnią ręcznie ustawioną pozycję START.
+5. BODY END ≥ KICK END → generator nie wydłuża samowolnie kicka; respektuje ustawienia długości i zachowanie obwiedni.
+6. Wszystkie zmiany płynne i bez kliknięć.
+7. Synchronizacja działa przy zmianach w czasie rzeczywistym i przy renderowaniu offline.
+### 5. Kryteria testowe
+- BODY 200 ms → screech startuje przy 200 ms.
+- BODY 400 ms → przy 400 ms.
+- BODY 700 ms → przy 700 ms.
+- OFFSET +100 ms → 100 ms po BODY END.
+- Zmiana długości TAIL nie wpływa na pozycję screechu.
+- MANUAL zachowuje ręczne ustawienie START.
+- Zmiana długości kicka nie powoduje przypadkowego obcięcia screechu.
+### GUI (sugestia właściciela)
+Wizualny uchwyt SCREECH START na głównym waveformie: w SYNC TO BODY END przywiązany do końca BODY i przesuwa się razem z nim; w MANUAL swobodnie przesuwany. Użytkownik od razu widzi, dlaczego screech zaczyna się w danym miejscu.

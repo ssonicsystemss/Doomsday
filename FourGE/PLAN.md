@@ -135,6 +135,14 @@ wartości na blok), `Source/DSP/Core/` (Blocks: Osc / Noise / kickEnv / pitchSha
 referencji `kmatch4.py`, A/B `kab4.py`, cechy `kana.py`, wykresy `kplot.py`). Nowy kod wtyczki `Fg5K` (stare projekty z v0.4 zostają na starym pliku).
 Wniosek z A/B: rdzeń (1 oscylator na część) daje czyste, „sterylne” prążki – gęstość referencji przyjdzie z M03 (unison / drift), M04 (szum),
 M05 (stopnie przesteru). DIRTY potrzebuje ~40 dB gainu, żeby mieć górę jak referencje (zakresy drive per CHARACTER w `Engine::cook`).
+**STAN 2026-11-04 17:30 (przerwa – limit):** moduł 02 = silnik gotowy i przetestowany (WIP commit a5e7235: `DSP/Env/MultiEnv.h`,
+`DSP/Env/KickEnvelopes.h`, parametry M02 w rejestrze, test 14.11 z kontekstami) – BRAKUJE: podpięcie banku krzywych w procesorze
+(ValueTree child ENVS + undo -> `env::BankExchange`, host BPM -> `Engine::setHostBpm`, zapis kształtów w presetach / plikach), GUI edytora
+(strona ENVELOPES: wybór części + VIEW, edytor punktów, LINK / COPY / PASTE / RESET), testy 14.1–14.14 z MODULE02.
+**NAJPIERW (właściciel po A/B: „kicki nie przypominają referencji”, zgoda na „najpierw dźwięk”): SOUND PASS** – przenieść sprawdzony tor v0.4:
+TAIL UNISON + DRIFT (3 strony: środek + L / R, dół mono z środka, LR4 przy WIDTH FROM), STAGE 2 + MID BELL (typy z `DSP/Core/Stages.h`,
+już napisane), TAIL LOW CUT / HIGH CUT (sub z generatora SUB = czysty dół), MASTER CLIP (sub omija clip), PUNCH INTO DRIVE, rysowana AMP
+(dołek po toku, potem narastanie – jak OWNER QL w v0.4). Potem dopasowanie `Tools/kmatch4.py` z większą przestrzenią i nowe A/B.
 1. **Core** – szczegółowa specyfikacja właściciela: **`MODULE01.md`** (PunchGenerator / BodyGenerator / TailGenerator / SubGenerator →
    CoreMixer: level / pan / mute / solo / phase invert / peak; LENGTH 100–2500 ms (domyślnie 450) + AUTO LENGTH, PHASE RESET, MASTER;
    PITCH ENGINE z trybami CLASSIC / FAST / SLOW / DOUBLE DROP, RISE, STABLE, CUSTOM, przygotowany na osobne krzywe P / B / T;

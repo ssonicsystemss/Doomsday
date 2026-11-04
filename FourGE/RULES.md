@@ -47,3 +47,5 @@ Bez obowiązkowego połączenia między wtyczkami – każda działa samodzielni
 **IN SCOPE:** Full Hardstyle Kick Synthesis · Punch / Body / Tail / Sub Generation · Pitch Envelope Engine · Transient & Layer Engine · Distortion & Waveshaping · Filter & Screech Engine · Dynamics & Stereo Processing · Advanced Modulation · Style & Length Engines · Presets & Kick Analysis.
 **OUT OF SCOPE:** Dedicated Reverse Bass Synthesizer · Reverse Bass Oscillation Engine · Reverse Bass Envelope System · Dedicated Reverse Bass Pattern Generator · RE4GE-specific synthesis algorithms.
 (Step sequencer z M09 zostaje – to źródło MODULACJI parametrów kicka, nie generator patternów reverse bassu.)
+
+**Decyzja projektowa (właściciel):** 4GE tworzy kompletny kick, RE4GE specjalizuje się w reverse bassie. Nie rozmywamy granic między produktami – lepiej dwa profesjonalne, wyspecjalizowane instrumenty niż jeden przeładowany funkcjami.

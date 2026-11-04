@@ -79,3 +79,5 @@ Każdy slot ma niezależne przetwarzanie:
 | POLARITY | Normal / Invert |
 | FILTER SEND | 0–100% |
 | DISTORTION SEND | 0–100% |
+Każdy slot ma własną obwiednię amplitudy: ADSR, One Shot, Multi-Point Envelope.
+Parametry slotów dostępne w Modulation Matrix.

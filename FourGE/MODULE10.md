@@ -59,3 +59,9 @@ Każdy slot ma niezależną kontrolę odtwarzania.
 Opcjonalny algorytm zmieniający długość próbki bez zmiany wysokości.
 Wymagania: zachowanie transjentów; minimalizacja artefaktów; zachowanie oryginalnej długości lub dopasowanie do określonego czasu; mono i stereo.
 Ciężkie obliczenia – przygotowanie danych poza wątkiem audio; nie blokować audio callback.
+
+## 7. WAVEFORM EDITOR
+Każdy slot ma edytor przebiegu. Pokazuje: waveform mono / stereo, START i END marker, Loop Start / End, Fade In / Out, aktualną pozycję odtwarzania.
+Wymagane: Zoom In / Out, Horizontal Scroll, Fit to Sample, Region Preview, precyzyjna edycja markerów, Undo, Redo.
+Dodatkowe: Transient Detection, Silence Trimming, DC Offset Removal, Normalize.
+Normalizacja i inne operacje destrukcyjne działają na kopii roboczej, nie na oryginalnym pliku.

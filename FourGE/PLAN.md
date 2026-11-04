@@ -25,6 +25,10 @@ Zasady jak w RE4GE: krok po kroku, po każdym kroku kompilacja + testy + A/B dla
 | 15–16 | Presety i analiza |
 | 17 | Interfejs użytkownika |
 
+**Decyzja architektoniczna (właściciel, 2026-11-04):** GUI (moduł 17) projektujemy NA PODSTAWIE rzeczywistych parametrów i funkcji
+modułów 01–16 (Parameter Registry) – żadnego „pięknego” interfejsu, którego nie da się sensownie połączyć z DSP. Makieta `Design/mock.html`
+jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po DSP.
+
 ## Domyślna konfiguracja komponentów (rekomendacja właściciela, 2026-11-03)
 Nie każdy komponent ma te same funkcje włączone na start – początkujący od razu robi sensowny kick, zaawansowany ma całą maszynerię:
 | Komponent | Domyślnie |

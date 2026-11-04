@@ -37,6 +37,10 @@ jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po
   02 BODY – masa i charakter korpusu · 03 TAIL – długość i charakter ogona · 04 PITCH – charakter i ruch pitchu · 05 GRIT – brud, agresja,
   nasycenie · 06 SCREAM – rezonans i screech · 07 WEIGHT – ciężar i energia niskich częstotliwości · 08 CHAOS – kontrolowana niestabilność
   i eksperymentowanie. (= zestaw z głównej SPEC; M09 „makra startowe” zastąpione tymi. Opis poziomów 2–3: czekamy na właściciela.)
+  Przykładowe cele w Modulation Matrix (właściciel): IMPACT → Transient Level, Punch Drive, Attack · BODY → Body Level, Oscillator Mix,
+  Body Decay · TAIL → Tail Length, Tail Envelope, Release · PITCH → Pitch Envelope, Pitch Depth, Pitch Curve · GRIT → Distortion Drive,
+  Fold, Asymmetry · SCREAM → Resonance, Screech Level, Screech Pitch · WEIGHT → Sub Level, Low Body, Sub Saturation · CHAOS → Random Amount,
+  Modulation Depth, Phase Variation.
 - Reverse bass przy EARLY: bez preferencji → 4GE robi kick pod RE4GE (bez dublowania); ewentualnie później prosta warstwa reverse.
 - Sample w presetach: bez preferencji → osadzane w presecie / stanie (jak RE4GE), RELINK gdy brak i nie ma kopii.
 - PRE-ROLL screecha: bez preferencji → ciche rozkręcenie silnika przed START (słychać od START).

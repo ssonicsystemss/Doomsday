@@ -14,6 +14,17 @@ Zasady jak w RE4GE: krok po kroku, po każdym kroku kompilacja + testy + A/B dla
 - Zawsze widoczne: preset, STYLE, LENGTH, makra (IMPACT / BODY / TAIL / PITCH / GRIT / SCREAM / WEIGHT / CHAOS), master, BPM,
   Play, Random, miernik, Export + mały waveform.
 
+## Docelowa architektura 4GE – 17 modułów (właściciel, 2026-11-04)
+| Moduły | Odpowiedzialność |
+|---|---|
+| 01–03 | Core, pitch, oscylatory |
+| 04–07 | Generatory i processing |
+| 08–09 | Dynamika i modulacja |
+| 10–12 | Sample, stereo, eksport |
+| 13–14 | Style i długość kicka |
+| 15–16 | Presety i analiza |
+| 17 | Interfejs użytkownika |
+
 ## Domyślna konfiguracja komponentów (rekomendacja właściciela, 2026-11-03)
 Nie każdy komponent ma te same funkcje włączone na start – początkujący od razu robi sensowny kick, zaawansowany ma całą maszynerię:
 | Komponent | Domyślnie |

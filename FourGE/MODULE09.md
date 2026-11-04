@@ -194,3 +194,8 @@ Definition of Done: dowolne źródło → dowolny zarejestrowany cel, kontrola g
 ## ZMIANA WŁAŚCICIELA (2026-11-04) – pkt 7.2
 Moduł 09 NIE ma własnego zestawu makr (PUNCH / BODY / TAIL / GRIT / SCREAM / MOVEMENT / DENSITY / SPACE nie są drugim zestawem 8 makr głównych).
 Zamiast tego moduł 09 ma **Macro Routing & Mapping** – system przypisywania 8 MASTER MACROS (IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS – patrz PLAN) do parametrów w całej wtyczce (MIN / MAX / CURVE / POLARITY / ENABLE, wiele celów z różnych modułów, Macro Morph bez zmian).
+MOVEMENT, DENSITY i SPACE zostają jako parametry / lokalne kontrolery (nie nadrzędne makra):
+- MOVEMENT — intensywność ruchu modulacji (skaluje głębokość modulacji LFO / sekwencera / random).
+- DENSITY — zagęszczenie warstw i harmonicznych.
+- SPACE — przestrzenność i szerokość.
+Użytkownik może je dodatkowo przypisać jako makra użytkownika (sloty 9–16).

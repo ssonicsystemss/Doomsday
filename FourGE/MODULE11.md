@@ -53,3 +53,4 @@ Przykładowa architektura:
 - TAIL → STEREO CONTROL → TAIL GROUP OUTPUT
 - SUB → SUB MONO LOCK → SUB GROUP OUTPUT
 - wszystkie grupy → MASTER BUS → MASTER STEREO → OUTPUT
+Każda grupa ma niezależne ustawienia PAN, WIDTH i pozostałych dostępnych parametrów.

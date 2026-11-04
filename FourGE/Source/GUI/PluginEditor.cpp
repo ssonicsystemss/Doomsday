@@ -36,7 +36,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     pitchRow = { seg ("pe_mode", { "CLASSIC", "FAST", "SLOW", "DOUBLE", "RISE", "STABLE" }, c.red),
                  knob ("pe_start", "START", c.part[2], 38), knob ("pe_end", "END", c.part[2], 38), knob ("pe_time", "TIME", c.part[2], 38),
                  knob ("pe_curve", "CURVE", c.part[2], 38), knob ("pe_amount", "AMOUNT", c.part[2], 38, true), knob ("pe_fine", "FINE", c.part[2], 38, true),
-                 knob ("tail_penv_offset", "HOLD", c.part[2], 38) };
+                 knob ("tail_penv_offset", "HOLD", c.part[2], 38), knob ("tail_hold_level", "TOK LEVEL", c.part[2], 38, true) };
     // ---- the four parts: card (always visible) + detail (selected part) + mixer column
     const char* pre[4] { "punch", "body", "tail", "sub" };
     for (int i = 0; i < 4; ++i)
@@ -148,7 +148,7 @@ void GeCanvas::resized()
     // pitch engine
     pitchArea = { 16, 104, W - 32, 84 };
     pitchRow[0]->setBounds (pitchArea.getX() + 14, pitchArea.getY() + 40, 520, 28);
-    for (int i = 1; i < 8; ++i) pitchRow[(size_t) i]->setBounds (pitchArea.getX() + 570 + (i - 1) * 80, pitchArea.getY() + 4, 76, Knob::heightFor (38));
+    for (int i = 1; i < 9; ++i) pitchRow[(size_t) i]->setBounds (pitchArea.getX() + 570 + (i - 1) * 80, pitchArea.getY() + 4, 76, Knob::heightFor (38));
     // waveform + output meter
     waveArea = { 16, 196, W - 32 - 34, 226 };
     wave.setBounds (waveArea);
@@ -288,6 +288,7 @@ void GeCanvas::updateEnabled()
     };
     const bool stable = (int) raw (proc, P::peMode) == 5;
     for (auto* id : { "pe_start", "pe_time", "pe_curve", "pe_amount" }) en (id, ! stable);
+    en ("tail_hold_level", raw (proc, P::tailPOffset) > 0.5f);        // TOK LEVEL only acts during the HOLD
     en ("sub_pitch", raw (proc, P::coreKeyTrack) < 0.5f);          // with tracking the sub sits on the note
     en ("tail_pulse_width", (int) raw (proc, P::tailSrc) == 4);
     en ("punch_tone", (int) raw (proc, P::punchSrc) != 5);           // CLICK tunes its own band

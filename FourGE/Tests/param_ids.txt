@@ -280,3 +280,4 @@ tail_low_cut
 tail_high_cut
 master_clip_drive
 master_clip_soft
+tail_hold_level

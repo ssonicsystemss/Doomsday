@@ -296,3 +296,10 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   Wniosek: przy przebudowie NIE dawać właścicielowi A/B samego szkieletu; najpierw przenieść sprawdzony tor (unison + dryf na L / R,
   dół mono, 2 stopnie z EQ pomiędzy, czysty sub obok clipu, clip na wyjściu), dopiero potem porównywać. Moduły z planu mogą poczekać,
   dźwięk nie.
+- **4GE – „brakuje pup pup pup pup” (2026-11-04)** – kicki właściciela (KICK2_D, KICK_G) trzymają na początku tonalny tok na JEDNEJ
+  wysokości (~360 / ~870 Hz, nieparzyste harmoniczne) przez ~110–130 ms i dopiero potem w ~10 ms skaczą na nutę. Nasz ciągły zjazd
+  pitchu („piuuu”) tego nie daje. Rozwiązanie: PITCH HOLD (offset obwiedni pitchu ogona) + krótki TIME. Po zmianie: „już jest podobne”.
+  Zawsze patrzeć na spektrogram pierwszych 200 ms (poziome prążki = trzymany pitch), nie tylko na średnie cechy.
+- **4GE – „brakuje powera” (2026-11-04)** – nasze kicki były GŁOŚNIEJSZE (RMS), a mimo to słabsze: tok tak głośny jak ogon (w oryginale
+  ~4–5 dB ciszej, więc wejście basu uderza) i ~6 dB za dużo 60–300 Hz (błoto) przy tym samym 25–60 Hz. Power = kontrast tok → ogon
+  + czysty dół + wycięte niskie środki, nie głośność. Dodany TOK LEVEL (poziom ogona w czasie HOLD).

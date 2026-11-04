@@ -101,6 +101,7 @@ namespace fge
             case peAmount:     return "Extra pitch at the hit in semitones, fading with the drop.";
             case peFine:       return "Fine tune of the whole kick.";
             case tailPOffset:  return "HOLD: the pitch stays at START this long, then drops - the tonal 'tok' of a hardstyle kick (short TIME = a sharp jump).";
+            case tailHoldLvl:  return "Level of the tail while the pitch HOLDs (the tok). Lower = the drop into the bass hits harder.";
             case tailChar:     return "CLEAN / TONAL / DIRTY / SCREAM / METALLIC / BUZZ / CRUSHED - a different saturation algorithm each.";
             case tailPw:       return "Pulse width of the PULSE source.";
             case punchGlide:   return "How fast the punch falls from its own PITCH into the kick's pitch.";

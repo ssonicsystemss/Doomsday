@@ -38,6 +38,7 @@ namespace fge
         float width = 0.f;
         dsp::SvfCoefs widthSplit;                 // LR4 split: lows from the centre, mids / highs from left / right
         float clipG = 1.f, clipSoft = 0.5f;       // MASTER CLIP (the sub goes around it)
+        float holdMs = 0.f, holdGain = 1.f;       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
     };
 
     // ------------------------------------------------------------------ pitch: semitones of one part at a time (links resolved)
@@ -146,7 +147,9 @@ namespace fge
                 }
                 if (ms < cfg.partEnd[PTail])
                 {
-                    const float a = ampOf (cfg, PTail, ms) * gate;
+                    float a = ampOf (cfg, PTail, ms) * gate;
+                    if (cfg.holdMs > 0.f && cfg.holdGain != 1.f)                       // TOK LEVEL, 3 ms into the drop
+                        a *= cfg.holdGain + (1.f - cfg.holdGain) * juce::jlimit (0.f, 1.f, (ms - cfg.holdMs) / 3.f);
                     bus[PTail][i] += tail.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail]) * a;
                     if (cfg.wide)
                     {
@@ -367,6 +370,7 @@ namespace fge
             cfg.wide = tx.uniVoices > 1 && cfg.width > 0.001f;
             cfg.widthSplit = svfCoefs (f[P::tailWidthFrom], 1.414f, rate);
             cfg.clipG = db (f[P::clipDrive]); cfg.clipSoft = f[P::clipSoft];
+            cfg.holdGain = db (f[P::tailHoldLvl]);
 
             // ---- envelope slots (module 02, 7)
             const int aMode[4] { P::punchAmpMode, P::bodyAmpMode, P::tailAmpMode, P::subAmpMode };
@@ -453,6 +457,7 @@ namespace fge
                 cfg.pitch[PBody].depthSt  = 12.f * std::log2 (juce::jmax (1.f, f[P::bodyPitch]) / juce::jmax (1.f, tail0)) * f[P::bodyPAmount];
             }
             cfg.pitch[PSub].depthSt = f[P::subPDepth] * f[P::subPAmount];
+            cfg.holdMs = cfg.pitch[PTail].on ? cfg.pitch[PTail].offsetMs : 0.f;
 
             // CORE MIXER: generator LEVEL x fader x mute / solo x polarity, constant-power pan
             const int lvl[4]  { P::punchLevel, P::bodyLevel, P::tailLevel, P::subLevel };

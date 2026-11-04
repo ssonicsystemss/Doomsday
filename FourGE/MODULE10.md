@@ -66,7 +66,7 @@ Wymagane: Zoom In / Out, Horizontal Scroll, Fit to Sample, Region Preview, precy
 Dodatkowe: Transient Detection, Silence Trimming, DC Offset Removal, Normalize.
 Normalizacja i inne operacje destrukcyjne działają na kopii roboczej, nie na oryginalnym pliku.
 
-## 8. Przetwarzanie slotu (tytuł punktu nie dotarł)
+## 8. SLOT PROCESSING
 Każdy slot ma niezależne przetwarzanie:
 | Parametr | Zakres |
 |---|---|

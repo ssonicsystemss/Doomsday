@@ -52,6 +52,8 @@ jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po
   ręcznie w M05. Ręczna zmiana CRUSH NIE nadpisuje GRIT i nic się samo nie resetuje.
   Realizacja: makro główne = MODULACJA (offset w matrycy na wartości bazowej), nie zapis do parametru. Ręczne pokręcenie zmienia
   wartość bazową, GRIT dalej dodaje swój offset na wierzchu; pierścień na gałce pokazuje BASE / FINAL (M09 pkt 10.2).
+  **Kluczowa zasada techniczna (właściciel): makro NIE jest parametrem DSP.** Każde makro to nadrzędny kontroler, który wysyła wartości
+  do parametrów wyłącznie przez system mapowania (M09). Żaden kod DSP nie czyta wartości makra bezpośrednio.
 - Reverse bass przy EARLY: bez preferencji → 4GE robi kick pod RE4GE (bez dublowania); ewentualnie później prosta warstwa reverse.
 - Sample w presetach: bez preferencji → osadzane w presecie / stanie (jak RE4GE), RELINK gdy brak i nie ma kopii.
 - PRE-ROLL screecha: bez preferencji → ciche rozkręcenie silnika przed START (słychać od START).

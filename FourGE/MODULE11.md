@@ -67,3 +67,14 @@ Wizualizacja rzeczywistego obrazu stereo:
 - VECTOR SCOPE — relacja między kanałami.
 - MID/SIDE METERS — osobne mierniki Mid i Side.
 - MONO COMPATIBILITY — natychmiastowe przełączenie odsłuchu stereo / mono; nie zmienia parametrów presetu.
+
+## 10. DEFAULT SETTINGS
+| Grupa | PAN | WIDTH | Mono |
+|---|---|---|---|
+| PUNCH | 0% | 100% | Zalecane |
+| BODY | 0% | 100% | Opcjonalne |
+| TAIL | 0% | 120% | Nie |
+| SUB | 0% | 0% | Tak |
+| TEXTURE | 0% | 130% | Opcjonalne |
+| MASTER | 0% | 100% | Nie |
+Wartości są ustawieniami startowymi, a nie ograniczeniami.

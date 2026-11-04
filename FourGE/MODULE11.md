@@ -54,3 +54,16 @@ Przykładowa architektura:
 - SUB → SUB MONO LOCK → SUB GROUP OUTPUT
 - wszystkie grupy → MASTER BUS → MASTER STEREO → OUTPUT
 Każda grupa ma niezależne ustawienia PAN, WIDTH i pozostałych dostępnych parametrów.
+
+## 8. MODULATION MATRIX INTEGRATION
+Cele modulacji: PAN, WIDTH, MID LEVEL, SIDE LEVEL, LOW MONO CROSSOVER, CHANNEL DELAY, M/S WIDTH. Modulacja wygładzana.
+Przykłady: LFO → szerokość grupy TAIL; Velocity → poziom SIDE; Envelope zwiększa szerokość tekstury w końcowej fazie kicka; Macro → globalny WIDTH.
+Bez gwałtownych skoków parametrów powodujących słyszalne artefakty.
+
+## 9. STEREO VISUALIZER
+Wizualizacja rzeczywistego obrazu stereo:
+- STEREO FIELD DISPLAY — aktualna szerokość i rozłożenie L/R.
+- CORRELATION METER — -1…+1 (+1 zgodny, 0 brak korelacji, -1 przeciwfaza). Wartości ujemne = ostrzeżenie, ale bez automatycznej zmiany brzmienia.
+- VECTOR SCOPE — relacja między kanałami.
+- MID/SIDE METERS — osobne mierniki Mid i Side.
+- MONO COMPATIBILITY — natychmiastowe przełączenie odsłuchu stereo / mono; nie zmienia parametrów presetu.

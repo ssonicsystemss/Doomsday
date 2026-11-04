@@ -112,3 +112,12 @@ Bezwzględnie: brak operacji dyskowych, dynamicznej alokacji i blokujących mute
 8. Wszystkie sloty zapisują i przywracają ustawienia.
 9. Sample Engine nie blokuje wątku audio.
 10. Ten sam preset i seed dają powtarzalny render offline.
+
+---
+## NOTES (Claude, 2026-11-04) – decyzje techniczne
+- Wczytywanie / resampling / time stretch / normalize zawsze w wątku tła na KOPII roboczej; audio dostaje gotowy bufor przez atomową podmianę wskaźnika + krótki crossfade (jak `ReProcessor::restoreSample` w RE4GE). Oryginalny plik nigdy nie jest zapisywany.
+- Resampling: windowed sinc (wysoka jakość) przy imporcie do SR sesji.
+- Pitch bez zmiany długości: RE4GE `DSP/GrainReader.h` (KEEP LENGTH); time stretch z zachowaniem transjentów: WSOLA z Ancient Drums.
+- Edytor przebiegu: baza RE4GE `GUI/KickView.*` (region, markery) + loop / fade / zoom.
+- Sample w stanie wtyczki: ścieżka + opcjonalne osadzenie danych (RE4GE już osadza sample w stanie) – przy brakującym pliku RELINK, a jeśli jest osadzona kopia, preset nadal gra (do potwierdzenia przy pytaniach).
+- Slot = źródło warstwy z M04 (wpięcie przez przygotowany interfejs EXTERNAL SAMPLE INPUT), parametry w Parameter Registry z M09.

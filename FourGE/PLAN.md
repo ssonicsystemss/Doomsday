@@ -130,6 +130,10 @@ Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznyc
    (32→64 sloty, ADD / MULTIPLY / MAX / MIN / REPLACE), źródła (obwiednie, LFO 1–8, velocity, key, makra, sekwencer 1–64, random z seedem,
    audio follower, MIDI CC), 8 makr startowych PUNCH / BODY / TAIL / GRIT / SCREAM / MOVEMENT / DENSITY / SPACE (do 16) + Macro Morph,
    MIDI Learn, monitory BASE / MOD SUM / FINAL. Klocki: RE4GE ModMatrix / LFO / Trigger / Randomizer / MorphBar / ParamBridge.
+1j. **Moduł 10 – Advanced Sample Engine** (specyfikacja: **`MODULE10.md`**): 8→16 slotów (grupa PUNCH / BODY / TAIL / SUB / TEXTURE /
+   CUSTOM), WAV / AIFF (+ FLAC / MP3), tryby ONE SHOT / GATE / LOOP / PING-PONG / REVERSE, start / end / fade / rate / pitch / key track,
+   time stretch, edytor przebiegu, obwiednia slotu, browser z RELINK / COLLECT; wszystko w tle na kopii. Klocki: RE4GE sample + GrainReader, WSOLA.
+1k. **Moduł 11 – Stereo & Spatial Engine** (specyfikacja: **`MODULE11.md`**, w trakcie).
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

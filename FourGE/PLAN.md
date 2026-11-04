@@ -45,6 +45,9 @@ jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po
   opcjonalnie jako makra użytkownika (sloty 9–16). **Poziom 3:** makra modułów 05–08 (GRIT/HARDNESS/WARMTH/FOLD/… z M05, SCREAM/
   RESONANCE/METALLIC/… z M06, BRIGHTNESS/CLARITY/… z M07, PUNCH/LOUDNESS/CRUSH/GLUE/… z M08) zostają jako LOKALNE KONTROLERY w swoich
   modułach – nie konkurują z MASTER MACROS (master macro może je sterować jako cel).
+  Hierarchia (właściciel, `Design/macro_hierarchy.png`): 4GE MASTER MACROS → GLOBAL MODULATION & MAPPING (moduł 09) → lokalne makra:
+  M05 DISTORTION (DRIVE · CRUSH · WARMTH), M06 FILTER & SCREAM (BRIGHTNESS · RESONANCE), M07 EQ & TONE (TONE · PRESENCE · LOW END),
+  M08 DYNAMICS (LOUDNESS · PUNCH · GLUE). Lokalne makra wpływają na swój moduł; główne mogą nimi sterować przez przypisania.
 - Reverse bass przy EARLY: bez preferencji → 4GE robi kick pod RE4GE (bez dublowania); ewentualnie później prosta warstwa reverse.
 - Sample w presetach: bez preferencji → osadzane w presecie / stanie (jak RE4GE), RELINK gdy brak i nie ma kopii.
 - PRE-ROLL screecha: bez preferencji → ciche rozkręcenie silnika przed START (słychać od START).

@@ -40,3 +40,17 @@ Przypisanie do grupy: PUNCH, BODY, TAIL, SUB, TEXTURE, CUSTOM. Zmiana grupy nie 
 - LOOP — zapętlenie fragmentu; Loop Start, Loop End, Loop Crossfade, Loop Enable; crossfade zapobiega kliknięciom na granicy pętli.
 - PING-PONG — naprzemiennie do przodu i do tyłu.
 - REVERSE — odwrócenie kierunku bez destrukcyjnej zmiany pliku źródłowego.
+
+## 5. SAMPLE PLAYBACK ENGINE
+Każdy slot ma niezależną kontrolę odtwarzania.
+| Parametr | Zakres / zachowanie |
+|---|---|
+| START | 0–100% długości próbki |
+| END | 0–100% długości; END musi być za START |
+| FADE IN | 0–500 ms |
+| FADE OUT | 0–500 ms |
+| PLAYBACK RATE | 0.25x–4.0x; zmienia prędkość i wysokość (tryb bez kompensacji pitch) |
+| PITCH SHIFT | Jeśli jest algorytm niezależnego pitch shiftingu – wysokość bez zmiany czasu trwania |
+| ROOT NOTE | Nuta bazowa próbki |
+| PITCH TRACKING | ON/OFF – reakcja na nuty MIDI względem nuty bazowej |
+| FINE TUNE | -100 do +100 centów |

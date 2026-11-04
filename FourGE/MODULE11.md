@@ -31,3 +31,9 @@ Jedna z najważniejszych funkcji modułu. Hardstyle wymaga stabilnego, centralne
 - LOW FREQUENCY MONO: ON/OFF.
 - CROSSOVER FREQUENCY: 20–300 Hz, domyślnie 120 Hz. Wszystko poniżej crossovera → mono. Odpowiednio dobrane filtry ograniczające zmiany fazowe i skoki poziomu.
 - SUB MONO LOCK: ON/OFF. Aktywny → grupa SUB mono i centralna niezależnie od szerokości innych grup; wyższy priorytet niż globalny WIDTH.
+
+## 5. PHASE & POLARITY ENGINE
+- POLARITY INVERT: Left, Right, Both, Selected Layer.
+- CHANNEL DELAY: opóźnienie L lub R w Samples / Milliseconds – precyzyjna korekta i kreatywne kształtowanie przestrzeni.
+- PHASE OFFSET: tylko dla źródeł, gdzie architektura pozwala na poprawną realizację; bez pozornego parametru dla każdego sygnału.
+- PHASE ALIGNMENT: analiza relacji fazowej między warstwami – korelacja, porównanie początku przebiegów, wykrywanie problemów fazowych, opcjonalne dopasowanie offsetu warstw. Automatyczne dopasowanie nie nadpisuje ustawień bez potwierdzenia użytkownika.

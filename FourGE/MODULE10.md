@@ -16,3 +16,11 @@ Silnik musi umożliwiać:
 - Routing sampli do poszczególnych sekcji kicka.
 - Przetwarzanie sampli przez pozostałe moduły 4GE.
 - Modulowanie parametrów sampli za pomocą Modulation Matrix.
+
+## 2. OBSŁUGIWANE FORMATY AUDIO
+| Format | Obsługa |
+|---|---|
+| WAV | Wymagana |
+| AIFF | Wymagana |
+| FLAC | Opcjonalna |
+| MP3 | Opcjonalna |

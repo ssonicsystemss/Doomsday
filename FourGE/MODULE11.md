@@ -78,3 +78,30 @@ Wizualizacja rzeczywistego obrazu stereo:
 | TEXTURE | 0% | 130% | Opcjonalne |
 | MASTER | 0% | 100% | Nie |
 Wartości są ustawieniami startowymi, a nie ograniczeniami.
+
+## 11. INTEGRACJA Z POZOSTAŁYMI MODUŁAMI
+Współpraca z: Module 04 (Layer Engine), 05 (Distortion & Waveshaper), 06 (Filter & Screech), 08 (Dynamics), 09 (Modulation Matrix), 10 (Advanced Sample Engine). Wszystkie grupy i warstwy korzystają ze wspólnego systemu routingu.
+
+## 12. DSP I STABILNOŚĆ
+Bezpieczne mono i stereo; brak niekontrolowanego wzrostu poziomu i niezamierzonych zmian fazowych; wygładzanie parametrów; ochrona przed NaN / Inf i denormals; kompensacja opóźnień tam, gdzie wymagana; brak blokowania audio callback; powtarzalny rendering offline.
+
+## 13. TESTY AKCEPTACYJNE
+1. WIDTH 0% generuje sygnał mono.
+2. WIDTH 100% zachowuje oryginalną szerokość.
+3. SUB MONO LOCK utrzymuje SUB w centrum.
+4. Mono Audition – kontrola kompatybilności bez zmiany presetu.
+5. Correlation Meter prawidłowo wskazuje korelację.
+6. PAN i BALANCE działają odmiennie.
+7. Polarity Invert działa na wybranych kanałach i warstwach.
+8. Modulacja WIDTH nie powoduje kliknięć.
+9. Stereo processing na poziomie warstwy, grupy i mastera.
+10. Render offline zachowuje ustawienia przestrzenne.
+
+---
+## NOTES (Claude, 2026-11-04) – decyzje techniczne
+- Moduł 07 pkt 6 (Stereo Frequency Engine: width per pasmo, M/S per pasmo, mono below) i moduł 11 to JEDNA klasa stereo – M07 dokłada do niej podział na pasma. Bez dwóch równoległych systemów szerokości.
+- PAN mono: stała moc (sin/cos, -3 dB w środku); BALANCE: tylko tłumienie przeciwnego kanału (0 dB w środku). WIDTH M/S z kompensacją poziomu (bez wzrostu głośności przy 200 %).
+- LOW FREQUENCY MONO: Linkwitz-Riley 24 dB/oct (ta sama klasa crossovera co M07), suma płaska; SUB MONO LOCK stosowany po wszystkich modulacjach WIDTH (priorytet).
+- Dekorelacja: krótkie all-passy o różnych współczynnikach L/R, tylko powyżej crossovera low-mono; Haas z ostrzeżeniem mono w GUI.
+- Correlation / vector scope / M-S meters: FIFO z audio → GUI 30–60 Hz; MONO AUDITION = przełącznik odsłuchu poza stanem presetu.
+- Obecny 4GE v0.4 ma już UNISON / WIDTH (centre + L / R voices, lows mono) – brzmienie do zachowania jako punkt startowy.

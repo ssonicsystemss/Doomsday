@@ -133,7 +133,10 @@ Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznyc
 1j. **Moduł 10 – Advanced Sample Engine** (specyfikacja: **`MODULE10.md`**): 8→16 slotów (grupa PUNCH / BODY / TAIL / SUB / TEXTURE /
    CUSTOM), WAV / AIFF (+ FLAC / MP3), tryby ONE SHOT / GATE / LOOP / PING-PONG / REVERSE, start / end / fade / rate / pitch / key track,
    time stretch, edytor przebiegu, obwiednia slotu, browser z RELINK / COLLECT; wszystko w tle na kopii. Klocki: RE4GE sample + GrainReader, WSOLA.
-1k. **Moduł 11 – Stereo & Spatial Engine** (specyfikacja: **`MODULE11.md`**, w trakcie).
+1k. **Moduł 11 – Stereo & Spatial Engine** (specyfikacja: **`MODULE11.md`**, kompletna + NOTES): PAN (stała moc) / BALANCE / WIDTH 0–200 % /
+   CHANNEL SWAP, Mid/Side, LOW FREQUENCY MONO (domyślnie 120 Hz) + SUB MONO LOCK (priorytet nad WIDTH), polaryzacja / channel delay /
+   phase alignment (tylko z potwierdzeniem), tryby M/S / dekorelacja / Haas / off, poziomy layer / group / master, korelometr, vector scope,
+   odsłuch mono; domyślnie SUB 0 %, TAIL 120 %, TEXTURE 130 %. Jedna klasa stereo razem z M07 pkt 6.
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

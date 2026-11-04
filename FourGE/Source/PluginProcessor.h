@@ -67,6 +67,13 @@ public:
     void resetShapes (bool undoable = true);
     const fge::env::Bank& shapes() const { return current; }
     uint32_t shapesVersion() const { return version; }
+    // a parameter change that joins the current undo step (the APVTS otherwise records it later, from its timer)
+    void setParamInUndoStep (const juce::String& id, float plainValue)
+    {
+        auto child = apvts.state.getChildWithProperty ("id", id);
+        if (child.isValid()) child.setProperty ("value", plainValue, &undo);
+        else if (auto* a = apvts.getParameter (id)) a->setValueNotifyingHost (a->convertTo0to1 (plainValue));
+    }
     static float slotMin (int slot) { return fge::env::isPitch (slot) ? -1.f : 0.f; }
     int auditionNote = 31;          // G1 in FL (49 Hz)
 

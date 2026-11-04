@@ -11,6 +11,7 @@
 #include "DoomsdayUI.h"
 #include "../PluginProcessor.h"
 #include "WaveView.h"
+#include "EnvPage.h"
 #include "Palette.h"
 
 class GeCanvas : public juce::Component, private juce::Timer
@@ -26,6 +27,9 @@ public:
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
+    void showPage (int);                                             // 0 = MAIN, 1 = ENVELOPES (module 02)
+    int page() const { return pageIdx; }
+    fge::gui::EnvPage& envelopes() { return *envPage; }
 private:
     void timerCallback() override;
     using Knob = doomsday::flat::Knob;
@@ -38,6 +42,7 @@ private:
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAtt;
     std::vector<juce::Component*> masterRow;
     void layoutDetail();
+    void paintMain (juce::Graphics&, const std::function<void (juce::Rectangle<int>, const juce::String&, juce::Colour)>& panel);
 public:
     void updateEnabled();
 private:
@@ -60,6 +65,9 @@ private:
     juce::Rectangle<int> headerArea, pitchArea, waveArea, detailArea, mixerArea, meterArea;
     std::array<juce::Rectangle<int>, 4> mixMeterArea;
     int selected = 2;
+    int pageIdx = 0;
+    std::unique_ptr<fge::gui::EnvPage> envPage;
+    std::array<juce::TextButton, 2> pageBtn;
     std::array<float, 4> meter {};
     float outMeter = 0.f;
 };

@@ -90,7 +90,19 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             else if (auto* t = dynamic_cast<SettableTooltipClient*> (comp)) t->setTooltip (tip);
         }
     }
+    envPage = std::make_unique<fge::gui::EnvPage> (proc, lnf);
+    addChildComponent (*envPage);
+    const char* pages[2] { "MAIN", "ENVELOPES" };
+    for (int i = 0; i < 2; ++i)
+    {
+        pageBtn[(size_t) i].setButtonText (pages[i]);
+        pageBtn[(size_t) i].onClick = [this, i] { showPage (i); };
+        addAndMakeVisible (pageBtn[(size_t) i]);
+    }
+    pageBtn[0].setTooltip ("The kick: parts, sources, mixer.");
+    pageBtn[1].setTooltip ("Draw the pitch / amplitude / filter / distortion / resonance envelope of every part.");
     selectPart (2);
+    showPage (0);
     updateEnabled();
     startTimerHz (30);
 }
@@ -125,13 +137,35 @@ Component* GeCanvas::findControl (const String& id) { auto it = byId.find (id); 
 void GeCanvas::selectPart (int i)
 {
     selected = jlimit (0, 3, i);
-    for (int p = 0; p < 4; ++p) for (auto* c : detail[(size_t) p]) if (c != nullptr) c->setVisible (p == selected);
+    for (int p = 0; p < 4; ++p) for (auto* c : detail[(size_t) p]) if (c != nullptr) c->setVisible (p == selected && pageIdx == 0);
     layoutDetail();
+    repaint();
+}
+
+void GeCanvas::showPage (int i)
+{
+    pageIdx = jlimit (0, 1, i);
+    const bool main = pageIdx == 0;
+    for (int p = 0; p < 4; ++p)
+    {
+        for (auto* c : card[(size_t) p]) c->setVisible (main);
+        for (auto* c : mixer[(size_t) p]) c->setVisible (main);
+        for (auto* c : detail[(size_t) p]) if (c != nullptr) c->setVisible (main && p == selected);
+    }
+    for (auto* c : masterRow) c->setVisible (main);
+    envPage->setVisible (! main);
+    const auto& c = palette();
+    for (int k = 0; k < 2; ++k)
+    {
+        pageBtn[(size_t) k].setColour (TextButton::buttonColourId, k == pageIdx ? c.red : c.control);
+        pageBtn[(size_t) k].setColour (TextButton::textColourOffId, k == pageIdx ? c.ground : c.silver);
+    }
     repaint();
 }
 
 void GeCanvas::mouseDown (const MouseEvent& e)
 {
+    if (pageIdx != 0) return;
     for (int i = 0; i < 4; ++i)
         if (cardArea[(size_t) i].contains (e.getPosition())) { selectPart (i); return; }
 }
@@ -180,6 +214,9 @@ void GeCanvas::resized()
         mixMeterArea[(size_t) i] = { mx + mw - 16, mixerArea.getY() + 44, 6, 132 };
     }
     layoutDetail();
+    if (envPage != nullptr) envPage->setBounds (16, 430, W - 32, H - 430 - 16);
+    pageBtn[0].setBounds (896, 14, 64, 30);
+    pageBtn[1].setBounds (896, 52, 64, 30);
 }
 
 void GeCanvas::layoutDetail()
@@ -234,6 +271,23 @@ void GeCanvas::paint (Graphics& g)
     const bool track = raw (proc, P::coreKeyTrack) > 0.5f;
     g.drawText (track ? "TRACKING: END = the played note, START moves with it" : "FIXED: START -> END in Hz",
                 pitchArea.getX() + 140, pitchArea.getY() + 8, 400, 20, Justification::left);
+    if (pageIdx == 0) paintMain (g, panel);
+    // output meter
+    {
+        const float m = jlimit (0.f, 1.f, (Decibels::gainToDecibels (outMeter, -60.f) + 60.f) / 66.f);
+        g.setColour (c.panel); g.fillRoundedRectangle (meterArea.toFloat(), 4.f);
+        auto r = meterArea.reduced (6, 8);
+        g.setColour (c.control); g.fillRect (r);
+        g.setColour (outMeter > 1.f ? c.hot : c.silver.withAlpha (0.85f));
+        g.fillRect (r.withTop (r.getBottom() - roundToInt ((float) r.getHeight() * m)));
+        g.setColour (c.textDim); g.setFont (lnf.font (9.f, doomsday::flat::Bold));
+        g.drawText ("OUT", meterArea.getX() - 4, meterArea.getBottom() + 2, meterArea.getWidth() + 8, 12, Justification::centred);
+    }
+}
+
+void GeCanvas::paintMain (Graphics& g, const std::function<void (Rectangle<int>, const String&, Colour)>& panel)
+{
+    const auto& c = palette();
     for (int i = 0; i < 4; ++i)
     {
         const auto a = cardArea[(size_t) i];
@@ -264,17 +318,6 @@ void GeCanvas::paint (Graphics& g)
     {
         g.setColour (c.textDim); g.setFont (lnf.font (10.5f, doomsday::flat::Bold, 0.06f));
         g.drawText ("STAGE 2", cb->getX(), cb->getY() - 18, 150, 14, Justification::left);
-    }
-    // output meter
-    {
-        const float m = jlimit (0.f, 1.f, (Decibels::gainToDecibels (outMeter, -60.f) + 60.f) / 66.f);
-        g.setColour (c.panel); g.fillRoundedRectangle (meterArea.toFloat(), 4.f);
-        auto r = meterArea.reduced (6, 8);
-        g.setColour (c.control); g.fillRect (r);
-        g.setColour (outMeter > 1.f ? c.hot : c.silver.withAlpha (0.85f));
-        g.fillRect (r.withTop (r.getBottom() - roundToInt ((float) r.getHeight() * m)));
-        g.setColour (c.textDim); g.setFont (lnf.font (9.f, doomsday::flat::Bold));
-        g.drawText ("OUT", meterArea.getX() - 4, meterArea.getBottom() + 2, meterArea.getWidth() + 8, 12, Justification::centred);
     }
 }
 

@@ -511,6 +511,46 @@ int main (int argc, char** argv)
             FileOutputStream os (outDir.getChildFile (part == 2 ? "gui.png" : "gui_punch.png"));
             if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
         }
+        // ENVELOPES page (module 02): drawing on TAIL PITCH switches it to CUSTOM, plays, and undoes in one step
+        {
+            auto& env = ge->canvas.envelopes();
+            ge->canvas.showPage (1);
+            env.select (2, gui::EnvPage::Pitch);
+            const auto before = renderKick (p.frame(), G1, sr, 0.6, -1, 1.f, &p.shapes());
+            const auto drawn = env::Shape::make ({ { 0.f, 1.f }, { 0.4f, 1.f }, { 0.45f, 0.f }, { 1.f, 0.f } });
+            env.commitShape (drawn);
+            const bool custom = roundToInt (p.apvts.getRawParameterValue ("pe_mode")->load()) == 8 && p.shape (env::PitchTail).toString() == drawn.toString();
+            const auto after = renderKick (p.frame(), G1, sr, 0.6, -1, 1.f, &p.shapes());
+            const bool plays = diff (before, after) > 0.05 * rms (before);
+            p.undo.undo();
+            const bool undone = roundToInt (p.apvts.getRawParameterValue ("pe_mode")->load()) != 8
+                                && p.shape (env::PitchTail).toString() == env::defaultShape (env::PitchTail).toString();
+            // 64 points through the editor, never more; the time order is kept
+            env.select (1, gui::EnvPage::Amp);
+            auto& ed2 = env.editor();
+            for (int i = 0; i < 80; ++i) ed2.addPoint ((float) (i % 70) / 70.f + 0.003f, 0.5f + 0.4f * std::sin ((float) i));
+            const auto& sh = p.shape (env::AmpBody);
+            bool ordered = true;
+            for (int i = 1; i < sh.n; ++i) ordered &= sh.p[(size_t) i].t >= sh.p[(size_t) i - 1].t;
+            const bool drawnMode = roundToInt (p.apvts.getRawParameterValue ("body_amp_env_mode")->load()) == 1;
+            // every view has its real parameters on the page
+            bool wired = true;
+            for (auto [pp, vv, id] : std::initializer_list<std::tuple<int, int, const char*>> { { 2, 0, "tail_penv_offset" }, { 0, 1, "punch_amp_env_delay" },
+                     { 2, 2, "tail_filter_env_attack" }, { 3, 3, "sub_drive_env_amount" }, { 1, 4, "body_reso_env_decay" } })
+            { env.select (pp, vv); wired &= env.findControl (id) != nullptr; }
+            check (custom && plays && undone && sh.n == env::maxPoints && ordered && drawnMode && wired,
+                   "M02 GUI: drawing switches to CUSTOM / DRAWN, plays, one undo, 64 points max, every view wired",
+                   String (sh.n) + " points" + (custom ? "" : " no-custom") + (plays ? "" : " silent") + (undone ? "" : " no-undo")
+                   + (ordered ? "" : " order") + (drawnMode ? "" : " not-drawn") + (wired ? "" : " not-wired"));
+            env.select (2, gui::EnvPage::Pitch);
+            env.commitShape (env::Shape::make ({ { 0.f, 1.f }, { 0.25f, 1.f }, { 0.3f, 0.2f }, { 0.6f, 0.05f }, { 1.f, 0.f } }));
+            env.select (2, gui::EnvPage::Pitch);
+            auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            PNGImageFormat png;
+            FileOutputStream os (outDir.getChildFile ("gui_envelopes.png"));
+            if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            ge->canvas.showPage (0);
+        }
         auto wav = ge->canvas.waveView().writeWav (outDir);
         check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());
     }

@@ -44,3 +44,6 @@ Jedna z najważniejszych funkcji modułu. Hardstyle wymaga stabilnego, centralne
 - MODE 03 — HAAS EFFECT: opcjonalny tryb kreatywny (różnica czasowa L/R); DELAY TIME, WIDTH, MIX, CHANNEL SELECT, MONO CHECK; oznaczony jako efekt kreatywny, który może pogorszyć zgodność mono.
 - MODE 04 — DISABLED: wyłączenie przetwarzania przestrzennego.
 Każdy tryb: MIX 0–100%, OUTPUT GAIN, BYPASS, MONO AUDITION.
+
+## 7. STEREO ROUTING
+Przetwarzanie dostępne na poziomie Layer, Group i Master.

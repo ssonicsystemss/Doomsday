@@ -2,7 +2,8 @@
 
 Syntezator kicków hardstyle (instrument VST3, FL Studio). **v0.5 to nowy 4GE budowany od zera** według Twojej specyfikacji
 17 modułów (`SPEC.md`, `MODULE01.md`…`MODULE12.md`, `MODULES13-17_overview.md`, zasady nadrzędne w `RULES.md`, plan w `PLAN.md`).
-Ta wersja to **moduł 01 – CORE KICK ENGINE**: cztery niezależne części kicka i ich mikser. Kolejne moduły dokładają resztę.
+Ta wersja to **moduł 01 – CORE KICK ENGINE** (cztery niezależne części kicka i ich mikser) + **moduł 02 – obwiednie** (strona ENVELOPES).
+Kolejne moduły dokładają resztę.
 
 > **Ważne przy instalacji:** nowy 4GE ma wszystkie parametry nowe, więc ma też **nowy identyfikator wtyczki**.
 > Jeśli masz projekty FL ze starym 4GE v0.4, **nie kasuj starego pliku**: zmień jego nazwę na `4GE v0.4.vst3`
@@ -38,7 +39,9 @@ Najkrótsze możliwe wejście to 0,15 ms, a wyjście 3 ms, więc nie ma klików 
 - **Góra**: LENGTH (100–2500 ms), MASTER, VELOCITY; przełączniki **AUTO LENGTH**, **PHASE RESET**, **PITCH TRACKING**; **CHOKE / POLY**;
   presety + PLAY / RANDOMIZE / SAVE / UNDO / REDO.
 - **PITCH ENGINE**: tryb **CLASSIC / FAST / SLOW / DOUBLE / RISE / STABLE**, START, END, TIME, CURVE (nisko = spada szybko i wcześnie,
-  wysoko = trzyma się wysoko i spada późno), AMOUNT (dodatkowe półtony na uderzeniu), FINE.
+  wysoko = trzyma się wysoko i spada późno), AMOUNT (dodatkowe półtony na uderzeniu), FINE,
+  **HOLD** (pitch stoi na START przez tyle ms, potem spada – tonalny „tok”, to daje „pup pup pup”) i **TOK LEVEL**
+  (głośność ogona w czasie HOLD – ciszej = wejście basu po toku mocniej uderza).
 - **Środek**: duży **waveform** – to prawdziwy wyrenderowany kick, każda część w swoim kolorze.
   **Złap go myszką i przeciągnij do FL** – dostaniesz gotowy plik WAV.
 - **Cztery karty**: LEVEL, PITCH, LENGTH, DRIVE, MUTE, SOLO i pasek poziomu. **Kliknij kartę**, a na dole pojawią się jej szczegóły
@@ -54,12 +57,29 @@ Wyłączony: START i END w hercach, niezależnie od nuty.
 Wyłączony: każda część ma swoją długość, a LENGTH tylko ucina kick na końcu (z miękkim wyciszeniem).
 **CHOKE**: nowy kick wycisza poprzedni w 6 ms (czysty dół). **POLY**: kicki nachodzą na siebie.
 
+## Strona ENVELOPES (moduł 02)
+Przycisk **ENVELOPES** u góry (obok **MAIN**). Po lewej wybierasz **część** (PUNCH / BODY / TAIL / SUB) i **widok**
+(PITCH / AMPLITUDE / FILTER / DISTORTION / RESONANCE) – u góry edytora zawsze widać, co edytujesz.
+- **Edytor**: do 64 punktów. Dwuklik w puste miejsce = nowy punkt, dwuklik na punkt = usuń, przeciągnij = przesuń
+  (kolejność w czasie zostaje), SHIFT = zaznacz kilka, przeciągnij po pustym = zaznacz prostokątem, **ALT + przeciągnij** na odcinku = napięcie
+  (TENSION), **prawy klik** = typ krzywej odcinka (LINEAR, EXP, LOG, EASE IN / OUT / IN-OUT, BEZIER z uchwytami, STEP), dokładna wartość, usuń.
+  Kółko = zoom w poziomie, SHIFT + kółko = w pionie. Oś czasu w ms, pion w półtonach (PITCH) albo w % (reszta).
+- **Rysowanie zawsze gra**: jeśli obwiednia była w trybie ADSR (albo pitch w trybie CLASSIC itp.), pierwsze rysowanie przełącza ją
+  na DRAWN / CUSTOM – jedno UNDO cofa oba.
+- **COPY / PASTE** (także między częściami i widokami), **RESET**, **FIT**, **SNAP** (przyciąganie do siatki), **SAVE / LOAD**
+  pojedynczej obwiedni jako plik (`Dokumenty\4GE\Envelopes`, `.4genv`).
+- Pod edytorem prawdziwe parametry tej obwiedni: tryb, LINK (INDEPENDENT / FOLLOW / LINKED – np. SUB może iść za ruchem TAIL),
+  czasy, DELAY, CURVE, AMOUNT, TRIGGER (ONE SHOT / RETRIGGER / LEGATO), SYNC. Po lewej dla wszystkich: TIME SCALE, TIME OFFSET,
+  **SYNC** (czasy zsynchronizowanych obwiedni idą za BPM z FL; bez BPM z hosta – LOCAL BPM).
+- Narysowane obwiednie zapisują się w projekcie FL i w presetach użytkownika.
+
 ## Presety
-INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive**, **RAW - Buzz Saw**, **EARLY - Short Tonal**)
-i przykłady każdego CHARACTER (CORE - …). Uwaga: to dopiero rdzeń – jeden oscylator na część, bez unisonu, szumu i stopni przesteru,
-więc ogon jest „czystszy” niż w gotowych kickach. To przychodzi w modułach 03 (oscylatory, unison), 04 (szum, warstwy) i 05 (przester).
+INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
+**EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
+MODERN / RAW: CLICK na początku (stuknięcie), tok na HOLD z szumem pod spodem (BODY = NOISE, żeby nie brzmiało „plastikowo”),
+TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – stąd power.
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 02 obwiednie wielopunktowe i pitch każdej części → 03 oscylatory → 04 szum / transient / warstwy →
+Moduł po module wg `PLAN.md`: 03 oscylatory → 04 szum / transient / warstwy →
 05 przester → 06 filtry / screech → 07 EQ → 08 dynamika → 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
 13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.

@@ -448,6 +448,101 @@ int main (int argc, char** argv)
         }
         check (bad == 0, "14.12 save / load of the state restores every parameter", String (bad) + " differ");
     }
+    // ---------------------------------------------------------------- MODULE02 section 14: acceptance tests of the envelope engine
+    {
+        ParamFrame f = base; f[P::tailChar] = 0.f; f[P::tailDrive] = 0.f; f[P::tailTone] = 20000.f; f[P::tailReso] = 0.f; f[P::coreLength] = 900.f;
+        f[P::tailUniVoices] = 1.f; f[P::peTime] = 200.f; f[P::peStart] = 400.f;
+        // 2. every interpolation type is a different movement in the DSP (TAIL PITCH = CUSTOM, one segment, 8 curves)
+        {
+            ParamFrame q = f; q[P::peMode] = 8.f;
+            std::vector<AudioBuffer<float>> outs;
+            for (int c = 0; c < env::NumCurves; ++c)
+            {
+                env::Bank b;
+                auto sh = env::Shape::make ({ { 0.f, 1.f }, { 1.f, 0.f } });
+                sh.p[0].curve = (uint8_t) c; sh.p[0].h1x = 0.1f; sh.p[0].h1y = 0.9f; sh.p[0].h2x = 0.2f; sh.p[0].h2y = 1.f;
+                b.s[env::PitchTail] = sh;
+                outs.push_back (renderKick (q, G1, sr, 0.4, 2, 1.f, &b));
+            }
+            double minD = 1.0e9; String pair;
+            for (int i = 0; i < (int) outs.size(); ++i) for (int j = i + 1; j < (int) outs.size(); ++j)
+            { const double d = diff (outs[(size_t) i], outs[(size_t) j]); if (d < minD) { minD = d; pair = String (env::curveName (i)) + "/" + env::curveName (j); } }
+            check (minD > 1.0e-3, "M02 14.2 all 8 interpolation types act in the DSP", "closest " + pair + " " + String (minD, 4));
+        }
+        // 3. every part has its own pitch envelope: PUNCH CUSTOM changes only the punch
+        {
+            env::Bank b; b.s[env::PitchPunch] = env::Shape::make ({ { 0.f, 1.f }, { 0.8f, 1.f }, { 1.f, 0.f } });
+            ParamFrame q = f; q[P::punchPMode] = 8.f; q[P::punchLevel] = 0.f;
+            const double dp = diff (renderKick (q, G1, sr, 0.4, 0, 1.f, &b), renderKick (f, G1, sr, 0.4, 0));
+            const double dt = diff (renderKick (q, G1, sr, 0.4, 2, 1.f, &b), renderKick (f, G1, sr, 0.4, 2));
+            check (dp > 1.0e-3 && dt < 1.0e-7, "M02 14.3 each part has its own pitch envelope", "punch " + String (dp, 4) + " tail " + String (dt, 8));
+        }
+        // 4. FOLLOW: the sub copies the tail's pitch movement; INDEPENDENT (no depth) stays on the note whatever the tail does
+        {
+            ParamFrame a2 = f; a2[P::subLink] = 1.f; a2[P::subLinkSrc] = 2.f; a2[P::subFDepth] = 0.5f;
+            ParamFrame b2 = a2; b2[P::peStart] = 200.f;
+            const double follow = diff (renderKick (a2, G1, sr, 0.4, 3), renderKick (b2, G1, sr, 0.4, 3));
+            ParamFrame c2 = a2; c2[P::subLink] = 0.f;
+            ParamFrame d2 = c2; d2[P::peStart] = 200.f;
+            const double indep = diff (renderKick (c2, G1, sr, 0.4, 3), renderKick (d2, G1, sr, 0.4, 3));
+            check (follow > 1.0e-3 && indep < 1.0e-6, "M02 14.4 FOLLOW copies the movement, INDEPENDENT does not", "follow " + String (follow, 4) + " indep " + String (indep, 7));
+        }
+        // 5. LINK loops are cut: punch follows body, body follows punch -> finite, both back to INDEPENDENT
+        {
+            ParamFrame q = f; q[P::punchLink] = 1.f; q[P::punchLinkSrc] = 1.f; q[P::bodyLink] = 1.f; q[P::bodyLinkSrc] = 0.f;
+            auto x = renderKick (q, G1, sr, 0.5);
+            ParamFrame r = q; r[P::punchLink] = 0.f;                      // the loop is cut at the first part: punch independent, body still follows it
+            const bool finite = std::isfinite (rms (x)) && peak (x) < 4.f;
+            check (finite && diff (x, renderKick (r, G1, sr, 0.5)) < 1.0e-6, "M02 14.5 a LINK loop is cut (no feedback, no endless recursion)");
+        }
+        // 6. TIME SCALE stretches the curve without changing its shape: pitch at 2t (scale 2) == pitch at t (scale 1)
+        {
+            ParamFrame q = f; q[P::peTime] = 300.f; q[P::punchLevel] = -60.f; q[P::bodyLevel] = -60.f;
+            ParamFrame q2 = q; q2[P::tailPScale] = 2.f;
+            const auto x1 = renderKick (q, G1, sr, 1.0, 2), x2 = renderKick (q2, G1, sr, 1.0, 2);
+            double worst = 0.0;
+            for (double t : { 0.04, 0.08, 0.14 }) worst = jmax (worst, std::abs (std::log2 (pitchAt (x2, sr, 2.0 * t, 0.024) / pitchAt (x1, sr, t, 0.012))) * 12.0);
+            check (worst < 1.0, "M02 14.6 TIME SCALE stretches without changing the shape", "worst " + String (worst, 2) + " st");
+        }
+        // 7. host BPM: a SYNCed envelope is twice as long at 75 BPM as at 150
+        {
+            ParamFrame q = f; q[P::envSync] = 1.f; q[P::tailAmpSync] = 1.f; q[P::tailAmpMode] = 1.f; q[P::coreLength] = 2000.f;
+            q[P::tailLen] = 300.f; q[P::coreAutoLen] = 0.f;
+            env::Bank b; b.s[env::AmpTail] = env::Shape::make ({ { 0.f, 1.f }, { 0.9f, 1.f }, { 1.f, 0.f } }, env::Linear);
+            auto endOf = [] (const AudioBuffer<float>& x) { int last = 0; const float th = 0.1f * peak (x); for (int i = 0; i < x.getNumSamples(); ++i) if (std::abs (x.getSample (0, i)) > th) last = i; return last / sr * 1000.0; };
+            const double e150 = endOf (renderKick (q, G1, sr, 1.5, 2, 1.f, &b, 150.0)), e75 = endOf (renderKick (q, G1, sr, 1.5, 2, 1.f, &b, 75.0));
+            check (std::abs (e75 / jmax (1.0, e150) - 2.0) < 0.1, "M02 14.7 SYNCed envelopes follow the host BPM", String (e150, 0) + " ms @150, " + String (e75, 0) + " ms @75");
+        }
+        // 13. realtime (processor, MIDI) == offline (renderKick) with the same drawn shapes
+        {
+            GeProcessor p2; setP (p2, "tail_amp_env_mode", 1.f); setP (p2, "pe_mode", 8.f);
+            p2.setShape (env::PitchTail, env::Shape::make ({ { 0.f, 1.f }, { 0.3f, 0.9f }, { 0.35f, 0.f }, { 1.f, 0.f } }));
+            p2.setShape (env::AmpTail, env::Shape::make ({ { 0.f, 1.f }, { 0.5f, 0.6f }, { 1.f, 0.f } }));
+            const auto rt = hitProc (p2, { { 0, MidiMessage::noteOn (1, 31, (uint8) 127) } }, 0.6);
+            const auto off = renderKick (p2.frame(), 31, sr, 0.6, -1, 1.f, &p2.shapes());
+            const int lat = 0;                                              // both paths carry the same oversampling latency
+            double d = 0.0, e = 0.0;
+            for (int i = 0; i + lat < rt.getNumSamples(); ++i) { const double u = rt.getSample (0, i + lat) - off.getSample (0, i); d += u * u; e += (double) off.getSample (0, i) * off.getSample (0, i); }
+            check (std::sqrt (d / jmax (1.0e-12, e)) < 1.0e-4, "M02 14.13 realtime and offline export give the same kick", "rel " + String (std::sqrt (d / jmax (1.0e-12, e)), 7));
+        }
+        // 12 + 14. parameter moves while kicks overlap (POLY, RETRIGGER, drawn envelopes): finite, no jumps
+        {
+            GeProcessor p3; setP (p3, "core_voice_mode", 1.f); setP (p3, "tail_amp_env_trigger", 1.f); setP (p3, "tail_filter_env_on", 1.f);
+            p3.prepareToPlay (sr, 256);
+            float maxStep = 0.f, last = 0.f; bool finite = true;
+            for (int blk = 0; blk < 300; ++blk)
+            {
+                AudioBuffer<float> b (2, 256); b.clear(); MidiBuffer m;
+                if (blk % 20 == 0) m.addEvent (MidiMessage::noteOn (1, 31, (uint8) 110), 17);
+                if (blk % 20 == 9) m.addEvent (MidiMessage::noteOff (1, 31), 3);
+                setP (p3, "tail_filter_env_amount", (float) std::sin (blk * 0.37) * 0.8f);
+                setP (p3, "tail_tone", 2000.f + 6000.f * (float) (blk % 7) / 6.f);
+                p3.processBlock (b, m);
+                for (int i = 0; i < 256; ++i) { const float v = b.getSample (0, i); finite &= std::isfinite (v); maxStep = jmax (maxStep, std::abs (v - last)); last = v; }
+            }
+            check (finite && maxStep < 1.2f, "M02 14.12 / 14.14 moving parameters on overlapping kicks: finite, no jumps", "max step " + String (maxStep, 3));
+        }
+    }
     // ---------------------------------------------------------------- module 02 wiring: DRAWN shapes in the state (ENVS), undo, presets, audio
     {
         auto hit = [] (GeProcessor& p) { return hitProc (p, { { 0, MidiMessage::noteOn (1, 31, (uint8) 127) } }, 0.6); };

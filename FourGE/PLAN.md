@@ -70,7 +70,8 @@ jest tylko kierunkiem wizualnym (kolory, charakter), układ ekranów powstaje po
   Moduł 09 pozwala tworzyć np. 4 własne makra użytkownika, niezależne od ośmiu głównych (MOVEMENT / DENSITY / SPACE mogą tam trafić).
 - Reverse bass: **4GE NIE generuje reverse bassu i nie ma jego silnika** (właściciel) – to RE4GE. 4GE = Hardstyle Kick Designer (RULES.md pkt 5).
 - Sample w presetach: bez preferencji → osadzane w presecie / stanie (jak RE4GE), RELINK gdy brak i nie ma kopii.
-- PRE-ROLL screecha: bez preferencji → ciche rozkręcenie silnika przed START (słychać od START).
+- PRE-ROLL screecha: potwierdzone przez właściciela jako PRE-TRIGGER (M06 SCREECH START MODE) – ciche rozkręcenie, słyszalny START bez zmian.
+- SYNC TO BODY END: TAK – jako SCREECH START MODE (M06 dodatek: MANUAL / BODY END / BODY END + OFFSET / TAIL / KICK / HOST SYNC).
 
 ## Domyślna konfiguracja komponentów (rekomendacja właściciela, 2026-11-03)
 Nie każdy komponent ma te same funkcje włączone na start – początkujący od razu robi sensowny kick, zaawansowany ma całą maszynerię:

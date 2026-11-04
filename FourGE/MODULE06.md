@@ -251,3 +251,13 @@ Domyślny tryb: MANUAL.
 Schemat: `0 ms | PUNCH | BODY | ← BODY END → SCREECH | KICK END` – screech rozpoczyna się automatycznie w punkcie BODY END.
 Zasada: `SCREECH_START = BODY_START + BODY_DURATION + SCREECH_OFFSET`
 Przykład: BODY duration 350 ms, SCREECH offset 0 ms → SCREECH start 350 ms. Po zmianie BODY duration na 500 ms SCREECH start automatycznie przesuwa się na 500 ms – użytkownik nic nie przestawia ręcznie.
+### 3. Parametry dodatkowe
+| Parametr | Zakres |
+|---|---|
+| START MODE | MANUAL / BODY END / BODY END + OFFSET / TAIL START / KICK START |
+| OFFSET | -250 do +1000 ms |
+| PRE-TRIGGER | OFF / ON |
+| FADE IN | 0–500 ms |
+| START QUANTIZE | OFF / 1 ms / 5 ms / 10 ms |
+| FOLLOW BODY | ON / OFF |
+PRE-TRIGGER uruchamia wewnętrzny generator screechu przed jego słyszalnym wejściem (np. stabilizacja oscylatora lub filtra), ale NIE przesuwa faktycznego punktu słyszalnego START. (= odpowiedź na pytanie o PRE-ROLL z pkt 6: ciche rozkręcenie.)

@@ -142,6 +142,9 @@ Test: TAIL z maksymalnym przesterem, SUB bypass → widmo SUB-u bez harmonicznyc
    SR + resampling, dither raz na końcu (domyślnie OFF), normalizacja bez ukrytego limitera, źródło FULL / grupa / warstwa, długość AUTO /
    FIXED / UNTIL SILENCE z pre / post-roll, offline = realtime, seedy FIXED / NEW / PRESET / CUSTOM, batch + nazwy, historia, plik .part.
    Klocki: RE4GE Exporter / ExportPanel, Throne of Titans (LUFS / true peak).
+1m. **Moduły 13+ (właściciel, 2026-11-04): warstwa zarządzająca całym instrumentem – OSOBNE specyfikacje, nie doklejane do 01–12.**
+   Brakuje (wg SPEC): STYLE + LENGTH ENGINE (EARLY / MODERN / RAW / EXPERIMENTAL, długość niezależna od stylu), PRESET MANAGER +
+   AUDIO ANALYSIS (browser, kategorie, A/B, reference), GUI / DESIGN SYSTEM (5 bloków nawigacji, makieta `Design/`). Czekamy na specyfikacje.
 2. **Style engine**: EARLY / MODERN / RAW / EXPERIMENTAL + kontrolki stylu + presety startowe (każdy styl × długości).
 3. **Synthesis**: 4 osc, noise, transient, sub z RE4GE, resonance, sample + 8 warstw z solo.
 4. **Processing**: 4 stopnie + Distortion Lab + waveshaper, filtry, EQ 8, dynamika, stereo.

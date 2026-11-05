@@ -102,8 +102,10 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     addChildComponent (*scrPage);
     eqPg = std::make_unique<fge::gui::EqPage> (proc, lnf);
     addChildComponent (*eqPg);
-    const char* pages[7] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ" };
-    for (int i = 0; i < 7; ++i)
+    dynPg = std::make_unique<fge::gui::DynPage> (proc, lnf);
+    addChildComponent (*dynPg);
+    const char* pages[8] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ", "DYN" };
+    for (int i = 0; i < 8; ++i)
     {
         pageBtn[(size_t) i].setButtonText (pages[i]);
         pageBtn[(size_t) i].onClick = [this, i] { showPage (i); };
@@ -117,6 +119,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     wave.onScreechStart = [this] (float ms, bool first) { if (first) proc.undo.beginNewTransaction ("Screech start"); proc.setParamInUndoStep ("scr_start", ms); };
     pageBtn[5].setTooltip ("Filters (8), resonators (2) and the SCREECH engine: synthesised screeches with their own envelopes and timing.");
     pageBtn[6].setTooltip ("EQ (16 bands), dynamic EQ, multiband, spectral shaper and stereo engine - on the whole kick, a part, the texture, a layer or the screech.");
+    pageBtn[7].setTooltip ("Dynamics: 4 compressors, 5 transient shapers, 2 clippers, 2 limiters, crest factor control, auto gain - where the punch and the loudness are made.");
     selectPart (2);
     showPage (0);
     updateEnabled();
@@ -160,7 +163,7 @@ void GeCanvas::selectPart (int i)
 
 void GeCanvas::showPage (int i)
 {
-    pageIdx = jlimit (0, 6, i);
+    pageIdx = jlimit (0, 7, i);
     const bool main = pageIdx == 0;
     for (int p = 0; p < 4; ++p)
     {
@@ -175,9 +178,10 @@ void GeCanvas::showPage (int i)
     distortionPage->setVisible (pageIdx == 4);
     scrPage->setVisible (pageIdx == 5);
     eqPg->setVisible (pageIdx == 6);
+    dynPg->setVisible (pageIdx == 7);
     wave.setVisible (pageIdx < 2);
     const auto& c = palette();
-    for (int k = 0; k < 7; ++k)
+    for (int k = 0; k < 8; ++k)
     {
         pageBtn[(size_t) k].setColour (TextButton::buttonColourId, k == pageIdx ? c.red : c.control);
         pageBtn[(size_t) k].setColour (TextButton::textColourOffId, k == pageIdx ? c.ground : c.silver);
@@ -241,8 +245,9 @@ void GeCanvas::resized()
     if (layerPage != nullptr) layerPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (distortionPage != nullptr) distortionPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     for (int k = 0; k < 4; ++k) pageBtn[(size_t) k].setBounds (742 + k * 55, 40, 52, 26);
-    for (int k = 4; k < 7; ++k) pageBtn[(size_t) k].setBounds (742 + (k - 4) * 73, 70, 70, 26);
+    for (int k = 4; k < 8; ++k) pageBtn[(size_t) k].setBounds (742 + (k - 4) * 55, 70, 52, 26);
     if (eqPg != nullptr) eqPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
+    if (dynPg != nullptr) dynPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (scrPage != nullptr) scrPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
 }
 

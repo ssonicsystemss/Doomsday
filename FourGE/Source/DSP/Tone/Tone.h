@@ -251,7 +251,7 @@ namespace fge::dsp::tone
 
     // ------------------------------------------------------------------ MULTIBAND
     struct MbBand { float gain = 1.f, width = 1.f; bool inv = false, mute = false, solo = false; int dyn = MdOff; float thr = -18.f, ratio = 4.f, atk = 5.f, rel = 120.f, knee = 6.f, makeup = 1.f, mix = 1.f, trA = 0.f, trS = 0.f; };
-    struct MbSettings { bool on = false; int loc = 0, pos = 1, listen = 0; std::array<XSet, 3> x; std::array<MbBand, numMb> b; bool anySolo = false; };
+    struct MbSettings { bool on = false; int loc = 0, pos = 1, listen = 0, link = 0; std::array<XSet, 3> x; std::array<MbBand, numMb> b; bool anySolo = false; };
     struct MbState
     {
         std::array<std::array<XState, 6>, 2> xs {};                 // [ch]: split 1 / 2 / 3, all-pass b0@2, b0@3, b1@3
@@ -273,6 +273,12 @@ namespace fge::dsp::tone
                 o[0] = b0; o[1] = b1; o[2] = b2; o[3] = b3;
             }
             if (first) { for (int k = 0; k < numMb; ++k) { gain[(size_t) k] = s.b[(size_t) k].gain; width[(size_t) k] = s.b[(size_t) k].width; } first = false; }
+            // BAND LINK (module 08): linked bands share one detector level (the louder one) - no tonal shift between them
+            float lev[numMb];
+            for (int k = 0; k < numMb; ++k) lev[k] = (float) juce::jmax (std::abs (bl[k]), std::abs (br[k]));
+            if (s.link == 1 || s.link == 3) lev[0] = lev[1] = juce::jmax (lev[0], lev[1]);
+            if (s.link == 2 || s.link == 3) lev[2] = lev[3] = juce::jmax (lev[2], lev[3]);
+            if (s.link == 4) { const float m = juce::jmax (juce::jmax (lev[0], lev[1]), juce::jmax (lev[2], lev[3])); for (auto& v : lev) v = m; }
             double yl = 0, yr = 0;
             for (int k = 0; k < numMb; ++k)
             {
@@ -285,21 +291,21 @@ namespace fge::dsp::tone
                     // ---- dynamics on a real envelope (stereo linked)
                     if (b.dyn != MdOff)
                     {
-                        const float lev = (float) juce::jmax (std::abs (L), std::abs (R));
+                        const float lv0 = lev[k];
                         float g = 0.f;
                         if (b.dyn == MdTransient)
                         {
                             const float fa = 1.f - std::exp (-1.f / (0.0005f * (float) rate)), fr = 1.f - std::exp (-1.f / (0.02f * (float) rate));
                             const float sa = 1.f - std::exp (-1.f / (0.001f * juce::jmax (5.f, b.atk) * 4.f * (float) rate)), sr = 1.f - std::exp (-1.f / (0.001f * b.rel * (float) rate));
-                            fast[(size_t) k] += (lev > fast[(size_t) k] ? fa : fr) * (lev - fast[(size_t) k]);
-                            slow[(size_t) k] += (lev > slow[(size_t) k] ? sa : sr) * (lev - slow[(size_t) k]);
+                            fast[(size_t) k] += (lv0 > fast[(size_t) k] ? fa : fr) * (lv0 - fast[(size_t) k]);
+                            slow[(size_t) k] += (lv0 > slow[(size_t) k] ? sa : sr) * (lv0 - slow[(size_t) k]);
                             const float d = juce::Decibels::gainToDecibels (fast[(size_t) k], -100.f) - juce::Decibels::gainToDecibels (slow[(size_t) k], -100.f);
                             g = b.trA * juce::jlimit (0.f, 1.f, d / 6.f) + b.trS * juce::jlimit (0.f, 1.f, -d / 6.f + (d < 1.f ? 0.5f : 0.f));
                         }
                         else
                         {
                             const float a = 1.f - std::exp (-1.f / (0.001f * b.atk * (float) rate)), rl = 1.f - std::exp (-1.f / (0.001f * b.rel * (float) rate));
-                            env[(size_t) k] += (lev > env[(size_t) k] ? a : rl) * (lev - env[(size_t) k]);
+                            env[(size_t) k] += (lv0 > env[(size_t) k] ? a : rl) * (lv0 - env[(size_t) k]);
                             const float lv = juce::Decibels::gainToDecibels (env[(size_t) k], -120.f);
                             switch (b.dyn)
                             {

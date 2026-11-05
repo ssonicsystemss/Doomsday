@@ -17,6 +17,7 @@
 #include "Layers/LayerCook.h"
 #include "Dist/DistCook.h"
 #include "Tone/ToneCook.h"
+#include "Dyn/DynCook.h"
 #include "Filter/M06Cook.h"
 #include "DoomsdayKick.h"
 #include "../Parameters/ParamFrame.h"
@@ -49,6 +50,7 @@ namespace fge
         dsp::dist::DistBank dist;                 // module 05: the distortion stages and their order per location
         dsp::m06::Bank m06;                       // module 06: the filters / resonators and their order per place
         dsp::tone::Bank tone;                     // module 07: EQ / dynamic EQ / multiband / spectral / stereo per place
+        dsp::dyn::Bank dyn;                       // module 08: compressors / transient shapers / clippers / limiters / crest per place
         dsp::scr::Settings scr;                   // module 06: the screech
         bool lbAny = false;
         float lbEndMs = 0.f;                      // when the last layer / noise / click ends       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
@@ -207,7 +209,7 @@ namespace fge
                     mc.pitchNorm = std::abs (depth) > 0.01f ? juce::jlimit (0.f, 1.f, pe.semis (PTail, ms) / depth) : 0.f;
                     dsp::m06::Ctx m6c; m6c.ms = ms; m6c.vel = vel; m6c.noteHz = noteHz; m6c.lengthMs = ks.lengthMs; m6c.relMs = relAtMs;
                     lbv.tick (cfg.lb, cfg.osc, tables != nullptr ? *tables : noTables, hz, amp, noteHz / 49.f, ms, ks.inv, (float) ks.rate,
-                              ext, extL, extR, bl, br, &cfg.dist, &mc, cfg.m06.any ? &cfg.m06 : nullptr, &m6c, cfg.tone.any ? &cfg.tone : nullptr);
+                              ext, extL, extR, bl, br, &cfg.dist, &mc, cfg.m06.any ? &cfg.m06 : nullptr, &m6c, cfg.tone.any ? &cfg.tone : nullptr, cfg.dyn.any ? &cfg.dyn : nullptr);
                     for (int k = 0; k < dsp::NumBus; ++k) { bus[6 + 2 * k][i] += bl[k] * gate; bus[7 + 2 * k][i] += br[k] * gate; }
                 }
                 if (ms < cfg.partEnd[PPunch])
@@ -311,7 +313,7 @@ namespace fge
             shaper.prepare (sampleRate * osFactor);
             distTables.allocate();
             for (auto& ch : distChain) ch.reset();
-            m06St->reset(); scrEng.reset(); toneSt->reset();
+            m06St->reset(); scrEng.reset(); toneSt->reset(); dynSt->reset();
             scrOsc.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             scrInBufL.assign ((size_t) (maxBlockSize * osFactor), 0.f); scrInBufR.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             sinceHitMs = 1.0e9f;
@@ -322,7 +324,7 @@ namespace fge
             masterNow = 0.f; first = true; dcL = {}; dcR = {};
             for (auto& p : freePhase) p = 0.f;
         }
-        int latencySamples() const { return (int) std::lround (os->getLatencyInSamples()); }
+        int latencySamples() const { return (int) std::lround (os->getLatencyInSamples()) + cfg.dyn.masterLook; }
         // the drawn shapes (module 02) - set before process() each block; nullptr = the defaults
         void setBank (const env::Bank* b) { bank = b; }
         // the oscillator tables (module 03: CUSTOM / WAVETABLE / HARMONIC) - set before process() each block; nullptr = none
@@ -475,6 +477,7 @@ namespace fge
             dsp::dist::cookDist (f, distData, b, cfg.dist, distTables, cfg.ks.rate, offline);
             dsp::m06::cookBank (f, b, cfg.m06, cfg.ks.rate);
             dsp::tone::cookBank (f, cfg.tone, cfg.ks.rate);
+            dsp::dyn::cookBank (f, distData, cfg.dyn, cfg.ks.rate, sr);
             dsp::scr::cook (f, cfg.scr);
 
             // ---- envelope slots (module 02, 7)
@@ -622,6 +625,7 @@ namespace fge
             for (int c = 0; c < numBusCh; ++c) juce::FloatVectorOperations::clear (bus.getWritePointer (c), on);
             float* b[numBusCh];
             for (int c = 0; c < numBusCh; ++c) b[c] = bus.getWritePointer (c);
+            curBus = b;
             const bool inside = cfg.scr.on && cfg.scr.output == dsp::scr::OInside;
             bool scrAny = false;
             KickVoice* newest = nullptr;
@@ -642,7 +646,7 @@ namespace fge
             for (int l = 0; l < 6; ++l) distOn[(size_t) l] = cfg.dist.count[(size_t) l] > 0;
             if (! inside) scrAny = renderScreech (b, on);
             const bool busAny = cfg.lbAny || scrAny;
-            const bool m6 = cfg.m06.any, m7 = cfg.tone.any;
+            const bool m6 = cfg.m06.any, m7 = cfg.tone.any, m8 = cfg.dyn.any;
             clockSec += (double) n / sr;
 
             stereo.clear (0, 0, n); stereo.clear (1, 0, n);
@@ -665,6 +669,7 @@ namespace fge
                             float tl = b[6 + 2 * dsp::BusTexture][i] * tg, tr = b[7 + 2 * dsp::BusTexture][i] * tg;
                             if (m6 && cfg.m06.at (dsp::m06::LTexture, 0)) m06St->process (cfg.m06, dsp::m06::LTexture, 0, tl, tr, m6Ctx (i), cfg.ks.rate);
                             if (m7 && cfg.tone.at (dsp::m06::LTexture, 0)) toneSt->process (cfg.tone, dsp::m06::LTexture, 0, tl, tr, m6Ctx (i), cfg.ks.rate);
+                            if (m8 && cfg.dyn.at (dsp::m06::LTexture, 0)) dynSt->process (cfg.dyn, dsp::m06::LTexture, 0, tl, tr, m6Ctx (i), scOf (b, i), cfg.ks.rate);
                             if (distOn[dsp::dist::LocTexture])                             // TEXTURE group distortion
                             {
                                 const auto mc = modCtx (i);
@@ -673,6 +678,7 @@ namespace fge
                             }
                             if (m6 && cfg.m06.at (dsp::m06::LTexture, 1)) m06St->process (cfg.m06, dsp::m06::LTexture, 1, tl, tr, m6Ctx (i), cfg.ks.rate);
                             if (m7 && cfg.tone.at (dsp::m06::LTexture, 1)) toneSt->process (cfg.tone, dsp::m06::LTexture, 1, tl, tr, m6Ctx (i), cfg.ks.rate);
+                            if (m8 && cfg.dyn.at (dsp::m06::LTexture, 1)) dynSt->process (cfg.dyn, dsp::m06::LTexture, 1, tl, tr, m6Ctx (i), scOf (b, i), cfg.ks.rate);
                             L[i] += tl + b[6 + 2 * dsp::BusCustom][i] * cg;
                             R[i] += tr + b[7 + 2 * dsp::BusCustom][i] * cg;
                         }
@@ -704,6 +710,7 @@ namespace fge
                     yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i];                    // module 04: layers on this part's bus
                     if (m6 && cfg.m06.at (c + 1, 0)) m06St->process (cfg.m06, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 BEFORE
                     if (m7 && cfg.tone.at (c + 1, 0)) toneSt->process (cfg.tone, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 BEFORE
+                    if (m8 && cfg.dyn.at (c + 1, 0)) dynSt->process (cfg.dyn, c + 1, 0, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 BEFORE
                     if (distOn[(size_t) c + 1])                                       // module 05: the GROUP distortion (pre fader)
                     {
                         const auto mc = modCtx (i);
@@ -712,6 +719,7 @@ namespace fge
                     }
                     if (m6 && cfg.m06.at (c + 1, 1)) m06St->process (cfg.m06, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 AFTER
                     if (m7 && cfg.tone.at (c + 1, 1)) toneSt->process (cfg.tone, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 AFTER
+                    if (m8 && cfg.dyn.at (c + 1, 1)) dynSt->process (cfg.dyn, c + 1, 1, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 AFTER
                     yl *= gl; yr *= gr;
                     L[i] = (c == 0 ? 0.f : L[i]) + yl;
                     R[i] = (c == 0 ? 0.f : R[i]) + yr;
@@ -733,7 +741,12 @@ namespace fge
             for (int i = 0; i < n; ++i)
             {
                 const float m = m0 + (m1 - m0) * (float) (i + 1) * invN;
-                const float yl = dcL.tick (sl[i], r) * m, yr = dcR.tick (sr2[i], r) * m;
+                float yl = dcL.tick (sl[i], r) * m, yr = dcR.tick (sr2[i], r) * m;
+                if (cfg.dyn.any && cfg.dyn.at (dsp::dyn::LMaster, 1))           // module 08 at MASTER OUTPUT (host rate, lookahead)
+                {
+                    dsp::m06::Ctx cx = m6Ctx (0); cx.ms = sinceHitMs + (float) (i * 1000.0 / sr);
+                    dynSt->process (cfg.dyn, dsp::dyn::LMaster, 1, yl, yr, cx, nullptr, sr);
+                }
                 out.setSample (0, start + i, yl);
                 if (out.getNumChannels() > 1) out.setSample (1, start + i, yr);
                 opk = juce::jmax (opk, std::abs (yl), std::abs (yr));
@@ -741,6 +754,32 @@ namespace fge
             masterNow = m1;
             for (int c = 0; c < dsp::NumParts; ++c) partPeak[(size_t) c].store (juce::jmax (partPeak[(size_t) c].load(), pk[(size_t) c]));
             outPeak.store (juce::jmax (outPeak.load(), opk));
+            if (cfg.dyn.any) publishMeters();
+        }
+    public:
+        // module 08: the live meters (engine-level processors) for the GUI - lock free
+        struct LiveMeter { std::atomic<float> inPk { 0 }, outPk { 0 }, inRms { 0 }, outRms { 0 }, gr { 0 }, grMax { 0 }, grAvg { 0 }; std::atomic<bool> clip { false }; };
+        std::array<LiveMeter, 14> m8Meters;                                     // comp 0-3, transient 4-8, clipper 9-10, limiter 11-12, crest 13
+        void resetMeterMax() { for (auto& m : m8Meters) { m.grMax.store (0.f); m.clip.store (false); } }
+    private:
+        void publishMeters()
+        {
+            auto pub = [&] (int k, dsp::dyn::Meter& m)
+            {
+                auto& o = m8Meters[(size_t) k];
+                o.inPk.store (juce::jmax (o.inPk.load() * 0.8f, m.inPk)); o.outPk.store (juce::jmax (o.outPk.load() * 0.8f, m.outPk));
+                o.inRms.store (std::sqrt (m.inMs)); o.outRms.store (std::sqrt (m.outMs));
+                o.gr.store (m.gr); o.grMax.store (juce::jmin (o.grMax.load(), m.grMax));
+                if (m.grN > 0) o.grAvg.store (o.grAvg.load() + 0.1f * (m.grSum / (float) m.grN - o.grAvg.load()));
+                if (m.clip) o.clip.store (true);
+                m.inPk = m.outPk = 0.f; m.grSum = 0.f; m.grN = 0; m.grMax = 0.f; m.clip = false;
+            };
+            auto& d = *dynSt;
+            for (int i = 0; i < 4; ++i) pub (i, d.cmp[(size_t) i].meter);
+            for (int i = 0; i < 5; ++i) pub (4 + i, d.ts[(size_t) i].meter);
+            for (int i = 0; i < 2; ++i) pub (9 + i, d.clp[(size_t) i].meter);
+            for (int i = 0; i < 2; ++i) pub (11 + i, d.lim[(size_t) i].meter);
+            pub (13, d.crest.meter);
         }
 
         // module 05: what moves the stages' modulation at engine level (since the last hit, the tail pitch envelope, the velocity)
@@ -772,9 +811,11 @@ namespace fge
             const bool ta = cfg.tone.any && cfg.tone.at (dsp::m06::LGlobal, 0), tz = cfg.tone.any && cfg.tone.at (dsp::m06::LGlobal, 1);
             if (a) for (int i = 0; i < on; ++i) m06St->process (cfg.m06, dsp::m06::LGlobal, 0, L[i], R[i], m6Ctx (i), cfg.ks.rate);
             if (ta) for (int i = 0; i < on; ++i) toneSt->process (cfg.tone, dsp::m06::LGlobal, 0, L[i], R[i], m6Ctx (i), cfg.ks.rate);
+            if (cfg.dyn.any && cfg.dyn.at (dsp::m06::LGlobal, 0)) for (int i = 0; i < on; ++i) dynSt->process (cfg.dyn, dsp::m06::LGlobal, 0, L[i], R[i], m6Ctx (i), scOf (curBus, i), cfg.ks.rate);
             if (distOn[dsp::dist::LocGlobal]) globalDist (L, R, on);
             if (z) for (int i = 0; i < on; ++i) m06St->process (cfg.m06, dsp::m06::LGlobal, 1, L[i], R[i], m6Ctx (i), cfg.ks.rate);
             if (tz) for (int i = 0; i < on; ++i) toneSt->process (cfg.tone, dsp::m06::LGlobal, 1, L[i], R[i], m6Ctx (i), cfg.ks.rate);
+            if (cfg.dyn.any && cfg.dyn.at (dsp::m06::LGlobal, 1)) for (int i = 0; i < on; ++i) dynSt->process (cfg.dyn, dsp::m06::LGlobal, 1, L[i], R[i], m6Ctx (i), scOf (curBus, i), cfg.ks.rate);
         }
         // module 06: the screech (+ the filters / resonators placed on SCREECH) into its output bus; true = it sounds
         bool renderScreech (float* const* b, int on, float* const* inside = nullptr)
@@ -799,6 +840,7 @@ namespace fge
                 scrOsc[(size_t) i] = o;
                 if (cfg.m06.any && cfg.m06.at (dsp::m06::LScreech, 0)) m06St->process (cfg.m06, dsp::m06::LScreech, 0, l, r, m6Ctx (i), cfg.ks.rate);
                 if (cfg.tone.any && cfg.tone.at (dsp::m06::LScreech, 0)) toneSt->process (cfg.tone, dsp::m06::LScreech, 0, l, r, m6Ctx (i), cfg.ks.rate);
+                if (cfg.dyn.any && cfg.dyn.at (dsp::m06::LScreech, 0)) dynSt->process (cfg.dyn, dsp::m06::LScreech, 0, l, r, m6Ctx (i), scOf (b, i), cfg.ks.rate);
                 if (inside != nullptr) { inside[0][i] = l; inside[1][i] = r; }
                 else { b[6 + 2 * bus][i] += l; b[7 + 2 * bus][i] += r; }
             }
@@ -821,6 +863,21 @@ namespace fge
         float sinceHitMs = 1.0e9f, pitchNormNow = 0.f, lastVelocity = 1.f, lastNoteHz = 49.f, relMs = -1.f;
         std::unique_ptr<dsp::m06::State> m06St = std::make_unique<dsp::m06::State>();   // module 06 at engine level (not the layers)
         std::unique_ptr<dsp::tone::State> toneSt = std::make_unique<dsp::tone::State>(); // module 07 at engine level (not the layers)
+        std::unique_ptr<dsp::dyn::State> dynSt = std::make_unique<dsp::dyn::State>();    // module 08 at engine level (not the layers)
+        float scBuf[6] {};
+        float* const* curBus = nullptr;
+        // module 08 sidechain sources this sample: [1..4] the raw parts (+ their layers), [5] the texture bus
+        const float* scOf (float* const* b, int i)
+        {
+            if (b == nullptr) return nullptr;
+            for (int c = 0; c < 4; ++c) scBuf[c + 1] = b[c][i] + 0.5f * (b[6 + 2 * c][i] + b[7 + 2 * c][i]);
+            scBuf[5] = 0.5f * (b[6 + 2 * dsp::BusTexture][i] + b[7 + 2 * dsp::BusTexture][i]);
+            return scBuf;
+        }
+    public:
+        dsp::dyn::State& dynState() { return *dynSt; }                       // (GUI analysis: the probe / meters)
+        int dynLookahead() const { return cfg.dyn.masterLook; }
+    private:
         dsp::scr::Engine scrEng;
         dsp::scr::Timing scrTiming;
         std::vector<float> scrOsc;                                             // the screech oscillators per sample (resonator excitation)
@@ -861,7 +918,7 @@ namespace fge
     inline juce::AudioBuffer<float> renderKick (ParamFrame f, int note, double rate, double seconds, int soloPart = -1, float velocity = 1.f,
                                                 const env::Bank* bank = nullptr, double bpm = 0.0, double noteOffAt = -1.0,
                                                 const dsp::OscTables* tables = nullptr, const dsp::OscData* oscData = nullptr,
-                                                const dsp::dist::DistData* distData = nullptr)
+                                                const dsp::dist::DistData* distData = nullptr, dsp::dyn::Probe* probe = nullptr)
     {
         // no tables given: build them here from the parameters (+ the given / default oscillator data) - offline only
         std::array<dsp::TablePtr, dsp::maxOsc> keep;
@@ -889,17 +946,21 @@ namespace fge
         engine->setTables (tables);
         engine->setDistData (distData);
         engine->setOffline (true);                       // renderKick = the export path (OFFLINE QUALITY applies)
+        engine->cookOnly (f);
+        engine->dynState().probe = probe;                      // (GUI analysis: one module 08 processor's gain history)
+        const int look = engine->dynLookahead();               // module 08: the export starts on the beat (the lookahead is taken out)
         juce::AudioBuffer<float> out (2, total), tmp (2, block);
         out.clear();
-        for (int pos = 0; pos < total; pos += block)
+        for (int pos = 0; pos < total + look; pos += block)
         {
-            const int n = juce::jmin (block, total - pos);
+            const int n = juce::jmin (block, total + look - pos);
             tmp.setSize (2, n, false, false, true); tmp.clear();
             juce::MidiBuffer m;
             if (pos == 0) m.addEvent (juce::MidiMessage::noteOn (1, note, velocity), 0);
             if (offAt >= pos && offAt < pos + n) m.addEvent (juce::MidiMessage::noteOff (1, note), offAt - pos);
             engine->process (tmp, m, f);
-            for (int ch = 0; ch < 2; ++ch) out.copyFrom (ch, pos, tmp, ch, 0, n);
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < n; ++i) { const int o = pos + i - look; if (o >= 0 && o < total) out.setSample (ch, o, tmp.getSample (ch, i)); }
         }
         return out;
     }

@@ -88,7 +88,10 @@ namespace fge
         const juce::StringArray& m06Positions();
         const juce::StringArray& eqTypes(); const juce::StringArray& eqStereo(); const juce::StringArray& deqModes(); const juce::StringArray& deqSources();
         const juce::StringArray& deqDetectors(); const juce::StringArray& mbCrossovers(); const juce::StringArray& mbListen(); const juce::StringArray& mbDynModes();
-        const juce::StringArray& excModes(); const juce::StringArray& excHarm(); const juce::StringArray& toneOrders(); const juce::StringArray& stwLocations();
+        const juce::StringArray& excModes(); const juce::StringArray& dynLocations(); const juce::StringArray& cmpTypes(); const juce::StringArray& cmpDetections();
+        const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
+        const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
+        const juce::StringArray& dynOrders(); const juce::StringArray& mbLinks(); const juce::StringArray& excHarm(); const juce::StringArray& toneOrders(); const juce::StringArray& stwLocations();
         const juce::StringArray& m06FilterTypes();
         const juce::StringArray& stereoModes();
         const juce::StringArray& resModes();
@@ -288,7 +291,10 @@ namespace fge
     FGE_EQ (F, B, C, 13) FGE_EQ (F, B, C, 14) FGE_EQ (F, B, C, 15) FGE_EQ (F, B, C, 16) \
     FGE_DEQ (F, B, C, 1) FGE_DEQ (F, B, C, 2) FGE_DEQ (F, B, C, 3) FGE_DEQ (F, B, C, 4) \
     FGE_MB (F, B, C) FGE_MBB (F, B, C, 1) FGE_MBB (F, B, C, 2) FGE_MBB (F, B, C, 3) FGE_MBB (F, B, C, 4) \
-    FGE_SPEC (F, B, C) FGE_STW (F, B, C)
+    FGE_SPEC (F, B, C) FGE_STW (F, B, C) \
+    FGE_CMP (F, B, C, 1) FGE_CMP (F, B, C, 2) FGE_CMP (F, B, C, 3) FGE_CMP (F, B, C, 4) \
+    FGE_TS (F, B, C, 1, 1) FGE_TS (F, B, C, 2, 2) FGE_TS (F, B, C, 3, 3) FGE_TS (F, B, C, 4, 4) FGE_TS (F, B, C, 5, 5) \
+    FGE_CLP (F, B, C, 1) FGE_CLP (F, B, C, 2) FGE_LIM (F, B, C, 1) FGE_LIM (F, B, C, 2) FGE_DYNG (F, B, C)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -705,6 +711,90 @@ namespace fge
     F (spFMix,     "sp_freeze_mix",      "Freeze Mix",                 Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
     C (toneOrder,  "tone_order",         "EQ / Spectral Order",        toneOrders, 0, FNone)
     // module 07: the STEREO FREQUENCY engine
+    // module 08: one COMPRESSOR (4 in a pool; every place incl. MASTER OUTPUT, where LOOKAHEAD works)
+#define FGE_CMP(F, B, C, n) \
+    B (cmp##n##On,    "cmp" #n "_on",          "Comp " #n " On",              false, FNone) \
+    C (cmp##n##Loc,   "cmp" #n "_location",    "Comp " #n " Location",        dynLocations, 0, FNone) \
+    C (cmp##n##Pos,   "cmp" #n "_position",    "Comp " #n " Position",        m06Positions, 1, FNone) \
+    C (cmp##n##Type,  "cmp" #n "_type",        "Comp " #n " Type",            cmpTypes, 0, FNone) \
+    C (cmp##n##Det,   "cmp" #n "_detection",   "Comp " #n " Detection",       cmpDetections, 0, FNone) \
+    F (cmp##n##Thr,   "cmp" #n "_threshold",   "Comp " #n " Threshold",       Unit::Db,  -60.f,   0.f, -18.f, -20.f, FMod) \
+    F (cmp##n##Ratio, "cmp" #n "_ratio",       "Comp " #n " Ratio",           Unit::None,  1.f,  50.f,   4.f,   4.f, FMod) \
+    F (cmp##n##Atk,   "cmp" #n "_attack",      "Comp " #n " Attack",          Unit::Ms,  0.01f, 500.f,  10.f,  10.f, FMod) \
+    F (cmp##n##Rel,   "cmp" #n "_release",     "Comp " #n " Release",         Unit::Ms,    1.f, 5000.f, 120.f, 150.f, FMod) \
+    C (cmp##n##ARel,  "cmp" #n "_auto_release","Comp " #n " Auto Release",    autoReleases, 0, FNone) \
+    F (cmp##n##Knee,  "cmp" #n "_knee",        "Comp " #n " Knee",            Unit::Db,    0.f,  24.f,   6.f,   0.f, FMod) \
+    F (cmp##n##In,    "cmp" #n "_input",       "Comp " #n " Input Gain",      Unit::Db,  -24.f,  24.f,   0.f,   0.f, FMod | FSmooth) \
+    F (cmp##n##Out,   "cmp" #n "_output",      "Comp " #n " Output Gain",     Unit::Db,  -24.f,  24.f,   0.f,   0.f, FMod | FSmooth) \
+    F (cmp##n##Mix,   "cmp" #n "_mix",         "Comp " #n " Mix",             Unit::Pct,   0.f,   1.f,   1.f,   0.f, FMod | FSmooth) \
+    F (cmp##n##Dry,   "cmp" #n "_dry_level",   "Comp " #n " Parallel Dry",    Unit::Db,  -60.f,   6.f,   0.f,   0.f, FMod) \
+    F (cmp##n##Wet,   "cmp" #n "_wet_level",   "Comp " #n " Parallel Wet",    Unit::Db,  -60.f,   6.f,   0.f,   0.f, FMod) \
+    F (cmp##n##Look,  "cmp" #n "_lookahead",   "Comp " #n " Lookahead",       Unit::Ms,    0.f,  20.f,   0.f,   2.f, FNone) \
+    F (cmp##n##Link,  "cmp" #n "_stereo_link", "Comp " #n " Stereo Link",     Unit::Pct,   0.f,   1.f,   1.f,   0.f, FMod) \
+    C (cmp##n##ScSrc, "cmp" #n "_sc_source",   "Comp " #n " Sidechain Source", scSources, 0, FNone) \
+    F (cmp##n##ScHp,  "cmp" #n "_sc_hpf",      "Comp " #n " Sidechain HPF",   Unit::Hz,   20.f, 2000.f,  20.f, 100.f, FMod) \
+    F (cmp##n##ScLp,  "cmp" #n "_sc_lpf",      "Comp " #n " Sidechain LPF",   Unit::Hz,  200.f, 20000.f, 20000.f, 2000.f, FMod) \
+    F (cmp##n##ScGain,"cmp" #n "_sc_gain",     "Comp " #n " Sidechain Gain",  Unit::Db,  -24.f,  24.f,   0.f,   0.f, FMod) \
+    F (cmp##n##ScMix, "cmp" #n "_sc_mix",      "Comp " #n " Sidechain Mix",   Unit::Pct,   0.f,   1.f,   1.f,   0.f, FMod)
+    // module 08: one TRANSIENT SHAPER (5, by default one per part / the texture)
+#define FGE_TS(F, B, C, n, defLoc) \
+    B (ts##n##On,     "ts" #n "_on",           "Transient " #n " On",         false, FNone) \
+    C (ts##n##Loc,    "ts" #n "_location",     "Transient " #n " Location",   dynLocations, defLoc, FNone) \
+    C (ts##n##Pos,    "ts" #n "_position",     "Transient " #n " Position",   m06Positions, 1, FNone) \
+    C (ts##n##Det,    "ts" #n "_detection",    "Transient " #n " Detection",  tsDetections, 0, FNone) \
+    C (ts##n##Mode,   "ts" #n "_mode",         "Transient " #n " Mode",       tsModes, 0, FNone) \
+    F (ts##n##Atk,    "ts" #n "_attack",       "Transient " #n " Attack",     Unit::Bip,  -1.f,   1.f,   0.f,   0.f, FMod) \
+    F (ts##n##Sus,    "ts" #n "_sustain",      "Transient " #n " Sustain",    Unit::Bip,  -1.f,   1.f,   0.f,   0.f, FMod) \
+    F (ts##n##Sens,   "ts" #n "_sensitivity",  "Transient " #n " Sensitivity",Unit::Pct,   0.f,   1.f,   0.5f,  0.f, FMod) \
+    F (ts##n##Time,   "ts" #n "_time",         "Transient " #n " Time",       Unit::Ms,    1.f, 500.f,  20.f,  30.f, FMod) \
+    F (ts##n##Rel,    "ts" #n "_release",      "Transient " #n " Release",    Unit::Ms,    1.f, 2000.f, 100.f, 150.f, FMod) \
+    F (ts##n##Mix,    "ts" #n "_mix",          "Transient " #n " Mix",        Unit::Pct,   0.f,   1.f,   1.f,   0.f, FMod) \
+    F (ts##n##Out,    "ts" #n "_output",       "Transient " #n " Output",     Unit::Db,  -24.f,  12.f,   0.f,   0.f, FMod | FSmooth)
+    // module 08: CLIPPER (2)
+#define FGE_CLP(F, B, C, n) \
+    B (clp##n##On,    "clp" #n "_on",          "Clipper " #n " On",           false, FNone) \
+    C (clp##n##Loc,   "clp" #n "_location",    "Clipper " #n " Location",     dynLocations, 0, FNone) \
+    C (clp##n##Pos,   "clp" #n "_position",    "Clipper " #n " Position",     m06Positions, 1, FNone) \
+    C (clp##n##Type,  "clp" #n "_type",        "Clipper " #n " Type",         clipTypes, 0, FNone) \
+    F (clp##n##In,    "clp" #n "_input",       "Clipper " #n " Input Gain",   Unit::Db,  -24.f,  24.f,   0.f,   0.f, FMod | FSmooth) \
+    F (clp##n##Ceil,  "clp" #n "_ceiling",     "Clipper " #n " Ceiling",      Unit::Db,  -24.f,   0.f,  -1.f,   0.f, FMod) \
+    F (clp##n##Drive, "clp" #n "_drive",       "Clipper " #n " Drive",        Unit::Pct,   0.f,   1.f,   0.3f,  0.f, FMod) \
+    F (clp##n##Sym,   "clp" #n "_symmetry",    "Clipper " #n " Symmetry",     Unit::Bip,  -1.f,   1.f,   0.f,   0.f, FMod) \
+    F (clp##n##Soft,  "clp" #n "_softness",    "Clipper " #n " Softness",     Unit::Pct,   0.f,   1.f,   0.3f,  0.f, FMod) \
+    F (clp##n##Mix,   "clp" #n "_mix",         "Clipper " #n " Mix",          Unit::Pct,   0.f,   1.f,   1.f,   0.f, FMod | FSmooth) \
+    F (clp##n##Out,   "clp" #n "_output",      "Clipper " #n " Output Gain",  Unit::Db,  -24.f,  12.f,   0.f,   0.f, FMod | FSmooth) \
+    C (clp##n##Os,    "clp" #n "_oversampling","Clipper " #n " Oversampling", stageOversampling, 0, FNone)
+    // module 08: LIMITER (2)
+#define FGE_LIM(F, B, C, n) \
+    B (lim##n##On,    "lim" #n "_on",          "Limiter " #n " On",           false, FNone) \
+    C (lim##n##Loc,   "lim" #n "_location",    "Limiter " #n " Location",     dynLocations, n == 1 ? 15 : 0, FNone) \
+    C (lim##n##Pos,   "lim" #n "_position",    "Limiter " #n " Position",     m06Positions, 1, FNone) \
+    C (lim##n##Mode,  "lim" #n "_mode",        "Limiter " #n " Mode",         limModes, 0, FNone) \
+    F (lim##n##Ceil,  "lim" #n "_ceiling",     "Limiter " #n " Ceiling",      Unit::Db,  -24.f,   0.f,  -0.3f,  0.f, FMod) \
+    F (lim##n##In,    "lim" #n "_input",       "Limiter " #n " Input Gain",   Unit::Db,  -24.f,  24.f,   0.f,   0.f, FMod | FSmooth) \
+    F (lim##n##Rel,   "lim" #n "_release",     "Limiter " #n " Release",      Unit::Ms,    1.f, 2000.f,  60.f, 100.f, FMod) \
+    F (lim##n##Look,  "lim" #n "_lookahead",   "Limiter " #n " Lookahead",    Unit::Ms,    0.f,  20.f,   1.5f,  2.f, FNone) \
+    F (lim##n##Atk,   "lim" #n "_attack",      "Limiter " #n " Attack",       Unit::Ms,    0.f, 100.f,   0.f,  5.f, FMod) \
+    F (lim##n##Knee,  "lim" #n "_knee",        "Limiter " #n " Knee",         Unit::Db,    0.f,  12.f,   1.f,   0.f, FMod) \
+    F (lim##n##Link,  "lim" #n "_stereo_link", "Limiter " #n " Stereo Link",  Unit::Pct,   0.f,   1.f,   1.f,   0.f, FMod) \
+    B (lim##n##Tp,    "lim" #n "_true_peak",   "Limiter " #n " True Peak",    false, FNone) \
+    C (lim##n##Os,    "lim" #n "_oversampling","Limiter " #n " Oversampling", limOversampling, 2, FNone) \
+    F (lim##n##Mix,   "lim" #n "_mix",         "Limiter " #n " Mix",          Unit::Pct,   0.f,   1.f,   1.f,   0.f, FMod | FSmooth)
+    // module 08: CREST FACTOR control, AUTO GAIN / LEVEL MATCH, order
+#define FGE_DYNG(F, B, C) \
+    B (crOn,       "crest_on",          "Crest Control On",        false, FNone) \
+    C (crLoc,      "crest_location",    "Crest Control Location",  dynLocations, 0, FNone) \
+    C (crPos,      "crest_position",    "Crest Control Position",  m06Positions, 1, FNone) \
+    F (crTarget,   "crest_target",      "Target Crest",            Unit::Db,    0.f,  30.f,  12.f,  10.f, FMod) \
+    F (crPunch,    "crest_punch",       "Crest Punch Control",     Unit::Bip,  -1.f,   1.f,   0.f,   0.f, FMod) \
+    F (crBody,     "crest_body",        "Crest Body Control",      Unit::Bip,  -1.f,   1.f,   0.f,   0.f, FMod) \
+    F (crTail,     "crest_tail",        "Crest Tail Control",      Unit::Bip,  -1.f,   1.f,   0.f,   0.f, FMod) \
+    F (crSens,     "crest_sensitivity", "Crest Sensitivity",       Unit::Pct,   0.f,   1.f,   0.5f,  0.f, FMod) \
+    F (crMix,      "crest_mix",         "Crest Mix",               Unit::Pct,   0.f,   1.f,   1.f,   0.f, FMod) \
+    C (dynAuto,    "dyn_auto_gain",     "Dynamics Auto Gain",      autoGainModes, 0, FNone) \
+    B (dynMatch,   "dyn_level_match",   "Dynamics Level Match (bypass)", false, FNone) \
+    C (dynOrder,   "dyn_order",         "Dynamics Order",          dynOrders, 0, FNone) \
+    C (mbLink,     "mb_link",           "Multiband Band Link",     mbLinks, 0, FNone)
 #define FGE_STW(F, B, C) \
     B (stwOn,      "stw_on",             "Stereo Engine On",           false, FNone) \
     C (stwLoc,     "stw_location",       "Stereo Engine Location",     stwLocations, 0, FNone) \

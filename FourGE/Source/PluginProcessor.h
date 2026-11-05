@@ -95,6 +95,7 @@ public:
     const fge::dsp::dist::DistData& distData() const { return distNow; }
     uint32_t distDataVersion() const { return distVersion; }
     void setDistCurve (int stage, const fge::dsp::dist::CurveData&, bool newUndoStep = true);
+    void setClipCurve (int clipper, const fge::dsp::dist::CurveData&, bool newUndoStep = true);   // module 08 (state child DIST, "clip1" / "clip2")
     static float slotMin (int slot) { return fge::env::isBipolar (slot) ? -1.f : 0.f; }
     int auditionNote = 31;          // G1 in FL (49 Hz)
 

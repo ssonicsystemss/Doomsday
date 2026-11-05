@@ -72,6 +72,8 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     engine.setOffline (isNonRealtime());
     if (pendingAudition.exchange (false)) { engine.cookOnly (f); engine.trigger (auditionNote, 1.f); }
     engine.process (buffer, midi, f);
+    // module 08: a LOOKAHEAD at MASTER OUTPUT delays the output - the host is told (it compensates)
+    if (const int lat = engine.latencySamples(); lat != getLatencySamples()) setLatencySamples (lat);
 }
 
 // ------------------------------------------------------------ DRAWN shapes (state child ENVS)
@@ -112,6 +114,15 @@ void GeProcessor::setDistCurve (int stage, const fge::dsp::dist::CurveData& c, b
     if (newUndoStep) undo.beginNewTransaction ("Waveshaper curve");
     t.setProperty ("curve" + String (stage + 1), c.toString(), &undo);
 }
+void GeProcessor::setClipCurve (int clipper, const fge::dsp::dist::CurveData& c, bool newUndoStep)
+{
+    if (! isPositiveAndBelow (clipper, 2)) return;
+    auto t = apvts.state.getChildWithName (distTag);
+    if (! t.isValid()) { t = ValueTree (distTag); apvts.state.appendChild (t, nullptr); }
+    if (newUndoStep) undo.beginNewTransaction ("Clip curve");
+    auto v = c; v.sanitize();                                                        // (a broken / non-monotonic curve is repaired)
+    t.setProperty ("clip" + String (clipper + 1), v.toString(), &undo);
+}
 void GeProcessor::rebuildDistData()
 {
     const auto t = apvts.state.getChildWithName (distTag);
@@ -122,6 +133,11 @@ void GeProcessor::rebuildDistData()
         if (t.isValid() && fge::dsp::dist::CurveData::fromString (t.getProperty ("curve" + String (i + 1)).toString(), c)) d.curve[(size_t) i] = c;
         else d.curve[(size_t) i] = fge::dsp::dist::CurveData::preset (1);           // a gentle S-curve to start from
         d.curveVersion[(size_t) i] = (int) distVersion;
+    }
+    for (int i = 0; i < 2; ++i)
+    {
+        fge::dsp::dist::CurveData c;
+        if (t.isValid() && fge::dsp::dist::CurveData::fromString (t.getProperty ("clip" + String (i + 1)).toString(), c)) d.clip[(size_t) i] = c;
     }
     distNow = d; ++distVersion;
     distX.back() = d; distX.publish();

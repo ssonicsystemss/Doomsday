@@ -13,6 +13,7 @@
 #include "../Dist/Distortion.h"
 #include "../Filter/Filters.h"
 #include "../Tone/Tone.h"
+#include "../Dyn/Dyn.h"
 
 namespace fge::dsp
 {
@@ -163,7 +164,7 @@ namespace fge::dsp
         void start (const LayerBankSettings& b, const OscBankSettings& osc, uint32_t hitCount, uint64_t clock, const std::array<float, 4>& partHz,
                     const std::array<float, 4>& partStartMs)
         {
-            m06st->reset(); toneSt->reset();
+            m06st->reset(); toneSt->reset(); dynSt->reset();
             for (int k = 0; k < 2; ++k) if (b.noise[(size_t) k].on) noise[(size_t) k].start (b.noise[(size_t) k], hitCount, clock);
             if (b.click.on) click.start (0x2468aceu + hitCount * 31u, b.click.positionMs + (b.click.sync > 0 ? partStartMs[(size_t) b.click.sync - 1] : 0.f));
             for (int i = 0; i < numLayers; ++i)
@@ -180,7 +181,7 @@ namespace fge::dsp
                           const std::array<float, 4>& partAmp, float noteRatio, float ms, float inv, float rate,
                           std::array<float, 4>& ext, float& extL, float& extR, float* busL, float* busR,
                           const dist::DistBank* dist = nullptr, const dist::ModCtx* mod = nullptr,
-                          const m06::Bank* m6 = nullptr, const m06::Ctx* m6c = nullptr, const tone::Bank* m7 = nullptr)
+                          const m06::Bank* m6 = nullptr, const m06::Ctx* m6c = nullptr, const tone::Bank* m7 = nullptr, const dyn::Bank* m8 = nullptr)
         {
             for (int k = 0; k < 2; ++k)
             {
@@ -215,6 +216,7 @@ namespace fge::dsp
                 {
                     if (m6on && m6->at (ml, pos)) { float l = x, r = x; m06State().process (*m6, ml, pos, l, r, *m6c, (double) rate); x = 0.5f * (l + r); }
                     if (m7on && m7->at (ml, pos)) { float l = x, r = x; toneSt->process (*m7, ml, pos, l, r, *m6c, (double) rate); x = 0.5f * (l + r); }   // module 07
+                    if (m8 != nullptr && m6c != nullptr && m8->at (ml, pos)) { float l = x, r = x; dynSt->process (*m8, ml, pos, l, r, *m6c, nullptr, (double) rate); x = 0.5f * (l + r); }   // module 08
                 };
                 m6run (0);
                 if (dist != nullptr && dist->count[(size_t) (dist::LocLayer1 + i)] > 0 && mod != nullptr)
@@ -239,6 +241,7 @@ namespace fge::dsp
         std::unique_ptr<std::array<dist::ChainState, numLayers>> chains = std::make_unique<std::array<dist::ChainState, numLayers>>();
         std::unique_ptr<m06::State> m06st = std::make_unique<m06::State>();       // module 06: filters / resonators placed on a layer
         std::unique_ptr<tone::State> toneSt = std::make_unique<tone::State>();    // module 07: EQ / multiband / spectral placed on a layer
+        std::unique_ptr<dyn::State> dynSt = std::make_unique<dyn::State>();       // module 08: dynamics placed on a layer
     public:
         m06::State& m06State() { return *m06st; }
     private:

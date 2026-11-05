@@ -73,6 +73,21 @@ namespace fge
         const juce::StringArray& mbCrossovers()   { static const juce::StringArray a { "LINKWITZ-RILEY 12", "LINKWITZ-RILEY 24", "LINKWITZ-RILEY 48", "BUTTERWORTH 12", "BESSEL 12" }; return a; }
         const juce::StringArray& mbListen()       { static const juce::StringArray a { "PROCESSED", "UNPROCESSED (BEFORE)" }; return a; }
         const juce::StringArray& mbDynModes()     { static const juce::StringArray a { "OFF", "COMPRESSOR", "EXPANDER", "GATE", "LIMITER", "TRANSIENT" }; return a; }
+        const juce::StringArray& dynLocations()   { static const juce::StringArray a { "GLOBAL", "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE", "LAYER 1", "LAYER 2", "LAYER 3",
+                                                                                       "LAYER 4", "LAYER 5", "LAYER 6", "LAYER 7", "LAYER 8", "SCREECH", "MASTER OUTPUT" }; return a; }
+        const juce::StringArray& cmpTypes()       { static const juce::StringArray a { "VCA", "FET", "OPTO", "VARI-MU", "DIGITAL", "UPWARD", "PARALLEL", "SIDECHAIN" }; return a; }
+        const juce::StringArray& cmpDetections()  { static const juce::StringArray a { "PEAK", "RMS", "HYBRID", "TRUE PEAK" }; return a; }
+        const juce::StringArray& autoReleases()   { static const juce::StringArray a { "MANUAL", "FAST", "MEDIUM", "SLOW", "PROGRAM DEPENDENT" }; return a; }
+        const juce::StringArray& scSources()      { static const juce::StringArray a { "SELF", "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE" }; return a; }
+        const juce::StringArray& tsDetections()   { static const juce::StringArray a { "FAST TRANSIENT", "SLOW TRANSIENT", "RMS", "PEAK", "HYBRID" }; return a; }
+        const juce::StringArray& tsModes()        { static const juce::StringArray a { "PUNCH MODE", "SUSTAIN MODE", "BODY MODE", "TAIL MODE" }; return a; }
+        const juce::StringArray& clipTypes()      { static const juce::StringArray a { "SOFT", "HARD", "ASYMMETRIC", "SINE", "CUBIC", "TANH", "CUSTOM CURVE" }; return a; }
+        const juce::StringArray& limModes()       { static const juce::StringArray a { "TRANSPARENT", "AGGRESSIVE", "PUNCH", "LOUD", "TRUE PEAK" }; return a; }
+        const juce::StringArray& limOversampling(){ static const juce::StringArray a { "1x", "2x", "4x", "8x" }; return a; }
+        const juce::StringArray& autoGainModes()  { static const juce::StringArray a { "OFF", "PEAK MATCH", "RMS MATCH", "LOUDNESS MATCH" }; return a; }
+        const juce::StringArray& dynOrders()      { static const juce::StringArray a { "COMP > TRANSIENT > CLIP > LIMIT > CREST", "TRANSIENT > COMP > CLIP > LIMIT > CREST",
+                                                                                       "COMP > CLIP > TRANSIENT > LIMIT > CREST", "CLIP > COMP > TRANSIENT > LIMIT > CREST" }; return a; }
+        const juce::StringArray& mbLinks()        { static const juce::StringArray a { "OFF", "SUB + LOW", "MID + HIGH", "SUB + LOW / MID + HIGH", "ALL BANDS" }; return a; }
         const juce::StringArray& excModes()       { static const juce::StringArray a { "WARM", "BRIGHT", "CRISP", "METALLIC", "AGGRESSIVE", "CUSTOM" }; return a; }
         const juce::StringArray& excHarm()        { static const juce::StringArray a { "EVEN", "ODD", "BOTH" }; return a; }
         const juce::StringArray& toneOrders()     { static const juce::StringArray a { "EQ > DYN EQ > MULTIBAND > SPECTRAL", "DYN EQ > EQ > MULTIBAND > SPECTRAL",
@@ -307,6 +322,61 @@ namespace fge
             if (num ("eq")) if (auto it = eq.find (k); it != eq.end()) return it->second;
             if (num ("deq")) if (auto it = deq.find (k); it != deq.end()) return it->second;
             if (num ("mb")) if (auto it = mb.find (k); it != mb.end()) return it->second;
+            if (auto it = other.find (pid); it != other.end()) return it->second;
+        }
+        // module 08: dynamics (one text per setting)
+        {
+            const juce::String pid (d.id);
+            auto num = [&] (const char* pre) { const juce::String p (pre); return pid.startsWith (p) && pid.length() > p.length() && juce::CharacterFunctions::isDigit (pid[p.length()]); };
+            static const std::map<juce::String, const char*> cmp {
+                { "on", "Switch this compressor on." }, { "location", "Where it works: the whole kick, a part (group), the texture, a layer, the screech or the MASTER OUTPUT (the only place with lookahead)." },
+                { "position", "Before or after that place's distortion (module 05)." },
+                { "type", "VCA clean, FET fast and coloured, OPTO smooth, VARI-MU gentle (the ratio grows with the level), DIGITAL exact, UPWARD lifts the quiet parts, PARALLEL blends dry + compressed, SIDECHAIN ducks from another part." },
+                { "detection", "What the detector follows: every peak, the average (RMS), both, or the true peak between the samples." },
+                { "threshold", "Level where the compression starts." }, { "ratio", "How strongly it compresses past the threshold (4 = 4 dB in -> 1 dB out)." },
+                { "attack", "How fast it grabs: slow = the punch passes through, fast = the punch is flattened." }, { "release", "How fast it lets go: short = pumping / more tail, long = smooth." },
+                { "auto_release", "MANUAL = the RELEASE knob; FAST / MEDIUM / SLOW presets; PROGRAM DEPENDENT = longer release after heavy compression." },
+                { "knee", "Soft start around the threshold (0 = hard)." }, { "input", "Gain into the compressor." }, { "output", "Gain after it (makeup)." }, { "mix", "Dry / compressed blend." },
+                { "dry_level", "PARALLEL: level of the dry signal." }, { "wet_level", "PARALLEL: level of the compressed signal." },
+                { "lookahead", "MASTER OUTPUT only: the audio waits so the compressor catches the very first peak (adds latency, reported to FL)." },
+                { "stereo_link", "100 % = both channels get the same gain (no image shift), 0 % = each channel on its own." },
+                { "sc_source", "What the detector listens to: the signal itself or another part (PUNCH ducks the TAIL...). Parts / groups only." },
+                { "sc_hpf", "High-pass on the detector: the sub does not pump the compressor." }, { "sc_lpf", "Low-pass on the detector." },
+                { "sc_gain", "Detector level (more = more compression)." }, { "sc_mix", "Blend of the own signal / sidechain source in the detector." } };
+            static const std::map<juce::String, const char*> ts {
+                { "on", "Switch this transient shaper on." }, { "location", "Where it works (by default one per part)." }, { "position", "Before or after that place's distortion." },
+                { "detection", "How the transient is found: fast, slow, RMS, peak or hybrid." },
+                { "mode", "PUNCH = the onset, SUSTAIN = what follows it, BODY = the first 100 ms, TAIL = the end of the kick." },
+                { "attack", "More (+) or less (-) of the hit." }, { "sustain", "More (+) or less (-) of what comes after the hit." },
+                { "sensitivity", "How small a transient still counts." }, { "time", "How long the attack part lasts." }, { "release", "How fast the shaper returns." },
+                { "mix", "Dry / shaped blend." }, { "output", "Gain after it." } };
+            static const std::map<juce::String, const char*> clp {
+                { "on", "Switch this clipper on." }, { "location", "Where it clips." }, { "position", "Before or after that place's distortion." },
+                { "type", "SOFT, HARD, ASYMMETRIC, SINE, CUBIC, TANH or your own drawn CUSTOM CURVE." },
+                { "input", "Gain into the clipper." }, { "ceiling", "The level it never passes." }, { "drive", "How hard it is pushed into the ceiling." },
+                { "symmetry", "Clip the top and the bottom differently (even harmonics)." }, { "softness", "Rounder corner at the ceiling." }, { "mix", "Dry / clipped blend." },
+                { "output", "Gain after it." }, { "oversampling", "Higher = less aliasing (fizz) from hard clipping, more CPU." } };
+            static const std::map<juce::String, const char*> lim {
+                { "on", "Switch this limiter on." }, { "location", "Where it limits (MASTER OUTPUT = the last word, with lookahead)." }, { "position", "Before or after that place's distortion." },
+                { "mode", "TRANSPARENT clean, AGGRESSIVE fast, PUNCH lets the hit through first, LOUD dense, TRUE PEAK safe between the samples." },
+                { "ceiling", "The level the output never passes." }, { "input", "Gain into the limiter (louder)." }, { "release", "How fast it lets go." },
+                { "lookahead", "MASTER OUTPUT only: catches the peak before it arrives (latency reported to FL)." }, { "attack", "0 = brickwall; more = the hit gets through softer." },
+                { "knee", "Soft start under the ceiling." }, { "stereo_link", "100 % = the same gain on both channels." }, { "true_peak", "Also stops the peaks between the samples (safe for MP3 / streaming)." },
+                { "oversampling", "How finely the true peak is checked." }, { "mix", "Dry / limited blend." } };
+            static const std::map<juce::String, const char*> other {
+                { "crest_on", "Crest factor control: pushes the peak-to-average ratio of the kick toward the TARGET." }, { "crest_location", "Where it works." },
+                { "crest_position", "Before or after that place's distortion." }, { "crest_target", "Wanted peak / RMS in dB: low = dense, loud; high = spiky, punchy." },
+                { "crest_punch", "Less (-) or more (+) peak in the punch." }, { "crest_body", "Less (-) or more (+) density in the body." }, { "crest_tail", "Less (-) or more (+) density in the tail." },
+                { "crest_sensitivity", "How fast and how strongly it moves the kick toward the target." }, { "crest_mix", "Dry / processed blend." },
+                { "dyn_auto_gain", "Every dynamics processor keeps its output level (measured over 50 ms, not per sample): hear the shape, not louder / quieter." },
+                { "dyn_level_match", "Hear the UNPROCESSED signal at the processed level - an honest A / B." },
+                { "dyn_order", "The order of compressor, transient shaper, clipper at one place (the limiter and crest always last)." },
+                { "mb_link", "Multiband: linked bands share one detector - no tonal shift between them." } };
+            const juce::String k = pid.fromFirstOccurrenceOf ("_", false, false);
+            if (num ("cmp")) if (auto it = cmp.find (k); it != cmp.end()) return it->second;
+            if (num ("ts")) if (auto it = ts.find (k); it != ts.end()) return it->second;
+            if (num ("clp")) if (auto it = clp.find (k); it != clp.end()) return it->second;
+            if (num ("lim")) if (auto it = lim.find (k); it != lim.end()) return it->second;
             if (auto it = other.find (pid); it != other.end()) return it->second;
         }
         if (n.endsWith ("Mute"))   return "Silence this part.";

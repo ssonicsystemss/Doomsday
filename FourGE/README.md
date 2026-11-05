@@ -176,6 +176,29 @@ albo screech), przed albo po przesterze z modułu 05.
   EXPERIMENTAL – SPECTRAL CHAOS, METALLIC FREQUENCY), SAVE / LOAD (pasmo .4geq albo cały moduł .4gm07), A / B, RANDOMIZE z LOCK – z UNDO.
 - Bez latencji (EQ minimum phase, kompresja widmowa na pasmach zamiast FFT). Linear phase i makra modułu – później (makra w module 09).
 
+## Strona DYN (moduł 08)
+Przycisk **DYN** u góry, sześć zakładek. Każdy procesor stawiasz w jednym miejscu (cały kick, PUNCH / BODY / TAIL / SUB, TEXTURE, warstwa,
+screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z modułu 05.
+- **COMPRESSOR** (4): typy VCA, FET (szybki, z kolorem), OPTO (gładki), VARI-MU (łagodny – ratio rośnie z poziomem), DIGITAL, UPWARD
+  (podnosi ciche), PARALLEL (dry + skompresowany bez skoku głośności), SIDECHAIN (ducking od innej części). DETECTION PEAK / RMS / HYBRID /
+  TRUE PEAK, THRESHOLD, RATIO, ATTACK, RELEASE (albo AUTO RELEASE), KNEE, INPUT / OUTPUT, MIX, DRY / WET (tylko PARALLEL), STEREO LINK,
+  SIDECHAIN SOURCE (np. PUNCH ścisza TAIL, gdy gra punch) z filtrem HPF / LPF, LOOKAHEAD (tylko na MASTER OUTPUT – dodaje latencję, FL ją zna).
+- **MULTIBAND**: dynamika 4 pasm z modułu 07 + **BAND LINK** (połączone pasma mają wspólny detektor – barwa się nie przesuwa).
+- **TRANSIENT** (5, domyślnie po jednym na część): ATTACK + / − (więcej / mniej uderzenia), SUSTAIN + / − (więcej / mniej tego, co po nim),
+  tryby PUNCH / SUSTAIN / BODY / TAIL, SENSITIVITY, TIME, RELEASE.
+- **CLIPPER** (2): SOFT, HARD, ASYMMETRIC, SINE, CUBIC, TANH i **CUSTOM CURVE** (rysujesz krzywą po prawej), CEILING (nigdy nie przekroczony),
+  DRIVE, SYMMETRY, SOFTNESS, OVERSAMPLING (mniej „piasku” z twardego clipa).
+- **LIMITER** (2, pierwszy domyślnie na MASTER OUTPUT): TRANSPARENT / AGGRESSIVE / PUNCH / LOUD / TRUE PEAK, CEILING, LOOKAHEAD, RELEASE,
+  ATTACK, KNEE, STEREO LINK, TRUE PEAK (też szczyty między próbkami).
+- **CREST & LEVEL**: kontrola crest factor (szczyt / RMS: nisko = gęsto i głośno, wysoko = kolczasto i punchowo) z TARGET i osobno
+  PUNCH / BODY / TAIL, analizator (szczyt, RMS, crest – z dynamiką i bez). AUTO GAIN (PEAK / RMS / LOUDNESS – procesor nie zmienia
+  głośności, słyszysz kształt), LEVEL MATCH (słyszysz kick BEZ obróbki na tym samym poziomie – uczciwe A / B), ORDER (kolejność w jednym miejscu).
+- Przy każdym procesorze: prawdziwa krzywa (wejście → wyjście), historia redukcji z renderu kicka (pierwsze 600 ms), mierniki na żywo
+  IN / OUT / GR (+ MAX / AVG, RESET MAX) i ostrzeżenia (clip, za mocna kompresja, limiter pracuje za ciężko, skok głośności, za gęsto).
+- PRESETS (EARLY – CLASSIC PUNCH, SOFT DYNAMICS; MODERN – TIGHT IMPACT, FESTIVAL LOUD; RAWSTYLE – EXTREME CRUSH, HEAVY PUNCH;
+  EXPERIMENTAL – BROKEN DYNAMICS, MAXIMUM DENSITY – cały łańcuch razem z miejscami), SAVE / LOAD (procesor .4gdyn albo moduł .4gm08),
+  A / B, COPY / PASTE / RESET – z UNDO. Makra modułu (PUNCH / LOUDNESS / GLUE) dojdą w module 09.
+
 ## Presety
 INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
@@ -183,5 +206,5 @@ MODERN / RAW: CLICK na początku (stuknięcie), tok na HOLD z szumem pod spodem 
 TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – stąd power.
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 08 dynamika → 08 dynamika → 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
+Moduł po module wg `PLAN.md`: 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
 13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.

@@ -17,6 +17,7 @@
 #include "DistPage.h"
 #include "ScreechPage.h"
 #include "EqPage.h"
+#include "DynPage.h"
 #include "Palette.h"
 
 class GeCanvas : public juce::Component, private juce::Timer
@@ -38,6 +39,7 @@ public:
     fge::gui::DistPage& distPage() { return *distortionPage; }
     fge::gui::ScreechPage& screechPage() { return *scrPage; }
     fge::gui::EqPage& eqPage() { return *eqPg; }
+    fge::gui::DynPage& dynPage() { return *dynPg; }
     int page() const { return pageIdx; }
     fge::gui::EnvPage& envelopes() { return *envPage; }
 private:
@@ -82,7 +84,8 @@ private:
     std::unique_ptr<fge::gui::DistPage> distortionPage;
     std::unique_ptr<fge::gui::ScreechPage> scrPage;
     std::unique_ptr<fge::gui::EqPage> eqPg;
-    std::array<juce::TextButton, 7> pageBtn;
+    std::unique_ptr<fge::gui::DynPage> dynPg;
+    std::array<juce::TextButton, 8> pageBtn;
     std::array<float, 4> meter {};
     float outMeter = 0.f;
 };

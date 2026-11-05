@@ -7,6 +7,7 @@
 #include "../Source/Presets/DistTools.h"
 #include "../Source/Presets/M06Tools.h"
 #include "../Source/Presets/M07Tools.h"
+#include "../Source/Presets/M08Tools.h"
 #include "../Source/GUI/DistScope.h"
 #include "../Source/Presets/FactoryPresets.h"
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -688,6 +689,50 @@ int main (int argc, char** argv)
                     if (k == "xover_low" || k == "xover_high") { set2 ("stw_low_width", 0.f); set2 ("stw_mid_width", 1.f); set2 ("stw_high_width", 2.f); set2 ("stw_mono_below", 20.f); }
                     if (k.endsWith ("_width")) set2 ("stw_mono_below", 20.f);
                 }
+            }
+            // module 08 contexts: the processor is ON and working on the kick
+            {
+                auto set2 = [&] (const String& pid, float v) { const int k = idOf (pid); if (k >= 0 && k != id) { a[k] = v; b[k] = v; } };
+                auto isN = [&] (const char* pre) { const String p (pre); return sid.startsWith (p) && sid.length() > p.length() && CharacterFunctions::isDigit (sid[p.length()]); };
+                auto distOn = [&] { set2 ("dist1_on", 1.f); set2 ("dist1_type", 1.f); set2 ("dist1_drive", 0.8f); };
+                if (isN ("cmp"))
+                {
+                    const String o = sid.upToFirstOccurrenceOf ("_", true, false), k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    set2 (o + "on", 1.f); set2 (o + "threshold", k == "knee" ? -12.f : -40.f); set2 (o + "ratio", 8.f);
+                    if (k == "dry_level" || k == "wet_level") set2 (o + "type", 6.f);
+                    if (k == "lookahead") set2 (o + "location", 15.f);
+                    if (k == "sc_gain" || k == "sc_mix") set2 (o + "sc_source", 1.f);
+                    if (k == "position") distOn();
+                }
+                if (isN ("ts"))
+                {
+                    const String o = sid.upToFirstOccurrenceOf ("_", true, false), k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    set2 (o + "on", 1.f); set2 (o + "attack", 0.8f); set2 (o + "sustain", 0.5f);
+                    const int dl = (int) def (idOf (o + "location")).def;                      // its default place (PUNCH .. TEXTURE)
+                    if (k == "position") { distOn(); set2 ("dist1_location", (float) dl); }
+                    if (k == "sustain") set2 (o + "mode", 1.f);
+                    if (dl == 5 || k == "location") { set2 ("layer1_on", 1.f); set2 ("layer1_group", 4.f); }   // something on the TEXTURE bus
+                }
+                if (isN ("clp"))
+                {
+                    const String o = sid.upToFirstOccurrenceOf ("_", true, false), k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    set2 (o + "on", 1.f);
+                    if (k == "position") distOn();
+                }
+                if (isN ("lim"))
+                {
+                    const String o = sid.upToFirstOccurrenceOf ("_", true, false), k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    set2 (o + "on", 1.f); set2 (o + "input", 6.f);
+                    if (k == "oversampling" || k == "true_peak") { set2 (o + "true_peak", 1.f); set2 (o + "location", 15.f); }
+                    if (k == "stereo_link") { set2 ("mix_body_pan", -1.f); set2 ("mix_tail_pan", 1.f); set2 (o + "input", 12.f); }   // (L and R really differ)
+                    if (k == "position") { set2 (o + "location", 0.f); distOn(); }
+                    if (k == "lookahead") set2 (o + "location", 15.f);
+                }
+                if (sid.startsWith ("crest_")) { set2 ("crest_on", 1.f); if (sid == "crest_position") distOn(); }
+                if (sid == "dyn_auto_gain" || sid == "dyn_level_match" || sid == "dyn_order")
+                { set2 ("cmp1_on", 1.f); set2 ("cmp1_threshold", -40.f); set2 ("cmp1_ratio", 8.f); set2 ("ts1_on", 1.f); set2 ("ts1_attack", 0.8f); set2 ("ts1_location", 0.f);
+                  if (sid == "dyn_order") { set2 ("clp1_on", 1.f); set2 ("clp1_drive", 0.8f); } }
+                if (sid == "mb_link") { set2 ("mb_on", 1.f); for (auto* bnd : { "mb1_", "mb2_", "mb3_", "mb4_" }) { set2 (String (bnd) + "dynamics", 1.f); set2 (String (bnd) + "threshold", -40.f); set2 (String (bnd) + "ratio", 10.f); } }
             }
             if (sid.endsWith ("_trigger")) continue;                                                // MIDI behaviour (note-off / legato): checked below
             if (d.kind == Kind::Choice)
@@ -1912,6 +1957,263 @@ int main (int argc, char** argv)
             outDir.getChildFile ("4ge_m07_eq_presets.txt").replaceWithText (order);
         }
     }
+    // ---------------------------------------------------------------- module 08: dynamics, compressor, transient & limiter (MODULE08.md 14)
+    {
+        namespace dy = fge::dsp::dyn;
+        const double rate = 44100.0 * 4.0;
+        ParamFrame q = base; q[P::clipDrive] = 0.f;
+        auto runDyn = [&] (const ParamFrame& f, const std::function<void (int, float&, float&)>& gen, int n, int loc = 0, int pos = 1, const float* sc = nullptr)
+        {
+            auto bank = std::make_unique<dy::Bank>(); dy::cookBank (f, nullptr, *bank, rate, rate);
+            auto st = std::make_unique<dy::State>();
+            AudioBuffer<float> out (2, n);
+            for (int i = 0; i < n; ++i)
+            {
+                float l, r; gen (i, l, r);
+                fge::dsp::m06::Ctx cx; cx.ms = (float) (i * 1000.0 / rate);
+                st->process (*bank, loc, pos, l, r, cx, sc, rate);
+                out.setSample (0, i, l); out.setSample (1, i, r);
+            }
+            return out;
+        };
+        auto sine = [&] (double hz, float a) { return [=] (int i, float& l, float& r) { l = r = a * (float) std::sin (2.0 * MathConstants<double>::pi * hz * i / rate); }; };
+        auto pkDb = [] (const AudioBuffer<float>& x, int from, int n) { float m = 0; for (int i = from; i < from + n && i < x.getNumSamples(); ++i) m = jmax (m, std::abs (x.getSample (0, i))); return (double) Decibels::gainToDecibels (m, -160.f); };
+        auto cmp = [&] (int type, float thr, float ratio, float atk = 0.05f, float rel = 50.f) { ParamFrame f = q; f[P::cmp1On] = 1.f; f[P::cmp1Type] = (float) type; f[P::cmp1Thr] = thr; f[P::cmp1Ratio] = ratio; f[P::cmp1Knee] = 0.f; f[P::cmp1Atk] = atk; f[P::cmp1Rel] = rel; return f; };
+        {
+            float e1 = 0.f, e2 = 0.f;
+            for (int k = 0; k < 20000; ++k) { const float gv = std::pow (10.f, -6.f + 7.f * (float) k / 20000.f); e1 = jmax (e1, std::abs (dy::fastDb (gv) - Decibels::gainToDecibels (gv, -200.f)));
+                                             const float d = -100.f + 130.f * (float) k / 20000.f; e2 = jmax (e2, std::abs (dy::fromDb (d) / Decibels::decibelsToGain (d, -200.f) - 1.f)); }
+            check (e1 < 0.005f && e2 < 1.0e-4f, "M08 fast dB / gain math is exact enough", "max error " + String (e1, 5) + " dB, " + String (e2 * 100.f, 4) + " %");
+        }
+        // 1. ratio: -6 dBFS through thr -30: ratio 2 -> -18, ratio 10 -> -27.6
+        {
+            const double r2 = pkDb (runDyn (cmp (dy::VCA, -30, 2), sine (1000, 0.5f), 60000), 40000, 10000), r10 = pkDb (runDyn (cmp (dy::VCA, -30, 10), sine (1000, 0.5f), 60000), 40000, 10000);
+            check (std::abs (r2 + 18.0) < 1.0 && std::abs (r10 + 27.6) < 1.0, "M08 COMPRESSOR ratio is the real ratio", "2:1 " + String (r2, 1) + " dB (-18), 10:1 " + String (r10, 1) + " dB (-27.6)");
+        }
+        // 2. attack / release are measurable (time to half the reduction)
+        {
+            auto burst = [&] (int i, float& l, float& r) { const float a = i < 20000 ? 0.01f : i < 60000 ? 0.5f : 0.01f; l = r = a * (float) std::sin (2.0 * MathConstants<double>::pi * 1000.0 * i / rate); };
+            auto halfTime = [&] (float atk, float rel, bool release)
+            {
+                const auto y = runDyn (cmp (dy::VCA, -30, 10, atk, rel), burst, 300000);
+                // envelope of the output, in windows of 1 ms
+                const int w = (int) (0.001 * rate); std::vector<float> e;
+                for (int i = 0; i + w < y.getNumSamples(); i += w) { float m = 0; for (int k = 0; k < w; ++k) m = jmax (m, std::abs (y.getSample (0, i + k))); e.push_back (m); }
+                const int s0 = (release ? 60000 : 20000) / w;
+                const float startV = e[(size_t) s0 + 1], endV = e[(size_t) jmin ((int) e.size() - 1, s0 + (release ? 700 : 35))];
+                for (int k = s0 + 1; k < (int) e.size(); ++k) if (std::abs (e[(size_t) k] - endV) < 0.5f * std::abs (startV - endV)) return (k - s0) * 1.0;
+                return 1.0e9;
+            };
+            const double a1 = halfTime (1.f, 50.f, false), a20 = halfTime (20.f, 50.f, false), r20 = halfTime (1.f, 20.f, true), r200 = halfTime (1.f, 200.f, true);
+            check (a20 > a1 * 3 && r200 > r20 * 3, "M08 ATTACK / RELEASE change the real reaction", "attack 1 / 20 ms: " + String (a1, 0) + " / " + String (a20, 0) + " ms, release 20 / 200 ms: " + String (r20, 0) + " / " + String (r200, 0) + " ms");
+        }
+        // 3. eight compressor types, eight behaviours (on the kick)
+        {
+            std::vector<AudioBuffer<float>> o;
+            for (int t = 0; t < 8; ++t) { ParamFrame f = cmp (t, -30, 6, 5.f, 120.f); f[P::cmp1Knee] = 6.f; f[P::cmp1Dry] = -6.f; f[P::cmp1ScSrc] = 1.f; o.push_back (renderKick (f, G1, sr, 0.5)); }
+            double minD = 1.0e9; int ma = 0, mb = 0;
+            for (int i = 0; i < 8; ++i) for (int j = i + 1; j < 8; ++j) { const double d = diff (o[(size_t) i], o[(size_t) j]); if (d < minD) { minD = d; ma = i; mb = j; } }
+            check (minD > 1.0e-3, "M08 8 compressor types behave differently", "closest " + Choices::cmpTypes()[ma] + " / " + Choices::cmpTypes()[mb] + " " + String (minD, 4));
+        }
+        // 4. sidechain: a TAIL compressor keyed by the PUNCH ducks the tail only while the punch plays
+        {
+            ParamFrame self = cmp (dy::VCA, -30, 10, 0.1f, 30.f); self[P::cmp1Loc] = 3.f;
+            ParamFrame key = self; key[P::cmp1ScSrc] = 1.f; key[P::cmp1ScMix] = 1.f;
+            ParamFrame solo = q; solo[P::mixTailSolo] = 1.f; ParamFrame selfS = self; selfS[P::mixTailSolo] = 1.f; ParamFrame keyS = key; keyS[P::mixTailSolo] = 1.f;
+            const auto plain = renderKick (solo, G1, sr, 0.5), a = renderKick (selfS, G1, sr, 0.5), k = renderKick (keyS, G1, sr, 0.5);
+            const double early = rms (k, 0, (int) (0.012 * sr)) / (rms (plain, 0, (int) (0.012 * sr)) + 1e-12), late = rms (k, (int) (0.25 * sr), (int) (0.1 * sr)) / (rms (plain, (int) (0.25 * sr), (int) (0.1 * sr)) + 1e-12);
+            check (diff (a, k) > 1.0e-3 && early < 0.7 && late > 0.85, "M08 SIDECHAIN: the detector hears the chosen source (PUNCH ducks the TAIL)",
+                   "tail level during punch " + String (early, 2) + "x, later " + String (late, 2) + "x");
+        }
+        // 5. parallel: dry + wet at 0 dB do not double the level
+        {
+            ParamFrame f = cmp (dy::Parallel, 0, 1); f[P::cmp1Dry] = 0.f; f[P::cmp1Wet] = 0.f;
+            const double lv = pkDb (runDyn (f, sine (1000, 0.5f), 40000), 20000, 10000) - Decibels::gainToDecibels (0.5f);
+            ParamFrame c = cmp (dy::Parallel, -30, 10); c[P::cmp1Dry] = 0.f; c[P::cmp1Wet] = 0.f;
+            const double lc = pkDb (runDyn (c, sine (1000, 0.5f), 40000), 20000, 10000) - Decibels::gainToDecibels (0.5f);
+            check (std::abs (lv) < 0.1 && lc < 0.f && lc > -12.f, "M08 PARALLEL compression mixes without doubling the level", "uncompressed " + String (lv, 2) + " dB, compressed blend " + String (lc, 1) + " dB");
+        }
+        // 6. multiband band link (module 07 engine): linked bands share the detector
+        {
+            ParamFrame f = q; f[P::mbOn] = 1.f;
+            for (int k = 0; k < 4; ++k) { f[P::mb1Dyn + k * (P::mb2Gain - P::mb1Gain)] = 1.f; f[P::mb1Thr + k * (P::mb2Gain - P::mb1Gain)] = -30.f; f[P::mb1Ratio + k * (P::mb2Gain - P::mb1Gain)] = 10.f; }
+            auto two = [&] (int i, float& l, float& r) { l = r = 0.5f * (float) std::sin (2.0 * MathConstants<double>::pi * 50.0 * i / rate) + 0.01f * (float) std::sin (2.0 * MathConstants<double>::pi * 6000.0 * i / rate); };
+            auto hi = [&] (const AudioBuffer<float>& y) { AudioBuffer<float> h (1, 40000); fge::dsp::tone::Sec a, b; const auto c = fge::dsp::tone::coef (fge::dsp::tone::SHp, 3000, 0.7071, 0, rate);
+                                                          for (int i = 0; i < 40000; ++i) h.setSample (0, i, (float) b.tick (c, a.tick (c, y.getSample (0, 40000 + i)))); return rms (h, 10000, 30000); };
+            auto runTone = [&] (const ParamFrame& pf)
+            {
+                auto bank = std::make_unique<fge::dsp::tone::Bank>(); fge::dsp::tone::cookBank (pf, *bank, rate);
+                auto st = std::make_unique<fge::dsp::tone::State>(); AudioBuffer<float> o (2, 80000);
+                for (int i = 0; i < 80000; ++i) { float l, r; two (i, l, r); fge::dsp::m06::Ctx cx; cx.ms = (float) (i * 1000.0 / rate); st->process (*bank, 0, 1, l, r, cx, rate); o.setSample (0, i, l); o.setSample (1, i, r); }
+                return o;
+            };
+            const auto free = runTone (f);
+            ParamFrame g = f; g[P::mbLink] = 4.f;
+            const auto linked = runTone (g);
+            const double d = 20.0 * std::log10 (hi (linked) / (hi (free) + 1e-12));
+            check (d < -6.0, "M08 MULTIBAND band link: a loud sub pulls the linked high band down too", "high band " + String (d, 1) + " dB with ALL BANDS linked");
+        }
+        // 7. transient shaper: attack and sustain separately (onset / body ratio)
+        {
+            auto ratio = [&] (const ParamFrame& pf) { auto x = renderKick (pf, G1, sr, 0.5); return 20.0 * std::log10 (peak (x, 0, (int) (0.006 * sr)) / (rms (x, (int) (0.15 * sr), (int) (0.1 * sr)) + 1.0e-9)); };
+            ParamFrame f = q; f[P::ts1On] = 1.f; f[P::ts1Loc] = 0.f; f[P::ts1Mode] = 1.f;
+            ParamFrame atk = f; atk[P::ts1Atk] = 1.f; atk[P::ts1Mode] = 0.f;
+            ParamFrame sus = f; sus[P::ts1Sus] = 1.f;
+            const double r0 = ratio (q), ra = ratio (atk), rs = ratio (sus);
+            check (ra > r0 + 2.0 && rs < r0 - 2.0, "M08 TRANSIENT SHAPER: ATTACK and SUSTAIN separately (real envelope)", "onset / body " + String (r0, 1) + " -> attack+ " + String (ra, 1) + ", sustain+ " + String (rs, 1) + " dB");
+        }
+        // 8. clipper: every type keeps the ceiling, 7 different shapes
+        {
+            std::vector<AudioBuffer<float>> o; bool ceil = true; String e;
+            for (int t = 0; t < 7; ++t)
+            {
+                ParamFrame f = q; f[P::clp1On] = 1.f; f[P::clp1Type] = (float) t; f[P::clp1Drive] = 1.f; f[P::clp1Ceil] = -6.f; f[P::clp1Sym] = 0.3f;
+                auto x = renderKick (f, G1, sr, 0.4);
+                o.push_back (x);
+                // the clipper's own output = the kick at its GLOBAL place; check the curve directly too
+                fge::dsp::dyn::ClpSettings cs; cs.type = t; cs.drive = 1.f; cs.ceil = Decibels::decibelsToGain (-6.f); cs.sym = 0.3f; static const fge::dsp::dist::CurveData cv = fge::dsp::dist::CurveData::preset (1); cs.curve = &cv;
+                float mx = 0; for (int k = -400; k <= 400; ++k) mx = jmax (mx, std::abs (fge::dsp::dyn::clipCurve (cs, (float) k / 100.f)));
+                ceil &= mx <= cs.ceil * 1.0001f; e << String (Decibels::gainToDecibels (mx), 1) << " ";
+            }
+            double minD = 1.0e9; for (int i = 0; i < 7; ++i) for (int j = i + 1; j < 7; ++j) minD = jmin (minD, diff (o[(size_t) i], o[(size_t) j]));
+            check (ceil && minD > 1.0e-3, "M08 CLIPPER: 7 algorithms, the ceiling holds", "max out (dB, ceiling -6): " + e);
+        }
+        // 9. clipper oversampling lowers the aliasing (hard clip of a 7.3 kHz sine)
+        {
+            auto alias = [&] (int os)
+            {
+                ParamFrame f = q; f[P::clp1On] = 1.f; f[P::clp1Type] = 1.f; f[P::clp1Drive] = 1.f; f[P::clp1Os] = (float) os; f[P::clp1Soft] = 0.f;
+                const auto out = runDyn (f, sine (7300, 0.5f), 1 << 15);
+                const int order = 14, n = 1 << order; juce::dsp::FFT fft (order); std::vector<float> buf ((size_t) n * 2, 0.f);
+                for (int i = 0; i < n; ++i) buf[(size_t) i] = out.getSample (0, 8000 + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * (float) i / (float) n));
+                fft.performFrequencyOnlyForwardTransform (buf.data());
+                double e = 0.0;
+                for (int k = 1; k < n / 2; ++k) { const double fr = k * rate / n; if (fr < 30.0 || fr > 20000.0) continue; bool h = false; for (int m = 1; m * 7300.0 < 21000.0; ++m) h |= std::abs (fr - m * 7300.0) < 6.0 * rate / n; if (! h) e += (double) buf[(size_t) k] * buf[(size_t) k]; }
+                return 10.0 * std::log10 (e + 1.0e-20);
+            };
+            const double a0 = alias (0), a2 = alias (2);
+            check (a2 < a0 - 6.0, "M08 CLIPPER oversampling lowers the aliasing", "engine 4x " + String (a0, 1) + " dB -> 16x " + String (a2, 1) + " dB");
+        }
+        // 10 + 11. limiter: the ceiling is never passed (every mode, +18 dB in), TRUE PEAK holds between the samples too
+        {
+            bool held = true; String e;
+            for (int m = 0; m < 5; ++m)
+            {
+                GeProcessor p; setP (p, "lim1_on", 1.f); setP (p, "lim1_input", 18.f); setP (p, "lim1_mode", (float) m); setP (p, "lim1_ceiling", -1.f);
+                const auto y = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.6);
+                const float pk = peak (y);
+                held &= pk <= Decibels::decibelsToGain (-1.f) * 1.0001f; e << String (Decibels::gainToDecibels (pk), 2) << " ";
+            }
+            auto tpOf = [&] (const AudioBuffer<float>& y) { fge::dsp::dyn::TruePeak t; float m = 0; for (int i = 0; i < y.getNumSamples(); ++i) m = jmax (m, t.push (y.getSample (0, i), 8)); return Decibels::gainToDecibels (m); };
+            GeProcessor a; setP (a, "lim1_on", 1.f); setP (a, "lim1_input", 18.f); setP (a, "lim1_ceiling", -1.f); setP (a, "lim1_true_peak", 1.f); setP (a, "lim1_oversampling", 3.f);
+            const float tp = tpOf (hitProc (a, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.6));
+            check (held && tp < -0.8f, "M08 LIMITER: ceiling never passed (5 modes), TRUE PEAK between the samples", "peaks " + e + "dB, true peak " + String (tp, 2) + " dB (ceiling -1)");
+        }
+        // 12. crest factor: the measurement is right (a sine = 3.0 dB) and the control moves the kick toward the target
+        {
+            auto crestOf = [] (const AudioBuffer<float>& x, int from, int n) { double pk = 0, ms = 0; for (int i = from; i < from + n; ++i) { const double v = x.getSample (0, i); pk = jmax (pk, std::abs (v)); ms += v * v; } return 20.0 * std::log10 (pk / std::sqrt (ms / n + 1e-20)); };
+            AudioBuffer<float> sn (1, 44100); for (int i = 0; i < 44100; ++i) sn.setSample (0, i, (float) std::sin (2.0 * MathConstants<double>::pi * 100.0 * i / 44100.0));
+            const double cs = crestOf (sn, 0, 44100);
+            const auto k0 = renderKick (q, G1, sr, 0.4);
+            ParamFrame f = q; f[P::crOn] = 1.f; f[P::crTarget] = 3.f; f[P::crSens] = 1.f;
+            const auto k1 = renderKick (f, G1, sr, 0.4);
+            const double c0 = crestOf (k0, 0, (int) (0.4 * sr)), c1 = crestOf (k1, 0, (int) (0.4 * sr));
+            check (std::abs (cs - 3.01) < 0.1 && c1 < c0 - 0.5, "M08 CREST FACTOR: real measurement, control moves it to the target", "sine " + String (cs, 2) + " dB, kick " + String (c0, 1) + " -> " + String (c1, 1) + " dB (target 3)");
+        }
+        // 13 + 18. AUTO GAIN keeps the level (slowly: the crest stays), LEVEL MATCH plays the dry kick at the processed level
+        {
+            ParamFrame c = cmp (dy::VCA, -24, 4, 1.f, 100.f);
+            ParamFrame ag = c; ag[P::dynAuto] = 2.f;
+            const auto k0 = renderKick (q, G1, sr, 0.5), kc = renderKick (c, G1, sr, 0.5), ka = renderKick (ag, G1, sr, 0.5);
+            const double dropC = 20.0 * std::log10 (rms (kc) / rms (k0)), dropA = 20.0 * std::log10 (rms (ka) / rms (k0));
+            auto crestOf = [] (const AudioBuffer<float>& x) { double pk = 0, ms = 0; for (int i = 0; i < x.getNumSamples(); ++i) { const double v = x.getSample (0, i); pk = jmax (pk, std::abs (v)); ms += v * v; } return 20.0 * std::log10 (pk / std::sqrt (ms / x.getNumSamples() + 1e-20)); };
+            ParamFrame lm = c; lm[P::dynMatch] = 1.f;
+            const auto kl = renderKick (lm, G1, sr, 0.5);
+            const double dropL = 20.0 * std::log10 (rms (kl) / rms (k0));
+            check (dropC < -3.0 && std::abs (dropA) < std::abs (dropC) * 0.5 && std::abs (crestOf (ka) - crestOf (kc)) < 3.0 && std::abs (dropL - dropC) < 3.0 && diff (kl, kc) > 1.0e-3,
+                   "M08 AUTO GAIN (windowed, no per-sample normalising) + LEVEL MATCH",
+                   "comp " + String (dropC, 1) + " dB, with auto gain " + String (dropA, 1) + " dB, level match " + String (dropL, 1) + " dB");
+        }
+        // 14. group processing: a BODY compressor changes only the body
+        {
+            ParamFrame g = cmp (dy::VCA, -40, 10); g[P::cmp1Loc] = 2.f;
+            ParamFrame gm = g; gm[P::mixBodyMute] = 1.f; ParamFrame qm = q; qm[P::mixBodyMute] = 1.f;
+            check (diff (renderKick (g, G1, sr, 0.4), renderKick (q, G1, sr, 0.4)) > 1.0e-3 && diff (renderKick (gm, G1, sr, 0.4), renderKick (qm, G1, sr, 0.4)) < 1.0e-7,
+                   "M08 GROUP processing: a BODY compressor changes only the body");
+        }
+        // 15. automation of threshold / ratio / ceiling during a kick does not click
+        {
+            auto run = [&] (bool sw)
+            {
+                GeProcessor p; setP (p, "cmp1_on", 1.f); setP (p, "cmp1_threshold", -20.f); setP (p, "clp1_on", 1.f);
+                p.prepareToPlay (sr, 128);
+                float maxStep = 0.f, last = 0.f, pk = 0.f;
+                for (int blk = 0; blk < 120; ++blk)
+                {
+                    AudioBuffer<float> bb (2, 128); bb.clear(); MidiBuffer m;
+                    if (blk == 0) m.addEvent (MidiMessage::noteOn (1, G1, 1.f), 0);
+                    if (sw) { setP (p, "cmp1_threshold", -30.f + 20.f * (float) std::sin (blk * 0.5)); setP (p, "cmp1_ratio", 2.f + (float) (blk % 7)); setP (p, "clp1_ceiling", -6.f + 5.f * (float) std::sin (blk * 0.3)); }
+                    p.processBlock (bb, m);
+                    for (int i = 0; i < 128; ++i) { const float v = bb.getSample (0, i); if (blk > 4) maxStep = jmax (maxStep, std::abs (v - last)); last = v; pk = jmax (pk, std::abs (v)); }
+                }
+                return maxStep / jmax (1.0e-6f, pk);
+            };
+            const float a = run (false), b = run (true);
+            check (b < a * 1.6f + 0.02f, "M08 automation of threshold / ratio / ceiling is smooth", "max step " + String (b, 3) + " vs steady " + String (a, 3));
+        }
+        // 16 + 17. realtime = export with a MASTER lookahead (the export is on the beat, the host gets the latency) + CPU + presets
+        {
+            GeProcessor p; m08t::apply (p, m08t::presets()[2]);                       // TIGHT IMPACT (+ master limiter with lookahead)
+            setP (p, "cmp2_on", 1.f); setP (p, "cmp2_location", 15.f); setP (p, "cmp2_lookahead", 3.f);
+            p.prepareToPlay (sr, 512);
+            const auto rt = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, (uint8) 127) } }, 0.8);
+            const int look = p.getLatencySamples() - p.getEngine().latencySamples() + p.getEngine().dynLookahead();   // (the processor reported it)
+            const auto off = renderKick (p.frame(), G1, sr, 0.6, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, nullptr, &p.distData());
+            AudioBuffer<float> rs (2, off.getNumSamples());
+            for (int c = 0; c < 2; ++c) rs.copyFrom (c, 0, rt, c, look, off.getNumSamples());
+            const bool latOk = p.getLatencySamples() == p.getEngine().latencySamples() && look > 100;
+            bool allSound = true; String e;
+            for (auto& pr : m08t::presets())
+            {
+                GeProcessor pp; m08t::apply (pp, pr);
+                const auto k = renderKick (pp.frame(), G1, sr, 0.4);
+                const bool good = std::isfinite (rms (k)) && peak (k) < 4.f && diff (k, renderKick (base, G1, sr, 0.4)) > 1.0e-4;
+                if (! good) e << pr.name << " ";
+                allSound &= good;
+            }
+            auto x = m08t::moduleToXml (p); const auto before = p.frame();
+            m06t::reset (p, m08t::moduleIds()); m08t::load (p, *x, 0, 0);
+            bool same = true; for (int i = P::cmp1On; i < P::count; ++i) same &= std::abs (p.frame()[i] - before[i]) < 1.0e-4f;
+            GeProcessor full;
+            for (int i = 1; i <= 4; ++i) { setP (full, ("cmp" + String (i) + "_on").toRawUTF8(), 1.f); setP (full, ("cmp" + String (i) + "_location").toRawUTF8(), (float) (i == 4 ? 15 : i)); }
+            for (int i = 1; i <= 5; ++i) { setP (full, ("ts" + String (i) + "_on").toRawUTF8(), 1.f); setP (full, ("ts" + String (i) + "_attack").toRawUTF8(), 0.5f); }
+            for (auto* id : { "clp1_on", "clp2_on", "lim1_on", "lim2_on", "crest_on" }) setP (full, id, 1.f);
+            setP (full, "clp1_oversampling", 2.f); setP (full, "lim1_true_peak", 1.f); setP (full, "dyn_auto_gain", 3.f);
+            GeProcessor plain; const double c0 = cpuTime (plain, 1.0), c1 = cpuTime (full, 1.0);
+            check (diff (rs, off) < 1.0e-6 && latOk && allSound && same && c1 < 8.0 * c0, "M08 realtime = export (lookahead reported to the host), presets / files, CPU",
+                   e + "rt vs export " + String (diff (rs, off), 8) + ", latency " + String (p.getLatencySamples()) + " samples, CPU " + String (100.0 * c0, 1) + " % -> " + String (100.0 * c1, 1) + " %");
+        }
+        // the owner's listening file: the MODERN kick, one bar per module 08 preset (each at the same RMS: hear the shape, not the level)
+        {
+            const int beat = (int) (0.4 * sr), fade = (int) (0.006 * sr);
+            const auto& pl = m08t::presets();
+            AudioBuffer<float> demo (2, beat * 4 * (int) (pl.size() + 1)); demo.clear();
+            String order;
+            for (int k = 0; k <= (int) pl.size(); ++k)
+            {
+                GeProcessor pp; pp.setCurrentProgram (1);
+                if (k > 0) for (auto& [id, v] : pl[(size_t) k - 1].v) setP (pp, id, v);
+                auto x = renderKick (pp.frame(), G1, sr, 0.4, -1, 1.f, &pp.shapes(), 0.0, -1.0, nullptr, nullptr, &pp.distData());
+                x.applyGain (0.2f / (float) jmax (1.0e-6, rms (x)));
+                for (int i = 0; i < fade; ++i) for (int c = 0; c < 2; ++c) x.setSample (c, beat - fade + i, x.getSample (c, beat - fade + i) * (1.f - (float) i / (float) fade));
+                for (int b = 0; b < 4; ++b) for (int c = 0; c < 2; ++c) demo.copyFrom (c, (k * 4 + b) * beat, x, c, 0, beat);
+                order << String (k * 1.6, 1) << " s " << (k == 0 ? String ("(dry)") : String (pl[(size_t) k - 1].name)) << "\n";
+            }
+            demo.applyGain (0.95f / jmax (1.0e-6f, peak (demo)));
+            writeWav (outDir.getChildFile ("4ge_m08_dynamics_presets.wav"), demo);
+            outDir.getChildFile ("4ge_m08_dynamics_presets.txt").replaceWithText (order);
+        }
+    }
     // ---------------------------------------------------------------- module 03 wiring: oscillator data in the state (OSCS), presets, realtime = export
     {
         GeProcessor p; setP (p, "osc1_on", 1.f); setP (p, "osc1_wave", 6.f); setP (p, "osc2_on", 1.f); setP (p, "osc2_wave", 8.f);
@@ -2218,6 +2520,48 @@ int main (int argc, char** argv)
                 if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
             }
             m06t::reset (p, m07t::moduleIds());
+            ge->canvas.showPage (0);
+        }
+        // DYN page (module 08): per-type enabling, the curve is the real one (cmpGainDb), the probe history shows the gain reduction
+        {
+            ge->canvas.showPage (7);
+            auto& dp = ge->canvas.dynPage();
+            dp.showTab (0); dp.select (0);
+            setP (p, "cmp1_on", 1.f); setP (p, "cmp1_location", 0.f); setP (p, "cmp1_threshold", -30.f); setP (p, "cmp1_ratio", 4.f); setP (p, "cmp1_knee", 0.f);
+            dp.select (0);
+            const bool lookOff = ! dp.isControlEnabled ("cmp1_lookahead") && ! dp.isControlEnabled ("cmp1_dry_level");
+            setP (p, "cmp1_location", 15.f); setP (p, "cmp1_type", 6.f); dp.select (0);
+            Thread::sleep (100); dp.select (0);
+            const bool lookOn = dp.isControlEnabled ("cmp1_lookahead") && dp.isControlEnabled ("cmp1_dry_level") && ! dp.isControlEnabled ("cmp1_sc_source");
+            setP (p, "cmp1_location", 0.f); setP (p, "cmp1_type", 0.f); dp.select (0);
+            fge::gui::DynScope::Result r; bool curveOk = false, histOk = false;
+            dp.requestScope();
+            for (int i = 0; i < 600 && ! (curveOk && histOk); ++i)
+            {
+                Thread::sleep (20); r = dp.scopeResult();
+                if (! r.valid || r.kind != 0 || r.index != 0) continue;
+                // at 0 dB in: -30 + 30 / 4 = -22.5 dB out
+                curveOk = ! r.curveY.empty() && std::abs (r.curveY.back() + 22.5f) < 0.3f;
+                histOk = r.gr.size() == (size_t) fge::gui::DynScope::histN && r.maxGr < -3.f;
+                if (i % 50 == 49) dp.requestScope();
+            }
+            dp.showTab (4); const bool limTab = dp.visibleIds().contains ("lim1_ceiling") && ! dp.visibleIds().contains ("cmp1_ratio");
+            check (lookOff && lookOn && curveOk && histOk && limTab, "M08 GUI: per-type / per-place controls, the real curve, the gain-reduction history",
+                   String (lookOff ? "" : "lookahead off! ") + (lookOn ? "" : "lookahead on! ") + (curveOk ? "" : "curve (" + String (r.curveY.empty() ? 0.f : r.curveY.back(), 1) + ")! ")
+                   + (histOk ? "" : "history (" + String (r.maxGr, 1) + ")! ") + (limTab ? "" : "tab!"));
+            m08t::apply (p, m08t::presets()[2]);                                    // TIGHT IMPACT for the snapshots
+            setP (p, "clp1_type", 6.f);
+            PNGImageFormat png;
+            for (int t = 0; t < fge::gui::DynPage::NumTabs; ++t)
+            {
+                dp.showTab (t); dp.select (0); dp.requestScope();
+                for (int i = 0; i < 300; ++i) { Thread::sleep (20); auto q = dp.scopeResult(); if (q.valid && q.kind == jmax (0, dp.kind())) break; }
+                Thread::sleep (200); dp.adoptScope();
+                auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+                FileOutputStream os (outDir.getChildFile ("gui_dyn" + String (t) + ".png"));
+                if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            }
+            m06t::reset (p, m08t::moduleIds());
             ge->canvas.showPage (0);
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);

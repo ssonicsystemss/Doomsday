@@ -48,7 +48,7 @@ namespace fge::dsp::tone
         if (m.on)
         {
             out.any = true;
-            m.loc = juce::jlimit (0, NumLocs - 1, f.idx (P::mbLoc)); m.pos = m.loc == m06::LScreech ? 0 : f.idx (P::mbPos); m.listen = f.idx (P::mbListen);
+            m.loc = juce::jlimit (0, NumLocs - 1, f.idx (P::mbLoc)); m.pos = m.loc == m06::LScreech ? 0 : f.idx (P::mbPos); m.listen = f.idx (P::mbListen); m.link = f.idx (P::mbLink);
             const float x1 = f[P::mbX1], x2 = juce::jmax (f[P::mbX2], x1 * 1.25f), x3 = juce::jmax (f[P::mbX3], x2 * 1.25f);
             const int xt = f.idx (P::mbXType);
             cookX (m.x[0], xt, x1, rate); cookX (m.x[1], xt, x2, rate); cookX (m.x[2], xt, x3, rate);

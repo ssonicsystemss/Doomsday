@@ -100,7 +100,8 @@ namespace fge::dsp::dist
     struct DistData
     {
         std::array<CurveData, numStages> curve; std::array<int, numStages> curveVersion {};
-        DistData() { for (auto& c : curve) c = CurveData::preset (1); }       // a gentle S-curve to start from (same as the processor)
+        std::array<CurveData, 2> clip;                                       // module 08: the clippers' CUSTOM curves
+        DistData() { for (auto& c : curve) c = CurveData::preset (1); for (auto& c : clip) c = CurveData::preset (1); }       // a gentle S-curve to start from (same as the processor)
     };
 
     // ------------------------------------------------------------------ the static curve of one setting

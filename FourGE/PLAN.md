@@ -139,6 +139,11 @@ M05 (stopnie przesteru). DIRTY potrzebuje ~40 dB gainu, żeby mieć górę jak r
 LR12/24/48 + Butterworth / Bessel z dynamiką i transientami, spectral: tilt / harmonic / exciter / kompresja na 24 pasmach / freeze, stereo 3 pasma +
 MONO BELOW), jeden procesor dla każdego miejsca (jak M05 / M06, przed / po przesterze, też warstwy); `Presets/M07Tools.h`, `GUI/EqPage.*` +
 `EqScope.h` (tło). Zero latencji; linear phase NIE zrobione (pre-ringing na kickach – do decyzji właściciela). Testy M07 OK. Następny: moduł 08.
+**STAN 2026-11-05 (noc): MODUŁ 08 GOTOWY** – `DSP/Dyn/Dyn.h` + `DynCook.h`: 4 kompresory (8 typów, sidechain od części, parallel, lookahead
+tylko na MASTER OUTPUT = lokalizacja 15 po downsamplingu, latencja zgłaszana hostowi, eksport przycięty o lookahead), 5 transient shaperów,
+2 clippery (7 krzywych, CUSTOM = `DistData::clip`, oversampling), 2 limitery (per-kanał + STEREO LINK, MinQ lookahead, true peak), crest
+control, AUTO GAIN (okno 50 ms) / LEVEL MATCH, ORDER, BAND LINK multibandu M07. Hooki po M07 w każdym miejscu (też warstwy). `Presets/M08Tools.h`,
+`GUI/DynPage.*` + `DynScope.h` (krzywa, historia GR z `dyn::Probe`, crest; mierniki `Engine::m8Meters`). Testy M08 (tabela 14) OK. Następny: moduł 09.
 
 **STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
 przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH

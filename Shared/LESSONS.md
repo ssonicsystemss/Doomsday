@@ -320,3 +320,7 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   (2) strój: domyślnie MIDI TRACKED = 4. harmoniczna PRAWDZIWEGO pitchu taila (też w czasie spadku); (3) „drewniany” = zbyt czysty tail:
   gęstość (płaskość widma 1–8 kHz) referencji ~−7 dB, nasz −11…−18 → szum (PINK, obwiednia TAIL) wpuszczony do taila przed przesterem;
   MODERN / RAW dostrojone automatycznie do OPS KICK2_D (D1) / KICK_G (G1). Porównywać zawsze w TONACJI referencji.
+- **4GE – „za piskliwe, bez basowego pierdolnięcia” (2026-11-05, A/B po automatycznym dopasowaniu)** – dopasowanie widma w pasmach
+  oktawowych przepuściło wąski bell +9…+12 dB przy ~3 kHz + wysoki RESO taila = pisk; a SUB wchodził dopiero po toku (110–125 ms).
+  Automat liczy energię, nie pisk ani „uderzenie”: po dopasowaniu zawsze sprawdzić wąskie podbicia (MID GAIN, RESO) i moment wejścia basu.
+  Referencja RAW (KICK_G) ma krótki bas już pod tokiem (~40–70 ms) – to ten „cios”.

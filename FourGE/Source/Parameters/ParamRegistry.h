@@ -86,6 +86,9 @@ namespace fge
         // module 06
         const juce::StringArray& m06Locations();
         const juce::StringArray& m06Positions();
+        const juce::StringArray& eqTypes(); const juce::StringArray& eqStereo(); const juce::StringArray& deqModes(); const juce::StringArray& deqSources();
+        const juce::StringArray& deqDetectors(); const juce::StringArray& mbCrossovers(); const juce::StringArray& mbListen(); const juce::StringArray& mbDynModes();
+        const juce::StringArray& excModes(); const juce::StringArray& excHarm(); const juce::StringArray& toneOrders(); const juce::StringArray& stwLocations();
         const juce::StringArray& m06FilterTypes();
         const juce::StringArray& stereoModes();
         const juce::StringArray& resModes();
@@ -279,7 +282,13 @@ namespace fge
     FGE_RES (F, B, C, 1) FGE_RES (F, B, C, 2) \
     FGE_SCREECH (F, B, C) \
     FGE_SCR_OSC (F, B, C, 1) FGE_SCR_OSC (F, B, C, 2) FGE_SCR_OSC (F, B, C, 3) FGE_SCR_OSC (F, B, C, 4) \
-    FGE_SCR_FLT (F, B, C, 1) FGE_SCR_FLT (F, B, C, 2)
+    FGE_SCR_FLT (F, B, C, 1) FGE_SCR_FLT (F, B, C, 2) \
+    FGE_EQ (F, B, C, 1) FGE_EQ (F, B, C, 2) FGE_EQ (F, B, C, 3) FGE_EQ (F, B, C, 4) FGE_EQ (F, B, C, 5) FGE_EQ (F, B, C, 6) \
+    FGE_EQ (F, B, C, 7) FGE_EQ (F, B, C, 8) FGE_EQ (F, B, C, 9) FGE_EQ (F, B, C, 10) FGE_EQ (F, B, C, 11) FGE_EQ (F, B, C, 12) \
+    FGE_EQ (F, B, C, 13) FGE_EQ (F, B, C, 14) FGE_EQ (F, B, C, 15) FGE_EQ (F, B, C, 16) \
+    FGE_DEQ (F, B, C, 1) FGE_DEQ (F, B, C, 2) FGE_DEQ (F, B, C, 3) FGE_DEQ (F, B, C, 4) \
+    FGE_MB (F, B, C) FGE_MBB (F, B, C, 1) FGE_MBB (F, B, C, 2) FGE_MBB (F, B, C, 3) FGE_MBB (F, B, C, 4) \
+    FGE_SPEC (F, B, C) FGE_STW (F, B, C)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -595,6 +604,125 @@ namespace fge
     C (so##n##RingSrc,"scr_osc" #n "_ring_source","Screech Osc " #n " Ring Source", scrOscSel, 0, FNone) \
     F (so##n##Ring,   "scr_osc" #n "_ring",      "Screech Osc " #n " Ring Mod", Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
     F (so##n##Pan,    "scr_osc" #n "_pan",       "Screech Osc " #n " Pan",     Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod)
+    // module 07: one PARAMETRIC EQ band (16 in a pool; each placed on a LOCATION, BEFORE / AFTER that place's distortion)
+#define FGE_EQ(F, B, C, n) \
+    B (eq##n##On,     "eq" #n "_on",        "EQ " #n " On",          false, FNone) \
+    C (eq##n##Loc,    "eq" #n "_location",  "EQ " #n " Location",    m06Locations, 0, FNone) \
+    C (eq##n##Pos,    "eq" #n "_position",  "EQ " #n " Position",    m06Positions, 1, FNone) \
+    C (eq##n##Type,   "eq" #n "_type",      "EQ " #n " Type",        eqTypes, 0, FNone) \
+    F (eq##n##Freq,   "eq" #n "_freq",      "EQ " #n " Frequency",   Unit::Hz,   20.f, 20000.f, 25.f * (float) (n * n) + 15.f, 1000.f, FMod | FSmooth) \
+    F (eq##n##Gain,   "eq" #n "_gain",      "EQ " #n " Gain",        Unit::Db,  -24.f,  24.f,   0.f,   0.f,  FMod | FSmooth) \
+    F (eq##n##Q,      "eq" #n "_q",         "EQ " #n " Q",           Unit::None, 0.1f,  30.f,   0.9f,  1.f,  FMod | FSmooth) \
+    C (eq##n##Slope,  "eq" #n "_slope",     "EQ " #n " Slope",       filterSlopes, 1, FNone) \
+    F (eq##n##Mix,    "eq" #n "_mix",       "EQ " #n " Mix",         Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod | FSmooth) \
+    C (eq##n##Stereo, "eq" #n "_stereo",    "EQ " #n " Stereo Mode", eqStereo, 0, FNone)
+    // module 07: one DYNAMIC EQ band (4 in a pool)
+#define FGE_DEQ(F, B, C, n) \
+    B (deq##n##On,    "deq" #n "_on",        "Dyn EQ " #n " On",          false, FNone) \
+    C (deq##n##Loc,   "deq" #n "_location",  "Dyn EQ " #n " Location",    m06Locations, 0, FNone) \
+    C (deq##n##Pos,   "deq" #n "_position",  "Dyn EQ " #n " Position",    m06Positions, 1, FNone) \
+    C (deq##n##Mode,  "deq" #n "_mode",      "Dyn EQ " #n " Mode",        deqModes, 0, FNone) \
+    C (deq##n##Src,   "deq" #n "_detector_source","Dyn EQ " #n " Detector Source", deqSources, 0, FNone) \
+    C (deq##n##Det,   "deq" #n "_detector",  "Dyn EQ " #n " Detector",    deqDetectors, 0, FNone) \
+    F (deq##n##Win,   "deq" #n "_window",    "Dyn EQ " #n " RMS Window",  Unit::Ms,   0.5f,  50.f,   5.f,   5.f,  FMod) \
+    F (deq##n##Freq,  "deq" #n "_freq",      "Dyn EQ " #n " Frequency",   Unit::Hz,   20.f, 20000.f, 3500.f, 1000.f, FMod | FSmooth) \
+    F (deq##n##Q,     "deq" #n "_q",         "Dyn EQ " #n " Q",           Unit::None, 0.1f,  30.f,   2.f,   1.f,  FMod) \
+    F (deq##n##Thr,   "deq" #n "_threshold", "Dyn EQ " #n " Threshold",   Unit::Db,  -60.f,   0.f, -24.f, -20.f, FMod) \
+    F (deq##n##Range, "deq" #n "_range",     "Dyn EQ " #n " Range",       Unit::Db,    0.f,  24.f,   9.f,   0.f,  FMod) \
+    F (deq##n##Ratio, "deq" #n "_ratio",     "Dyn EQ " #n " Ratio",       Unit::None,  1.f,  20.f,   4.f,   4.f,  FMod) \
+    F (deq##n##Knee,  "deq" #n "_knee",      "Dyn EQ " #n " Knee",        Unit::Db,    0.f,  24.f,   6.f,   0.f,  FMod) \
+    F (deq##n##Atk,   "deq" #n "_attack",    "Dyn EQ " #n " Attack",      Unit::Ms,   0.1f, 500.f,   2.f,  10.f,  FMod) \
+    F (deq##n##Rel,   "deq" #n "_release",   "Dyn EQ " #n " Release",     Unit::Ms,    1.f, 2000.f, 80.f, 100.f, FMod) \
+    F (deq##n##Mix,   "deq" #n "_mix",       "Dyn EQ " #n " Mix",         Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod | FSmooth)
+    // module 07: the MULTIBAND engine (4 bands, LR crossovers) + its bands
+#define FGE_MB(F, B, C) \
+    B (mbOn,     "mb_on",         "Multiband On",            false, FNone) \
+    C (mbLoc,    "mb_location",   "Multiband Location",      m06Locations, 0, FNone) \
+    C (mbPos,    "mb_position",   "Multiband Position",      m06Positions, 1, FNone) \
+    C (mbXType,  "mb_crossover",  "Multiband Crossover",     mbCrossovers, 1, FNone) \
+    F (mbX1,     "mb_xover1",     "Multiband Split SUB / LOW",  Unit::Hz, 20.f,  500.f,   80.f,  80.f, FMod) \
+    F (mbX2,     "mb_xover2",     "Multiband Split LOW / MID",  Unit::Hz, 40.f, 2000.f,  250.f, 250.f, FMod) \
+    F (mbX3,     "mb_xover3",     "Multiband Split MID / HIGH", Unit::Hz, 200.f, 18000.f, 2500.f, 2500.f, FMod) \
+    C (mbListen, "mb_listen",     "Multiband Listen",        mbListen, 0, FNone)
+#define FGE_MBB(F, B, C, n) \
+    F (mb##n##Gain,  "mb" #n "_gain",      "Band " #n " Gain",          Unit::Db,  -24.f,  24.f,   0.f,   0.f,  FMod | FSmooth) \
+    F (mb##n##Width, "mb" #n "_width",     "Band " #n " Width",         Unit::Pct,   0.f,   2.f,   1.f,   0.f,  FMod | FSmooth) \
+    B (mb##n##Inv,   "mb" #n "_invert",    "Band " #n " Phase Invert",  false, FNone) \
+    B (mb##n##Mute,  "mb" #n "_mute",      "Band " #n " Mute",          false, FNone) \
+    B (mb##n##Solo,  "mb" #n "_solo",      "Band " #n " Solo",          false, FNone) \
+    C (mb##n##Dyn,   "mb" #n "_dynamics",  "Band " #n " Dynamics",      mbDynModes, 0, FNone) \
+    F (mb##n##Thr,   "mb" #n "_threshold", "Band " #n " Threshold",     Unit::Db,  -60.f,   0.f, -18.f, -20.f, FMod) \
+    F (mb##n##Ratio, "mb" #n "_ratio",     "Band " #n " Ratio",         Unit::None,  1.f,  20.f,   4.f,   4.f,  FMod) \
+    F (mb##n##Atk,   "mb" #n "_attack",    "Band " #n " Attack",        Unit::Ms,   0.1f, 500.f,   5.f,  10.f,  FMod) \
+    F (mb##n##Rel,   "mb" #n "_release",   "Band " #n " Release",       Unit::Ms,    1.f, 2000.f, 120.f, 100.f, FMod) \
+    F (mb##n##Knee,  "mb" #n "_knee",      "Band " #n " Knee",          Unit::Db,    0.f,  24.f,   6.f,   0.f,  FMod) \
+    F (mb##n##Makeup,"mb" #n "_makeup",    "Band " #n " Makeup",        Unit::Db,  -24.f,  24.f,   0.f,   0.f,  FMod) \
+    F (mb##n##Mix,   "mb" #n "_mix",       "Band " #n " Dynamics Mix",  Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod) \
+    F (mb##n##TrA,   "mb" #n "_tr_attack", "Band " #n " Transient Attack",  Unit::Db, -24.f, 24.f, 0.f, 0.f, FMod) \
+    F (mb##n##TrS,   "mb" #n "_tr_sustain","Band " #n " Transient Sustain", Unit::Db, -24.f, 24.f, 0.f, 0.f, FMod)
+    // module 07: the SPECTRAL SHAPER (tilt, harmonic shaper, exciter, spectral compression, spectral freeze)
+#define FGE_SPEC(F, B, C) \
+    B (spOn,       "sp_on",              "Spectral On",                false, FNone) \
+    C (spLoc,      "sp_location",        "Spectral Location",          m06Locations, 0, FNone) \
+    C (spPos,      "sp_position",        "Spectral Position",          m06Positions, 1, FNone) \
+    F (spTilt,     "sp_tilt",            "Spectral Tilt",              Unit::Bip,  -1.f,   1.f,   0.f,   0.f,  FMod | FSmooth) \
+    F (spPivot,    "sp_tilt_pivot",      "Tilt Pivot",                 Unit::Hz,   20.f, 20000.f, 1000.f, 1000.f, FMod) \
+    F (spTiltInt,  "sp_tilt_intensity",  "Tilt Intensity",             Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spTiltMix,  "sp_tilt_mix",        "Tilt Mix",                   Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod) \
+    B (spHOn,      "sp_harm_on",         "Harmonic Shaper On",         false, FNone) \
+    F (spHEven,    "sp_harm_even",       "Even Harmonics",             Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spHOdd,     "sp_harm_odd",        "Odd Harmonics",              Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spHLow,     "sp_harm_low",        "Low Harmonics",              Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spHHigh,    "sp_harm_high",       "High Harmonics",             Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spHSplit,   "sp_harm_split",      "Harmonic Low / High Split",  Unit::Hz,  100.f, 8000.f, 800.f, 800.f, FMod) \
+    F (spHDrive,   "sp_harm_drive",      "Harmonic Drive",             Unit::Pct,   0.f,   1.f,   0.4f,  0.f,  FMod) \
+    F (spHMix,     "sp_harm_mix",        "Harmonic Mix",               Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spHBal,     "sp_harm_balance",    "Harmonic Balance",           Unit::Bip,  -1.f,   1.f,   0.f,   0.f,  FMod) \
+    B (spXOn,      "sp_exc_on",          "Exciter On",                 false, FNone) \
+    C (spXMode,    "sp_exc_mode",        "Exciter Mode",               excModes, 1, FNone) \
+    C (spXHarm,    "sp_exc_harmonics",   "Exciter Harmonic Mode",      excHarm, 2, FNone) \
+    F (spXLo,      "sp_exc_low",         "Exciter Range Low",          Unit::Hz,   20.f, 20000.f, 2500.f, 2000.f, FMod) \
+    F (spXHi,      "sp_exc_high",        "Exciter Range High",         Unit::Hz,   20.f, 20000.f, 12000.f, 5000.f, FMod) \
+    F (spXAmt,     "sp_exc_amount",      "Excitation",                 Unit::Pct,   0.f,   1.f,   0.4f,  0.f,  FMod) \
+    F (spXColor,   "sp_exc_color",       "Exciter Color",              Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spXDrive,   "sp_exc_drive",       "Exciter Drive",              Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spXMix,     "sp_exc_mix",         "Exciter Mix",                Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod) \
+    B (spCOn,      "sp_comp_on",         "Spectral Compression On",    false, FNone) \
+    F (spCSens,    "sp_comp_sensitivity","Spectral Sensitivity",       Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spCThr,     "sp_comp_threshold",  "Spectral Threshold",         Unit::Db,    0.f,  24.f,   6.f,   0.f,  FMod) \
+    F (spCRed,     "sp_comp_reduction",  "Spectral Max Reduction",     Unit::Db,    0.f,  24.f,   9.f,   0.f,  FMod) \
+    F (spCAtk,     "sp_comp_attack",     "Spectral Attack",            Unit::Ms,   0.1f, 200.f,   3.f,  10.f,  FMod) \
+    F (spCRel,     "sp_comp_release",    "Spectral Release",           Unit::Ms,    1.f, 2000.f, 80.f, 100.f, FMod) \
+    F (spCLo,      "sp_comp_low",        "Spectral Range Low",         Unit::Hz,   20.f, 20000.f, 300.f, 1000.f, FMod) \
+    F (spCHi,      "sp_comp_high",       "Spectral Range High",        Unit::Hz,   20.f, 20000.f, 12000.f, 5000.f, FMod) \
+    F (spCSmooth,  "sp_comp_smoothing",  "Spectral Smoothing",         Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spCMix,     "sp_comp_mix",        "Spectral Compression Mix",   Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod) \
+    B (spFOn,      "sp_freeze",          "Spectral Freeze",            false, FNone) \
+    F (spFCap,     "sp_freeze_capture",  "Freeze Capture Time",        Unit::Ms,    1.f, 1500.f, 150.f, 150.f, FMod) \
+    F (spFDecay,   "sp_freeze_decay",    "Freeze Spectral Decay",      Unit::Ms,   10.f, 5000.f, 600.f, 500.f, FMod) \
+    F (spFSmooth,  "sp_freeze_smoothing","Freeze Smoothing",           Unit::Pct,   0.f,   1.f,   0.3f,  0.f,  FMod) \
+    F (spFPitch,   "sp_freeze_pitch",    "Freeze Pitch Shift",         Unit::Semi,-24.f,  24.f,   0.f,   0.f,  FMod) \
+    F (spFMix,     "sp_freeze_mix",      "Freeze Mix",                 Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    C (toneOrder,  "tone_order",         "EQ / Spectral Order",        toneOrders, 0, FNone)
+    // module 07: the STEREO FREQUENCY engine
+#define FGE_STW(F, B, C) \
+    B (stwOn,      "stw_on",             "Stereo Engine On",           false, FNone) \
+    C (stwLoc,     "stw_location",       "Stereo Engine Location",     stwLocations, 0, FNone) \
+    F (stwWidth,   "stw_width",          "Stereo Width",               Unit::Pct,   0.f,   2.f,   1.f,   0.f,  FMod | FSmooth) \
+    F (stwLowW,    "stw_low_width",      "Low Width",                  Unit::Pct,   0.f,   2.f,   1.f,   0.f,  FMod | FSmooth) \
+    F (stwMidW,    "stw_mid_width",      "Mid Width",                  Unit::Pct,   0.f,   2.f,   1.f,   0.f,  FMod | FSmooth) \
+    F (stwHighW,   "stw_high_width",     "High Width",                 Unit::Pct,   0.f,   2.f,   1.f,   0.f,  FMod | FSmooth) \
+    F (stwXLow,    "stw_xover_low",      "Stereo Split Low / Mid",     Unit::Hz,   40.f, 2000.f, 250.f, 250.f, FMod) \
+    F (stwXHigh,   "stw_xover_high",     "Stereo Split Mid / High",    Unit::Hz,  300.f, 16000.f, 3000.f, 3000.f, FMod) \
+    F (stwMono,    "stw_mono_below",     "Mono Below",                 Unit::Hz,   20.f,  500.f, 120.f, 120.f, FMod) \
+    F (stwMix,     "stw_mix",            "Stereo Mix",                 Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod | FSmooth) \
+    F (stwLowMid,  "stw_low_mid_gain",   "Low Mid Gain",               Unit::Db,  -24.f,  12.f,   0.f,   0.f,  FMod) \
+    F (stwLowSide, "stw_low_side_gain",  "Low Side Gain",              Unit::Db,  -24.f,  12.f,   0.f,   0.f,  FMod) \
+    F (stwMidMid,  "stw_mid_mid_gain",   "Mid Mid Gain",               Unit::Db,  -24.f,  12.f,   0.f,   0.f,  FMod) \
+    F (stwMidSide, "stw_mid_side_gain",  "Mid Side Gain",              Unit::Db,  -24.f,  12.f,   0.f,   0.f,  FMod) \
+    F (stwHiMid,   "stw_high_mid_gain",  "High Mid Gain",              Unit::Db,  -24.f,  12.f,   0.f,   0.f,  FMod) \
+    F (stwHiSide,  "stw_high_side_gain", "High Side Gain",             Unit::Db,  -24.f,  12.f,   0.f,   0.f,  FMod) \
+    B (stwMonoLis, "stw_mono_listen",    "Mono Listen",                false, FNone)
 #define FGE_SCR_FLT(F, B, C, n) \
     B (sf##n##On,     "scr_f" #n "_on",          "Screech Filter " #n " On",   n == 1, FNone) \
     C (sf##n##Type,   "scr_f" #n "_type",        "Screech Filter " #n " Type", m06FilterTypes, n == 1 ? 2 : 0, FNone) \

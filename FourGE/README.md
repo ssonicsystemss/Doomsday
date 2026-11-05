@@ -154,6 +154,28 @@ Przycisk **SCREECH** u góry, trzy widoki:
   EXPERIMENTAL – FORMANT MACHINE, BROKEN RESONATOR), SAVE / LOAD, A / B, COPY / PASTE, RANDOMIZE z LOCK dla każdego silnika – wszystko z UNDO.
 - Makra (SCREAM, RESONANCE, METALLIC…) i wspólna matryca modulacji dojdą w module 09.
 
+## Strona EQ (moduł 07)
+Przycisk **EQ** u góry, pięć zakładek. Każdy procesor stawiasz w jednym miejscu (cały kick, PUNCH / BODY / TAIL / SUB, TEXTURE, warstwa
+albo screech), przed albo po przesterze z modułu 05.
+- **PARAMETRIC**: 16 pasm (1–16 u góry). Typy: BELL, LOW / HIGH SHELF, LOW / HIGH CUT (6–48 dB), BAND PASS, NOTCH, TILT, RESONANT PEAK,
+  tryb STEREO / LEFT / RIGHT / MID / SIDE, MIX. Na wykresie prawdziwa krzywa miejsca (czerwona) + analizator PRE (szary) / POST
+  (kolor) z PEAK HOLD, uśrednianiem, rozdzielczością FFT, skalą LOG / LIN i częstotliwością dominującą. Punkty ciągniesz myszką
+  (częstotliwość / gain), kółko = Q, dwuklik = nowe pasmo, prawy klik = usuń. COPY / PASTE / DUPLICATE / DELETE.
+- **DYNAMIC**: 4 pasma dynamiczne – bell, którego gain idzie za prawdziwym detektorem (PEAK / RMS z oknem): DYNAMIC CUT / BOOST
+  (powyżej progu), UPWARD / DOWNWARD (poniżej progu); detektor z tego pasma, całego sygnału, dołu albo góry. THRESHOLD, RANGE (0–24 dB),
+  RATIO, KNEE, ATTACK, RELEASE, MIX.
+- **MULTIBAND**: 4 pasma SUB / LOW / MID / HIGH (zwrotnice Linkwitz-Riley 12 / 24 / 48 – suma płaska, albo Butterworth / Bessel),
+  w każdym GAIN, WIDTH, INV, M, S i dynamika: COMPRESSOR / EXPANDER / GATE / LIMITER / TRANSIENT (atak / sustain osobno).
+  LISTEN = przetworzone albo pasma przed obróbką. Na dole poziomy pasm.
+- **SPECTRAL**: TILT (ciemniej / jaśniej wokół PIVOT), HARMONIC SHAPER (nowe parzyste / nieparzyste harmoniczne z dołu i z góry),
+  EXCITER (6 krzywych, nowe harmoniczne tylko w swoim zakresie), SPECTRAL COMPRESSION (24 pasma – ścina tylko to, co wystaje),
+  SPECTRAL FREEZE (łapie widmo w chwili CAPTURE AT i trzyma tę teksturę). ORDER = kolejność EQ / DYN / MB / SPECTRAL w jednym miejscu.
+- **STEREO**: WIDTH ogólny i dla dołu / środka / góry, MONO BELOW (poniżej zawsze mono – WIDTH nigdy nie poszerza subu), gainy
+  mid / side w 3 pasmach, MONO LISTEN, korelacja (ogólna i w pasmach).
+- PRESETS (EARLY – CLASSIC WARMTH, OLDSCHOOL PUNCH; MODERN – MODERN BALANCE, BRIGHT FESTIVAL; RAWSTYLE – RAW AGGRESSION, HEAVY SUB CONTROL;
+  EXPERIMENTAL – SPECTRAL CHAOS, METALLIC FREQUENCY), SAVE / LOAD (pasmo .4geq albo cały moduł .4gm07), A / B, RANDOMIZE z LOCK – z UNDO.
+- Bez latencji (EQ minimum phase, kompresja widmowa na pasmach zamiast FFT). Linear phase i makra modułu – później (makra w module 09).
+
 ## Presety
 INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
@@ -161,5 +183,5 @@ MODERN / RAW: CLICK na początku (stuknięcie), tok na HOLD z szumem pod spodem 
 TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – stąd power.
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 07 EQ → 08 dynamika → 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
+Moduł po module wg `PLAN.md`: 08 dynamika → 08 dynamika → 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
 13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.

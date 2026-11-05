@@ -135,6 +135,11 @@ wartości na blok), `Source/DSP/Core/` (Blocks: Osc / Noise / kickEnv / pitchSha
 referencji `kmatch4.py`, A/B `kab4.py`, cechy `kana.py`, wykresy `kplot.py`). Nowy kod wtyczki `Fg5K` (stare projekty z v0.4 zostają na starym pliku).
 Wniosek z A/B: rdzeń (1 oscylator na część) daje czyste, „sterylne” prążki – gęstość referencji przyjdzie z M03 (unison / drift), M04 (szum),
 M05 (stopnie przesteru). DIRTY potrzebuje ~40 dB gainu, żeby mieć górę jak referencje (zakresy drive per CHARACTER w `Engine::cook`).
+**STAN 2026-11-05 (wieczór): MODUŁ 07 GOTOWY** – `DSP/Tone/Tone.h` + `ToneCook.h` (16 pasm EQ na sekcjach TPT SVF, 4 dynamiczne, multiband 4 pasma
+LR12/24/48 + Butterworth / Bessel z dynamiką i transientami, spectral: tilt / harmonic / exciter / kompresja na 24 pasmach / freeze, stereo 3 pasma +
+MONO BELOW), jeden procesor dla każdego miejsca (jak M05 / M06, przed / po przesterze, też warstwy); `Presets/M07Tools.h`, `GUI/EqPage.*` +
+`EqScope.h` (tło). Zero latencji; linear phase NIE zrobione (pre-ringing na kickach – do decyzji właściciela). Testy M07 OK. Następny: moduł 08.
+
 **STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
 przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH
 START MODE), `M06Cook.h`; `Presets/M06Tools.h` (8 presetów, pliki, A / B, randomize z LOCK), `GUI/ScreechPage.*` + `M06Scope.h` (tło).

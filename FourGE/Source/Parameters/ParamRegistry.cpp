@@ -65,6 +65,19 @@ namespace fge
         const juce::StringArray& offlineQuality() { static const juce::StringArray a { "SAME AS REALTIME", "HIGHER (EXPORT)" }; return a; }
         const juce::StringArray& m06Locations()   { static const juce::StringArray a { "GLOBAL", "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE", "LAYER 1", "LAYER 2", "LAYER 3",
                                                                                        "LAYER 4", "LAYER 5", "LAYER 6", "LAYER 7", "LAYER 8", "SCREECH" }; return a; }
+        const juce::StringArray& eqTypes()        { static const juce::StringArray a { "BELL", "LOW SHELF", "HIGH SHELF", "LOW CUT", "HIGH CUT", "BAND PASS", "NOTCH", "TILT", "RESONANT PEAK" }; return a; }
+        const juce::StringArray& eqStereo()       { static const juce::StringArray a { "STEREO", "LEFT", "RIGHT", "MID", "SIDE" }; return a; }
+        const juce::StringArray& deqModes()       { static const juce::StringArray a { "DYNAMIC CUT", "DYNAMIC BOOST", "UPWARD", "DOWNWARD" }; return a; }
+        const juce::StringArray& deqSources()     { static const juce::StringArray a { "THIS BAND", "FULL SIGNAL", "LOWS (< 200 Hz)", "HIGHS (> 3 kHz)" }; return a; }
+        const juce::StringArray& deqDetectors()   { static const juce::StringArray a { "PEAK", "RMS" }; return a; }
+        const juce::StringArray& mbCrossovers()   { static const juce::StringArray a { "LINKWITZ-RILEY 12", "LINKWITZ-RILEY 24", "LINKWITZ-RILEY 48", "BUTTERWORTH 12", "BESSEL 12" }; return a; }
+        const juce::StringArray& mbListen()       { static const juce::StringArray a { "PROCESSED", "UNPROCESSED (BEFORE)" }; return a; }
+        const juce::StringArray& mbDynModes()     { static const juce::StringArray a { "OFF", "COMPRESSOR", "EXPANDER", "GATE", "LIMITER", "TRANSIENT" }; return a; }
+        const juce::StringArray& excModes()       { static const juce::StringArray a { "WARM", "BRIGHT", "CRISP", "METALLIC", "AGGRESSIVE", "CUSTOM" }; return a; }
+        const juce::StringArray& excHarm()        { static const juce::StringArray a { "EVEN", "ODD", "BOTH" }; return a; }
+        const juce::StringArray& toneOrders()     { static const juce::StringArray a { "EQ > DYN EQ > MULTIBAND > SPECTRAL", "DYN EQ > EQ > MULTIBAND > SPECTRAL",
+                                                                                       "MULTIBAND > EQ > DYN EQ > SPECTRAL", "SPECTRAL > EQ > DYN EQ > MULTIBAND" }; return a; }
+        const juce::StringArray& stwLocations()   { static const juce::StringArray a { "GLOBAL", "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE", "SCREECH" }; return a; }
         const juce::StringArray& m06Positions()   { static const juce::StringArray a { "BEFORE DISTORTION", "AFTER DISTORTION" }; return a; }
         const juce::StringArray& m06FilterTypes() { static const juce::StringArray a { "LOW PASS", "HIGH PASS", "BAND PASS", "NOTCH", "LADDER", "DIODE LADDER",
                                                                                        "STATE VARIABLE", "COMB", "FORMANT", "ALL PASS" }; return a; }
@@ -241,6 +254,60 @@ namespace fge
                 { "global_position", "GLOBAL stages before the master clip (the sub stays clean) or after it (with the sub)." },
                 { "offline_quality", "Export / offline render: the same as realtime, or one oversampling step higher." } };
             if (auto it = t.find (pid.fromFirstOccurrenceOf ("_", false, false)); it != t.end()) return it->second;
+        }
+        // module 07: EQ / dynamic EQ / multiband / spectral / stereo (one text per setting)
+        {
+            const juce::String pid (d.id);
+            auto num = [&] (const char* pre) { const juce::String p (pre); return pid.startsWith (p) && pid.length() > p.length() && juce::CharacterFunctions::isDigit (pid[p.length()]); };
+            static const std::map<juce::String, const char*> eq {
+                { "on", "Switch this EQ band on." }, { "location", "Where the band works: the whole kick, a part (group), the texture, one layer or the screech." },
+                { "position", "Before or after that place's distortion (module 05)." }, { "type", "Bell, shelves, cuts (6-48 dB), band pass, notch, tilt or a resonant peak - each its own response." },
+                { "freq", "Frequency of the band." }, { "gain", "Boost / cut (TILT: how much brighter the top and darker the bottom)." },
+                { "q", "Width of the band (cuts: the resonance at the cutoff)." }, { "slope", "Steepness of the cut / band pass / notch." },
+                { "mix", "Dry / processed blend." }, { "stereo", "Both channels, only left / right, only the mid or only the side." } };
+            static const std::map<juce::String, const char*> deq {
+                { "on", "Switch this dynamic band on: a bell whose gain follows the real level." }, { "location", "Where the band works." }, { "position", "Before or after that place's distortion." },
+                { "mode", "CUT / BOOST when the level goes ABOVE the threshold, UPWARD (lift) / DOWNWARD (cut) when it falls BELOW it." },
+                { "detector_source", "What the detector listens to: this band, the full signal, the lows or the highs." }, { "detector", "PEAK follows every peak, RMS the average over the window." },
+                { "window", "RMS averaging time." }, { "freq", "Frequency of the band (and of its detector)." }, { "q", "Width of the band." }, { "threshold", "Level where the band starts to act." },
+                { "range", "The most the band may cut / boost." }, { "ratio", "How strongly it acts past the threshold." }, { "knee", "Soft start around the threshold." },
+                { "attack", "How fast it reacts." }, { "release", "How fast it lets go." }, { "mix", "Dry / processed blend." } };
+            static const std::map<juce::String, const char*> mb {
+                { "gain", "Level of this band." }, { "width", "Stereo width of this band (0 = mono)." }, { "invert", "Flip this band's polarity." }, { "mute", "Silence this band." },
+                { "solo", "Hear only the soloed bands." }, { "dynamics", "The band's own dynamics: compressor, expander, gate, limiter or transient control (real envelope)." },
+                { "threshold", "Where the dynamics start." }, { "ratio", "How strongly they act." }, { "attack", "Reaction time (TRANSIENT: how long the attack counts)." },
+                { "release", "Recovery time." }, { "knee", "Soft start around the threshold." }, { "makeup", "Gain after the dynamics." }, { "mix", "Parallel blend of the dynamics." },
+                { "tr_attack", "TRANSIENT: lift / lower the attack of this band." }, { "tr_sustain", "TRANSIENT: lift / lower the sustain of this band." } };
+            static const std::map<juce::String, const char*> other {
+                { "mb_on", "Switch the 4-band multiband engine on." }, { "mb_location", "Where the multiband works." }, { "mb_position", "Before or after that place's distortion." },
+                { "mb_crossover", "The crossover filters (Linkwitz-Riley bands sum flat; Butterworth / Bessel do not)." },
+                { "mb_xover1", "SUB / LOW split." }, { "mb_xover2", "LOW / MID split." }, { "mb_xover3", "MID / HIGH split." }, { "mb_listen", "PROCESSED or the bands as they come in (for solo listening before the processing)." },
+                { "sp_on", "Switch the spectral shaper on." }, { "sp_location", "Where it works." }, { "sp_position", "Before or after that place's distortion." },
+                { "sp_tilt", "Darker (-) / brighter (+) around the pivot." }, { "sp_tilt_pivot", "The frequency the tilt turns around." }, { "sp_tilt_intensity", "How strong the tilt is." }, { "sp_tilt_mix", "Tilt dry / wet." },
+                { "sp_harm_on", "New even / odd harmonics in a low and a high band." }, { "sp_harm_even", "Even harmonics (warm)." }, { "sp_harm_odd", "Odd harmonics (hard)." },
+                { "sp_harm_low", "Harmonics made from the low band." }, { "sp_harm_high", "Harmonics made from the high band." }, { "sp_harm_split", "Low / high band split." },
+                { "sp_harm_drive", "How hard the harmonics are generated." }, { "sp_harm_mix", "How much of the new harmonics is added." }, { "sp_harm_balance", "Darker / brighter new harmonics." },
+                { "sp_exc_on", "Adds new harmonics only inside its range (not an EQ boost)." }, { "sp_exc_mode", "The curve: warm, bright, crisp, metallic, aggressive, custom." },
+                { "sp_exc_harmonics", "Even, odd or both kinds of new harmonics." }, { "sp_exc_low", "Bottom of the range." }, { "sp_exc_high", "Top of the range." },
+                { "sp_exc_amount", "How much new content." }, { "sp_exc_color", "Darker / brighter new content." }, { "sp_exc_drive", "How hard the range is driven." }, { "sp_exc_mix", "Dry / wet." },
+                { "sp_comp_on", "24 dynamic bands: only frequencies that stick out are pulled down." }, { "sp_comp_sensitivity", "How strongly a peak is pulled down." },
+                { "sp_comp_threshold", "How far above the average a band may go before it is pulled down." }, { "sp_comp_reduction", "The most a band is pulled down." },
+                { "sp_comp_attack", "Reaction time." }, { "sp_comp_release", "Recovery time." }, { "sp_comp_low", "Bottom of the range." }, { "sp_comp_high", "Top of the range." },
+                { "sp_comp_smoothing", "Wider (smoother) or narrower bands." }, { "sp_comp_mix", "Dry / wet." },
+                { "sp_freeze", "Captures the spectrum at CAPTURE AT and keeps that texture going." }, { "sp_freeze_capture", "When (after the hit) the spectrum is captured." },
+                { "sp_freeze_decay", "How long the frozen texture lasts." }, { "sp_freeze_smoothing", "Smooths the captured spectrum." }, { "sp_freeze_pitch", "Shifts the frozen texture." },
+                { "sp_freeze_mix", "Original / frozen blend after the capture." }, { "tone_order", "The order of EQ, dynamic EQ, multiband and spectral at one place." },
+                { "stw_on", "Switch the stereo engine on." }, { "stw_location", "Where it works." }, { "stw_width", "Overall width (0 = mono, 100 % = as is, 200 % = wider)." },
+                { "stw_low_width", "Width of the lows." }, { "stw_mid_width", "Width of the mids." }, { "stw_high_width", "Width of the highs." },
+                { "stw_xover_low", "Low / mid split." }, { "stw_xover_high", "Mid / high split." }, { "stw_mono_below", "Everything below is mono - WIDTH never widens the sub." },
+                { "stw_mix", "Dry / processed blend." }, { "stw_low_mid_gain", "Mid level of the lows." }, { "stw_low_side_gain", "Side level of the lows." },
+                { "stw_mid_mid_gain", "Mid level of the mids." }, { "stw_mid_side_gain", "Side level of the mids." }, { "stw_high_mid_gain", "Mid level of the highs." },
+                { "stw_high_side_gain", "Side level of the highs." }, { "stw_mono_listen", "Hear the kick in mono (check what survives)." } };
+            const juce::String k = pid.fromFirstOccurrenceOf ("_", false, false);
+            if (num ("eq")) if (auto it = eq.find (k); it != eq.end()) return it->second;
+            if (num ("deq")) if (auto it = deq.find (k); it != deq.end()) return it->second;
+            if (num ("mb")) if (auto it = mb.find (k); it != mb.end()) return it->second;
+            if (auto it = other.find (pid); it != other.end()) return it->second;
         }
         if (n.endsWith ("Mute"))   return "Silence this part.";
         if (n.endsWith ("Solo"))   return "Hear only the soloed parts.";

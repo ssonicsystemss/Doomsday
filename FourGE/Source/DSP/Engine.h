@@ -16,6 +16,7 @@
 #include "Osc/OscTables.h"
 #include "Layers/LayerCook.h"
 #include "Dist/DistCook.h"
+#include "Tone/ToneCook.h"
 #include "Filter/M06Cook.h"
 #include "DoomsdayKick.h"
 #include "../Parameters/ParamFrame.h"
@@ -47,6 +48,7 @@ namespace fge
         dsp::LayerBankSettings lb;                // module 04: noise A / B, transient, layers
         dsp::dist::DistBank dist;                 // module 05: the distortion stages and their order per location
         dsp::m06::Bank m06;                       // module 06: the filters / resonators and their order per place
+        dsp::tone::Bank tone;                     // module 07: EQ / dynamic EQ / multiband / spectral / stereo per place
         dsp::scr::Settings scr;                   // module 06: the screech
         bool lbAny = false;
         float lbEndMs = 0.f;                      // when the last layer / noise / click ends       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
@@ -205,7 +207,7 @@ namespace fge
                     mc.pitchNorm = std::abs (depth) > 0.01f ? juce::jlimit (0.f, 1.f, pe.semis (PTail, ms) / depth) : 0.f;
                     dsp::m06::Ctx m6c; m6c.ms = ms; m6c.vel = vel; m6c.noteHz = noteHz; m6c.lengthMs = ks.lengthMs; m6c.relMs = relAtMs;
                     lbv.tick (cfg.lb, cfg.osc, tables != nullptr ? *tables : noTables, hz, amp, noteHz / 49.f, ms, ks.inv, (float) ks.rate,
-                              ext, extL, extR, bl, br, &cfg.dist, &mc, cfg.m06.any ? &cfg.m06 : nullptr, &m6c);
+                              ext, extL, extR, bl, br, &cfg.dist, &mc, cfg.m06.any ? &cfg.m06 : nullptr, &m6c, cfg.tone.any ? &cfg.tone : nullptr);
                     for (int k = 0; k < dsp::NumBus; ++k) { bus[6 + 2 * k][i] += bl[k] * gate; bus[7 + 2 * k][i] += br[k] * gate; }
                 }
                 if (ms < cfg.partEnd[PPunch])
@@ -309,7 +311,7 @@ namespace fge
             shaper.prepare (sampleRate * osFactor);
             distTables.allocate();
             for (auto& ch : distChain) ch.reset();
-            m06St->reset(); scrEng.reset();
+            m06St->reset(); scrEng.reset(); toneSt->reset();
             scrOsc.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             scrInBufL.assign ((size_t) (maxBlockSize * osFactor), 0.f); scrInBufR.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             sinceHitMs = 1.0e9f;
@@ -472,6 +474,7 @@ namespace fge
             cookLayers (f, b);
             dsp::dist::cookDist (f, distData, b, cfg.dist, distTables, cfg.ks.rate, offline);
             dsp::m06::cookBank (f, b, cfg.m06, cfg.ks.rate);
+            dsp::tone::cookBank (f, cfg.tone, cfg.ks.rate);
             dsp::scr::cook (f, cfg.scr);
 
             // ---- envelope slots (module 02, 7)
@@ -639,7 +642,7 @@ namespace fge
             for (int l = 0; l < 6; ++l) distOn[(size_t) l] = cfg.dist.count[(size_t) l] > 0;
             if (! inside) scrAny = renderScreech (b, on);
             const bool busAny = cfg.lbAny || scrAny;
-            const bool m6 = cfg.m06.any;
+            const bool m6 = cfg.m06.any, m7 = cfg.tone.any;
             clockSec += (double) n / sr;
 
             stereo.clear (0, 0, n); stereo.clear (1, 0, n);
@@ -661,6 +664,7 @@ namespace fge
                         {
                             float tl = b[6 + 2 * dsp::BusTexture][i] * tg, tr = b[7 + 2 * dsp::BusTexture][i] * tg;
                             if (m6 && cfg.m06.at (dsp::m06::LTexture, 0)) m06St->process (cfg.m06, dsp::m06::LTexture, 0, tl, tr, m6Ctx (i), cfg.ks.rate);
+                            if (m7 && cfg.tone.at (dsp::m06::LTexture, 0)) toneSt->process (cfg.tone, dsp::m06::LTexture, 0, tl, tr, m6Ctx (i), cfg.ks.rate);
                             if (distOn[dsp::dist::LocTexture])                             // TEXTURE group distortion
                             {
                                 const auto mc = modCtx (i);
@@ -668,6 +672,7 @@ namespace fge
                                 tr = distChain[dsp::dist::LocTexture * 2 + 1].process (cfg.dist, dsp::dist::LocTexture, tr, mc, cfg.ks.rate);
                             }
                             if (m6 && cfg.m06.at (dsp::m06::LTexture, 1)) m06St->process (cfg.m06, dsp::m06::LTexture, 1, tl, tr, m6Ctx (i), cfg.ks.rate);
+                            if (m7 && cfg.tone.at (dsp::m06::LTexture, 1)) toneSt->process (cfg.tone, dsp::m06::LTexture, 1, tl, tr, m6Ctx (i), cfg.ks.rate);
                             L[i] += tl + b[6 + 2 * dsp::BusCustom][i] * cg;
                             R[i] += tr + b[7 + 2 * dsp::BusCustom][i] * cg;
                         }
@@ -698,6 +703,7 @@ namespace fge
                     else { yl = x[i]; yr = x[i]; }
                     yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i];                    // module 04: layers on this part's bus
                     if (m6 && cfg.m06.at (c + 1, 0)) m06St->process (cfg.m06, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 BEFORE
+                    if (m7 && cfg.tone.at (c + 1, 0)) toneSt->process (cfg.tone, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 BEFORE
                     if (distOn[(size_t) c + 1])                                       // module 05: the GROUP distortion (pre fader)
                     {
                         const auto mc = modCtx (i);
@@ -705,6 +711,7 @@ namespace fge
                         yr = distChain[(size_t) (c + 1) * 2 + 1].process (cfg.dist, c + 1, yr, mc, cfg.ks.rate);
                     }
                     if (m6 && cfg.m06.at (c + 1, 1)) m06St->process (cfg.m06, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 AFTER
+                    if (m7 && cfg.tone.at (c + 1, 1)) toneSt->process (cfg.tone, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 AFTER
                     yl *= gl; yr *= gr;
                     L[i] = (c == 0 ? 0.f : L[i]) + yl;
                     R[i] = (c == 0 ? 0.f : R[i]) + yr;
@@ -762,9 +769,12 @@ namespace fge
         void globalChain (float* L, float* R, int on)
         {
             const bool a = cfg.m06.any && cfg.m06.at (dsp::m06::LGlobal, 0), z = cfg.m06.any && cfg.m06.at (dsp::m06::LGlobal, 1);
+            const bool ta = cfg.tone.any && cfg.tone.at (dsp::m06::LGlobal, 0), tz = cfg.tone.any && cfg.tone.at (dsp::m06::LGlobal, 1);
             if (a) for (int i = 0; i < on; ++i) m06St->process (cfg.m06, dsp::m06::LGlobal, 0, L[i], R[i], m6Ctx (i), cfg.ks.rate);
+            if (ta) for (int i = 0; i < on; ++i) toneSt->process (cfg.tone, dsp::m06::LGlobal, 0, L[i], R[i], m6Ctx (i), cfg.ks.rate);
             if (distOn[dsp::dist::LocGlobal]) globalDist (L, R, on);
             if (z) for (int i = 0; i < on; ++i) m06St->process (cfg.m06, dsp::m06::LGlobal, 1, L[i], R[i], m6Ctx (i), cfg.ks.rate);
+            if (tz) for (int i = 0; i < on; ++i) toneSt->process (cfg.tone, dsp::m06::LGlobal, 1, L[i], R[i], m6Ctx (i), cfg.ks.rate);
         }
         // module 06: the screech (+ the filters / resonators placed on SCREECH) into its output bus; true = it sounds
         bool renderScreech (float* const* b, int on, float* const* inside = nullptr)
@@ -788,6 +798,7 @@ namespace fge
                 for (auto& v : scrEng.v) { float vl, vr, vo; v->process (cfg.scr, tb, base, cfg.ks.rate, lastNoteHz, vl, vr, vo); l += vl; r += vr; o += vo; }
                 scrOsc[(size_t) i] = o;
                 if (cfg.m06.any && cfg.m06.at (dsp::m06::LScreech, 0)) m06St->process (cfg.m06, dsp::m06::LScreech, 0, l, r, m6Ctx (i), cfg.ks.rate);
+                if (cfg.tone.any && cfg.tone.at (dsp::m06::LScreech, 0)) toneSt->process (cfg.tone, dsp::m06::LScreech, 0, l, r, m6Ctx (i), cfg.ks.rate);
                 if (inside != nullptr) { inside[0][i] = l; inside[1][i] = r; }
                 else { b[6 + 2 * bus][i] += l; b[7 + 2 * bus][i] += r; }
             }
@@ -809,6 +820,7 @@ namespace fge
         std::array<bool, 6> distOn {};
         float sinceHitMs = 1.0e9f, pitchNormNow = 0.f, lastVelocity = 1.f, lastNoteHz = 49.f, relMs = -1.f;
         std::unique_ptr<dsp::m06::State> m06St = std::make_unique<dsp::m06::State>();   // module 06 at engine level (not the layers)
+        std::unique_ptr<dsp::tone::State> toneSt = std::make_unique<dsp::tone::State>(); // module 07 at engine level (not the layers)
         dsp::scr::Engine scrEng;
         dsp::scr::Timing scrTiming;
         std::vector<float> scrOsc;                                             // the screech oscillators per sample (resonator excitation)

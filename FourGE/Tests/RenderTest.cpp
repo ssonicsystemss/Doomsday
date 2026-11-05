@@ -6,6 +6,7 @@
 #include "../Source/Presets/LayerTools.h"
 #include "../Source/Presets/DistTools.h"
 #include "../Source/Presets/M06Tools.h"
+#include "../Source/Presets/M07Tools.h"
 #include "../Source/GUI/DistScope.h"
 #include "../Source/Presets/FactoryPresets.h"
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -390,9 +391,11 @@ int main (int argc, char** argv)
         StringArray dead;
         int tested = 0;
         const bool quick = std::getenv ("FGE_QUICK") != nullptr;          // (developer runs: skip this long check)
+        const StringArray only = StringArray::fromTokens (String (std::getenv ("FGE_ONLY") != nullptr ? std::getenv ("FGE_ONLY") : ""), ",", "");   // (developer runs: these prefixes only)
         for (int id = quick ? P::count : 0; id < P::count; ++id)
         {
             const auto& d = def (id);
+            if (! only.isEmpty() && [&] { for (auto& o : only) if (String (d.id).startsWith (o)) return false; return true; }()) continue;
             ParamFrame a = base, b = base;
             // context: parameters that only work in a mode get that mode (the GUI greys them out otherwise)
             if (id == P::tailPw) { a[P::tailSrc] = b[P::tailSrc] = 4.f; }
@@ -601,6 +604,7 @@ int main (int argc, char** argv)
                     if (k.startsWith ("pitch_") && k != "pitch_amount" && k != "pitch_mode") set2 ("scr_pitch_amount", 1.f);
                     if (k == "offset") set2 ("scr_start_mode", 2.f);
                     if (k == "sync_tail" || k == "auto_length") set2 ("scr_length", 50.f);
+                    if (k == "release") set2 ("scr_length", 80.f);                       // (INSIDE the tail: the release must end before the tail does)
                     if (k == "quantize") set2 ("scr_start", 183.3f);
                     if (k == "follow_body") { set2 ("scr_start_mode", 1.f); set2 ("body_amp_env_delay", 40.f); }
                     if (k == "width") set2 ("scr_osc1_pan", 0.7f);
@@ -618,6 +622,71 @@ int main (int argc, char** argv)
                         set2 ("scr_" + k.substring (0, 3) + "on", 1.f);
                         if (k.endsWith ("key_track")) { set2 ("scr_pitch_mode", 2.f); set2 ("scr_base_hz", 2000.f); }
                     }
+                }
+            }
+            // module 07 contexts: the processor is ON and doing something the control can change
+            {
+                auto set2 = [&] (const String& pid, float v) { const int k = idOf (pid); if (k >= 0 && k != id) { a[k] = v; b[k] = v; } };
+                auto isN = [&] (const char* pre) { const String p (pre); return sid.startsWith (p) && sid.length() > p.length() && CharacterFunctions::isDigit (sid[p.length()]); };
+                if (isN ("eq"))
+                {
+                    const String o = sid.upToFirstOccurrenceOf ("_", true, false), k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    set2 (o + "on", 1.f); set2 (o + "gain", 9.f); set2 (o + "freq", 900.f);
+                    if (k == "slope") { set2 (o + "type", 3.f); set2 (o + "freq", 300.f); }
+                    if (k == "position") { set2 ("dist1_on", 1.f); set2 ("dist1_type", 1.f); set2 ("dist1_drive", 0.8f); }
+                }
+                if (isN ("deq"))
+                {
+                    const String o = sid.upToFirstOccurrenceOf ("_", true, false), k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    set2 (o + "on", 1.f); set2 (o + "threshold", -40.f); set2 (o + "range", 12.f); set2 (o + "freq", 900.f);
+                    if (k == "window") set2 (o + "detector", 1.f);
+                    if (k == "position") { set2 ("dist1_on", 1.f); set2 ("dist1_type", 1.f); set2 ("dist1_drive", 0.8f); }
+                    if (k == "threshold") set2 (o + "ratio", 8.f);
+                }
+                if (sid.startsWith ("mb"))
+                {
+                    set2 ("mb_on", 1.f); set2 ("tail_width_from", 80.f); set2 ("tail_width", 1.f);
+                    const String k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    const String o = sid.upToFirstOccurrenceOf ("_", true, false);
+                    if (o != "mb_")
+                    {
+                        if (k == "threshold" || k == "ratio" || k == "attack" || k == "release" || k == "knee" || k == "makeup" || k == "mix")
+                        { set2 (o + "dynamics", 1.f); set2 (o + "threshold", -40.f); }
+                        if (k == "tr_attack" || k == "tr_sustain") set2 (o + "dynamics", 5.f);
+                        if (k == "solo") set2 ("mb1_gain", -6.f);
+                    }
+                    else
+                    {
+                        if (k == "listen") set2 ("mb2_gain", -12.f);
+                        if (k == "xover1") set2 ("mb1_gain", -12.f);
+                        if (k == "xover2") set2 ("mb2_gain", -12.f);
+                        if (k == "xover3") set2 ("mb3_gain", -12.f);
+                        if (k == "crossover") set2 ("mb2_gain", -12.f);
+                        if (k == "position") { set2 ("mb2_gain", -12.f); set2 ("mb2_dynamics", 1.f); set2 ("mb2_threshold", -40.f); set2 ("dist1_on", 1.f); set2 ("dist1_type", 1.f); set2 ("dist1_drive", 0.8f); }
+                        if (k == "location" || k == "on") set2 ("mb2_gain", -12.f);
+                    }
+                }
+                if (sid.startsWith ("sp_") || sid == "tone_order")
+                {
+                    set2 ("sp_on", 1.f);
+                    const String k = sid.substring (3);
+                    if (k.startsWith ("tilt") || k == "on" || k == "location" || k == "position") set2 ("sp_tilt", 0.6f);
+                    if (k.startsWith ("tilt_")) set2 ("sp_tilt_intensity", k == "tilt_intensity" ? 0.5f : 1.f);
+                    if (k.startsWith ("harm")) { set2 ("sp_harm_on", 1.f); set2 ("sp_harm_drive", 0.6f); }
+                    if (k.startsWith ("exc")) { set2 ("sp_exc_on", 1.f); set2 ("sp_exc_amount", 0.8f); }
+                    if (k.startsWith ("comp")) { set2 ("sp_comp_on", 1.f); set2 ("sp_comp_threshold", 0.f); set2 ("sp_comp_reduction", 18.f); set2 ("sp_comp_sensitivity", 1.f); }
+                    if (k.startsWith ("freeze")) { set2 ("sp_freeze", 1.f); set2 ("sp_freeze_mix", 1.f); set2 ("sp_freeze_capture", 60.f); }
+                    if (k == "position") { set2 ("dist1_on", 1.f); set2 ("dist1_type", 1.f); set2 ("dist1_drive", 0.8f); }
+                    if (sid == "tone_order") { set2 ("sp_harm_on", 1.f); set2 ("sp_harm_drive", 0.8f); set2 ("eq1_on", 1.f); set2 ("eq1_gain", 12.f); set2 ("eq1_freq", 300.f);
+                                               set2 ("mb_on", 1.f); set2 ("mb2_dynamics", 1.f); set2 ("mb2_threshold", -40.f); }
+                }
+                if (sid.startsWith ("stw_"))
+                {
+                    set2 ("stw_on", 1.f); set2 ("tail_width_from", 80.f); set2 ("tail_width", 1.f);
+                    const String k = sid.substring (4);
+                    if (k == "on" || k == "location" || k == "mix" || k == "mono_listen") set2 ("stw_width", 2.f);
+                    if (k == "xover_low" || k == "xover_high") { set2 ("stw_low_width", 0.f); set2 ("stw_mid_width", 1.f); set2 ("stw_high_width", 2.f); set2 ("stw_mono_below", 20.f); }
+                    if (k.endsWith ("_width")) set2 ("stw_mono_below", 20.f);
                 }
             }
             if (sid.endsWith ("_trigger")) continue;                                                // MIDI behaviour (note-off / legato): checked below
@@ -1597,6 +1666,252 @@ int main (int argc, char** argv)
                    "rt vs export " + String (diff (rt, off), 8) + ", CPU " + String (100.0 * c0, 1) + " % -> " + String (100.0 * c1, 1) + " %");
         }
     }
+    // ---------------------------------------------------------------- module 07: EQ, multiband & spectral shaping (MODULE07.md 13)
+    {
+        namespace tn = fge::dsp::tone;
+        const double rate = 44100.0 * 4.0;
+        ParamFrame q = base; q[P::clipDrive] = 0.f;
+        const int es = P::eq2On - P::eq1On;
+        // run the real module 07 state on a test signal at the engine rate (GLOBAL, AFTER)
+        auto runTone = [&] (const ParamFrame& f, const std::function<void (int, float&, float&)>& gen, int n, int loc = 0, int pos = 1)
+        {
+            auto bank = std::make_unique<tn::Bank>(); tn::cookBank (f, *bank, rate);
+            auto st = std::make_unique<tn::State>();
+            AudioBuffer<float> out (2, n);
+            for (int i = 0; i < n; ++i)
+            {
+                float l, r; gen (i, l, r);
+                fge::dsp::m06::Ctx cx; cx.ms = (float) (i * 1000.0 / rate);
+                st->process (*bank, loc, pos, l, r, cx, rate);
+                out.setSample (0, i, l); out.setSample (1, i, r);
+            }
+            return out;
+        };
+        auto sine = [&] (double hz, float a) { return [=] (int i, float& l, float& r) { l = r = a * (float) std::sin (2.0 * MathConstants<double>::pi * hz * i / rate); }; };
+        auto levelAt = [&] (const AudioBuffer<float>& x, double hz, int ch = 0, int from = 0)
+        {
+            const int order = 15, n = 1 << order; juce::dsp::FFT fft (order); std::vector<float> buf ((size_t) n * 2, 0.f);
+            for (int i = 0; i < n && from + i < x.getNumSamples(); ++i) buf[(size_t) i] = x.getSample (ch, from + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * (float) i / (float) n));
+            fft.performFrequencyOnlyForwardTransform (buf.data());
+            const int k = (int) std::round (hz * n / rate); float m = 0.f; for (int j = k - 3; j <= k + 3; ++j) m = jmax (m, buf[(size_t) jlimit (0, n / 2 - 1, j)]);
+            return (double) Decibels::gainToDecibels (m * 4.f / (float) n, -160.f);
+        };
+        auto impulseDb = [&] (const ParamFrame& f, std::initializer_list<double> hzs, int loc = 0)
+        {
+            auto y = runTone (f, [] (int i, float& l, float& r) { l = r = i == 0 ? 1.f : 0.f; }, 1 << 16, loc);
+            const int order = 16, n = 1 << order; juce::dsp::FFT fft (order); std::vector<float> buf ((size_t) n * 2, 0.f);
+            for (int i = 0; i < n; ++i) buf[(size_t) i] = y.getSample (0, i);
+            fft.performFrequencyOnlyForwardTransform (buf.data());
+            std::vector<double> o; for (double hz : hzs) o.push_back (Decibels::gainToDecibels (buf[(size_t) jlimit (1, n / 2 - 1, (int) std::round (hz * n / rate))], -160.f));
+            return o;
+        };
+        // 1 + 2. 16 independent bands, each type its own response
+        {
+            ParamFrame f = q;
+            for (int i = 0; i < 16; ++i) { f[P::eq1On + i * es] = 1.f; f[P::eq1Freq + i * es] = 40.f * std::pow (2.f, (float) i * 0.58f); f[P::eq1Gain + i * es] = (i % 2 ? 6.f : -6.f); f[P::eq1Q + i * es] = 2.f; }
+            const auto all = renderKick (f, G1, sr, 0.4);
+            bool each = true;
+            for (int i = 0; i < 16; ++i) { ParamFrame g = f; g[P::eq1On + i * es] = 0.f; each &= diff (all, renderKick (g, G1, sr, 0.4)) > 1.0e-4; }
+            // types: bell +12 at 1 kHz = +12; low cut 24 dB at 200: -24 dB at 50 Hz; high shelf +6 at 4k: +6 at 16k; notch at 1k: deep; tilt +12: lows down, highs up
+            auto one = [&] (int type, float hz, float gain, float qv, int slope) { ParamFrame g = q; g[P::eq1On] = 1.f; g[P::eq1Type] = (float) type; g[P::eq1Freq] = hz; g[P::eq1Gain] = gain; g[P::eq1Q] = qv; g[P::eq1Slope] = (float) slope; return g; };
+            const auto bell = impulseDb (one (tn::Bell, 1000, 12, 1, 1), { 1000, 100 });
+            const auto cut = impulseDb (one (tn::LowCut, 200, 0, 0.707f, 2), { 50, 2000 });
+            const auto shelf = impulseDb (one (tn::HighShelf, 4000, 6, 0.707f, 1), { 16000, 200 });
+            const auto notch = impulseDb (one (tn::Notch, 1000, 0, 2, 1), { 1000, 3000 });
+            const auto tilt = impulseDb (one (tn::Tilt, 1000, 12, 1, 1), { 40, 15000 });
+            const bool types = std::abs (bell[0] - 12) < 0.3 && std::abs (bell[1]) < 0.5 && cut[0] < -22 && std::abs (cut[1]) < 0.3 && std::abs (shelf[0] - 6) < 0.5
+                            && std::abs (shelf[1]) < 0.3 && notch[0] < -30 && tilt[0] < -4.5 && tilt[1] > 4.5;
+            check (each && types, "M07 16 EQ bands independent, every type its real response",
+                   "bell " + String (bell[0], 1) + " cut@50 " + String (cut[0], 1) + " shelf " + String (shelf[0], 1) + " notch " + String (notch[0], 1) + " tilt " + String (tilt[0], 1) + " / " + String (tilt[1], 1));
+        }
+        // 3. dynamic EQ reacts to the real level: loud 2 kHz is cut, quiet 2 kHz is not
+        {
+            ParamFrame f = q; f[P::deq1On] = 1.f; f[P::deq1Freq] = 2000.f; f[P::deq1Q] = 1.f; f[P::deq1Thr] = -24.f; f[P::deq1Range] = 12.f; f[P::deq1Ratio] = 20.f; f[P::deq1Knee] = 0.f;
+            const double refL = levelAt (runTone (q, sine (2000, 0.5f), 60000), 2000, 0, 20000), refQ = levelAt (runTone (q, sine (2000, 0.01f), 60000), 2000, 0, 20000);
+            const double loud = levelAt (runTone (f, sine (2000, 0.5f), 60000), 2000, 0, 20000) - refL;
+            const double quiet = levelAt (runTone (f, sine (2000, 0.01f), 60000), 2000, 0, 20000) - refQ;
+            ParamFrame up = f; up[P::deq1Mode] = 2.f;                              // UPWARD: quiet is lifted
+            const double qUp = levelAt (runTone (up, sine (2000, 0.01f), 60000), 2000, 0, 20000) - refQ;
+            check (loud < -9 && std::abs (quiet) < 1 && qUp > 9, "M07 DYNAMIC EQ follows the real level (cut loud / lift quiet)",
+                   "loud " + String (loud, 1) + " dB, quiet " + String (quiet, 1) + " dB, upward quiet " + String (qUp, 1) + " dB");
+        }
+        // 4 + 5. multiband: the bands sum flat (LR 12 / 24 / 48), SOLO plays one band
+        {
+            String e; double worst = 0;
+            for (int xt : { 0, 1, 2 })
+            {
+                ParamFrame f = q; f[P::mbOn] = 1.f; f[P::mbXType] = (float) xt;
+                for (double v : impulseDb (f, { 30, 80, 150, 250, 600, 2500, 5000, 12000 })) worst = jmax (worst, std::abs (v));
+            }
+            ParamFrame s = q; s[P::mbOn] = 1.f; s[P::mb2Solo] = 1.f;
+            const auto so = impulseDb (s, { 140, 6000, 30 });
+            check (worst < 0.1 && so[0] > -2.5 && so[1] < -30 && so[2] < -12, "M07 MULTIBAND: 4 bands sum flat (LR12/24/48), SOLO isolates a band",
+                   "sum dev " + String (worst, 3) + " dB, solo LOW: 140 Hz " + String (so[0], 1) + ", 6 kHz " + String (so[1], 1) + " dB");
+        }
+        // 6. multiband dynamics on a real envelope: a loud low band is compressed, the transient mode lifts the attack
+        {
+            ParamFrame f = q; f[P::mbOn] = 1.f; f[P::mb2Dyn] = (float) tn::MdComp; f[P::mb2Thr] = -30.f; f[P::mb2Ratio] = 10.f;
+            const double c = levelAt (runTone (f, sine (150, 0.5f), 60000), 150, 0, 20000) - Decibels::gainToDecibels (0.5f);
+            ParamFrame t = q; t[P::mbOn] = 1.f; t[P::mb4Dyn] = (float) tn::MdTransient; t[P::mb4TrA] = 12.f;
+            const auto plain = renderKick (q, G1, sr, 0.3), tr = renderKick ([&] { ParamFrame g = q; g[P::mbOn] = 1.f; g[P::mb4Dyn] = (float) tn::MdTransient; g[P::mb4TrA] = 12.f; return g; }(), G1, sr, 0.3);
+            const float atk0 = peak (plain, 0, (int) (0.01 * sr)), atk1 = peak (tr, 0, (int) (0.01 * sr));
+            check (c < -10 && atk1 > atk0 * 1.15f, "M07 MULTIBAND DYNAMICS: compressor on the real band level, TRANSIENT lifts the attack",
+                   "comp " + String (c, 1) + " dB, attack peak " + String (atk0, 2) + " -> " + String (atk1, 2));
+        }
+        // 7. harmonic shaper makes real harmonics (even -> 2nd, odd -> 3rd)
+        {
+            ParamFrame f = q; f[P::spOn] = 1.f; f[P::spHOn] = 1.f; f[P::spHMix] = 1.f; f[P::spHDrive] = 0.6f; f[P::spHLow] = 1.f; f[P::spHHigh] = 1.f;
+            ParamFrame ev = f; ev[P::spHEven] = 1.f; ev[P::spHOdd] = 0.f; ParamFrame od = f; od[P::spHEven] = 0.f; od[P::spHOdd] = 1.f;
+            const auto a = runTone (ev, sine (300, 0.5f), 60000), b = runTone (od, sine (300, 0.5f), 60000);
+            const double e2 = levelAt (a, 600, 0, 20000) - levelAt (a, 900, 0, 20000), o3 = levelAt (b, 900, 0, 20000) - levelAt (b, 600, 0, 20000);
+            check (e2 > 15 && o3 > 15, "M07 HARMONIC SHAPER: EVEN -> 2nd harmonic, ODD -> 3rd", "even: h2-h3 " + String (e2, 1) + " dB, odd: h3-h2 " + String (o3, 1) + " dB");
+        }
+        // 8. exciter: new content only in its range (a 3 kHz sine gets 6 / 9 kHz; 0 excitation = nothing)
+        {
+            ParamFrame f = q; f[P::spOn] = 1.f; f[P::spXOn] = 1.f; f[P::spXAmt] = 1.f; f[P::spXLo] = 2000.f; f[P::spXHi] = 16000.f; f[P::spXHarm] = 2.f;
+            const auto a = runTone (f, sine (3000, 0.3f), 60000);
+            ParamFrame z = f; z[P::spXAmt] = 0.f;
+            const auto b = runTone (z, sine (3000, 0.3f), 60000);
+            const double newC = jmax (levelAt (a, 6000, 0, 20000), levelAt (a, 9000, 0, 20000)) - levelAt (a, 3000, 0, 20000);
+            const double none = jmax (levelAt (b, 6000, 0, 20000), levelAt (b, 9000, 0, 20000)) - levelAt (b, 3000, 0, 20000);
+            check (newC > -40 && none < -90, "M07 EXCITER generates new harmonics (not a shelf)", "new " + String (newC, 1) + " dB, off " + String (none, 1) + " dB");
+        }
+        // 9. spectral compression pulls down what sticks out (loud 1 kHz vs soft 4 kHz)
+        {
+            ParamFrame f = q; f[P::spOn] = 1.f; f[P::spCOn] = 1.f; f[P::spCThr] = 3.f; f[P::spCRed] = 18.f; f[P::spCSens] = 1.f; f[P::spCLo] = 200.f; f[P::spCHi] = 12000.f;
+            auto two = [&] (int i, float& l, float& r) { l = r = 0.5f * (float) std::sin (2.0 * MathConstants<double>::pi * 1000.0 * i / rate) + 0.05f * (float) std::sin (2.0 * MathConstants<double>::pi * 4000.0 * i / rate); };
+            const auto y = runTone (f, two, 80000);
+            const double before = Decibels::gainToDecibels (0.5f) - Decibels::gainToDecibels (0.05f);
+            const double after = levelAt (y, 1000, 0, 40000) - levelAt (y, 4000, 0, 40000);
+            check (after < before - 3.0, "M07 SPECTRAL COMPRESSION: the loud peak comes down, the rest stays", "1k vs 4k " + String (before, 1) + " -> " + String (after, 1) + " dB");
+        }
+        // 10. mid / side: a MID band leaves a pure side signal alone, a SIDE band changes it
+        {
+            ParamFrame f = q; f[P::eq1On] = 1.f; f[P::eq1Freq] = 1000.f; f[P::eq1Gain] = 12.f; f[P::eq1Stereo] = (float) tn::EsMid;
+            auto side = [&] (int i, float& l, float& r) { l = 0.3f * (float) std::sin (2.0 * MathConstants<double>::pi * 1000.0 * i / rate); r = -l; };
+            const double m = levelAt (runTone (f, side, 60000), 1000, 0, 20000);
+            ParamFrame g = f; g[P::eq1Stereo] = (float) tn::EsSide;
+            const double sd = levelAt (runTone (g, side, 60000), 1000, 0, 20000);
+            const double ref = levelAt (runTone (q, side, 60000), 1000, 0, 20000);
+            check (std::abs (m - ref) < 0.3 && sd - ref > 11, "M07 MID / SIDE: MID band ignores the side, SIDE band changes it", "mid " + String (m - ref, 2) + " dB, side +" + String (sd - ref, 1) + " dB");
+        }
+        // 11. mono compatibility: MONO BELOW takes the side out of the lows, WIDTH 200 % never widens the sub
+        {
+            ParamFrame f = q; f[P::stwOn] = 1.f; f[P::stwMono] = 150.f; f[P::stwWidth] = 2.f;
+            auto sig = [&] (int i, float& l, float& r)
+            {
+                const float s60 = 0.3f * (float) std::sin (2.0 * MathConstants<double>::pi * 60.0 * i / rate), s3k = 0.1f * (float) std::sin (2.0 * MathConstants<double>::pi * 3000.0 * i / rate);
+                l = s60 + s3k; r = -s60 - s3k;                                        // both only in the side
+            };
+            auto y = runTone (f, sig, 80000);
+            AudioBuffer<float> sideOut (1, y.getNumSamples());
+            for (int i = 0; i < y.getNumSamples(); ++i) sideOut.setSample (0, i, 0.5f * (y.getSample (0, i) - y.getSample (1, i)));
+            const double lo = levelAt (sideOut, 60, 0, 30000) - Decibels::gainToDecibels (0.3f), hi = levelAt (sideOut, 3000, 0, 30000) - Decibels::gainToDecibels (0.1f);
+            check (lo < -20 && hi > 5, "M07 MONO COMPATIBILITY: no side below MONO BELOW, WIDTH only widens above", "side 60 Hz " + String (lo, 1) + " dB, side 3 kHz " + String (hi, 1) + " dB");
+        }
+        // 12. spectral freeze: after the capture the frozen texture plays on (decaying), before it the signal is untouched
+        {
+            ParamFrame f = q; f[P::spOn] = 1.f; f[P::spFOn] = 1.f; f[P::spFMix] = 1.f; f[P::spFCap] = 80.f; f[P::spFDecay] = 2000.f; f[P::spCLo] = 100.f; f[P::spCHi] = 10000.f;
+            const auto dry = renderKick (q, G1, sr, 0.6), frz = renderKick (f, G1, sr, 0.6);
+            AudioBuffer<float> a (2, (int) (0.07 * sr)), b (2, (int) (0.07 * sr));
+            for (int c = 0; c < 2; ++c) { a.copyFrom (c, 0, dry, c, 0, a.getNumSamples()); b.copyFrom (c, 0, frz, c, 0, b.getNumSamples()); }
+            const double early = diff (a, b);
+            const double late = rms (frz, (int) (0.3 * sr), (int) (0.2 * sr));
+            check (early < 1.0e-3 && late > 1.0e-3 && diff (dry, frz) > 1.0e-2, "M07 SPECTRAL FREEZE: captures at the set time and holds the texture", "after capture rms " + String (late, 4));
+        }
+        // 13. per layer / per group / before - after the distortion
+        {
+            ParamFrame f = q; for (int id : { P::mixPunchMute, P::mixBodyMute, P::mixTailMute, P::mixSubMute }) f[id] = 1.f;
+            f[P::layer1On] = 1.f; f[P::layer2On] = 1.f; f[P::layer2Pitch] = 19.f;
+            ParamFrame d = f; d[P::eq1On] = 1.f; d[P::eq1Loc] = (float) fge::dsp::m06::LLayer1; d[P::eq1Gain] = 12.f; d[P::eq1Freq] = 300.f;
+            ParamFrame only2 = f; only2[P::layer1On] = 0.f; ParamFrame only2d = d; only2d[P::layer1On] = 0.f;
+            const bool layerOk = diff (renderKick (f, G1, sr, 0.4), renderKick (d, G1, sr, 0.4)) > 1.0e-3 && diff (renderKick (only2, G1, sr, 0.4), renderKick (only2d, G1, sr, 0.4)) < 1.0e-7;
+            ParamFrame g = q; g[P::eq1On] = 1.f; g[P::eq1Loc] = 2.f; g[P::eq1Gain] = 12.f; g[P::eq1Freq] = 500.f;
+            ParamFrame gm = g; gm[P::mixBodyMute] = 1.f; ParamFrame qm = q; qm[P::mixBodyMute] = 1.f;
+            const bool groupOk = diff (renderKick (g, G1, sr, 0.4), renderKick (q, G1, sr, 0.4)) > 1.0e-3 && diff (renderKick (gm, G1, sr, 0.4), renderKick (qm, G1, sr, 0.4)) < 1.0e-7;
+            ParamFrame pre = q; pre[P::dist1On] = 1.f; pre[P::dist1Type] = 1.f; pre[P::dist1Drive] = 0.9f; pre[P::eq1On] = 1.f; pre[P::eq1Gain] = 12.f; pre[P::eq1Freq] = 800.f; pre[P::eq1Pos] = 0.f;
+            ParamFrame post = pre; post[P::eq1Pos] = 1.f;
+            const bool posOk = diff (renderKick (pre, G1, sr, 0.4), renderKick (post, G1, sr, 0.4)) > 1.0e-3;
+            check (layerOk && groupOk && posOk, "M07 routing: per LAYER, per GROUP, BEFORE / AFTER the distortion");
+        }
+        // 14. automation: sweeping a band's gain / frequency during a kick does not click
+        {
+            auto run = [&] (bool sw)
+            {
+                GeProcessor p; setP (p, "eq1_on", 1.f); setP (p, "eq1_freq", 500.f); setP (p, "eq1_gain", 0.f);
+                p.prepareToPlay (sr, 128);
+                float maxStep = 0.f, last = 0.f, pk = 0.f;
+                for (int blk = 0; blk < 120; ++blk)
+                {
+                    AudioBuffer<float> bb (2, 128); bb.clear(); MidiBuffer m;
+                    if (blk == 0) m.addEvent (MidiMessage::noteOn (1, G1, 1.f), 0);
+                    if (sw) { setP (p, "eq1_gain", 12.f * (float) std::sin (blk * 0.4)); setP (p, "eq1_freq", 300.f + 3000.f * (float) (blk % 10) / 10.f); }
+                    p.processBlock (bb, m);
+                    for (int i = 0; i < 128; ++i) { const float v = bb.getSample (0, i); if (blk > 4) maxStep = jmax (maxStep, std::abs (v - last)); last = v; pk = jmax (pk, std::abs (v)); }
+                }
+                return maxStep / jmax (1.0e-6f, pk);
+            };
+            const float a = run (false), b = run (true);
+            check (b < a * 1.6f + 0.02f, "M07 automation of gain / frequency is smooth (no clicks)", "max step " + String (b, 3) + " vs steady " + String (a, 3));
+        }
+        // 15 + 16. presets / files / randomize with LOCK + realtime = export + CPU with everything on
+        {
+            GeProcessor p;
+            m07t::apply (p, m07t::presets()[2]);
+            const auto before = p.frame();
+            auto x = m07t::moduleToXml (p);
+            m06t::reset (p, m07t::moduleIds());
+            m07t::load (p, *x, 0);
+            bool same = true; for (int i = P::eq1On; i < P::count; ++i) same &= std::abs (p.frame()[i] - before[i]) < 1.0e-4f;
+            std::array<bool, m07t::NumEngines> lk {}; lk[m07t::EEq] = true;
+            const float g0 = p.apvts.getRawParameterValue ("eq2_gain")->load(), t0 = p.apvts.getRawParameterValue ("deq1_threshold")->load();
+            m07t::randomize (p, lk, 7, 1.f);
+            const bool lockOk = p.apvts.getRawParameterValue ("eq2_gain")->load() == g0 && p.apvts.getRawParameterValue ("deq1_threshold")->load() != t0;
+            p.undo.undo();
+            const bool undone = p.apvts.getRawParameterValue ("deq1_threshold")->load() == t0;
+            bool allSound = true; String e;
+            for (auto& pr : m07t::presets())
+            {
+                GeProcessor pp; m07t::apply (pp, pr);
+                const auto k = renderKick (pp.frame(), G1, sr, 0.4);
+                const bool good = std::isfinite (rms (k)) && peak (k) < 6.f && diff (k, renderKick (base, G1, sr, 0.4)) > 1.0e-4;
+                if (! good) e << pr.name << " ";
+                allSound &= good;
+            }
+            // everything on: realtime = export
+            GeProcessor full;
+            for (int i = 0; i < 16; ++i) { setP (full, ("eq" + String (i + 1) + "_on").toRawUTF8(), 1.f); setP (full, ("eq" + String (i + 1) + "_gain").toRawUTF8(), i % 2 ? 2.f : -2.f); }
+            for (int i = 0; i < 4; ++i) setP (full, ("deq" + String (i + 1) + "_on").toRawUTF8(), 1.f);
+            for (auto* id : { "mb_on", "sp_on", "sp_harm_on", "sp_exc_on", "sp_comp_on", "sp_freeze", "stw_on" }) setP (full, id, 1.f);
+            setP (full, "mb2_dynamics", 1.f); setP (full, "mb4_dynamics", 5.f); setP (full, "sp_tilt", 0.3f);
+            const auto rt = hitProc (full, { { 0, MidiMessage::noteOn (1, G1, (uint8) 127) } }, 0.5);
+            const auto off = renderKick (full.frame(), G1, sr, 0.5, -1, 1.f, &full.shapes(), 0.0, -1.0, nullptr, nullptr, &full.distData());
+            GeProcessor plain; const double c0 = cpuTime (plain, 1.0), c1 = cpuTime (full, 1.0);
+            check (same && lockOk && undone && allSound && diff (rt, off) < 1.0e-6 && std::isfinite (rms (rt)) && c1 < 12.0 * c0,
+                   "M07 presets / files recall, RANDOMIZE + LOCK (+ undo), realtime = export, CPU with everything on",
+                   e + "rt vs export " + String (diff (rt, off), 8) + ", CPU " + String (100.0 * c0, 1) + " % -> " + String (100.0 * c1, 1) + " %"
+                   + (same ? "" : " recall!") + (lockOk ? "" : " lock!") + (undone ? "" : " undo!"));
+        }
+        // the owner's listening file: the MODERN kick, one bar per module 07 preset
+        {
+            const int beat = (int) (0.4 * sr), fade = (int) (0.006 * sr);
+            const auto& pl = m07t::presets();
+            AudioBuffer<float> demo (2, beat * 4 * (int) (pl.size() + 1)); demo.clear();
+            String order;
+            for (int k = 0; k <= (int) pl.size(); ++k)
+            {
+                GeProcessor pp; pp.setCurrentProgram (1);
+                if (k > 0) for (auto& [id, v] : pl[(size_t) k - 1].v) setP (pp, id, v);
+                auto x = renderKick (pp.frame(), G1, sr, 0.4, -1, 1.f, &pp.shapes(), 0.0, -1.0, nullptr, nullptr, &pp.distData());
+                for (int i = 0; i < fade; ++i) for (int c = 0; c < 2; ++c) x.setSample (c, beat - fade + i, x.getSample (c, beat - fade + i) * (1.f - (float) i / (float) fade));
+                for (int b = 0; b < 4; ++b) for (int c = 0; c < 2; ++c) demo.copyFrom (c, (k * 4 + b) * beat, x, c, 0, beat);
+                order << String (k * 1.6, 1) << " s " << (k == 0 ? String ("(dry)") : String (pl[(size_t) k - 1].name)) << "\n";
+            }
+            demo.applyGain (0.7f / jmax (1.0e-6f, peak (demo)));
+            writeWav (outDir.getChildFile ("4ge_m07_eq_presets.wav"), demo);
+            outDir.getChildFile ("4ge_m07_eq_presets.txt").replaceWithText (order);
+        }
+    }
     // ---------------------------------------------------------------- module 03 wiring: oscillator data in the state (OSCS), presets, realtime = export
     {
         GeProcessor p; setP (p, "osc1_on", 1.f); setP (p, "osc1_wave", 6.f); setP (p, "osc2_on", 1.f); setP (p, "osc2_wave", 8.f);
@@ -1864,6 +2179,45 @@ int main (int argc, char** argv)
                 if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
             }
             m06t::reset (p, m06t::moduleIds());
+            ge->canvas.showPage (0);
+        }
+        // EQ page (module 07): only the controls the type uses, the response is the real one, the analyzer runs
+        {
+            ge->canvas.showPage (6);
+            auto& ep = ge->canvas.eqPage();
+            setP (p, "eq1_on", 1.f); setP (p, "eq1_type", 0.f); setP (p, "eq1_freq", 1000.f); setP (p, "eq1_gain", 12.f); setP (p, "eq1_q", 1.f);
+            ep.showTab (0); ep.selectBand (0);
+            auto vis = ep.visibleIds();
+            const bool bell = vis.contains ("eq1_gain") && vis.contains ("eq1_q") && ! vis.contains ("eq1_slope");
+            setP (p, "eq1_type", 3.f); ep.selectBand (0); vis = ep.visibleIds();
+            const bool cut = vis.contains ("eq1_slope") && ! vis.contains ("eq1_gain");
+            setP (p, "eq1_type", 0.f); ep.selectBand (0);
+            ep.requestScope();
+            fge::gui::EqScope::Result r;
+            float at1k = -100.f;
+            for (int i = 0; i < 600; ++i)                                         // (an older request may answer first: wait for this one)
+            {
+                Thread::sleep (20); r = ep.scopeResult();
+                if (! r.valid || r.band != 0) continue;
+                at1k = -100.f; for (int k = 0; k < fge::gui::EqScope::bins; ++k) if (std::abs (fge::gui::EqScope::binHz (k) - 1000.f) < 30.f) at1k = jmax (at1k, r.resp[(size_t) k]);
+                if (std::abs (at1k - 12.f) < 0.5f) break;
+                if (i % 50 == 49) ep.requestScope();
+            }
+            const bool real = r.valid && std::abs (at1k - 12.f) < 0.5f && ! r.post.empty() && r.domHz > 20.f;
+            check (bell && cut && real, "M07 GUI: per-type controls, the curve is the real response (+12 dB bell), analyzer PRE / POST",
+                   String (bell ? "" : "bell! ") + (cut ? "" : "cut! ") + (real ? "" : "display (" + String (at1k, 1) + ")!"));
+            m07t::apply (p, m07t::presets()[2]);                                    // MODERN BALANCE for the snapshots
+            PNGImageFormat png;
+            for (int t = 0; t < 5; ++t)
+            {
+                ep.showTab (t); ep.requestScope();
+                for (int i = 0; i < 200; ++i) { Thread::sleep (20); if (ep.scopeResult().valid) break; }
+                Thread::sleep (300); ep.adoptScope();
+                auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+                FileOutputStream os (outDir.getChildFile ("gui_eq" + String (t) + ".png"));
+                if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            }
+            m06t::reset (p, m07t::moduleIds());
             ge->canvas.showPage (0);
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);

@@ -135,6 +135,12 @@ wartości na blok), `Source/DSP/Core/` (Blocks: Osc / Noise / kickEnv / pitchSha
 referencji `kmatch4.py`, A/B `kab4.py`, cechy `kana.py`, wykresy `kplot.py`). Nowy kod wtyczki `Fg5K` (stare projekty z v0.4 zostają na starym pliku).
 Wniosek z A/B: rdzeń (1 oscylator na część) daje czyste, „sterylne” prążki – gęstość referencji przyjdzie z M03 (unison / drift), M04 (szum),
 M05 (stopnie przesteru). DIRTY potrzebuje ~40 dB gainu, żeby mieć górę jak referencje (zakresy drive per CHARACTER w `Engine::cook`).
+**STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
+przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH
+START MODE), `M06Cook.h`; `Presets/M06Tools.h` (8 presetów, pliki, A / B, randomize z LOCK), `GUI/ScreechPage.*` + `M06Scope.h` (tło).
+Testy M06 (tabela 13 + START MODE) OK; makra i matryca modulacji → M09. Właściciel: bazowy kick „drewniany” – poprawić przed oceną presetów.
+Następny: moduł 07.
+
 **STAN 2026-11-05: MODUŁ 05 GOTOWY** – `DSP/Dist/Distortion.h` (11 krzywych w tablicach 8192 + ADAA1, halfbandy 8x / 16x polyphase,
 filtry pre / post, modulacja, AUTO GAIN, de-click przy zmianie typu, `staticCurve` dla wizualizera) + `DistCook.h`; pula 16 stopni z LOCATION
 (GLOBAL / PUNCH–SUB / TEXTURE / LAYER 1–8) i ORDER, bloki SERIAL / PARALLEL / MULTIBAND (LR4 + all-pass); krzywe CUSTOM w child DIST;

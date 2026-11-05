@@ -172,6 +172,8 @@ namespace fge::env
         // module 05: the drawn modulation envelope of each distortion stage
         ModDist1, ModDist2, ModDist3, ModDist4, ModDist5, ModDist6, ModDist7, ModDist8,
         ModDist9, ModDist10, ModDist11, ModDist12, ModDist13, ModDist14, ModDist15, ModDist16,
+        // module 06: the CUSTOM resonator spectrum (8 harmonics, low -> high)
+        ResCustom1, ResCustom2,
         NumSlots
     };
     inline bool isPitch (int slot) { return slot <= PitchSub; }
@@ -188,7 +190,8 @@ namespace fge::env
                                          "env_amp_layer1", "env_amp_layer2", "env_amp_layer3", "env_amp_layer4", "env_amp_layer5", "env_amp_layer6",
                                          "env_amp_layer7", "env_amp_layer8",
                                          "env_mod_dist1", "env_mod_dist2", "env_mod_dist3", "env_mod_dist4", "env_mod_dist5", "env_mod_dist6", "env_mod_dist7", "env_mod_dist8",
-                                         "env_mod_dist9", "env_mod_dist10", "env_mod_dist11", "env_mod_dist12", "env_mod_dist13", "env_mod_dist14", "env_mod_dist15", "env_mod_dist16" };
+                                         "env_mod_dist9", "env_mod_dist10", "env_mod_dist11", "env_mod_dist12", "env_mod_dist13", "env_mod_dist14", "env_mod_dist15", "env_mod_dist16",
+                                         "env_res_custom1", "env_res_custom2" };
         return k[juce::jlimit (0, (int) NumSlots - 1, s)];
     }
     // the default drawn shape of every slot
@@ -197,6 +200,8 @@ namespace fge::env
         if (isPitch (slot)) return Shape::make ({ { 0.f, 1.f }, { 0.35f, 0.25f }, { 1.f, 0.f } });           // a drop, editable
         if (slot == ProfileNoiseA || slot == ProfileNoiseB)                                                   // flat noise spectrum (low -> high)
             return Shape::make ({ { 0.f, 0.5f }, { 1.f, 0.5f } }, Linear);
+        if (slot == ResCustom1 || slot == ResCustom2)                                                         // harmonics falling off
+            return Shape::make ({ { 0.f, 1.f }, { 0.3f, 0.55f }, { 1.f, 0.15f } });
         if (slot == TransientCustom)                                                                          // a short snap: up, down, ring out
             return Shape::make ({ { 0.f, 0.f }, { 0.08f, 1.f }, { 0.22f, -0.8f }, { 0.45f, 0.35f }, { 0.7f, -0.1f }, { 1.f, 0.f } }, EaseInOut);
         if (slot <= AmpSub) return Shape::make ({ { 0.f, 1.f }, { 0.75f, 0.85f }, { 1.f, 0.f } });           // body then release

@@ -48,6 +48,13 @@ namespace fge::gui
                 r.stereoL[(size_t) i] = full.getSample (0, i); r.stereoR[(size_t) i] = full.getSample (1, i);
                 r.full[(size_t) i] = 0.5f * (r.stereoL[(size_t) i] + r.stereoR[(size_t) i]);
             }
+            if (f.on (P::scrOn))                                          // module 06: where the screech sits (the engine's own timing)
+            {
+                auto e = std::make_unique<Engine>();
+                e->prepare (rate, 256); e->setBank (b0); e->cookOnly (f); e->trigger (note, 1.f);
+                r.scrStart = e->screechTiming().startMs; r.scrEnd = e->screechTiming().endMs;
+                r.scrManual = f.idx (P::scrStartMode) == 0;
+            }
             for (int p = 0; p < 4 && ! threadShouldExit(); ++p)
             {
                 auto b = renderKick (f, note, rate, secs, p, 1.f, b0, 0.0, -1.0, &ot, nullptr, &distData);
@@ -80,7 +87,7 @@ namespace fge::gui
         const auto& c = palette();
         auto area = getLocalBounds().toFloat();
         g.setColour (c.panel); g.fillRoundedRectangle (area, 6.f);
-        auto plot = area.reduced (10.f, 8.f).withTrimmedBottom (16.f);
+        auto plot = plotArea();
         std::lock_guard<std::mutex> l (lock);
         const float ms = jmax (1.f, shown.ms);
         // time grid every 50 / 100 ms
@@ -137,6 +144,34 @@ namespace fge::gui
         }
         g.setColour (c.textDim);
         g.drawText ("drag the kick into FL", plot.toNearestInt().removeFromTop (16).withTrimmedRight (4), Justification::right);
+        // SCREECH START handle (MANUAL: drag it; BODY END / TAIL ...: it follows them)
+        if (shown.scrStart >= 0.f)
+        {
+            const float x0 = plot.getX() + plot.getWidth() * jlimit (0.f, 1.f, shown.scrStart / ms), x1 = plot.getX() + plot.getWidth() * jlimit (0.f, 1.f, shown.scrEnd / ms);
+            g.setColour (c.part[4].withAlpha (0.10f)); g.fillRect (x0, plot.getY() + 20.f, jmax (1.f, x1 - x0), plot.getHeight() - 20.f);
+            g.setColour (c.part[4]); g.drawLine (x0, plot.getY() + 20.f, x0, plot.getBottom(), 1.5f);
+            g.fillRoundedRectangle (x0 - 5.f, plot.getY() + 20.f, 10.f, 14.f, 2.f);
+            g.setFont (FontOptions (10.f, Font::bold));
+            g.drawText (String ("SCREECH ") + (shown.scrManual ? "(drag)" : "(synced)"), (int) x0 + 8, (int) plot.getY() + 20, 110, 14, Justification::left);
+        }
+    }
+    Rectangle<float> WaveView::plotArea() const { return getLocalBounds().toFloat().reduced (10.f, 8.f).withTrimmedBottom (16.f); }
+    float WaveView::handleX() const
+    {
+        const auto plot = plotArea();
+        return shown.scrStart < 0.f ? -1.0e6f : plot.getX() + plot.getWidth() * jlimit (0.f, 1.f, shown.scrStart / jmax (1.f, shown.ms));
+    }
+    void WaveView::mouseMove (const MouseEvent& e)
+    {
+        std::lock_guard<std::mutex> l (lock);
+        const bool onHandle = shown.scrManual && std::abs (e.position.x - handleX()) < 7.f;
+        setMouseCursor (onHandle ? MouseCursor::LeftRightResizeCursor : MouseCursor::DraggingHandCursor);
+    }
+    void WaveView::mouseDown (const MouseEvent& e)
+    {
+        float st = 0.f;
+        { std::lock_guard<std::mutex> l (lock); draggingHandle = shown.scrManual && onScreechStart != nullptr && std::abs (e.position.x - handleX()) < 7.f; st = shown.scrStart; }
+        if (draggingHandle) onScreechStart (st, true);
     }
 
     File WaveView::writeWav (const File& folder)
@@ -161,6 +196,15 @@ namespace fge::gui
 
     void WaveView::mouseDrag (const MouseEvent& e)
     {
+        if (draggingHandle)
+        {
+            const auto plot = plotArea();
+            float ms;
+            { std::lock_guard<std::mutex> l (lock); ms = jlimit (0.f, 2500.f, (e.position.x - plot.getX()) / jmax (1.f, plot.getWidth()) * jmax (1.f, shown.ms)); shown.scrStart = ms; }
+            repaint();
+            onScreechStart (ms, false);
+            return;
+        }
         if (e.getDistanceFromDragStart() < 6 || ! ready.load()) return;
         auto f = writeWav (File::getSpecialLocation (File::tempDirectory).getChildFile ("4GE"));
         if (f.existsAsFile()) DragAndDropContainer::performExternalDragDropOfFiles ({ f.getFullPathName() }, false, this);

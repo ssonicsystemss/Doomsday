@@ -16,6 +16,7 @@
 #include "Osc/OscTables.h"
 #include "Layers/LayerCook.h"
 #include "Dist/DistCook.h"
+#include "Filter/M06Cook.h"
 #include "DoomsdayKick.h"
 #include "../Parameters/ParamFrame.h"
 #include <array>
@@ -45,6 +46,8 @@ namespace fge
         dsp::OscBankSettings osc;                 // module 03: the oscillators routed into the parts
         dsp::LayerBankSettings lb;                // module 04: noise A / B, transient, layers
         dsp::dist::DistBank dist;                 // module 05: the distortion stages and their order per location
+        dsp::m06::Bank m06;                       // module 06: the filters / resonators and their order per place
+        dsp::scr::Settings scr;                   // module 06: the screech
         bool lbAny = false;
         float lbEndMs = 0.f;                      // when the last layer / noise / click ends       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
     };
@@ -82,7 +85,7 @@ namespace fge
                       double absTimeSec = 0.0, uint32_t hitCount = 0)
         {
             using namespace dsp;
-            active = true; t = 0.0; age = order; vel = velocityGain; fade = 1.f; fadeStep = 0.f; held = true; ctl = 0;
+            active = true; t = 0.0; age = order; vel = velocityGain; fade = 1.f; fadeStep = 0.f; held = true; ctl = 0; relAtMs = -1.f;
             noteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f);
             const uint32_t seed = 0x9e3779b9u * (uint32_t) (note + 1);
             punch.start (cfg.ks.part[PPunch], phases01[PPunch], seed ^ 0x1234u);
@@ -135,6 +138,7 @@ namespace fge
                     if (slots[i].trigger == dsp::Retrigger && ! st[i].released) { st[i].released = true; st[i].relAtMs = ms; st[i].relFrom = st[i].last; }
             };
             rel (cfg.amp, stAmp); rel (cfg.filter, stFlt); rel (cfg.drive, stDrv); rel (cfg.reso, stRes);
+            relAtMs = ms;
         }
         void choke (float ms, double rate) { if (active) fadeStep = 1.f / juce::jmax (1.f, ms * 0.001f * (float) rate); }
         bool isActive() const { return active; }
@@ -193,8 +197,9 @@ namespace fge
                     mc.sinceHitMs = ms; mc.velocity = vel;
                     const float depth = cfg.pitch[PTail].depthSt;
                     mc.pitchNorm = std::abs (depth) > 0.01f ? juce::jlimit (0.f, 1.f, pe.semis (PTail, ms) / depth) : 0.f;
+                    dsp::m06::Ctx m6c; m6c.ms = ms; m6c.vel = vel; m6c.noteHz = noteHz; m6c.lengthMs = ks.lengthMs; m6c.relMs = relAtMs;
                     lbv.tick (cfg.lb, cfg.osc, tables != nullptr ? *tables : noTables, hz, amp, noteHz / 49.f, ms, ks.inv, (float) ks.rate,
-                              ext, extL, extR, bl, br, &cfg.dist, &mc);
+                              ext, extL, extR, bl, br, &cfg.dist, &mc, cfg.m06.any ? &cfg.m06 : nullptr, &m6c);
                     for (int k = 0; k < dsp::NumBus; ++k) { bus[6 + 2 * k][i] += bl[k] * gate; bus[7 + 2 * k][i] += br[k] * gate; }
                 }
                 if (ms < cfg.partEnd[PPunch])
@@ -273,7 +278,7 @@ namespace fge
         std::array<dsp::ModNow, 4> mod {};
         PitchEval pe;
         double t = 0.0;
-        float noteHz = 49.f, vel = 1.f, fade = 1.f, fadeStep = 0.f;
+        float noteHz = 49.f, vel = 1.f, fade = 1.f, fadeStep = 0.f, relAtMs = -1.f;
         bool active = false, held = false;
         uint32_t ctl = 0;
         uint64_t age = 0;
@@ -298,6 +303,8 @@ namespace fge
             shaper.prepare (sampleRate * osFactor);
             distTables.allocate();
             for (auto& ch : distChain) ch.reset();
+            m06St->reset(); scrEng.reset();
+            scrOsc.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             sinceHitMs = 1.0e9f;
             wl1 = wl2 = wh1 = wh2 = wr1 = wr2 = {}; clipped = false;
             stereo.setSize (2, maxBlockSize);
@@ -350,9 +357,18 @@ namespace fge
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter);
             shaper.hit();
             sinceHitMs = 0.f; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
+            if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
+            {
+                const auto& ks = cfg.ks;
+                const auto t = dsp::scr::resolve (cfg.scr, cfg.partEnd[dsp::PBody], ks.part[dsp::PBody].env.lengthMs, cfg.amp[dsp::PTail].delayMs,
+                                                  ks.part[dsp::PTail].env.lengthMs, ks.lengthMs, tempo());
+                scrEng.trigger (cfg.scr, t, 0x51f15eedu ^ (uint32_t) counter, cfg.ks.rate);
+                scrTiming = t;
+            }
             hits.fetch_add (1);
         }
-        void release (int) { for (auto& v : voices) v.noteOff (cfg); }
+        void release (int) { for (auto& v : voices) v.noteOff (cfg); if (relMs < 0.f) relMs = sinceHitMs; }
         void stopAll() { for (auto& v : voices) v.choke (3.f, cfg.ks.rate); }
         void cookOnly (const ParamFrame& f) { cook (f); }
 
@@ -448,6 +464,8 @@ namespace fge
             cookOscillators (f);
             cookLayers (f, b);
             dsp::dist::cookDist (f, distData, b, cfg.dist, distTables, cfg.ks.rate, offline);
+            dsp::m06::cookBank (f, b, cfg.m06, cfg.ks.rate);
+            dsp::scr::cook (f, cfg.scr);
 
             // ---- envelope slots (module 02, 7)
             const int aMode[4] { P::punchAmpMode, P::bodyAmpMode, P::tailAmpMode, P::subAmpMode };
@@ -596,6 +614,9 @@ namespace fge
             for (int c = 0; c < numBusCh; ++c) b[c] = bus.getWritePointer (c);
             for (auto& v : voices) { v.tables = tables; v.render (cfg, b, on); }
             for (int l = 0; l < 6; ++l) distOn[(size_t) l] = cfg.dist.count[(size_t) l] > 0;
+            const bool scrAny = renderScreech (b, on);
+            const bool busAny = cfg.lbAny || scrAny;
+            const bool m6 = cfg.m06.any;
             clockSec += (double) n / sr;
 
             stereo.clear (0, 0, n); stereo.clear (1, 0, n);
@@ -612,20 +633,22 @@ namespace fge
                 {
                     // TEXTURE / CUSTOM buses join before the clip, then the attack gain + transient shaper on the whole kick
                     const float tg = cfg.lb.texGain, cg = cfg.lb.custGain;
-                    if (cfg.lbAny)
+                    if (busAny)
                         for (int i = 0; i < on; ++i)
                         {
                             float tl = b[6 + 2 * dsp::BusTexture][i] * tg, tr = b[7 + 2 * dsp::BusTexture][i] * tg;
+                            if (m6 && cfg.m06.at (dsp::m06::LTexture, 0)) m06St->process (cfg.m06, dsp::m06::LTexture, 0, tl, tr, m6Ctx (i), cfg.ks.rate);
                             if (distOn[dsp::dist::LocTexture])                             // TEXTURE group distortion
                             {
                                 const auto mc = modCtx (i);
                                 tl = distChain[dsp::dist::LocTexture * 2].process (cfg.dist, dsp::dist::LocTexture, tl, mc, cfg.ks.rate);
                                 tr = distChain[dsp::dist::LocTexture * 2 + 1].process (cfg.dist, dsp::dist::LocTexture, tr, mc, cfg.ks.rate);
                             }
+                            if (m6 && cfg.m06.at (dsp::m06::LTexture, 1)) m06St->process (cfg.m06, dsp::m06::LTexture, 1, tl, tr, m6Ctx (i), cfg.ks.rate);
                             L[i] += tl + b[6 + 2 * dsp::BusCustom][i] * cg;
                             R[i] += tr + b[7 + 2 * dsp::BusCustom][i] * cg;
                         }
-                    if (distOn[dsp::dist::LocGlobal] && cfg.dist.globalPos == 0) globalDist (L, R, on);   // GLOBAL, before the clip (sub clean)
+                    if (cfg.dist.globalPos == 0) globalChain (L, R, on);                                  // GLOBAL, before the clip (sub clean)
                     shaper.process (cfg.lb.shaper, L, R, on);
                 }
                 if (c == 3 && cfg.clipG > 1.0001f)
@@ -651,12 +674,14 @@ namespace fge
                     }
                     else { yl = x[i]; yr = x[i]; }
                     yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i];                    // module 04: layers on this part's bus
+                    if (m6 && cfg.m06.at (c + 1, 0)) m06St->process (cfg.m06, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 BEFORE
                     if (distOn[(size_t) c + 1])                                       // module 05: the GROUP distortion (pre fader)
                     {
                         const auto mc = modCtx (i);
                         yl = distChain[(size_t) (c + 1) * 2].process (cfg.dist, c + 1, yl, mc, cfg.ks.rate);
                         yr = distChain[(size_t) (c + 1) * 2 + 1].process (cfg.dist, c + 1, yr, mc, cfg.ks.rate);
                     }
+                    if (m6 && cfg.m06.at (c + 1, 1)) m06St->process (cfg.m06, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 AFTER
                     yl *= gl; yr *= gr;
                     L[i] = (c == 0 ? 0.f : L[i]) + yl;
                     R[i] = (c == 0 ? 0.f : R[i]) + yr;
@@ -665,8 +690,8 @@ namespace fge
                 pk[(size_t) c] = p;
                 gainNow[(size_t) c] = g1;
             }
-            if (distOn[dsp::dist::LocGlobal] && cfg.dist.globalPos == 1) globalDist (L, R, on);       // GLOBAL, after the clip (with the sub)
-            if (cfg.lbAny)                                                   // the MASTER bus: after the clip
+            if (cfg.dist.globalPos == 1) globalChain (L, R, on);                                       // GLOBAL, after the clip (with the sub)
+            if (busAny)                                                      // the MASTER bus: after the clip
                 for (int i = 0; i < on; ++i) { L[i] += b[6 + 2 * dsp::BusMaster][i]; R[i] += b[7 + 2 * dsp::BusMaster][i]; }
             sinceHitMs += (float) on * 1000.f / (float) cfg.ks.rate;
             os->processSamplesDown (blk);
@@ -702,6 +727,48 @@ namespace fge
             m.pitchNorm = pitchNormNow; m.velocity = lastVelocity;
             return m;
         }
+        // module 06: what moves the engine-level filters / resonators now
+        dsp::m06::Ctx m6Ctx (int i) const
+        {
+            dsp::m06::Ctx c;
+            c.ms = sinceHitMs + (float) i * 1000.f / (float) cfg.ks.rate; c.vel = lastVelocity; c.noteHz = lastNoteHz; c.lengthMs = cfg.ks.lengthMs;
+            c.relMs = relMs; c.scrOsc = i < (int) scrOsc.size() ? scrOsc[(size_t) i] : 0.f;
+            return c;
+        }
+        // GLOBAL: module 06 BEFORE -> the global distortion -> module 06 AFTER
+        void globalChain (float* L, float* R, int on)
+        {
+            const bool a = cfg.m06.any && cfg.m06.at (dsp::m06::LGlobal, 0), z = cfg.m06.any && cfg.m06.at (dsp::m06::LGlobal, 1);
+            if (a) for (int i = 0; i < on; ++i) m06St->process (cfg.m06, dsp::m06::LGlobal, 0, L[i], R[i], m6Ctx (i), cfg.ks.rate);
+            if (distOn[dsp::dist::LocGlobal]) globalDist (L, R, on);
+            if (z) for (int i = 0; i < on; ++i) m06St->process (cfg.m06, dsp::m06::LGlobal, 1, L[i], R[i], m6Ctx (i), cfg.ks.rate);
+        }
+        // module 06: the screech (+ the filters / resonators placed on SCREECH) into its output bus; true = it sounds
+        bool renderScreech (float* const* b, int on)
+        {
+            bool any = false;
+            for (auto& v : scrEng.v) any |= v->active;
+            std::fill (scrOsc.begin(), scrOsc.begin() + juce::jmin ((int) scrOsc.size(), on), 0.f);
+            if (! any || ! cfg.scr.on) { if (! cfg.scr.on) scrEng.reset(); return false; }
+            static const int busOf[6] { dsp::BusTail, dsp::BusTexture, dsp::BusMaster, dsp::BusPunch, dsp::BusBody, dsp::BusSub };
+            const int bus = busOf[juce::jlimit (0, 5, cfg.scr.output)];
+            const dsp::OscTables& tb = tables != nullptr ? *tables : noOscTables;
+            PitchEval pe; pe.c = &cfg;
+            float semis = 0.f;
+            for (int i = 0; i < on; ++i)
+            {
+                const float ms = sinceHitMs + (float) i * 1000.f / (float) cfg.ks.rate;
+                if (cfg.scr.pitchMode == 1 && (i & 15) == 0) semis = pe.semis (dsp::PTail, ms);
+                // RELATIVE: the played note 3 octaves up (the screech register); MIDI TRACKED: + the kick's pitch engine; ABSOLUTE: BASE HZ
+                const float base = cfg.scr.pitchMode == 2 ? cfg.scr.baseHz : lastNoteHz * 8.f * (cfg.scr.pitchMode == 1 ? std::exp2 (semis / 12.f) : 1.f);
+                float l = 0.f, r = 0.f, o = 0.f;
+                for (auto& v : scrEng.v) { float vl, vr, vo; v->process (cfg.scr, tb, base, cfg.ks.rate, lastNoteHz, vl, vr, vo); l += vl; r += vr; o += vo; }
+                scrOsc[(size_t) i] = o;
+                if (cfg.m06.any && cfg.m06.at (dsp::m06::LScreech, 0)) m06St->process (cfg.m06, dsp::m06::LScreech, 0, l, r, m6Ctx (i), cfg.ks.rate);
+                b[6 + 2 * bus][i] += l; b[7 + 2 * bus][i] += r;
+            }
+            return true;
+        }
         void globalDist (float* L, float* R, int on)
         {
             for (int i = 0; i < on; ++i)
@@ -716,7 +783,15 @@ namespace fge
         dsp::dist::DistTables distTables;
         const dsp::dist::DistData* distData = nullptr;
         std::array<bool, 6> distOn {};
-        float sinceHitMs = 1.0e9f, pitchNormNow = 0.f, lastVelocity = 1.f;
+        float sinceHitMs = 1.0e9f, pitchNormNow = 0.f, lastVelocity = 1.f, lastNoteHz = 49.f, relMs = -1.f;
+        std::unique_ptr<dsp::m06::State> m06St = std::make_unique<dsp::m06::State>();   // module 06 at engine level (not the layers)
+        dsp::scr::Engine scrEng;
+        dsp::scr::Timing scrTiming;
+        std::vector<float> scrOsc;                                             // the screech oscillators per sample (resonator excitation)
+        static inline const dsp::OscTables noOscTables {};
+    public:
+        const dsp::scr::Timing& screechTiming() const { return scrTiming; }
+    private:
         bool offline = false;
     public:
         void setDistData (const dsp::dist::DistData* d) { distData = d; }

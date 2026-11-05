@@ -63,6 +63,22 @@ namespace fge
         const juce::StringArray& bandSolo()       { static const juce::StringArray a { "ALL BANDS", "LOW ONLY", "MID ONLY", "HIGH ONLY" }; return a; }
         const juce::StringArray& globalDistPos()  { static const juce::StringArray a { "BEFORE MASTER CLIP (SUB CLEAN)", "AFTER MASTER CLIP (WITH SUB)" }; return a; }
         const juce::StringArray& offlineQuality() { static const juce::StringArray a { "SAME AS REALTIME", "HIGHER (EXPORT)" }; return a; }
+        const juce::StringArray& m06Locations()   { static const juce::StringArray a { "GLOBAL", "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE", "LAYER 1", "LAYER 2", "LAYER 3",
+                                                                                       "LAYER 4", "LAYER 5", "LAYER 6", "LAYER 7", "LAYER 8", "SCREECH" }; return a; }
+        const juce::StringArray& m06Positions()   { static const juce::StringArray a { "BEFORE DISTORTION", "AFTER DISTORTION" }; return a; }
+        const juce::StringArray& m06FilterTypes() { static const juce::StringArray a { "LOW PASS", "HIGH PASS", "BAND PASS", "NOTCH", "LADDER", "DIODE LADDER",
+                                                                                       "STATE VARIABLE", "COMB", "FORMANT", "ALL PASS" }; return a; }
+        const juce::StringArray& stereoModes()    { static const juce::StringArray a { "STEREO", "MONO", "MID ONLY", "SIDE ONLY" }; return a; }
+        const juce::StringArray& resModes()       { static const juce::StringArray a { "CLEAN", "METALLIC", "SCREECH", "RUBBER", "FORMANT", "CUSTOM" }; return a; }
+        const juce::StringArray& resSources()     { static const juce::StringArray a { "SIGNAL (INPUT)", "SINE", "SAW", "SQUARE", "NOISE", "IMPULSE", "SCREECH OSC" }; return a; }
+        const juce::StringArray& scrModes()       { static const juce::StringArray a { "TONAL", "METALLIC", "FORMANT", "FM SCREECH", "NOISE SCREECH", "FEEDBACK", "HYBRID", "CUSTOM" }; return a; }
+        const juce::StringArray& scrWaves()       { static const juce::StringArray a { "SINE", "SAW", "SQUARE", "TRIANGLE", "PULSE", "OSC TABLE" }; return a; }
+        const juce::StringArray& scrOscSel()      { static const juce::StringArray a { "OFF", "OSC 1", "OSC 2", "OSC 3", "OSC 4" }; return a; }
+        const juce::StringArray& scrOutputs()     { static const juce::StringArray a { "TAIL", "TEXTURE", "MASTER", "PUNCH", "BODY", "SUB" }; return a; }
+        const juce::StringArray& fbFilters()      { static const juce::StringArray a { "LOW PASS", "HIGH PASS", "BAND PASS" }; return a; }
+        const juce::StringArray& scrPitchModes()  { static const juce::StringArray a { "RELATIVE (NOTE)", "MIDI TRACKED (+ PITCH ENGINE)", "ABSOLUTE (BASE HZ)" }; return a; }
+        const juce::StringArray& scrStartModes()  { static const juce::StringArray a { "MANUAL", "BODY END", "BODY END + OFFSET", "TAIL START", "KICK START", "HOST SYNC" }; return a; }
+        const juce::StringArray& quantizeModes()  { static const juce::StringArray a { "OFF", "1 ms", "5 ms", "10 ms" }; return a; }
         const juce::StringArray& none()           { static const juce::StringArray a; return a; }
     }
 

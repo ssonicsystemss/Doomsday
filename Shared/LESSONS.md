@@ -310,3 +310,7 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - **4GE – oversampling 16x dawał WIĘCEJ aliasingu niż 4x (2026-11-05, test 19.10)** – `f (shape (a1), shape (a2))`: kolejność liczenia
   argumentów w C++ jest nieokreślona (GCC liczy od prawej), a krzywa z ADAA ma pamięć → próbki szły w złej kolejności. Każde wywołanie
   procesu z pamięcią (ADAA, filtr, obwiednia) w OSOBNEJ instrukcji. Sprawdzać aliasing pomiarem (energia poza harmonicznymi 0–20 kHz).
+- **4GE – „kick drewniany” (2026-11-05, przy odsłuchu presetów przesteru M05)** – bazowy kick MODERN dalej brzmi płasko / drewnianie,
+  więc nie da się ocenić presetów przesteru. Najpierw poprawić sam kick (właściciel: „będziemy testować poprawki” – później),
+  presety przesteru oceniać dopiero na dobrym kicku. Do sprawdzenia: za mało jasnego ataku / szumu w toku, za krótki / za czysty tail.
+

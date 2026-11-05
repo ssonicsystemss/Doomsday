@@ -83,6 +83,21 @@ namespace fge
         const juce::StringArray& bandSolo();
         const juce::StringArray& globalDistPos();
         const juce::StringArray& offlineQuality();
+        // module 06
+        const juce::StringArray& m06Locations();
+        const juce::StringArray& m06Positions();
+        const juce::StringArray& m06FilterTypes();
+        const juce::StringArray& stereoModes();
+        const juce::StringArray& resModes();
+        const juce::StringArray& resSources();
+        const juce::StringArray& scrModes();
+        const juce::StringArray& scrWaves();
+        const juce::StringArray& scrOscSel();
+        const juce::StringArray& scrOutputs();
+        const juce::StringArray& fbFilters();
+        const juce::StringArray& scrPitchModes();
+        const juce::StringArray& scrStartModes();
+        const juce::StringArray& quantizeModes();
         const juce::StringArray& none();
     }
 
@@ -256,7 +271,15 @@ namespace fge
     F (distXHigh,   "dist_xover_high",   "Distortion Mid / High Crossover",Unit::Hz, 200.f, 20000.f, 2500.f, 2500.f, FMod) \
     C (distBandSolo,"dist_band_solo",    "Distortion Band Solo",           bandSolo, 0, FNone) \
     C (distGlobPos, "dist_global_position","Global Distortion Position",   globalDistPos, 0, FNone) \
-    C (distOffline, "dist_offline_quality","Offline Render Quality",       offlineQuality, 0, FNone)
+    C (distOffline, "dist_offline_quality","Offline Render Quality",       offlineQuality, 0, FNone) \
+    FGE_FLT (F, B, C, 1) FGE_FLT (F, B, C, 2) FGE_FLT (F, B, C, 3) FGE_FLT (F, B, C, 4) FGE_FLT (F, B, C, 5) FGE_FLT (F, B, C, 6) \
+    FGE_FLT (F, B, C, 7) FGE_FLT (F, B, C, 8) \
+    F (fltXLow,  "filter_xover_low",  "Filter Split Low / Mid",  Unit::Hz,  20.f,  2000.f, 200.f,  200.f, FMod) \
+    F (fltXHigh, "filter_xover_high", "Filter Split Mid / High", Unit::Hz, 200.f, 20000.f, 2500.f, 2500.f, FMod) \
+    FGE_RES (F, B, C, 1) FGE_RES (F, B, C, 2) \
+    FGE_SCREECH (F, B, C) \
+    FGE_SCR_OSC (F, B, C, 1) FGE_SCR_OSC (F, B, C, 2) FGE_SCR_OSC (F, B, C, 3) FGE_SCR_OSC (F, B, C, 4) \
+    FGE_SCR_FLT (F, B, C, 1) FGE_SCR_FLT (F, B, C, 2)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -435,6 +458,152 @@ namespace fge
     F (dist##n##MMix,    "dist" #n "_mod_mix",     "Dist " #n " Mod -> Mix",      Unit::Bip,  -1.f,   1.f,  0.f,  0.f,  FMod) \
     F (dist##n##MOut,    "dist" #n "_mod_output",  "Dist " #n " Mod -> Output",   Unit::Bip,  -1.f,   1.f,  0.f,  0.f,  FMod) \
     F (dist##n##MCut,    "dist" #n "_mod_cutoff",  "Dist " #n " Mod -> Post Cutoff",Unit::Bip, -1.f,  1.f,  0.f,  0.f,  FMod)
+    // module 06: FILTER ENGINE instance (8)
+#define FGE_FLT(F, B, C, n) \
+    B (flt##n##On,      "flt" #n "_on",          "Filter " #n " On",            false, FNone) \
+    C (flt##n##Loc,     "flt" #n "_location",    "Filter " #n " Location",      m06Locations, 3, FNone) \
+    C (flt##n##Pos,     "flt" #n "_position",    "Filter " #n " Position",      m06Positions, 0, FNone) \
+    F (flt##n##Order,   "flt" #n "_order",       "Filter " #n " Order",         Unit::None,  1.f,   8.f, (float) n, 0.f, FNone) \
+    C (flt##n##Path,    "flt" #n "_path",        "Filter " #n " Path",          distPaths, 0, FNone) \
+    C (flt##n##Band,    "flt" #n "_band",        "Filter " #n " Split Band",    distBands, 0, FNone) \
+    C (flt##n##Type,    "flt" #n "_type",        "Filter " #n " Type",          m06FilterTypes, 0, FNone) \
+    F (flt##n##Cut,     "flt" #n "_cutoff",      "Filter " #n " Cutoff",        Unit::Hz,   20.f, 20000.f, 2000.f, 1000.f, FMod) \
+    F (flt##n##Res,     "flt" #n "_resonance",   "Filter " #n " Resonance",     Unit::Pct,   0.f,   1.f,  0.2f,  0.f,  FMod) \
+    F (flt##n##Drive,   "flt" #n "_drive",       "Filter " #n " Drive",         Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
+    F (flt##n##Mix,     "flt" #n "_mix",         "Filter " #n " Mix",           Unit::Pct,   0.f,   1.f,  1.f,   0.f,  FMod) \
+    C (flt##n##Slope,   "flt" #n "_slope",       "Filter " #n " Slope",         filterSlopes, 1, FNone) \
+    F (flt##n##Key,     "flt" #n "_key_track",   "Filter " #n " Key Track",     Unit::Pct,   0.f,   2.f,  0.f,   0.f,  FMod) \
+    F (flt##n##EnvAmt,  "flt" #n "_env_amount",  "Filter " #n " Env Amount",    Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    F (flt##n##Vel,     "flt" #n "_velocity",    "Filter " #n " Velocity",      Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    C (flt##n##Stereo,  "flt" #n "_stereo_mode", "Filter " #n " Stereo Mode",   stereoModes, 0, FNone) \
+    F (flt##n##SvfMode, "flt" #n "_svf_mode",    "Filter " #n " SVF Mode (LP-BP-HP)", Unit::Pct, 0.f, 1.f, 0.f, 0.f, FMod) \
+    F (flt##n##Vowel,   "flt" #n "_vowel",       "Filter " #n " Vowel (A-E-I-O-U)",   Unit::None, 0.f, 4.f, 0.f, 0.f, FMod) \
+    F (flt##n##EnvA,    "flt" #n "_env_attack",  "Filter " #n " Env Attack",    Unit::Ms,    0.f, 2000.f,  1.f,  20.f,  FMod) \
+    F (flt##n##EnvD,    "flt" #n "_env_decay",   "Filter " #n " Env Decay",     Unit::Ms,    0.f, 5000.f, 150.f, 200.f, FMod) \
+    F (flt##n##EnvS,    "flt" #n "_env_sustain", "Filter " #n " Env Sustain",   Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
+    F (flt##n##EnvR,    "flt" #n "_env_release", "Filter " #n " Env Release",   Unit::Ms,    0.f, 5000.f, 100.f, 200.f, FMod) \
+    C (flt##n##EnvCurve,"flt" #n "_env_curve",   "Filter " #n " Env Curve",     driveCurves, 1, FNone) \
+    B (flt##n##EnvInv,  "flt" #n "_env_invert",  "Filter " #n " Env Invert",    false, FNone) \
+    B (flt##n##EnvSync, "flt" #n "_env_sync",    "Filter " #n " Env Sync To Kick Length", false, FNone) \
+    F (flt##n##EnvRes,  "flt" #n "_env_to_reso", "Filter " #n " Env -> Resonance", Unit::Bip, -1.f,  1.f,  0.f,   0.f,  FMod) \
+    F (flt##n##EnvDrv,  "flt" #n "_env_to_drive","Filter " #n " Env -> Drive",  Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod)
+    // module 06: RESONANCE ENGINE (2 resonators)
+#define FGE_RES(F, B, C, n) \
+    B (res##n##On,      "res" #n "_on",          "Resonator " #n " On",         false, FNone) \
+    C (res##n##Loc,     "res" #n "_location",    "Resonator " #n " Location",   m06Locations, 3, FNone) \
+    C (res##n##Pos,     "res" #n "_position",    "Resonator " #n " Position",   m06Positions, 0, FNone) \
+    C (res##n##Mode,    "res" #n "_mode",        "Resonator " #n " Mode",       resModes, 0, FNone) \
+    C (res##n##Src,     "res" #n "_source",      "Resonator " #n " Excitation Source", resSources, 0, FNone) \
+    F (res##n##Freq,    "res" #n "_freq",        "Resonator " #n " Frequency",  Unit::Hz,   20.f, 20000.f, 1800.f, 1000.f, FMod) \
+    F (res##n##Q,       "res" #n "_q",           "Resonator " #n " Q",          Unit::None, 0.1f, 100.f,  12.f,  8.f,  FMod) \
+    F (res##n##Decay,   "res" #n "_decay",       "Resonator " #n " Decay",      Unit::Ms,    1.f, 5000.f, 300.f, 300.f, FMod) \
+    F (res##n##Amount,  "res" #n "_amount",      "Resonator " #n " Amount",     Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \
+    F (res##n##Damp,    "res" #n "_damping",     "Resonator " #n " Damping",    Unit::Pct,   0.f,   1.f,  0.3f,  0.f,  FMod) \
+    F (res##n##Exc,     "res" #n "_excitation",  "Resonator " #n " Excitation", Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \
+    F (res##n##Fb,      "res" #n "_feedback",    "Resonator " #n " Feedback",   Unit::Pct,   0.f, 0.95f,  0.f,   0.f,  FMod) \
+    F (res##n##Track,   "res" #n "_pitch_track", "Resonator " #n " Pitch Track",Unit::Pct,   0.f,   2.f,  0.f,   0.f,  FMod) \
+    F (res##n##Mix,     "res" #n "_mix",         "Resonator " #n " Mix",        Unit::Pct,   0.f,   1.f,  1.f,   0.f,  FMod) \
+    F (res##n##PAmt,    "res" #n "_penv_amount", "Resonator " #n " Pitch Env Amount", Unit::Pct, 0.f, 1.f, 0.f,  0.f,  FMod) \
+    F (res##n##PStart,  "res" #n "_penv_start",  "Resonator " #n " Pitch Env Start", Unit::Hz, 20.f, 20000.f, 8000.f, 1000.f, FMod) \
+    F (res##n##PEnd,    "res" #n "_penv_end",    "Resonator " #n " Pitch Env End",   Unit::Hz, 20.f, 20000.f, 1800.f, 1000.f, FMod) \
+    F (res##n##PA,      "res" #n "_penv_attack", "Resonator " #n " Pitch Env Attack", Unit::Ms, 0.f, 2000.f, 0.f,  20.f,  FMod) \
+    F (res##n##PD,      "res" #n "_penv_decay",  "Resonator " #n " Pitch Env Decay",  Unit::Ms, 1.f, 5000.f, 250.f, 250.f, FMod) \
+    F (res##n##PS,      "res" #n "_penv_sustain","Resonator " #n " Pitch Env Sustain",Unit::Pct, 0.f, 1.f,  0.f,  0.f,  FMod) \
+    F (res##n##PR,      "res" #n "_penv_release","Resonator " #n " Pitch Env Release",Unit::Ms, 0.f, 5000.f, 100.f, 200.f, FMod) \
+    C (res##n##PCurve,  "res" #n "_penv_curve",  "Resonator " #n " Pitch Env Curve",  driveCurves, 1, FNone)
+    // module 06: SCREECH ENGINE (one generator per kick)
+#define FGE_SCREECH(F, B, C) \
+    B (scrOn,        "scr_on",            "Screech On",               false, FNone) \
+    C (scrMode,      "scr_mode",          "Screech Mode",             scrModes, 0, FNone) \
+    F (scrLevel,     "scr_level",         "Screech Level",            Unit::Db,  -60.f,  12.f,  0.f,   0.f,  FMod | FSmooth) \
+    C (scrOutput,    "scr_output",        "Screech Output",           scrOutputs, 0, FNone) \
+    F (scrWidth,     "scr_width",         "Screech Width",            Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \
+    C (scrPitchMode, "scr_pitch_mode",    "Screech Pitch Mode",       scrPitchModes, 0, FNone) \
+    F (scrBaseHz,    "scr_base_hz",       "Screech Base Frequency",   Unit::Hz,   20.f, 5000.f, 400.f, 300.f, FMod) \
+    F (scrFmRatio,   "scr_fm_ratio",      "Screech FM Ratio",         Unit::None, 0.25f, 16.f,  2.f,   2.f,  FMod) \
+    F (scrFmIndex,   "scr_fm_index",      "Screech FM Index",         Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \
+    F (scrFmFb,      "scr_fm_feedback",   "Screech FM Feedback",      Unit::Pct,   0.f,   1.f,  0.2f,  0.f,  FMod) \
+    F (scrMetal,     "scr_metal",         "Screech Metal (inharmonic)",Unit::Pct,  0.f,   1.f,  0.5f,  0.f,  FMod) \
+    F (scrMetalQ,    "scr_metal_q",       "Screech Metal Resonance",  Unit::Pct,   0.f,   1.f,  0.6f,  0.f,  FMod) \
+    F (scrNoiseCol,  "scr_noise_color",   "Screech Noise Color",      Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrNoiseQ,    "scr_noise_q",       "Screech Noise Resonance",  Unit::Pct,   0.f,   1.f,  0.85f, 0.f,  FMod) \
+    F (scrVowel,     "scr_vowel",         "Screech Formant Vowel",    Unit::None,  0.f,   4.f,  0.f,   0.f,  FMod) \
+    F (scrVowelEnd,  "scr_vowel_end",     "Screech Formant Vowel End",Unit::None,  0.f,   4.f,  2.f,   0.f,  FMod) \
+    B (scrVowelAuto, "scr_vowel_auto",    "Screech Formant Auto Morph", false, FNone) \
+    F (scrFmtWidth,  "scr_formant_width", "Screech Formant Width",    Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \
+    F (scrFmtReso,   "scr_formant_reso",  "Screech Formant Resonance",Unit::Pct,   0.f,   1.f,  0.6f,  0.f,  FMod) \
+    F (scrFbAmt,     "scr_fb_amount",     "Screech Feedback",         Unit::Pct,   0.f, 0.95f,  0.6f,  0.f,  FMod) \
+    F (scrFbTone,    "scr_fb_tone",       "Screech Feedback Tone",    Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \
+    C (scrFbFilter,  "scr_fb_filter",     "Screech Feedback Filter",  fbFilters, 2, FNone) \
+    F (scrFbDelay,   "scr_fb_delay",      "Screech Feedback Delay",   Unit::Ms,    0.f, 100.f,  0.f,  10.f,  FMod) \
+    F (scrFbDrive,   "scr_fb_drive",      "Screech Feedback Drive",   Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \
+    F (scrFbMix,     "scr_fb_mix",        "Screech Feedback Mix",     Unit::Pct,   0.f,   1.f,  1.f,   0.f,  FMod) \
+    F (scrFbStab,    "scr_fb_stability",  "Screech Feedback Stability",Unit::Pct,  0.f,   1.f,  0.5f,  0.f,  FMod) \
+    F (scrMixTonal,  "scr_mix_tonal",     "Screech Custom: Tonal",    Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \
+    F (scrMixMetal,  "scr_mix_metal",     "Screech Custom: Metallic", Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrMixFmt,    "scr_mix_formant",   "Screech Custom: Formant",  Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrMixFm,     "scr_mix_fm",        "Screech Custom: FM",       Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \
+    F (scrMixNoise,  "scr_mix_noise",     "Screech Custom: Noise",    Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrMixFb,     "scr_mix_feedback",  "Screech Custom: Feedback", Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrAtk,       "scr_attack",        "Screech Attack",           Unit::Ms,    0.f, 2000.f,  2.f,  20.f,  FMod) \
+    F (scrHold,      "scr_hold",          "Screech Hold",             Unit::Ms,    0.f, 2000.f,  0.f,  50.f,  FMod) \
+    F (scrDec,       "scr_decay",         "Screech Decay",            Unit::Ms,    0.f, 5000.f, 300.f, 300.f, FMod) \
+    F (scrSus,       "scr_sustain",       "Screech Sustain",          Unit::Pct,   0.f,   1.f,  0.6f,  0.f,  FMod) \
+    F (scrRel,       "scr_release",       "Screech Release",          Unit::Ms,    0.f, 5000.f,  60.f, 100.f, FMod) \
+    C (scrCurve,     "scr_curve",         "Screech Amp Curve",        driveCurves, 1, FNone) \
+    F (scrModA,      "scr_mod_attack",    "Screech Mod Env Attack",   Unit::Ms,    0.f, 2000.f,  0.f,  20.f,  FMod) \
+    F (scrModD,      "scr_mod_decay",     "Screech Mod Env Decay",    Unit::Ms,    1.f, 5000.f, 200.f, 200.f, FMod) \
+    C (scrModCurve,  "scr_mod_curve",     "Screech Mod Env Curve",    driveCurves, 1, FNone) \
+    F (scrMPitch,    "scr_mod_pitch",     "Screech Mod -> Pitch",     Unit::Semi,-48.f,  48.f,  0.f,   0.f,  FMod) \
+    F (scrMFm,       "scr_mod_fm",        "Screech Mod -> FM",        Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrMCut,      "scr_mod_cutoff",    "Screech Mod -> Cutoff",    Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrMRes,      "scr_mod_reso",      "Screech Mod -> Resonance", Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrMFb,       "scr_mod_feedback",  "Screech Mod -> Feedback",  Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrMFmt,      "scr_mod_formant",   "Screech Mod -> Formant",   Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrMDrive,    "scr_mod_drive",     "Screech Mod -> Drive",     Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrMDetune,   "scr_mod_detune",    "Screech Mod -> Detune",    Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrPStart,    "scr_pitch_start",   "Screech Pitch Env Start",  Unit::Semi,-48.f,  48.f, 12.f,   0.f,  FMod) \
+    F (scrPEnd,      "scr_pitch_end",     "Screech Pitch Env End",    Unit::Semi,-48.f,  48.f,  0.f,   0.f,  FMod) \
+    F (scrPAmt,      "scr_pitch_amount",  "Screech Pitch Env Amount", Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrPA,        "scr_pitch_attack",  "Screech Pitch Env Attack", Unit::Ms,    0.f, 2000.f,  0.f,  20.f,  FMod) \
+    F (scrPD,        "scr_pitch_decay",   "Screech Pitch Env Decay",  Unit::Ms,    1.f, 5000.f, 150.f, 200.f, FMod) \
+    F (scrPR,        "scr_pitch_release", "Screech Pitch Env Release (end drop)", Unit::Ms, 0.f, 2000.f, 0.f, 50.f, FMod) \
+    C (scrPCurve,    "scr_pitch_curve",   "Screech Pitch Env Curve",  driveCurves, 1, FNone) \
+    C (scrStartMode, "scr_start_mode",    "Screech Start Mode",       scrStartModes, 0, FNone) \
+    F (scrStart,     "scr_start",         "Screech Start",            Unit::Ms,    0.f, 2500.f, 180.f, 300.f, FMod) \
+    F (scrOffset,    "scr_offset",        "Screech Start Offset",     Unit::Ms, -250.f, 1000.f,  0.f,   0.f,  FMod) \
+    F (scrLength,    "scr_length",        "Screech Length",           Unit::Ms,    1.f, 2500.f, 450.f, 400.f, FMod) \
+    F (scrFadeIn,    "scr_fade_in",       "Screech Fade In",          Unit::Ms,    0.f, 1000.f,  5.f,  30.f,  FMod) \
+    F (scrFadeOut,   "scr_fade_out",      "Screech Fade Out",         Unit::Ms,    0.f, 2000.f,  60.f, 100.f, FMod) \
+    B (scrPreTrig,   "scr_pre_trigger",   "Screech Pre-Trigger",      false, FNone) \
+    B (scrSyncTail,  "scr_sync_tail",     "Screech Length = Tail",    false, FNone) \
+    B (scrAutoLen,   "scr_auto_length",   "Screech Auto Length",      false, FNone) \
+    C (scrQuant,     "scr_quantize",      "Screech Start Quantize",   quantizeModes, 0, FNone) \
+    B (scrFollowBody,"scr_follow_body",   "Screech Follow Body Release", true, FNone) \
+    B (scrFree,      "scr_independent",   "Screech Independent Tail", false, FNone)
+#define FGE_SCR_OSC(F, B, C, n) \
+    B (so##n##On,     "scr_osc" #n "_on",        "Screech Osc " #n " On",      n == 1, FNone) \
+    C (so##n##Wave,   "scr_osc" #n "_wave",      "Screech Osc " #n " Wave",    scrWaves, 1, FNone) \
+    F (so##n##Level,  "scr_osc" #n "_level",     "Screech Osc " #n " Level",   Unit::Pct,   0.f,   1.f,  0.8f,  0.f,  FMod) \
+    F (so##n##Pitch,  "scr_osc" #n "_pitch",     "Screech Osc " #n " Pitch",   Unit::Semi,-48.f,  48.f, (n - 1) * 7.f, 0.f, FMod) \
+    F (so##n##Fine,   "scr_osc" #n "_fine",      "Screech Osc " #n " Fine",    Unit::Cents,-100.f,100.f, 0.f,  0.f,  FMod) \
+    F (so##n##Phase,  "scr_osc" #n "_phase",     "Screech Osc " #n " Phase",   Unit::Deg,   0.f, 360.f,  0.f,   0.f,  FNone) \
+    F (so##n##Detune, "scr_osc" #n "_detune",    "Screech Osc " #n " Detune",  Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
+    F (so##n##Pw,     "scr_osc" #n "_pw",        "Screech Osc " #n " Pulse Width", Unit::Pct, 0.05f, 0.95f, 0.3f, 0.f, FMod) \
+    C (so##n##FmSrc,  "scr_osc" #n "_fm_source", "Screech Osc " #n " FM Source", scrOscSel, 0, FNone) \
+    F (so##n##Fm,     "scr_osc" #n "_fm_amount", "Screech Osc " #n " FM Amount", Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
+    C (so##n##RingSrc,"scr_osc" #n "_ring_source","Screech Osc " #n " Ring Source", scrOscSel, 0, FNone) \
+    F (so##n##Ring,   "scr_osc" #n "_ring",      "Screech Osc " #n " Ring Mod", Unit::Pct,   0.f,   1.f,  0.f,   0.f,  FMod) \
+    F (so##n##Pan,    "scr_osc" #n "_pan",       "Screech Osc " #n " Pan",     Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod)
+#define FGE_SCR_FLT(F, B, C, n) \
+    B (sf##n##On,     "scr_f" #n "_on",          "Screech Filter " #n " On",   n == 1, FNone) \
+    C (sf##n##Type,   "scr_f" #n "_type",        "Screech Filter " #n " Type", m06FilterTypes, n == 1 ? 2 : 0, FNone) \
+    F (sf##n##Cut,    "scr_f" #n "_cutoff",      "Screech Filter " #n " Cutoff", Unit::Hz, 20.f, 20000.f, n == 1 ? 3000.f : 9000.f, 1000.f, FMod) \
+    F (sf##n##Res,    "scr_f" #n "_resonance",   "Screech Filter " #n " Resonance", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FMod) \
+    F (sf##n##Drive,  "scr_f" #n "_drive",       "Screech Filter " #n " Drive", Unit::Pct,  0.f,   1.f,  0.f,   0.f,  FMod) \
+    F (sf##n##Key,    "scr_f" #n "_key_track",   "Screech Filter " #n " Key Track", Unit::Pct, 0.f, 2.f, 1.f,  0.f,  FMod) \
+    F (sf##n##Env,    "scr_f" #n "_env_amount",  "Screech Filter " #n " Env Amount", Unit::Bip, -1.f, 1.f, 0.f, 0.f,  FMod) \
+    F (sf##n##Mix,    "scr_f" #n "_mix",         "Screech Filter " #n " Mix",  Unit::Pct,   0.f,   1.f,  1.f,   0.f,  FMod)
     // module 04: TRANSIENT engine (click generator + attack gain + transient shaper)
 #define FGE_TRANSIENT(F, B, C) \
     B (trOn,        "tr_on",           "Transient On",          false, FNone) \

@@ -26,8 +26,12 @@ namespace fge::gui
         void update (const ParamFrame&, int note, const env::Bank* shapes = nullptr, uint32_t shapesVersion = 0,
                      const Tables* tables = nullptr, const dsp::dist::DistData* dist = nullptr, uint32_t distVersion = 0);
         void paint (juce::Graphics&) override;
+        void mouseDown (const juce::MouseEvent&) override;
         void mouseDrag (const juce::MouseEvent&) override;
-        void mouseMove (const juce::MouseEvent&) override { setMouseCursor (juce::MouseCursor::DraggingHandCursor); }
+        void mouseUp (const juce::MouseEvent&) override { draggingHandle = false; }
+        void mouseMove (const juce::MouseEvent&) override;
+        // module 06: the SCREECH START handle (drawn where the screech really starts; MANUAL = it can be dragged)
+        std::function<void (float ms, bool first)> onScreechStart;
         // the last rendered kick (tests): peak per part, length in ms
         std::array<float, 5> lastPeaks() const;
         bool hasRender() const { return ready.load(); }
@@ -38,7 +42,11 @@ namespace fge::gui
     private:
         void run() override;
         void handleAsyncUpdate() override { repaint(); if (onRendered) onRendered(); }
-        struct Render { std::vector<float> full; std::array<std::vector<float>, 4> part; float ms = 0.f; std::vector<float> stereoL, stereoR; };
+        struct Render { std::vector<float> full; std::array<std::vector<float>, 4> part; float ms = 0.f; std::vector<float> stereoL, stereoR;
+                        float scrStart = -1.f, scrEnd = -1.f; bool scrManual = false; };
+        juce::Rectangle<float> plotArea() const;
+        float handleX() const;
+        bool draggingHandle = false;
         std::mutex lock;
         ParamFrame pending; int pendingNote = 31; bool wanted = false;
         ParamFrame lastAsked; int lastNote = -1; uint32_t lastVersion = 0;

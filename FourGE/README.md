@@ -135,6 +135,25 @@ Przycisk **DISTORTION** u góry. 16 stopni przesteru dla całego kicka – każd
   SAVE zapisuje (`Dokumenty\4GE\Distortion`): jeden stopień, cały łańcuch, blok multiband, blok parallel albo pełny przester.
 - Makra przesteru (GRIT, HARDNESS…) dojdą w module 09 jako przypisania do 8 głównych makr.
 
+## Strona SCREECH (moduł 06)
+Przycisk **SCREECH** u góry, trzy widoki:
+- **FILTERS**: 8 filtrów (F1–F8). Każdy: TYPE – LOW / HIGH / BAND PASS, NOTCH, LADDER, DIODE LADDER, STATE VARIABLE, COMB (metaliczny
+  grzebień), FORMANT (samogłoski), ALL PASS – każdy ma swój algorytm. LOCATION (cały kick, część, TEXTURE, warstwa albo screech),
+  POSITION przed / po przesterze z modułu 05, PATH (szeregowo / równolegle) i SPLIT BAND (tylko dół / środek / góra). CUTOFF, RESO, DRIVE,
+  MIX, SLOPE, KEY TRACK, VELOCITY, STEREO / MONO / MID / SIDE i własna obwiednia ADSR (→ cutoff, reso, drive; INVERT, SYNC LEN).
+  Widać tylko to, co dany typ naprawdę obsługuje. Na dole prawdziwa odpowiedź filtra (na starcie kicka i później) i jego obwiednia.
+- **RESONANCE**: 2 rezonatory – tryby CLEAN, METALLIC, SCREECH, RUBBER, FORMANT, CUSTOM; wzbudzenie sygnałem albo własnym SINE / SAW /
+  SQUARE / NOISE / IMPULSE / oscylatorami screecha. FREQ, Q, DECAY, AMOUNT, DAMPING, EXCITE, FEEDBACK (do 95 %, zabezpieczony), PITCH TRACK,
+  MIX i obwiednia wysokości rezonansu (np. 8 kHz → 1,8 kHz).
+- **SCREECH**: screech z samej syntezy, bez sampli. 8 trybów, każdy inną drogą: TONAL, METALLIC, FORMANT, FM SCREECH, NOISE SCREECH,
+  FEEDBACK, HYBRID, CUSTOM. 4 oscylatory (fala, poziom, pitch, fine, faza, detune, FM / RING z innego oscylatora, pan), 2 filtry screecha,
+  formanty A-E-I-O-U z MORPH, pętla feedbacku z STABILITY. Obwiednie AMP / MOD / PITCH. TIMING: START MODE – MANUAL, BODY END
+  (screech zaczyna się dokładnie z końcem BODY i przesuwa się razem z nim), BODY END + OFFSET, TAIL START, KICK START, HOST SYNC;
+  LENGTH / SYNC TO TAIL / AUTO, FADE IN / OUT, PRE-TRIGGER (ciche rozkręcenie przed wejściem), QUANTIZE. OUTPUT: do TAIL / TEXTURE / MASTER…
+- PRESETS (EARLY – CLASSIC RESONANCE, OLDSCHOOL SCREECH; MODERN – WIDE SCREECH, MELODIC TAIL; RAWSTYLE – AGGRESSIVE METAL, FEEDBACK TERROR;
+  EXPERIMENTAL – FORMANT MACHINE, BROKEN RESONATOR), SAVE / LOAD, A / B, COPY / PASTE, RANDOMIZE z LOCK dla każdego silnika – wszystko z UNDO.
+- Makra (SCREAM, RESONANCE, METALLIC…) i wspólna matryca modulacji dojdą w module 09.
+
 ## Presety
 INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
@@ -142,5 +161,5 @@ MODERN / RAW: CLICK na początku (stuknięcie), tok na HOLD z szumem pod spodem 
 TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – stąd power.
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 06 filtry / screech → 07 EQ → 08 dynamika → 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
+Moduł po module wg `PLAN.md`: 07 EQ → 08 dynamika → 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
 13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.

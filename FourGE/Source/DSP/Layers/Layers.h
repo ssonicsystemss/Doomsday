@@ -11,6 +11,7 @@
 #include "Transient.h"
 #include "../Osc/OscBank.h"
 #include "../Dist/Distortion.h"
+#include "../Filter/Filters.h"
 
 namespace fge::dsp
 {
@@ -161,12 +162,14 @@ namespace fge::dsp
         void start (const LayerBankSettings& b, const OscBankSettings& osc, uint32_t hitCount, uint64_t clock, const std::array<float, 4>& partHz,
                     const std::array<float, 4>& partStartMs)
         {
+            m06st->reset();
             for (int k = 0; k < 2; ++k) if (b.noise[(size_t) k].on) noise[(size_t) k].start (b.noise[(size_t) k], hitCount, clock);
             if (b.click.on) click.start (0x2468aceu + hitCount * 31u, b.click.positionMs + (b.click.sync > 0 ? partStartMs[(size_t) b.click.sync - 1] : 0.f));
             for (int i = 0; i < numLayers; ++i)
             {
                 started[(size_t) i] = b.layer[(size_t) i].on;
                 (*chains)[(size_t) i].reset();
+
                 fadeG[(size_t) i] = b.layer[(size_t) i].on && b.layer[(size_t) i].audible ? 1.f : 0.f;
                 if (started[(size_t) i]) layer[(size_t) i].start (b.layer[(size_t) i], b, osc, (uint32_t) (i + 1) * 977u, hitCount, clock, partHz);
             }
@@ -175,7 +178,8 @@ namespace fge::dsp
         inline void tick (const LayerBankSettings& b, const OscBankSettings& osc, const OscTables& tb, const std::array<float, 4>& partHz,
                           const std::array<float, 4>& partAmp, float noteRatio, float ms, float inv, float rate,
                           std::array<float, 4>& ext, float& extL, float& extR, float* busL, float* busR,
-                          const dist::DistBank* dist = nullptr, const dist::ModCtx* mod = nullptr)
+                          const dist::DistBank* dist = nullptr, const dist::ModCtx* mod = nullptr,
+                          const m06::Bank* m6 = nullptr, const m06::Ctx* m6c = nullptr)
         {
             for (int k = 0; k < 2; ++k)
             {
@@ -202,9 +206,14 @@ namespace fge::dsp
                 if (! started[(size_t) i] || g <= 0.f) continue;                     // a layer switched on during a kick waits for the next hit
                 auto& v = layer[(size_t) i];
                 float x = v.tick (s, b, osc, tb, partHz, ms, inv, rate) * g;
-                // module 05: the LAYER distortion (before pan / width / fader)
+                // module 06 (BEFORE) -> module 05: the LAYER distortion -> module 06 (AFTER), all before pan / width / fader
+                const int ml = m06::LLayer1 + i;
+                const bool m6on = m6 != nullptr && m6c != nullptr && m6->atLoc (ml);
+                auto m6run = [&] (int pos) { if (m6on && m6->at (ml, pos)) { float l = x, r = x; m06State().process (*m6, ml, pos, l, r, *m6c, (double) rate); x = 0.5f * (l + r); } };
+                m6run (0);
                 if (dist != nullptr && dist->count[(size_t) (dist::LocLayer1 + i)] > 0 && mod != nullptr)
                     x = (*chains)[(size_t) i].process (*dist, dist::LocLayer1 + i, x, *mod, rate);
+                m6run (1);
                 if (x == 0.f) continue;
                 const float sd = s.side > 0.001f ? v.side (x) * s.side : 0.f;
                 const float l = (x + sd) * s.panL, r = (x - sd) * s.panR;
@@ -222,6 +231,10 @@ namespace fge::dsp
         std::array<LayerVoice, numLayers> layer;
         std::array<float, numLayers> fadeG {};
         std::unique_ptr<std::array<dist::ChainState, numLayers>> chains = std::make_unique<std::array<dist::ChainState, numLayers>>();
+        std::unique_ptr<m06::State> m06st = std::make_unique<m06::State>();       // module 06: filters / resonators placed on a layer
+    public:
+        m06::State& m06State() { return *m06st; }
+    private:
         std::array<bool, numLayers> started {};
     };
 }

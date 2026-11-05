@@ -433,6 +433,58 @@ int main (int argc, char** argv)
                 if (sid.startsWith ("fm_")) { const String c = "osc" + sid.substring (8, 9) + "_"; set2 (c + "on", 1.f); set2 (o + "to_tail", -60.f); set2 (o + "wave", 0.f); }
                 a[P::tailChar] = b[P::tailChar] = 0.f;                              // clean tail: the oscillator itself is heard
             }
+            // module 04 contexts
+            {
+                auto set2 = [&] (const String& pid, float v) { const int k = idOf (pid); if (k >= 0 && k != id) { a[k] = v; b[k] = v; } };
+                if (sid.startsWith ("noise"))
+                {
+                    const String o = sid.substring (0, 7);                          // "noiseA_" / "noiseB_"
+                    const String k = sid.substring (7);
+                    set2 (o + "on", 1.f);
+                    if (k.startsWith ("res_") || k == "metal") set2 (o + "type", 5.f);
+                    if (k == "bits" || k == "sr_reduce" || k == "quant") set2 (o + "type", 6.f);
+                    if (k == "resonance" || k == "mod_cutoff" || k == "mod_resonance") set2 (o + "cutoff", 2000.f);
+                    if (k == "mix") set2 (o + "drive", 0.8f);
+                    if (k.startsWith ("mod_")) { set2 (o + "mod_on", 1.f); if (k == "mod_on" || k == "mod_mode" || k == "mod_attack" || k == "mod_decay") set2 (o + "mod_level", 1.f); }
+                    if (k == "track") continue;                                      // tracking is identity at G1: checked on another note below
+                }
+                if (sid.startsWith ("tr_") || sid.startsWith ("shaper_"))
+                {
+                    set2 ("tr_on", 1.f);
+                    if (sid == "tr_sync") set2 ("tail_penv_offset", 60.f);
+                    if (sid == "tr_attack_time" || sid == "tr_decay_time") set2 ("tr_attack_level", 12.f);
+                    if (sid.startsWith ("shaper_")) { set2 ("shaper_on", 1.f); if (sid != "shaper_attack") set2 ("shaper_attack", 0.8f); }
+                }
+                if (sid.startsWith ("layer") && sid != "layer_solo_mode")
+                {
+                    const String o = sid.upToFirstOccurrenceOf ("_", true, false);  // "layerN_"
+                    const String k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    const String other = o == "layer1_" ? "layer2_" : "layer1_";
+                    set2 (o + "on", 1.f);
+                    if (k == "filter_type" || k == "cutoff" || k == "resonance") set2 (o + "filter_on", 1.f);
+                    if (k == "sustain" || k == "release") set2 (o + "env_mode", 0.f);
+                    if (k == "solo") set2 (other + "on", 1.f);
+                    if (k.startsWith ("send_")) set2 (o + "route_mode", 1.f);
+                    if (k == "send_pre") { set2 (o + "send_texture", 0.f); }
+                    if (k.startsWith ("link_"))
+                    {
+                        if (k != "link_source") set2 (o + "link_source", (float) (o == "layer1_" ? 2 : 1));
+                        else set2 (o + "link_level", 1.f);
+                        set2 (other + "level", -20.f); set2 (other + "pitch", 12.f); set2 (other + "length", 100.f); set2 (other + "env_mode", 0.f);
+                    }
+                }
+                if (sid.startsWith ("group_"))
+                {
+                    const String g = sid.fromFirstOccurrenceOf ("_", false, false).upToFirstOccurrenceOf ("_", false, false);
+                    const int gi = Choices::layerGroups().indexOf (g.toUpperCase());
+                    set2 ("layer1_on", 1.f); set2 ("layer1_group", (float) gi);
+                    if (sid.endsWith ("_width")) set2 ("layer1_width", 0.8f);
+                    if (sid.endsWith ("_solo")) { set2 ("layer2_on", 1.f); set2 ("layer2_group", (float) (gi == 4 ? 5 : 4)); }
+                }
+                if (sid == "bus_texture_level") set2 ("layer1_on", 1.f);
+                if (sid == "bus_custom_level") { set2 ("layer1_on", 1.f); set2 ("layer1_group", 5.f); }
+                if (sid == "layer_solo_mode") { set2 ("layer1_on", 1.f); set2 ("layer1_solo", 1.f); set2 ("layer1_filter_on", 1.f); set2 ("layer1_drive", 0.6f); }
+            }
             if (sid.endsWith ("_trigger")) continue;                                                // MIDI behaviour (note-off / legato): checked below
             if (d.kind == Kind::Choice)
             {
@@ -702,6 +754,166 @@ int main (int argc, char** argv)
             const auto y = renderKick (plain, G1, sr, 0.6);
             check (std::isfinite (rms (x)) && rms (x) < 1.6 * rms (y), "M03 17.13 extreme unison / FM / sync / ring: finite, no level runaway",
                    "rms " + String (dbv (rms (x)) - dbv (rms (y)), 1) + " dB vs plain");
+        }
+    }
+    // ---------------------------------------------------------------- MODULE04 section 19: noise, transient, layers
+    {
+        // a silent kick: only module 04 is heard (all four parts muted in the mixer)
+        ParamFrame q = base;
+        for (int id2 : { P::mixPunchMute, P::mixBodyMute, P::mixTailMute, P::mixSubMute }) q[id2] = 1.f;
+        q[P::clipDrive] = 0.f; q[P::coreAutoLen] = 0.f; q[P::coreLength] = 1200.f;
+        auto band = [] (const AudioBuffer<float>& x, double lo, double hi, double a, double len)
+        {
+            // energy in a band (FFT of one window)
+            const int order = 12, n = 1 << order, start = (int) (a * sr);
+            juce::dsp::FFT fft (order);
+            std::vector<float> buf ((size_t) n * 2, 0.f);
+            const int m = jmin (n, (int) (len * sr));
+            for (int i = 0; i < m && start + i < x.getNumSamples(); ++i) buf[(size_t) i] = x.getSample (0, start + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * (float) i / (float) m));
+            fft.performFrequencyOnlyForwardTransform (buf.data());
+            double e = 0.0;
+            for (int k = 1; k < n / 2; ++k) { const double f = k * sr / n; if (f >= lo && f < hi) e += (double) buf[(size_t) k] * buf[(size_t) k]; }
+            return 10.0 * std::log10 (e + 1.0e-12);
+        };
+        auto noiseOnly = [&] (int kind) { ParamFrame f = q; f[P::noiseNAOn] = 1.f; f[P::noiseNAType] = (float) kind; f[P::noiseNALevel] = 0.f; f[P::noiseNALength] = 400.f; f[P::noiseNADecay] = 2000.f; return f; };
+        // 1 + 2. eight sources, each its own spectrum: tilt order BROWN < PINK < WHITE < BLUE < VIOLET
+        {
+            std::vector<double> tilt; std::vector<AudioBuffer<float>> outs; String e;
+            for (int k = 0; k < 8; ++k)
+            {
+                auto x = renderKick (noiseOnly (k), G1, sr, 0.4);
+                tilt.push_back (band (x, 4000, 16000, 0.05, 0.08) - band (x, 100, 400, 0.05, 0.08));
+                outs.push_back (x);
+                e << Choices::noiseKinds()[k].substring (0, 3) << " " << String (tilt.back(), 0) << "  ";
+            }
+            double minD = 1.0e9; for (int i = 0; i < 8; ++i) for (int j = i + 1; j < 8; ++j) minD = jmin (minD, diff (outs[(size_t) i], outs[(size_t) j]));
+            const bool order = tilt[2] < tilt[1] && tilt[1] < tilt[0] && tilt[0] < tilt[3] && tilt[3] < tilt[4];
+            check (order && minD > 1.0e-3, "M04 19.1 / 19.2 eight noise sources with their own spectra", e + "(hi - lo dB)");
+        }
+        // 3. modulation: the mod envelope opens the cutoff at the start, the end stays dark
+        {
+            ParamFrame f = noiseOnly (0); f[P::noiseNACutoff] = 500.f; f[P::noiseNAModOn] = 1.f; f[P::noiseNAModCut] = 1.f; f[P::noiseNAModD] = 30.f;
+            auto x = renderKick (f, G1, sr, 0.4);
+            const double early = band (x, 3000, 12000, 0.0, 0.02) - band (x, 100, 500, 0.0, 0.02), late = band (x, 3000, 12000, 0.25, 0.05) - band (x, 100, 500, 0.25, 0.05);
+            check (early > late + 12.0, "M04 19.3 noise modulation (mod envelope -> cutoff)", "bright early " + String (early, 1) + " vs late " + String (late, 1) + " dB");
+        }
+        // 4. seed: FIXED = the same every hit, PER TRIGGER = new each hit, the same seed = the same export
+        {
+            GeProcessor p; setP (p, "noiseA_on", 1.f); for (auto* m : { "mix_punch_mute", "mix_body_mute", "mix_tail_mute", "mix_sub_mute" }) setP (p, m, 1.f);
+            setP (p, "noiseA_random_mode", 0.f);
+            std::vector<std::pair<int, MidiMessage>> ev { { 0, MidiMessage::noteOn (1, G1, 1.f) }, { 20000, MidiMessage::noteOn (1, G1, 1.f) } };
+            auto x = hitProc (p, ev, 1.0);
+            auto seg = [] (const AudioBuffer<float>& b, int a) { AudioBuffer<float> o (2, 4000); for (int c = 0; c < 2; ++c) o.copyFrom (c, 0, b, c, a, 4000); return o; };
+            const int lat = p.getLatencySamples();
+            const double fixedD = diff (seg (x, lat + 100), seg (x, 20000 + lat + 100));
+            setP (p, "noiseA_random_mode", 1.f);
+            auto y = hitProc (p, ev, 1.0);
+            const double perD = diff (seg (y, lat + 100), seg (y, 20000 + lat + 100));
+            const double same = diff (renderKick (noiseOnly (0), G1, sr, 0.3), renderKick (noiseOnly (0), G1, sr, 0.3));
+            check (fixedD < 1.0e-6 && perD > 1.0e-3 && same == 0.0, "M04 19.4 SEED: FIXED repeats, PER TRIGGER changes, deterministic export",
+                   "fixed " + String (fixedD, 7) + " per trigger " + String (perD, 4));
+        }
+        // 5. the transient engine makes its own attack signal (alone in a silent kick), POSITION moves it
+        {
+            ParamFrame f = q; f[P::trOn] = 1.f; f[P::trClickLvl] = 0.f; f[P::trOutput] = 4.f;      // (the PUNCH bus is muted here)
+            ParamFrame g2 = f; g2[P::trPosition] = 100.f;
+            auto x = renderKick (f, G1, sr, 0.4), y = renderKick (g2, G1, sr, 0.4);
+            const float early = peak (x, 0, (int) (0.02 * sr)), late = peak (y, (int) (0.1 * sr), (int) (0.03 * sr)), lateEarly = peak (y, 0, (int) (0.02 * sr));
+            check (early > 0.1f && late > 0.1f && lateEarly < 1.0e-4f, "M04 19.5 TRANSIENT: its own click, POSITION moves it", "peak " + String (early, 2));
+        }
+        // 6. the shaper follows the real envelope: ATTACK + raises the onset vs the body, SUSTAIN + the other way
+        {
+            ParamFrame f = base; f[P::shOn] = 1.f; f[P::clipDrive] = 0.f;
+            auto ratio = [&] (const ParamFrame& pf) { auto x = renderKick (pf, G1, sr, 0.5); return 20.0 * std::log10 (peak (x, 0, (int) (0.006 * sr)) / (rms (x, (int) (0.15 * sr), (int) (0.1 * sr)) + 1.0e-9)); };
+            ParamFrame atk = f; atk[P::shAttack] = 1.f;
+            ParamFrame sus = f; sus[P::shSustain] = 1.f;
+            const double r0 = ratio (f), ra = ratio (atk), rs = ratio (sus);
+            check (ra > r0 + 2.0 && rs < r0 - 1.0, "M04 19.6 TRANSIENT SHAPER reacts to the real envelope", "onset / body " + String (r0, 1) + " -> attack+ " + String (ra, 1) + ", sustain+ " + String (rs, 1) + " dB");
+        }
+        // 7 + 8. eight independent layers: own pitch + own envelope each
+        {
+            ParamFrame f = q; const int ls = P::layer2On - P::layer1On;
+            for (int i = 0; i < 8; ++i) { f[P::layer1On + i * ls] = 1.f; f[P::layer1Pitch + i * ls] = 24.f + 3.f * (float) i; f[P::layer1Len + i * ls] = 100.f + 60.f * (float) i;
+                                          f[P::layer1EnvMode + i * ls] = 0.f; f[P::layer1Sus + i * ls] = 1.f; f[P::layer1Level + i * ls] = -12.f; }
+            auto x = renderKick (f, G1, sr, 0.8);
+            bool each = true; String e;
+            for (int i = 0; i < 8; ++i)
+            {
+                ParamFrame g2 = f; g2[P::layer1Mute + i * ls] = 1.f;
+                const double d = diff (x, renderKick (g2, G1, sr, 0.8));
+                each &= d > 1.0e-4; e << String (d, 4) << " ";
+            }
+            // the shortest layer is gone after its LENGTH + release, the longest still plays
+            ParamFrame only0 = f, only7 = f;
+            for (int i = 0; i < 8; ++i) { only0[P::layer1On + i * ls] = i == 0 ? 1.f : 0.f; only7[P::layer1On + i * ls] = i == 7 ? 1.f : 0.f; }
+            const auto a0 = renderKick (only0, G1, sr, 0.8), a7 = renderKick (only7, G1, sr, 0.8);
+            const bool env = rms (a0, (int) (0.2 * sr), (int) (0.1 * sr)) < 1.0e-5 && rms (a7, (int) (0.4 * sr), (int) (0.1 * sr)) > 1.0e-3;
+            check (each && env, "M04 19.7 / 19.8 eight independent layers, own pitch + envelope each", e);
+        }
+        // 9 + 10. groups / routing: a BODY layer plays on the body bus (body fader), a MULTI send to MASTER skips the clip
+        {
+            ParamFrame f = base; f[P::layer1On] = 1.f; f[P::layer1Group] = 1.f; f[P::layer1Level] = 0.f;
+            ParamFrame fBodyOff = f; fBodyOff[P::mixBodyLvl] = -60.f;
+            ParamFrame plainBodyOff = base; plainBodyOff[P::mixBodyLvl] = -60.f;
+            const bool onBody = diff (renderKick (fBodyOff, G1, sr, 0.4), renderKick (plainBodyOff, G1, sr, 0.4)) < 1.0e-6 && diff (renderKick (f, G1, sr, 0.4), renderKick (base, G1, sr, 0.4)) > 1.0e-3;
+            ParamFrame g2 = base; g2[P::layer1On] = 1.f; g2[P::layer1Route] = 1.f; g2[P::layer1SMaster] = 0.f; g2[P::layer1Level] = 12.f;
+            for (int id2 : { P::mixPunchMute, P::mixBodyMute, P::mixTailMute, P::mixSubMute }) g2[id2] = 1.f;
+            g2[P::clipDrive] = 24.f;
+            const float pkMaster = peak (renderKick (g2, G1, sr, 0.4));
+            ParamFrame g3 = g2; g3[P::layer1SMaster] = -60.f; g3[P::layer1STex] = 0.f;
+            const float pkTex = peak (renderKick (g3, G1, sr, 0.4));
+            ParamFrame g4 = f; g4[P::grpBodyLevel] = -60.f;                   // the group level reaches its layer
+            const bool grp = diff (renderKick (g4, G1, sr, 0.4), renderKick (base, G1, sr, 0.4)) < 1.0e-6;
+            check (onBody && pkMaster > pkTex * 1.5f && grp, "M04 19.9 / 19.10 groups + routing (BODY bus, MASTER send after the clip, group level)",
+                   "peak via MASTER " + String (pkMaster, 2) + " vs via TEXTURE (clipped) " + String (pkTex, 2));
+        }
+        // 11. SOLO / MUTE: one soloed layer silences the others; un-solo gives the full mix back
+        {
+            ParamFrame f = q; f[P::layer1On] = 1.f; f[P::layer2On] = 1.f; f[P::layer2Pitch] = 19.f;
+            ParamFrame s1 = f; s1[P::layer1Solo] = 1.f;
+            ParamFrame only1 = f; only1[P::layer2On] = 0.f;
+            const bool ok = diff (renderKick (s1, G1, sr, 0.4), renderKick (only1, G1, sr, 0.4)) < 1.0e-6;
+            ParamFrame m1 = f; m1[P::layer1Mute] = 1.f;
+            ParamFrame only2 = f; only2[P::layer1On] = 0.f;
+            check (ok && diff (renderKick (m1, G1, sr, 0.4), renderKick (only2, G1, sr, 0.4)) < 1.0e-6, "M04 19.11 layer SOLO / MUTE");
+        }
+        // 16. switching a layer on / off during a kick does not click
+        {
+            GeProcessor p; setP (p, "layer1_on", 1.f); setP (p, "layer1_length", 2000.f); setP (p, "layer1_env_mode", 0.f); setP (p, "layer1_sustain", 1.f); setP (p, "layer1_level", 0.f);
+            for (auto* m : { "mix_punch_mute", "mix_body_mute", "mix_tail_mute", "mix_sub_mute" }) setP (p, m, 1.f);
+            p.prepareToPlay (sr, 256);
+            float maxStep = 0.f, last = 0.f, pk = 0.f;
+            for (int blk = 0; blk < 120; ++blk)
+            {
+                AudioBuffer<float> bb (2, 256); bb.clear(); MidiBuffer m;
+                if (blk == 0) m.addEvent (MidiMessage::noteOn (1, G1, 1.f), 0);
+                if (blk == 40) setP (p, "layer1_mute", 1.f);
+                if (blk == 70) setP (p, "layer1_mute", 0.f);
+                p.processBlock (bb, m);
+                for (int i = 0; i < 256; ++i) { const float v = bb.getSample (0, i); if (blk > 4) maxStep = jmax (maxStep, std::abs (v - last)); last = v; pk = jmax (pk, std::abs (v)); }
+            }
+            check (maxStep < 0.12f * pk, "M04 19.16 muting / unmuting a layer during a kick does not click", "max step " + String (maxStep / jmax (1.0e-6f, pk), 3) + " of peak");
+        }
+        // 17 + 18. everything on at once: finite; the processor (realtime) = renderKick (export)
+        {
+            GeProcessor p; const int ls = P::layer2On - P::layer1On;
+            for (int i = 0; i < 8; ++i) { setP (p, def (P::layer1On + i * ls).id, 1.f); setP (p, def (P::layer1Src + i * ls).id, (float) (i + 3)); }
+            setP (p, "osc1_on", 1.f); setP (p, "noiseA_on", 1.f); setP (p, "noiseB_on", 1.f); setP (p, "noiseB_type", 5.f); setP (p, "tr_on", 1.f); setP (p, "shaper_on", 1.f);
+            setP (p, "shaper_attack", 0.5f); setP (p, "layer3_route_mode", 1.f); setP (p, "layer3_send_master", -6.f);
+            p.refreshTables();
+            const auto tb = p.currentTables();
+            fge::dsp::OscTables ot; for (int i = 0; i < 8; ++i) ot.t[(size_t) i] = tb[(size_t) i].get();
+            const auto rt = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, (uint8) 127) } }, 0.6);
+            const auto off = renderKick (p.frame(), G1, sr, 0.6, -1, 1.f, &p.shapes(), 0.0, -1.0, &ot);
+            const bool finite = std::isfinite (rms (rt)) && peak (rt) < 16.f;
+            check (finite && diff (rt, off) < 1.0e-6, "M04 19.17 / 19.18 all layers + noise + transient: stable, realtime = export",
+                   "peak " + String (peak (rt), 2) + ", rt vs export " + String (diff (rt, off), 8));
+        }
+        // noise PITCH TRACKING (identity on G1 - checked on another note)
+        {
+            ParamFrame f = noiseOnly (0); f[P::noiseNACutoff] = 1000.f; f[P::noiseNAFilter] = 2.f; f[P::noiseNAReso] = 0.7f;
+            ParamFrame t = f; t[P::noiseNATrack] = 1.f;
+            check (diff (renderKick (f, 43, sr, 0.3), renderKick (t, 43, sr, 0.3)) > 1.0e-3, "M04 noise PITCH TRACKING moves the filter with the note");
         }
     }
     // ---------------------------------------------------------------- module 03 wiring: oscillator data in the state (OSCS), presets, realtime = export

@@ -14,6 +14,7 @@
 #include "Core/Generators.h"
 #include "Env/KickEnvelopes.h"
 #include "Osc/OscTables.h"
+#include "Layers/LayerCook.h"
 #include "DoomsdayKick.h"
 #include "../Parameters/ParamFrame.h"
 #include <array>
@@ -40,7 +41,10 @@ namespace fge
         dsp::SvfCoefs widthSplit;                 // LR4 split: lows from the centre, mids / highs from left / right
         float clipG = 1.f, clipSoft = 0.5f;       // MASTER CLIP (the sub goes around it)
         float holdMs = 0.f, holdGain = 1.f;
-        dsp::OscBankSettings osc;                 // module 03: the oscillators routed into the parts       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
+        dsp::OscBankSettings osc;                 // module 03: the oscillators routed into the parts
+        dsp::LayerBankSettings lb;                // module 04: noise A / B, transient, layers
+        bool lbAny = false;
+        float lbEndMs = 0.f;                      // when the last layer / noise / click ends       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
     };
 
     // ------------------------------------------------------------------ pitch: semitones of one part at a time (links resolved)
@@ -94,6 +98,18 @@ namespace fge
             legato (cfg.amp, stAmp); legato (cfg.filter, stFlt); legato (cfg.drive, stDrv); legato (cfg.reso, stRes);
             pe = {};
             mod = cfg.modBase;
+            if (cfg.lbAny)
+            {
+                pe.c = &cfg;
+                const float endEff = (cfg.keyTrack ? noteHz : cfg.endHz) * cfg.fineMul;
+                const float subBase = (cfg.keyTrack ? noteHz : cfg.subHz) * cfg.fineMul;
+                const float fTail = endEff * std::exp2 (pe.semis (dsp::PTail, 0.f) / 12.f);
+                const std::array<float, 4> hz { fTail * std::exp2 (pe.semis (dsp::PPunch, 0.f) / 12.f), fTail * std::exp2 (pe.semis (dsp::PBody, 0.f) / 12.f),
+                                                fTail, subBase * std::exp2 (pe.semis (dsp::PSub, 0.f) / 12.f) };
+                const std::array<float, 4> starts { cfg.amp[dsp::PPunch].delayMs, cfg.amp[dsp::PBody].delayMs, cfg.amp[dsp::PTail].delayMs + cfg.holdMs, cfg.amp[dsp::PSub].delayMs };
+                lbv.start (cfg.lb, cfg.osc, hitCount, (uint64_t) (absTimeSec * cfg.ks.rate), hz, starts);
+                pe = {};
+            }
             if (cfg.osc.any)
             {
                 pe.c = &cfg;
@@ -137,6 +153,7 @@ namespace fge
             const float subBase = (cfg.keyTrack ? noteHz : cfg.subHz) * cfg.fineMul;
             float total = 0.f;
             for (auto e : cfg.partEnd) total = juce::jmax (total, e);
+            if (cfg.lbAny) total = juce::jmax (total, cfg.lbEndMs);
             total = juce::jmin (total, ks.lengthMs);
             const float fadeLen = juce::jmin (15.f, ks.lengthMs * 0.1f);
             const double dt = 1.0 / ks.rate;
@@ -160,19 +177,33 @@ namespace fge
                                                     juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f)) };
                     oscs.tick (cfg.osc, tables != nullptr ? *tables : noTables, hz, ms, ks.inv, ext, extL, extR);
                 }
+                // ---- the amplitude envelopes of the parts (once per sample: the generators and the noise envelopes use them)
+                std::array<float, 4> amp {};
+                for (int p = 0; p < 4; ++p) amp[(size_t) p] = ms < cfg.partEnd[(size_t) p] ? ampOf (cfg, p, ms) : 0.f;
+                // ---- module 04: noise into the part inputs, transient / layers into the 7 buses
+                if (cfg.lbAny)
+                {
+                    const std::array<float, 4> hz { juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
+                                                    juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f)), fTail,
+                                                    juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f)) };
+                    float bl[dsp::NumBus] {}, br[dsp::NumBus] {};
+                    lbv.tick (cfg.lb, cfg.osc, tables != nullptr ? *tables : noTables, hz, amp, noteHz / 49.f, ms, ks.inv, (float) ks.rate,
+                              ext, extL, extR, bl, br);
+                    for (int k = 0; k < dsp::NumBus; ++k) { bus[6 + 2 * k][i] += bl[k] * gate; bus[7 + 2 * k][i] += br[k] * gate; }
+                }
                 if (ms < cfg.partEnd[PPunch])
                 {
                     const float f = juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f));
-                    bus[PPunch][i] += punch.tick (ks.part[PPunch], ks, ms, f, ampOf (cfg, PPunch, ms), mod[PPunch], ext[PPunch]) * gate;
+                    bus[PPunch][i] += punch.tick (ks.part[PPunch], ks, ms, f, amp[PPunch], mod[PPunch], ext[PPunch]) * gate;
                 }
                 if (ms < cfg.partEnd[PBody])
                 {
                     const float f = juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f));
-                    bus[PBody][i] += body.tick (ks.part[PBody], ks, f, ampOf (cfg, PBody, ms), mod[PBody], ext[PBody]) * gate;
+                    bus[PBody][i] += body.tick (ks.part[PBody], ks, f, amp[PBody], mod[PBody], ext[PBody]) * gate;
                 }
                 if (ms < cfg.partEnd[PTail])
                 {
-                    float a = ampOf (cfg, PTail, ms) * gate;
+                    float a = amp[PTail] * gate;
                     if (cfg.holdMs > 0.f && cfg.holdGain != 1.f)                       // TOK LEVEL, 3 ms into the drop
                         a *= cfg.holdGain + (1.f - cfg.holdGain) * juce::jlimit (0.f, 1.f, (ms - cfg.holdMs) / 3.f);
                     bus[PTail][i] += tail.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail], ext[PTail]) * a;
@@ -185,7 +216,7 @@ namespace fge
                 if (ms < cfg.partEnd[PSub])
                 {
                     const float f = juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f));
-                    bus[PSub][i] += sub.tick (ks.part[PSub], ks, f, ampOf (cfg, PSub, ms), mod[PSub], ext[PSub]) * gate;
+                    bus[PSub][i] += sub.tick (ks.part[PSub], ks, f, amp[PSub], mod[PSub], ext[PSub]) * gate;
                 }
                 if (fadeStep > 0.f) { fade -= fadeStep; if (fade <= 0.f) { fade = 0.f; active = false; break; } }
                 t += dt;
@@ -229,6 +260,7 @@ namespace fge
             }
         }
         dsp::OscBankVoice oscs;
+        dsp::LayerBankVoice lbv;
         static inline const dsp::OscTables noTables {};
         dsp::PunchGenerator punch; dsp::BodyGenerator body; dsp::TailGenerator tail, tailL, tailR; dsp::SubGenerator sub;
         std::array<dsp::EnvRunState, 4> stAmp {}, stFlt {}, stDrv {}, stRes {};
@@ -246,6 +278,7 @@ namespace fge
     {
     public:
         static constexpr int osLog2 = 2, osFactor = 1 << osLog2, maxVoices = 8;
+        static constexpr int numBusCh = dsp::NumParts + 2 + 2 * dsp::NumBus;   // parts, tail L / R, the 7 stereo layer buses
 
         Engine() : os (std::make_unique<juce::dsp::Oversampling<float>> (2, osLog2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false)) {}
 
@@ -255,7 +288,8 @@ namespace fge
             maxBlockSize = juce::jmax (16, maxBlock);
             os->reset();
             os->initProcessing ((size_t) maxBlockSize);
-            bus.setSize (dsp::NumParts + 2, maxBlockSize * osFactor);
+            bus.setSize (numBusCh, maxBlockSize * osFactor);
+            shaper.prepare (sampleRate * osFactor);
             wl1 = wl2 = wh1 = wh2 = wr1 = wr2 = {}; clipped = false;
             stereo.setSize (2, maxBlockSize);
             for (auto& v : voices) v = KickVoice();
@@ -305,6 +339,7 @@ namespace fge
             if (slot == nullptr) { slot = &voices[0]; for (auto& v : voices) if (v.order() < slot->order()) slot = &v; }
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter);
+            shaper.hit();
             hits.fetch_add (1);
         }
         void release (int) { for (auto& v : voices) v.noteOff (cfg); }
@@ -401,6 +436,7 @@ namespace fge
             cfg.clipG = db (f[P::clipDrive]); cfg.clipSoft = f[P::clipSoft];
             cfg.holdGain = db (f[P::tailHoldLvl]);
             cookOscillators (f);
+            cookLayers (f, b);
 
             // ---- envelope slots (module 02, 7)
             const int aMode[4] { P::punchAmpMode, P::bodyAmpMode, P::tailAmpMode, P::subAmpMode };
@@ -517,6 +553,20 @@ namespace fge
             dsp::cookOscBank (f, cfg.osc);
             if (cfg.osc.tailStereo) cfg.wide = true;
         }
+        // module 04: noise / transient / layers
+        void cookLayers (const ParamFrame& f, const env::Bank& b)
+        {
+            using namespace dsp;
+            auto& lb = cfg.lb;
+            cookLayerBank (f, b, lb, cfg.ks.rate);
+            cfg.lbAny = lb.anyLayer || lb.anyNoise || lb.click.on;
+            float end = 0.f;
+            for (const auto& n : lb.noise) if (n.on) end = juce::jmax (end, n.envSrc == NeOwn || n.envSrc == NeDrawn ? n.lengthMs + 5.f : cfg.ks.lengthMs);
+            if (lb.click.on) end = juce::jmax (end, lb.click.positionMs + 300.f + lb.click.lenMs + 5.f);
+            for (const auto& l : lb.layer) if (l.on) end = juce::jmax (end, l.offsetMs + l.delay + l.lenMs + (l.envMode == LeAdsr ? l.rel : 0.f) + 5.f);
+            cfg.lbEndMs = end;
+            for (const auto& n : lb.noise) if (n.on && n.route[2] > 0.f && n.width > 0.001f) cfg.wide = true;
+        }
 
         void render (juce::AudioBuffer<float>& out, int start, int len)
         {
@@ -530,9 +580,9 @@ namespace fge
         void renderChunk (juce::AudioBuffer<float>& out, int start, int n)
         {
             const int on = n * osFactor;
-            for (int c = 0; c < dsp::NumParts + 2; ++c) juce::FloatVectorOperations::clear (bus.getWritePointer (c), on);
-            float* b[dsp::NumParts + 2] { bus.getWritePointer (0), bus.getWritePointer (1), bus.getWritePointer (2), bus.getWritePointer (3),
-                                          bus.getWritePointer (4), bus.getWritePointer (5) };
+            for (int c = 0; c < numBusCh; ++c) juce::FloatVectorOperations::clear (bus.getWritePointer (c), on);
+            float* b[numBusCh];
+            for (int c = 0; c < numBusCh; ++c) b[c] = bus.getWritePointer (c);
             for (auto& v : voices) { v.tables = tables; v.render (cfg, b, on); }
             clockSec += (double) n / sr;
 
@@ -546,6 +596,18 @@ namespace fge
             // order: PUNCH, BODY, TAIL (-> MASTER CLIP on these three), then the SUB around the clip
             for (int c : { 0, 1, 2, 3 })
             {
+                if (c == 3)
+                {
+                    // TEXTURE / CUSTOM buses join before the clip, then the attack gain + transient shaper on the whole kick
+                    const float tg = cfg.lb.texGain, cg = cfg.lb.custGain;
+                    if (cfg.lbAny)
+                        for (int i = 0; i < on; ++i)
+                        {
+                            L[i] += b[6 + 2 * dsp::BusTexture][i] * tg + b[6 + 2 * dsp::BusCustom][i] * cg;
+                            R[i] += b[7 + 2 * dsp::BusTexture][i] * tg + b[7 + 2 * dsp::BusCustom][i] * cg;
+                        }
+                    shaper.process (cfg.lb.shaper, L, R, on);
+                }
                 if (c == 3 && cfg.clipG > 1.0001f)
                 {
                     for (int i = 0; i < on; ++i) { L[i] = doomsday::kick::masterClip (L[i], cfg.clipG, cfg.clipSoft); R[i] = doomsday::kick::masterClip (R[i], cfg.clipG, cfg.clipSoft); }
@@ -568,6 +630,7 @@ namespace fge
                         yl = (low + m + sd) * gl; yr = (low + m - sd) * gr;
                     }
                     else { yl = x[i] * gl; yr = x[i] * gr; }
+                    yl += b[6 + 2 * c][i] * gl; yr += b[7 + 2 * c][i] * gr;          // module 04: layers on this part's bus
                     L[i] = (c == 0 ? 0.f : L[i]) + yl;
                     R[i] = (c == 0 ? 0.f : R[i]) + yr;
                     p = juce::jmax (p, std::abs (yl), std::abs (yr));
@@ -575,6 +638,8 @@ namespace fge
                 pk[(size_t) c] = p;
                 gainNow[(size_t) c] = g1;
             }
+            if (cfg.lbAny)                                                   // the MASTER bus: after the clip
+                for (int i = 0; i < on; ++i) { L[i] += b[6 + 2 * dsp::BusMaster][i]; R[i] += b[7 + 2 * dsp::BusMaster][i]; }
             os->processSamplesDown (blk);
             const float m0 = masterNow, m1 = masterTarget, invN = 1.f / (float) n;
             const float r = (float) std::exp (-juce::MathConstants<double>::twoPi * 5.0 / sr);
@@ -603,6 +668,7 @@ namespace fge
         const env::Bank* bank = nullptr;
         const dsp::OscTables* tables = nullptr;
         double clockSec = 0.0;                    // the engine's own clock (FREE RUN oscillator phases)
+        dsp::AttackShaper shaper;                 // module 04: attack gain + transient shaper (kick before the clip)
         ParamFrame frame = ParamFrame::defaults();
         std::array<std::pair<float, float>, dsp::NumParts> gainNow {}, gainTarget {};
         std::array<float, dsp::NumParts> freePhase {};

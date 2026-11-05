@@ -244,6 +244,41 @@ namespace fge::dsp
         }
         const OscUnit& unitOf (int i) const { return unit[(size_t) i]; }
 
+        // module 04: a LAYER playing "OSC n" runs its own copy of that oscillator at its own pitch (own phases, unison,
+        // table, self feedback and sine ring - the matrix FM / sync to other oscillators belong to the oscillator page)
+        inline float tickOne (const OscSettings& o, const OscTables& tb, int i, float hz, float ms, float inv)
+        {
+            auto& u = unit[(size_t) i];
+            float fmIn = 0.f;
+            if (o.fmFb > 0.f) { u.fbState = 0.5f * (u.out + u.outPrev); fmIn = o.fmFb * 0.7f * u.fbState; }
+            const float modEnv = std::exp (-ms / juce::jmax (1.f, o.decayMs));
+            if (o.fmEnv > 0.f) fmIn *= (1.f - o.fmEnv) + o.fmEnv * modEnv;
+            const float fInst = hz * (1.f + 4.f * fmIn);
+            const Table* table = tb.t[(size_t) i];
+            float wtPos = o.wtPos;
+            if (o.wave == WWavetable) wtPos = scanPos (o, u, ms);
+            const int n = o.wave == WNoise ? 1 : juce::jlimit (1, maxUnison, o.uni);
+            float y = 0.f;
+            for (int k = 0; k < n; ++k)
+            {
+                const float dt = juce::jlimit (-0.45f, 0.45f, fInst * o.uRatio[(size_t) k] * inv);
+                float& p = u.ph[(size_t) k];
+                float v;
+                if (o.wave == WNoise) v = u.nz.tick (o.noise, fInst, inv);
+                else { v = shape (o, table, wtPos, p, std::abs (dt)); p += dt; if (p >= 1.f) p -= 1.f; else if (p < 0.f) p += 1.f; }
+                y += v * o.uGain[(size_t) k];
+            }
+            if (o.ringSrc == 5)
+            {
+                const float m = std::sin (twoPi * u.ringPh); u.ringPh += juce::jlimit (0.f, 0.45f, o.ringHz * inv); if (u.ringPh >= 1.f) u.ringPh -= 1.f;
+                float amt = o.ringAmt; if (o.ringEnv > 0.f) amt *= (1.f - o.ringEnv) + o.ringEnv * modEnv;
+                y = y * (1.f - o.ringMix) + y * (1.f - amt + amt * m) * o.ringMix;
+            }
+            if (! std::isfinite (y)) y = 0.f;
+            u.outPrev = u.out; u.out = y;
+            return y * (o.gain < 0.f ? -1.f : 1.f);
+        }
+
     private:
         static inline float shape (const OscSettings& o, const Table* table, float wtPos, float p, float dt)
         {

@@ -53,6 +53,20 @@ namespace fge
         const juce::StringArray& syncModes();
         const juce::StringArray& wtTables();
         const juce::StringArray& wtModes();
+        // module 04
+        const juce::StringArray& noiseKinds();
+        const juce::StringArray& filterTypes();
+        const juce::StringArray& noiseEnvSources();
+        const juce::StringArray& randomModes();
+        const juce::StringArray& trSources();
+        const juce::StringArray& trSyncs();
+        const juce::StringArray& busOutputs();
+        const juce::StringArray& layerSources();
+        const juce::StringArray& layerGroups();
+        const juce::StringArray& layerEnvModes();
+        const juce::StringArray& routeModes();
+        const juce::StringArray& layerLinks();
+        const juce::StringArray& soloModes();
         const juce::StringArray& none();
     }
 
@@ -209,7 +223,16 @@ namespace fge
     B (osc1Mute, "osc1_mute", "Osc 1 Mute", false, FNone) B (osc1Solo, "osc1_solo", "Osc 1 Solo", false, FNone) \
     B (osc2Mute, "osc2_mute", "Osc 2 Mute", false, FNone) B (osc2Solo, "osc2_solo", "Osc 2 Solo", false, FNone) \
     B (osc3Mute, "osc3_mute", "Osc 3 Mute", false, FNone) B (osc3Solo, "osc3_solo", "Osc 3 Solo", false, FNone) \
-    B (osc4Mute, "osc4_mute", "Osc 4 Mute", false, FNone) B (osc4Solo, "osc4_solo", "Osc 4 Solo", false, FNone)
+    B (osc4Mute, "osc4_mute", "Osc 4 Mute", false, FNone) B (osc4Solo, "osc4_solo", "Osc 4 Solo", false, FNone) \
+    FGE_NOISE (F, B, C, NA, "noiseA", "Noise A") FGE_NOISE (F, B, C, NB, "noiseB", "Noise B") \
+    FGE_TRANSIENT (F, B, C) \
+    FGE_LAYER (F, B, C, 1) FGE_LAYER (F, B, C, 2) FGE_LAYER (F, B, C, 3) FGE_LAYER (F, B, C, 4) \
+    FGE_LAYER (F, B, C, 5) FGE_LAYER (F, B, C, 6) FGE_LAYER (F, B, C, 7) FGE_LAYER (F, B, C, 8) \
+    FGE_GROUP (F, B, C, Punch, "punch", "Punch", 0) FGE_GROUP (F, B, C, Body, "body", "Body", 1) FGE_GROUP (F, B, C, Tail, "tail", "Tail", 2) \
+    FGE_GROUP (F, B, C, Sub, "sub", "Sub", 3) FGE_GROUP (F, B, C, Texture, "texture", "Texture", 4) FGE_GROUP (F, B, C, Custom, "custom", "Custom", 5) \
+    F (busTextureLvl, "bus_texture_level", "Texture Bus Level",  Unit::Db, -60.f, 12.f, 0.f, 0.f, FMod | FSmooth | FGlobal) \
+    F (busCustomLvl,  "bus_custom_level",  "Custom Bus Level",   Unit::Db, -60.f, 12.f, 0.f, 0.f, FMod | FSmooth | FGlobal) \
+    C (layerSoloMode, "layer_solo_mode",   "Layer Solo Mode",    soloModes, 0, FGlobal)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -289,6 +312,127 @@ namespace fge
     F (osc##n##HSpread,  "osc" #n "_h_spread",   "Osc " #n " Harmonic Spread",Unit::Pct,   0.f,   1.f,   0.f,   0.f,   FMod) \
     F (osc##n##HPhase,   "osc" #n "_h_phase",    "Osc " #n " Harmonic Phase",Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod) \
     F (osc##n##HRandom,  "osc" #n "_h_random",   "Osc " #n " Harmonic Random",Unit::Pct,   0.f,   1.f,   0.f,   0.f,   FMod)
+    // module 04: NOISE generator (A / B)
+#define FGE_NOISE(F, B, C, X, id, nm) \
+    B (noise##X##On,     id "_on",          nm " On",               false, FNone) \
+    C (noise##X##Type,   id "_type",        nm " Source",           noiseKinds, 0, FNone) \
+    F (noise##X##Level,  id "_level",       nm " Level",            Unit::Db,  -60.f,  12.f, -12.f,  0.f,  FMod | FSmooth) \
+    F (noise##X##Color,  id "_color",       nm " Color",            Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod) \
+    C (noise##X##Filter, id "_filter",      nm " Filter",           filterTypes, 0, FNone) \
+    F (noise##X##Cutoff, id "_cutoff",      nm " Cutoff",           Unit::Hz,   20.f, 20000.f, 20000.f, 1000.f, FMod) \
+    F (noise##X##Reso,   id "_resonance",   nm " Resonance",        Unit::Pct,   0.f,   1.f,   0.f,  0.f,  FMod) \
+    F (noise##X##Drive,  id "_drive",       nm " Drive",            Unit::Pct,   0.f,   1.f,   0.f,  0.f,  FMod) \
+    F (noise##X##Attack, id "_attack",      nm " Attack",           Unit::Ms,    0.f, 2500.f,  0.5f, 20.f, FMod) \
+    F (noise##X##Decay,  id "_decay",       nm " Decay",            Unit::Ms,    1.f, 2500.f, 60.f,  80.f, FMod) \
+    F (noise##X##Length, id "_length",      nm " Length",           Unit::Ms,    1.f, 2500.f, 150.f, 150.f, FMod) \
+    F (noise##X##Mix,    id "_mix",         nm " Mix",              Unit::Pct,   0.f,   1.f,   1.f,  0.f,  FMod) \
+    F (noise##X##Width,  id "_width",       nm " Stereo Width",     Unit::Pct,   0.f,   1.f,   0.f,  0.f,  FMod) \
+    B (noise##X##Track,  id "_track",       nm " Pitch Tracking",   false, FNone) \
+    C (noise##X##Env,    id "_env",         nm " Envelope",         noiseEnvSources, 0, FNone) \
+    F (noise##X##ResHz,  id "_res_freq",    nm " Resonator Freq",   Unit::Hz,  100.f, 12000.f, 3000.f, 2000.f, FMod) \
+    F (noise##X##ResQ,   id "_res_q",       nm " Resonator Q",      Unit::Pct,   0.f,   1.f,   0.5f, 0.f,  FMod) \
+    F (noise##X##ResAmt, id "_res_amount",  nm " Resonator Amount", Unit::Pct,   0.f,   1.f,   0.8f, 0.f,  FMod) \
+    F (noise##X##Metal,  id "_metal",       nm " Metallic Character",Unit::Pct,  0.f,   1.f,   0.5f, 0.f,  FMod) \
+    F (noise##X##Bits,   id "_bits",        nm " Bit Depth",        Unit::None,  1.f,  16.f,   6.f,  0.f,  FMod) \
+    F (noise##X##Srr,    id "_sr_reduce",   nm " Sample Rate Reduce",Unit::Pct,  0.f,   1.f,   0.4f, 0.f,  FMod) \
+    F (noise##X##Quant,  id "_quant",       nm " Quantization",     Unit::Pct,   0.f,   1.f,   0.f,  0.f,  FMod) \
+    F (noise##X##Grain,  id "_grain",       nm " Grain Amount",     Unit::Pct,   0.f,   1.f,   0.f,  0.f,  FMod) \
+    F (noise##X##Seed,   id "_seed",        nm " Seed",             Unit::None,  0.f, 9999.f, 11.f,  0.f,  FNone) \
+    C (noise##X##RMode,  id "_random_mode", nm " Random Mode",      randomModes, 1, FNone) \
+    F (noise##X##RAmt,   id "_random_amount",nm " Random Amount",   Unit::Pct,   0.f,   1.f,   1.f,  0.f,  FNone) \
+    F (noise##X##ToPunch,id "_to_punch",    nm " -> Punch",         Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (noise##X##ToBody, id "_to_body",     nm " -> Body",          Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (noise##X##ToTail, id "_to_tail",     nm " -> Tail",          Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (noise##X##ToSub,  id "_to_sub",      nm " -> Sub",           Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (noise##X##ToTex,  id "_to_texture",  nm " -> Texture Bus",   Unit::Db,  -60.f,  12.f,   0.f,  0.f,  FMod | FSmooth) \
+    B (noise##X##ModOn,  id "_mod_on",      nm " Mod Env On",       false, FNone) \
+    C (noise##X##ModMode,id "_mod_mode",    nm " Mod Env Mode",     envModes, 0, FNone) \
+    F (noise##X##ModA,   id "_mod_attack",  nm " Mod Env Attack",   Unit::Ms,    0.f, 2500.f,  0.f,  20.f, FMod) \
+    F (noise##X##ModD,   id "_mod_decay",   nm " Mod Env Decay",    Unit::Ms,    1.f, 2500.f, 40.f,  80.f, FMod) \
+    F (noise##X##ModLvl, id "_mod_level",   nm " Mod -> Level",     Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod) \
+    F (noise##X##ModCut, id "_mod_cutoff",  nm " Mod -> Cutoff",    Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod) \
+    F (noise##X##ModRes, id "_mod_resonance",nm " Mod -> Resonance",Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod) \
+    F (noise##X##ModDrv, id "_mod_drive",   nm " Mod -> Drive",     Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod) \
+    F (noise##X##ModCol, id "_mod_color",   nm " Mod -> Color",     Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod) \
+    F (noise##X##ModWid, id "_mod_width",   nm " Mod -> Width",     Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod) \
+    F (noise##X##ModGrn, id "_mod_grain",   nm " Mod -> Grain",     Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod)
+    // module 04: TRANSIENT engine (click generator + attack gain + transient shaper)
+#define FGE_TRANSIENT(F, B, C) \
+    B (trOn,        "tr_on",           "Transient On",          false, FNone) \
+    C (trSource,    "tr_source",       "Transient Source",      trSources, 0, FNone) \
+    F (trClickLvl,  "tr_click_level",  "Click Level",           Unit::Db,  -60.f,  12.f,  -6.f,   0.f,  FMod | FSmooth) \
+    F (trClickLen,  "tr_click_length", "Click Length",          Unit::Ms,   0.1f, 100.f,   8.f,  10.f,  FMod) \
+    F (trClickHz,   "tr_click_pitch",  "Click Pitch",           Unit::Hz,   20.f, 20000.f, 1800.f, 1500.f, FMod) \
+    F (trClickTone, "tr_click_tone",   "Click Tone",            Unit::Pct,   0.f,   1.f,   0.6f,  0.f,  FMod) \
+    F (trClickDrv,  "tr_click_drive",  "Click Drive",           Unit::Pct,   0.f,   1.f,   0.2f,  0.f,  FMod) \
+    F (trClickMix,  "tr_click_mix",    "Click Mix",             Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod) \
+    F (trWidth,     "tr_width",        "Transient Width",       Unit::Pct,   0.f,   1.f,   0.f,   0.f,  FMod) \
+    F (trPosition,  "tr_position",     "Transient Position",    Unit::Ms,    0.f, 250.f,   0.f,  30.f,  FMod) \
+    C (trSync,      "tr_sync",         "Transient Sync To",     trSyncs, 0, FNone) \
+    C (trOutput,    "tr_output",       "Transient Output",      busOutputs, 0, FNone) \
+    F (trAtkLevel,  "tr_attack_level", "Attack Level",          Unit::Db,  -24.f,  24.f,   0.f,   0.f,  FMod) \
+    F (trAtkTime,   "tr_attack_time",  "Attack Time",           Unit::Ms,    0.f,  50.f,   2.f,   5.f,  FMod) \
+    F (trDecTime,   "tr_decay_time",   "Attack Decay Time",     Unit::Ms,    1.f, 200.f,  30.f,  40.f,  FMod) \
+    F (trLow,       "tr_low",          "Low Transient",         Unit::Db,  -24.f,  24.f,   0.f,   0.f,  FMod) \
+    F (trHigh,      "tr_high",         "High Transient",        Unit::Db,  -24.f,  24.f,   0.f,   0.f,  FMod) \
+    B (shOn,        "shaper_on",       "Transient Shaper On",   false, FNone) \
+    F (shAttack,    "shaper_attack",   "Shaper Attack",         Unit::Bip,  -1.f,   1.f,   0.f,   0.f,  FMod) \
+    F (shSustain,   "shaper_sustain",  "Shaper Sustain",        Unit::Bip,  -1.f,   1.f,   0.f,   0.f,  FMod) \
+    F (shSens,      "shaper_sensitivity","Shaper Sensitivity",  Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (shTime,      "shaper_time",     "Shaper Time",           Unit::Ms,    1.f, 500.f,  50.f,  60.f,  FMod) \
+    F (shMix,       "shaper_mix",      "Shaper Mix",            Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod)
+    // module 04: LAYER (8 now, the engine is sized for 16)
+#define FGE_LAYER(F, B, C, n) \
+    B (layer##n##On,      "layer" #n "_on",          "Layer " #n " On",           false, FNone) \
+    C (layer##n##Src,     "layer" #n "_source",      "Layer " #n " Source",       layerSources, 0, FNone) \
+    C (layer##n##Group,   "layer" #n "_group",       "Layer " #n " Group",        layerGroups, 4, FNone) \
+    F (layer##n##Level,   "layer" #n "_level",       "Layer " #n " Level",        Unit::Db,  -60.f,  12.f,  -6.f,   0.f,  FMod | FSmooth) \
+    F (layer##n##Pan,     "layer" #n "_pan",         "Layer " #n " Pan",          Unit::Bip,  -1.f,   1.f,   0.f,   0.f,  FMod) \
+    F (layer##n##Pitch,   "layer" #n "_pitch",       "Layer " #n " Pitch",        Unit::Semi,-48.f,  48.f,   0.f,   0.f,  FMod) \
+    F (layer##n##Fine,    "layer" #n "_fine",        "Layer " #n " Fine",         Unit::Cents,-100.f,100.f,  0.f,   0.f,  FMod) \
+    F (layer##n##Len,     "layer" #n "_length",      "Layer " #n " Length",       Unit::Ms,    1.f, 2500.f, 300.f, 300.f, FMod) \
+    F (layer##n##Offset,  "layer" #n "_offset",      "Layer " #n " Start Offset", Unit::Ms,    0.f, 2500.f,  0.f,  100.f, FMod) \
+    F (layer##n##Phase,   "layer" #n "_phase",       "Layer " #n " Phase",        Unit::Deg,   0.f, 360.f,   0.f,   0.f,  FNone) \
+    B (layer##n##Inv,     "layer" #n "_invert",      "Layer " #n " Phase Invert", false, FNone) \
+    F (layer##n##Width,   "layer" #n "_width",       "Layer " #n " Stereo Width", Unit::Pct,   0.f,   1.f,   0.f,   0.f,  FMod) \
+    B (layer##n##FltOn,   "layer" #n "_filter_on",   "Layer " #n " Filter On",    false, FNone) \
+    C (layer##n##FltType, "layer" #n "_filter_type", "Layer " #n " Filter Type",  filterTypes, 0, FNone) \
+    F (layer##n##Cutoff,  "layer" #n "_cutoff",      "Layer " #n " Cutoff",       Unit::Hz,   20.f, 20000.f, 5000.f, 1000.f, FMod) \
+    F (layer##n##Reso,    "layer" #n "_resonance",   "Layer " #n " Resonance",    Unit::Pct,   0.f,   1.f,   0.2f,  0.f,  FMod) \
+    F (layer##n##Drive,   "layer" #n "_drive",       "Layer " #n " Drive",        Unit::Pct,   0.f,   1.f,   0.f,   0.f,  FMod) \
+    C (layer##n##EnvMode, "layer" #n "_env_mode",    "Layer " #n " Env Mode",     layerEnvModes, 1, FNone) \
+    F (layer##n##Atk,     "layer" #n "_attack",      "Layer " #n " Attack",       Unit::Ms,    0.f, 2500.f,  1.f,  20.f,  FMod) \
+    F (layer##n##Dec,     "layer" #n "_decay",       "Layer " #n " Decay",        Unit::Ms,    1.f, 2500.f, 120.f, 150.f, FMod) \
+    F (layer##n##Sus,     "layer" #n "_sustain",     "Layer " #n " Sustain",      Unit::Pct,   0.f,   1.f,   0.3f,  0.f,  FMod) \
+    F (layer##n##Rel,     "layer" #n "_release",     "Layer " #n " Release",      Unit::Ms,    0.f, 2500.f,  30.f,  60.f,  FMod) \
+    F (layer##n##Delay,   "layer" #n "_env_delay",   "Layer " #n " Env Delay",    Unit::Ms,    0.f, 2500.f,  0.f, 100.f,  FMod) \
+    F (layer##n##EnvAmt,  "layer" #n "_env_amount",  "Layer " #n " Env Amount",   Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod) \
+    F (layer##n##TScale,  "layer" #n "_time_scale",  "Layer " #n " Time Scale",   Unit::Pct,  0.1f,   4.f,   1.f,   1.f,  FMod) \
+    B (layer##n##Mute,    "layer" #n "_mute",        "Layer " #n " Mute",         false, FNone) \
+    B (layer##n##Solo,    "layer" #n "_solo",        "Layer " #n " Solo",         false, FNone) \
+    C (layer##n##Route,   "layer" #n "_route_mode",  "Layer " #n " Routing",      routeModes, 0, FNone) \
+    B (layer##n##PreFdr,  "layer" #n "_send_pre",    "Layer " #n " Pre-Fader Sends", false, FNone) \
+    F (layer##n##SPunch,  "layer" #n "_send_punch",  "Layer " #n " Send Punch",   Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (layer##n##SBody,   "layer" #n "_send_body",   "Layer " #n " Send Body",    Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (layer##n##STail,   "layer" #n "_send_tail",   "Layer " #n " Send Tail",    Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (layer##n##SSub,    "layer" #n "_send_sub",    "Layer " #n " Send Sub",     Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (layer##n##STex,    "layer" #n "_send_texture","Layer " #n " Send Texture", Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (layer##n##SCust,   "layer" #n "_send_custom", "Layer " #n " Send Custom",  Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (layer##n##SMaster, "layer" #n "_send_master", "Layer " #n " Send Master",  Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    C (layer##n##LinkSrc, "layer" #n "_link_source", "Layer " #n " Link To",      layerLinks, 0, FNone) \
+    B (layer##n##LinkLvl, "layer" #n "_link_level",  "Layer " #n " Link Level",   false, FNone) \
+    B (layer##n##LinkPit, "layer" #n "_link_pitch",  "Layer " #n " Link Pitch",   false, FNone) \
+    B (layer##n##LinkLen, "layer" #n "_link_length", "Layer " #n " Link Length",  false, FNone) \
+    B (layer##n##LinkEnv, "layer" #n "_link_env",    "Layer " #n " Link Envelope",false, FNone)
+    // module 04: LAYER GROUP control
+#define FGE_GROUP(F, B, C, X, id, nm, def) \
+    B (grp##X##On,    "group_" id "_on",     nm " Group On",     true, FNone) \
+    F (grp##X##Level, "group_" id "_level",  nm " Group Level",  Unit::Db,  -60.f,  12.f,   0.f,   0.f,  FMod | FSmooth) \
+    F (grp##X##Pan,   "group_" id "_pan",    nm " Group Pan",    Unit::Bip,  -1.f,   1.f,   0.f,   0.f,  FMod) \
+    F (grp##X##Width, "group_" id "_width",  nm " Group Width",  Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod) \
+    B (grp##X##Mute,  "group_" id "_mute",   nm " Group Mute",   false, FNone) \
+    B (grp##X##Solo,  "group_" id "_solo",   nm " Group Solo",   false, FNone) \
+    C (grp##X##Out,   "group_" id "_output", nm " Group Output", busOutputs, def, FNone)
     // FM MATRIX: modulator a -> carrier b (frequency modulation, the diagonal is each oscillator's FEEDBACK)
 #define FGE_FM(F, a, b) \
     F (fm##a##to##b,     "fm_" #a "_to_" #b,     "FM Osc " #a " -> Osc " #b, Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod)

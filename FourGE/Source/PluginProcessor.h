@@ -84,7 +84,7 @@ public:
     // the tables the engine plays now (shared copies for the waveform renderer)
     std::array<fge::dsp::TablePtr, fge::dsp::maxOsc> currentTables() const { const juce::SpinLock::ScopedLockType l (tableLock); return tablesNow; }
     void refreshTables();                                    // message thread (timer) / state load; cheap when nothing changed
-    static float slotMin (int slot) { return fge::env::isPitch (slot) ? -1.f : 0.f; }
+    static float slotMin (int slot) { return fge::env::isBipolar (slot) ? -1.f : 0.f; }
     int auditionNote = 31;          // G1 in FL (49 Hz)
 
 private:

@@ -32,6 +32,19 @@ namespace fge
         const juce::StringArray& syncModes()      { static const juce::StringArray a { "HARD", "SOFT" }; return a; }
         const juce::StringArray& wtTables()       { static const juce::StringArray a { "BASIC", "HARDSTYLE", "FORMANT", "METAL", "PWM SWEEP", "USER" }; return a; }
         const juce::StringArray& wtModes()        { static const juce::StringArray a { "STATIC", "LINEAR SCAN", "ENVELOPE SCAN", "LFO SCAN", "RANDOM SCAN" }; return a; }
+        const juce::StringArray& noiseKinds()     { static const juce::StringArray a { "WHITE", "PINK", "BROWN", "BLUE", "VIOLET", "METALLIC", "DIGITAL", "CUSTOM" }; return a; }
+        const juce::StringArray& filterTypes()    { static const juce::StringArray a { "LOW PASS", "HIGH PASS", "BAND PASS", "NOTCH" }; return a; }
+        const juce::StringArray& noiseEnvSources(){ static const juce::StringArray a { "OWN", "PUNCH AMP", "BODY AMP", "TAIL AMP", "SUB AMP", "DRAWN" }; return a; }
+        const juce::StringArray& randomModes()    { static const juce::StringArray a { "FIXED", "PER TRIGGER", "FREE RUN" }; return a; }
+        const juce::StringArray& trSources()      { static const juce::StringArray a { "SINE CLICK", "NOISE CLICK", "IMPULSE", "SHORT PULSE", "METALLIC CLICK", "OSC SNAP", "CUSTOM" }; return a; }
+        const juce::StringArray& trSyncs()        { static const juce::StringArray a { "KICK START", "PUNCH START", "BODY START", "TAIL START" }; return a; }
+        const juce::StringArray& busOutputs()     { static const juce::StringArray a { "PUNCH BUS", "BODY BUS", "TAIL BUS", "SUB BUS", "TEXTURE BUS", "CUSTOM BUS", "MASTER BUS" }; return a; }
+        const juce::StringArray& layerSources()   { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW", "SQUARE", "NOISE A", "NOISE B", "TRANSIENT", "OSC 1", "OSC 2", "OSC 3", "OSC 4" }; return a; }
+        const juce::StringArray& layerGroups()    { static const juce::StringArray a { "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE", "CUSTOM" }; return a; }
+        const juce::StringArray& layerEnvModes()  { static const juce::StringArray a { "ADSR", "ONE SHOT", "MULTIPOINT" }; return a; }
+        const juce::StringArray& routeModes()     { static const juce::StringArray a { "SINGLE (GROUP)", "MULTI (SENDS)" }; return a; }
+        const juce::StringArray& layerLinks()     { static const juce::StringArray a { "INDEPENDENT", "LAYER 1", "LAYER 2", "LAYER 3", "LAYER 4", "LAYER 5", "LAYER 6", "LAYER 7", "LAYER 8" }; return a; }
+        const juce::StringArray& soloModes()      { static const juce::StringArray a { "SOLO PROCESSED", "SOLO SOURCE" }; return a; }
         const juce::StringArray& none()           { static const juce::StringArray a; return a; }
     }
 

@@ -166,22 +166,34 @@ namespace fge::env
         FilterPunch, FilterBody, FilterTail,
         DrivePunch, DriveBody, DriveTail, DriveSub,
         ResoBody, ResoTail,
+        // module 04 (appended)
+        AmpNoiseA, AmpNoiseB, ModNoiseA, ModNoiseB, ProfileNoiseA, ProfileNoiseB, TransientCustom,
+        AmpLayer1, AmpLayer2, AmpLayer3, AmpLayer4, AmpLayer5, AmpLayer6, AmpLayer7, AmpLayer8,
         NumSlots
     };
     inline bool isPitch (int slot) { return slot <= PitchSub; }
+    inline bool isBipolar (int slot) { return isPitch (slot) || slot == TransientCustom; }     // -1..1 shapes
     inline const char* slotKey (int s)
     {
         static const char* k[NumSlots] { "env_pitch_punch", "env_pitch_body", "env_pitch_tail", "env_pitch_sub",
                                          "env_amp_punch", "env_amp_body", "env_amp_tail", "env_amp_sub",
                                          "env_filter_punch", "env_filter_body", "env_filter_tail",
                                          "env_drive_punch", "env_drive_body", "env_drive_tail", "env_drive_sub",
-                                         "env_reso_body", "env_reso_tail" };
+                                         "env_reso_body", "env_reso_tail",
+                                         "env_amp_noise_a", "env_amp_noise_b", "env_mod_noise_a", "env_mod_noise_b", "env_profile_noise_a", "env_profile_noise_b",
+                                         "env_transient_custom",
+                                         "env_amp_layer1", "env_amp_layer2", "env_amp_layer3", "env_amp_layer4", "env_amp_layer5", "env_amp_layer6",
+                                         "env_amp_layer7", "env_amp_layer8" };
         return k[juce::jlimit (0, (int) NumSlots - 1, s)];
     }
     // the default drawn shape of every slot
     inline Shape defaultShape (int slot)
     {
         if (isPitch (slot)) return Shape::make ({ { 0.f, 1.f }, { 0.35f, 0.25f }, { 1.f, 0.f } });           // a drop, editable
+        if (slot == ProfileNoiseA || slot == ProfileNoiseB)                                                   // flat noise spectrum (low -> high)
+            return Shape::make ({ { 0.f, 0.5f }, { 1.f, 0.5f } }, Linear);
+        if (slot == TransientCustom)                                                                          // a short snap: up, down, ring out
+            return Shape::make ({ { 0.f, 0.f }, { 0.08f, 1.f }, { 0.22f, -0.8f }, { 0.45f, 0.35f }, { 0.7f, -0.1f }, { 1.f, 0.f } }, EaseInOut);
         if (slot <= AmpSub) return Shape::make ({ { 0.f, 1.f }, { 0.75f, 0.85f }, { 1.f, 0.f } });           // body then release
         return Shape::make ({ { 0.f, 1.f }, { 0.3f, 0.35f }, { 1.f, 0.f } });                                // falls over the part
     }

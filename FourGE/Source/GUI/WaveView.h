@@ -8,6 +8,7 @@
 #include "../Parameters/ParamFrame.h"
 #include "../DSP/Env/MultiEnv.h"
 #include "../DSP/Osc/Wavetable.h"
+#include "../DSP/Dist/Distortion.h"
 #include <array>
 #include <atomic>
 #include <mutex>
@@ -23,7 +24,7 @@ namespace fge::gui
         // call from the editor timer: re-renders (in the background) when the parameters changed
         using Tables = std::array<dsp::TablePtr, 8>;
         void update (const ParamFrame&, int note, const env::Bank* shapes = nullptr, uint32_t shapesVersion = 0,
-                     const Tables* tables = nullptr);
+                     const Tables* tables = nullptr, const dsp::dist::DistData* dist = nullptr, uint32_t distVersion = 0);
         void paint (juce::Graphics&) override;
         void mouseDrag (const juce::MouseEvent&) override;
         void mouseMove (const juce::MouseEvent&) override { setMouseCursor (juce::MouseCursor::DraggingHandCursor); }
@@ -44,6 +45,7 @@ namespace fge::gui
         Tables lastTables;
         std::unique_ptr<env::Bank> pendingBank, bank;
         Tables pendingTables, tables;   // the drawn shapes (copied when they change)
+        dsp::dist::DistData pendingDist, distData; uint32_t lastDist = 0xffffffffu;   // the waveshaper curves
         Render shown;
         std::atomic<bool> ready { false };
         juce::WaitableEvent wake;

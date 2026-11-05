@@ -135,6 +135,12 @@ wartości na blok), `Source/DSP/Core/` (Blocks: Osc / Noise / kickEnv / pitchSha
 referencji `kmatch4.py`, A/B `kab4.py`, cechy `kana.py`, wykresy `kplot.py`). Nowy kod wtyczki `Fg5K` (stare projekty z v0.4 zostają na starym pliku).
 Wniosek z A/B: rdzeń (1 oscylator na część) daje czyste, „sterylne” prążki – gęstość referencji przyjdzie z M03 (unison / drift), M04 (szum),
 M05 (stopnie przesteru). DIRTY potrzebuje ~40 dB gainu, żeby mieć górę jak referencje (zakresy drive per CHARACTER w `Engine::cook`).
+**STAN 2026-11-05: MODUŁ 05 GOTOWY** – `DSP/Dist/Distortion.h` (11 krzywych w tablicach 8192 + ADAA1, halfbandy 8x / 16x polyphase,
+filtry pre / post, modulacja, AUTO GAIN, de-click przy zmianie typu, `staticCurve` dla wizualizera) + `DistCook.h`; pula 16 stopni z LOCATION
+(GLOBAL / PUNCH–SUB / TEXTURE / LAYER 1–8) i ORDER, bloki SERIAL / PARALLEL / MULTIBAND (LR4 + all-pass); krzywe CUSTOM w child DIST;
+`Presets/DistTools.h` (pula, 18 presetów, pliki .4gstage/.4gchain/.4gmband/.4gpar/.4gdist), `GUI/DistPage.*` + `GUI/DistScope.h` (tło).
+Testy M05 19.1–19.18 + GUI OK; makra M05 → moduł 09. Następny: moduł 06.
+
 **STAN 2026-11-05 (rano): MODUŁ 04 GOTOWY** – `DSP/Layers/` (NoiseGen, Transient, Layers, LayerCook, PhaseAlign), 7 stereo magistral w silniku
 (PUNCH / BODY / TAIL / SUB dokładane do kanałów części, TEXTURE / CUSTOM przed clipem, MASTER po clipie), AttackShaper przed clipem,
 15 nowych slotów rysowanych obwiedni, GUI `GUI/LayerPage.*` + `GUI/KickPreview.h` (rendery i analiza fazy w tle), narzędzia / pliki

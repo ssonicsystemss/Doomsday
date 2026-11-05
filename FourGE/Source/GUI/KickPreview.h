@@ -7,6 +7,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../Parameters/ParamFrame.h"
 #include "../DSP/Layers/PhaseAlign.h"
+#include "../DSP/Dist/Distortion.h"
 #include <functional>
 #include <mutex>
 
@@ -23,11 +24,11 @@ namespace fge::gui
         ~KickPreview() override { signalThreadShouldExit(); wake.signal(); stopThread (4000); }
         void setJobs (std::vector<Job> j) { std::lock_guard<std::mutex> l (lock); jobs = std::move (j); dirty = true; wake.signal(); }
         // re-render when the parameters / shapes / tables change
-        void update (const ParamFrame& f, const env::Bank& bank, uint32_t bankVersion, const Tables& t)
+        void update (const ParamFrame& f, const env::Bank& bank, uint32_t bankVersion, const Tables& t, const dsp::dist::DistData* dist = nullptr, uint32_t distVersion = 0)
         {
-            if (bankVersion == lastBank && t == lastTables && std::equal (f.v.begin(), f.v.end(), lastF.v.begin())) return;
-            lastBank = bankVersion; lastTables = t; lastF = f;
-            std::lock_guard<std::mutex> l (lock); frame = f; tables = t; if (! bankCopy) bankCopy = std::make_unique<env::Bank>(); *bankCopy = bank; dirty = true; wake.signal();
+            if (bankVersion == lastBank && t == lastTables && distVersion == lastDist && std::equal (f.v.begin(), f.v.end(), lastF.v.begin())) return;
+            lastBank = bankVersion; lastTables = t; lastF = f; lastDist = distVersion;
+            std::lock_guard<std::mutex> l (lock); frame = f; tables = t; if (dist != nullptr) distData = *dist; if (! bankCopy) bankCopy = std::make_unique<env::Bank>(); *bankCopy = bank; dirty = true; wake.signal();
         }
         std::vector<Wave> waves() const { std::lock_guard<std::mutex> l (lock); return result; }
         // PHASE ALIGN: analysed here; 'done' is called on the message thread
@@ -44,9 +45,10 @@ namespace fge::gui
             while (! threadShouldExit())
             {
                 wake.wait (250);
-                std::vector<Job> j; ParamFrame f; Tables t; env::Bank b; bool doRender = false; AlignReq a;
+                std::vector<Job> j; ParamFrame f; Tables t; env::Bank b; bool doRender = false; AlignReq a; dsp::dist::DistData dd;
                 {
                     std::lock_guard<std::mutex> l (lock);
+                    dd = distData;
                     if (dirty && bankCopy) { j = jobs; f = frame; t = tables; b = *bankCopy; dirty = false; doRender = true; }
                     a = align; align.on = false;
                     if (a.on && bankCopy) { f = frame; t = tables; b = *bankCopy; }
@@ -65,7 +67,7 @@ namespace fge::gui
                 {
                     if (threadShouldExit()) return;
                     ParamFrame g = f; if (job.edit) job.edit (g);
-                    auto x = renderKick (g, 31, 44100.0, job.seconds, -1, 1.f, &b, 0.0, -1.0, &ot);
+                    auto x = renderKick (g, 31, 44100.0, job.seconds, -1, 1.f, &b, 0.0, -1.0, &ot, nullptr, &dd);
                     Wave w; w.lo.assign (points, 0.f); w.hi.assign (points, 0.f);
                     const int n = x.getNumSamples();
                     for (int k = 0; k < points; ++k)
@@ -85,7 +87,8 @@ namespace fge::gui
         struct AlignReq { bool on = false; int ref = 0, target = 1; float fromMs = 0.f, lenMs = 50.f, search = 360.f; int note = 31; };
         mutable std::mutex lock;
         std::vector<Job> jobs;
-        ParamFrame frame, lastF; Tables tables, lastTables; uint32_t lastBank = 0;
+        ParamFrame frame, lastF; Tables tables, lastTables; uint32_t lastBank = 0, lastDist = 0xffffffffu;
+        dsp::dist::DistData distData;
         std::unique_ptr<env::Bank> bankCopy;
         bool dirty = false;
         std::vector<Wave> result;

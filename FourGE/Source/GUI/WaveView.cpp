@@ -10,10 +10,12 @@ namespace fge::gui
     WaveView::WaveView() : Thread ("4GE wave") { startThread (Thread::Priority::low); }
     WaveView::~WaveView() { signalThreadShouldExit(); wake.signal(); stopThread (3000); }
 
-    void WaveView::update (const ParamFrame& f, int note, const env::Bank* shapes, uint32_t shapesVersion, const Tables* tb)
+    void WaveView::update (const ParamFrame& f, int note, const env::Bank* shapes, uint32_t shapesVersion, const Tables* tb, const dsp::dist::DistData* dist, uint32_t distVersion)
     {
         const bool tablesChanged = tb != nullptr && *tb != lastTables;
-        if (! tablesChanged && lastNote == note && shapesVersion == lastVersion && std::equal (f.v.begin(), f.v.end(), lastAsked.v.begin())) return;
+        const bool distChanged = dist != nullptr && distVersion != lastDist;
+        if (distChanged) { lastDist = distVersion; std::lock_guard<std::mutex> l (lock); pendingDist = *dist; }
+        if (! tablesChanged && ! distChanged && lastNote == note && shapesVersion == lastVersion && std::equal (f.v.begin(), f.v.end(), lastAsked.v.begin())) return;
         if (tb != nullptr) lastTables = *tb;
         lastAsked = f; lastNote = note;
         std::unique_ptr<env::Bank> copy;
@@ -30,7 +32,7 @@ namespace fge::gui
             wake.wait (200);
             ParamFrame f; int note;
             { std::lock_guard<std::mutex> l (lock); if (! wanted) continue; f = pending; note = pendingNote; wanted = false;
-              if (pendingBank) bank = std::move (pendingBank); tables = pendingTables; }
+              if (pendingBank) bank = std::move (pendingBank); tables = pendingTables; distData = pendingDist; }
             const env::Bank* b0 = bank.get();
             dsp::OscTables ot;
             for (size_t i = 0; i < tables.size(); ++i) ot.t[i] = tables[i].get();
@@ -38,7 +40,7 @@ namespace fge::gui
             const double secs = lenMs / 1000.0;
             Render r;
             r.ms = lenMs;
-            auto full = renderKick (f, note, rate, secs, -1, 1.f, b0, 0.0, -1.0, &ot);
+            auto full = renderKick (f, note, rate, secs, -1, 1.f, b0, 0.0, -1.0, &ot, nullptr, &distData);
             const int n = full.getNumSamples();
             r.full.resize ((size_t) n); r.stereoL.resize ((size_t) n); r.stereoR.resize ((size_t) n);
             for (int i = 0; i < n; ++i)
@@ -48,7 +50,7 @@ namespace fge::gui
             }
             for (int p = 0; p < 4 && ! threadShouldExit(); ++p)
             {
-                auto b = renderKick (f, note, rate, secs, p, 1.f, b0, 0.0, -1.0, &ot);
+                auto b = renderKick (f, note, rate, secs, p, 1.f, b0, 0.0, -1.0, &ot, nullptr, &distData);
                 auto& v = r.part[(size_t) p];
                 v.resize ((size_t) n);
                 for (int i = 0; i < n; ++i) v[(size_t) i] = 0.5f * (b.getSample (0, i) + b.getSample (1, i));

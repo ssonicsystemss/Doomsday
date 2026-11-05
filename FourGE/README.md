@@ -112,6 +112,29 @@ Przycisk **LAYERS** u góry, w środku trzy widoki:
 - PRESETS / SAVE / LOAD w każdym widoku (`Dokumenty\4GE\Layers`): szumy (WHITE IMPACT, DARK NOISE…), transienty (CLASSIC CLICK, HARD IMPACT…)
   i zestawy warstw (CLASSIC PUNCH STACK, MODERN BODY STACK, RAW TAIL TEXTURE…).
 
+## Strona DISTORTION (moduł 05)
+Przycisk **DISTORTION** u góry. 16 stopni przesteru dla całego kicka – każdy stawiasz w jednym miejscu (u góry):
+**GLOBAL** (cały kick), **PUNCH / BODY / TAIL / SUB** (ta część, przed jej suwakiem), **TEXTURE** (magistrala TEXTURE) albo **L1–L8** (jedna warstwa).
+- Po lewej **CHAIN**: stopnie tego miejsca w kolejności grania (góra → dół). ADD / DUPLICATE / COPY / PASTE / UP / DOWN / DELETE –
+  kolejność zmienia dźwięk. Pod spodem PRESETS / SAVE / LOAD, crossovery multibandu, GLOBAL POSITION (globalny przester przed master clipem
+  = sub czysty, albo po nim = z subem) i OFFLINE RENDER (eksport o stopień lepszy oversampling).
+- **STAGE**: TYPE – 11 algorytmów, każdy z własną krzywą: SOFT CLIP, HARD CLIP, TUBE (osobno EVEN / ODD harmoniczne), DIODE, WAVEFOLD
+  (prawdziwe zawijanie, STAGES), BITCRUSH (BITS, SR REDUCE, DITHER), RECTIFIER, ASYMMETRIC (osobny drive / próg dla dołu), FOLDBACK
+  (odbicie od progu), DIGITAL CLIP (HARDNESS), CUSTOM (rysujesz własną krzywą w oknie TRANSFER CURVE: ciągnij punkty, dwuklik = dodaj / usuń).
+  Widać tylko gałki, których dany typ naprawdę używa. MORPH + MORPH TO = płynne przejście między dwoma algorytmami (grają oba).
+  PATH: SERIAL albo PARALLEL A / B / C (gałęzie z tego samego sygnału, sumowane). BAND: cały sygnał albo tylko LOW / MID / HIGH
+  (multiband, pasma sumują się płasko). DRIVE + DRIVE CURVE, INPUT / OUTPUT, MIX, BIAS, AUTO GAIN, OVERSAMPLING 8x / 16x.
+- **PRE FILTER** (co idzie w przester) i **POST FILTER** (co z niego wychodzi) – LP / HP / BP / NOTCH / LADDER, 6–48 dB, RESO, DRIVE.
+- **DYNAMIC DISTORTION**: przester w czasie – źródło: własna obwiednia (ATTACK / DECAY), rysowana, obwiednia pitchu, poziom wejścia albo
+  velocity → DRIVE, BIAS, THRESHOLD, FOLD, MIX, OUTPUT, POST CUTOFF.
+- Na dole prawdziwe widoki (liczone w tle): **TRANSFER CURVE** (krzywa z tych samych tablic co dźwięk), **WAVEFORM** przed (linia) / po
+  (wypełnienie) i **SPECTRUM** przed / po (FREEZE, zakres, kanał MID / L / R / SIDE, odsłuch jednego pasma multibandu).
+- Presety (zastępują cały przester): EARLY – CLASSIC SATURATION, SOFT PUNCH, VINTAGE CLIP; MODERN – MODERN HARD CLIP, CLEAN AGGRESSION,
+  DENSE DISTORTION; RAWSTYLE – RAW ASYMMETRIC, BRUTAL FOLD, HARD DIGITAL, CRUSHED TAIL; EXPERIMENTAL – METALLIC FOLD, FM CRUSH,
+  DIGITAL CHAOS, COMPLEX HARMONICS; UTILITY – SUB CLEANUP, PUNCH CONTROL, HIGH TEXTURE, MASTER CLIP.
+  SAVE zapisuje (`Dokumenty\4GE\Distortion`): jeden stopień, cały łańcuch, blok multiband, blok parallel albo pełny przester.
+- Makra przesteru (GRIT, HARDNESS…) dojdą w module 09 jako przypisania do 8 głównych makr.
+
 ## Presety
 INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
@@ -119,6 +142,5 @@ MODERN / RAW: CLICK na początku (stuknięcie), tok na HOLD z szumem pod spodem 
 TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – stąd power.
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 05 przester → 04 szum / transient / warstwy →
-05 przester → 06 filtry / screech → 07 EQ → 08 dynamika → 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
+Moduł po module wg `PLAN.md`: 06 filtry / screech → 07 EQ → 08 dynamika → 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
 13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.

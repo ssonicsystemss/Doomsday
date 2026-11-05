@@ -15,6 +15,7 @@
 #include "Env/KickEnvelopes.h"
 #include "Osc/OscTables.h"
 #include "Layers/LayerCook.h"
+#include "Dist/DistCook.h"
 #include "DoomsdayKick.h"
 #include "../Parameters/ParamFrame.h"
 #include <array>
@@ -43,6 +44,7 @@ namespace fge
         float holdMs = 0.f, holdGain = 1.f;
         dsp::OscBankSettings osc;                 // module 03: the oscillators routed into the parts
         dsp::LayerBankSettings lb;                // module 04: noise A / B, transient, layers
+        dsp::dist::DistBank dist;                 // module 05: the distortion stages and their order per location
         bool lbAny = false;
         float lbEndMs = 0.f;                      // when the last layer / noise / click ends       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
     };
@@ -187,8 +189,12 @@ namespace fge
                                                     juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f)), fTail,
                                                     juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f)) };
                     float bl[dsp::NumBus] {}, br[dsp::NumBus] {};
+                    dsp::dist::ModCtx mc;
+                    mc.sinceHitMs = ms; mc.velocity = vel;
+                    const float depth = cfg.pitch[PTail].depthSt;
+                    mc.pitchNorm = std::abs (depth) > 0.01f ? juce::jlimit (0.f, 1.f, pe.semis (PTail, ms) / depth) : 0.f;
                     lbv.tick (cfg.lb, cfg.osc, tables != nullptr ? *tables : noTables, hz, amp, noteHz / 49.f, ms, ks.inv, (float) ks.rate,
-                              ext, extL, extR, bl, br);
+                              ext, extL, extR, bl, br, &cfg.dist, &mc);
                     for (int k = 0; k < dsp::NumBus; ++k) { bus[6 + 2 * k][i] += bl[k] * gate; bus[7 + 2 * k][i] += br[k] * gate; }
                 }
                 if (ms < cfg.partEnd[PPunch])
@@ -290,6 +296,9 @@ namespace fge
             os->initProcessing ((size_t) maxBlockSize);
             bus.setSize (numBusCh, maxBlockSize * osFactor);
             shaper.prepare (sampleRate * osFactor);
+            distTables.allocate();
+            for (auto& ch : distChain) ch.reset();
+            sinceHitMs = 1.0e9f;
             wl1 = wl2 = wh1 = wh2 = wr1 = wr2 = {}; clipped = false;
             stereo.setSize (2, maxBlockSize);
             for (auto& v : voices) v = KickVoice();
@@ -340,6 +349,7 @@ namespace fge
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter);
             shaper.hit();
+            sinceHitMs = 0.f; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             hits.fetch_add (1);
         }
         void release (int) { for (auto& v : voices) v.noteOff (cfg); }
@@ -437,6 +447,7 @@ namespace fge
             cfg.holdGain = db (f[P::tailHoldLvl]);
             cookOscillators (f);
             cookLayers (f, b);
+            dsp::dist::cookDist (f, distData, b, cfg.dist, distTables, cfg.ks.rate, offline);
 
             // ---- envelope slots (module 02, 7)
             const int aMode[4] { P::punchAmpMode, P::bodyAmpMode, P::tailAmpMode, P::subAmpMode };
@@ -584,6 +595,7 @@ namespace fge
             float* b[numBusCh];
             for (int c = 0; c < numBusCh; ++c) b[c] = bus.getWritePointer (c);
             for (auto& v : voices) { v.tables = tables; v.render (cfg, b, on); }
+            for (int l = 0; l < 6; ++l) distOn[(size_t) l] = cfg.dist.count[(size_t) l] > 0;
             clockSec += (double) n / sr;
 
             stereo.clear (0, 0, n); stereo.clear (1, 0, n);
@@ -603,9 +615,17 @@ namespace fge
                     if (cfg.lbAny)
                         for (int i = 0; i < on; ++i)
                         {
-                            L[i] += b[6 + 2 * dsp::BusTexture][i] * tg + b[6 + 2 * dsp::BusCustom][i] * cg;
-                            R[i] += b[7 + 2 * dsp::BusTexture][i] * tg + b[7 + 2 * dsp::BusCustom][i] * cg;
+                            float tl = b[6 + 2 * dsp::BusTexture][i] * tg, tr = b[7 + 2 * dsp::BusTexture][i] * tg;
+                            if (distOn[dsp::dist::LocTexture])                             // TEXTURE group distortion
+                            {
+                                const auto mc = modCtx (i);
+                                tl = distChain[dsp::dist::LocTexture * 2].process (cfg.dist, dsp::dist::LocTexture, tl, mc, cfg.ks.rate);
+                                tr = distChain[dsp::dist::LocTexture * 2 + 1].process (cfg.dist, dsp::dist::LocTexture, tr, mc, cfg.ks.rate);
+                            }
+                            L[i] += tl + b[6 + 2 * dsp::BusCustom][i] * cg;
+                            R[i] += tr + b[7 + 2 * dsp::BusCustom][i] * cg;
                         }
+                    if (distOn[dsp::dist::LocGlobal] && cfg.dist.globalPos == 0) globalDist (L, R, on);   // GLOBAL, before the clip (sub clean)
                     shaper.process (cfg.lb.shaper, L, R, on);
                 }
                 if (c == 3 && cfg.clipG > 1.0001f)
@@ -627,10 +647,17 @@ namespace fge
                         const float low = wl2.lp (wl1.lp (x[i], cfg.widthSplit), cfg.widthSplit);
                         const float hl = wh2.hp (wh1.hp (b[4][i], cfg.widthSplit), cfg.widthSplit), hr = wr2.hp (wr1.hp (b[5][i], cfg.widthSplit), cfg.widthSplit);
                         const float m = 0.5f * (hl + hr), sd = 0.5f * (hl - hr) * cfg.width;
-                        yl = (low + m + sd) * gl; yr = (low + m - sd) * gr;
+                        yl = low + m + sd; yr = low + m - sd;
                     }
-                    else { yl = x[i] * gl; yr = x[i] * gr; }
-                    yl += b[6 + 2 * c][i] * gl; yr += b[7 + 2 * c][i] * gr;          // module 04: layers on this part's bus
+                    else { yl = x[i]; yr = x[i]; }
+                    yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i];                    // module 04: layers on this part's bus
+                    if (distOn[(size_t) c + 1])                                       // module 05: the GROUP distortion (pre fader)
+                    {
+                        const auto mc = modCtx (i);
+                        yl = distChain[(size_t) (c + 1) * 2].process (cfg.dist, c + 1, yl, mc, cfg.ks.rate);
+                        yr = distChain[(size_t) (c + 1) * 2 + 1].process (cfg.dist, c + 1, yr, mc, cfg.ks.rate);
+                    }
+                    yl *= gl; yr *= gr;
                     L[i] = (c == 0 ? 0.f : L[i]) + yl;
                     R[i] = (c == 0 ? 0.f : R[i]) + yr;
                     p = juce::jmax (p, std::abs (yl), std::abs (yr));
@@ -638,8 +665,10 @@ namespace fge
                 pk[(size_t) c] = p;
                 gainNow[(size_t) c] = g1;
             }
+            if (distOn[dsp::dist::LocGlobal] && cfg.dist.globalPos == 1) globalDist (L, R, on);       // GLOBAL, after the clip (with the sub)
             if (cfg.lbAny)                                                   // the MASTER bus: after the clip
                 for (int i = 0; i < on; ++i) { L[i] += b[6 + 2 * dsp::BusMaster][i]; R[i] += b[7 + 2 * dsp::BusMaster][i]; }
+            sinceHitMs += (float) on * 1000.f / (float) cfg.ks.rate;
             os->processSamplesDown (blk);
             const float m0 = masterNow, m1 = masterTarget, invN = 1.f / (float) n;
             const float r = (float) std::exp (-juce::MathConstants<double>::twoPi * 5.0 / sr);
@@ -658,6 +687,41 @@ namespace fge
             for (int c = 0; c < dsp::NumParts; ++c) partPeak[(size_t) c].store (juce::jmax (partPeak[(size_t) c].load(), pk[(size_t) c]));
             outPeak.store (juce::jmax (outPeak.load(), opk));
         }
+
+        // module 05: what moves the stages' modulation at engine level (since the last hit, the tail pitch envelope, the velocity)
+        dsp::dist::ModCtx modCtx (int i)
+        {
+            dsp::dist::ModCtx m;
+            m.sinceHitMs = sinceHitMs + (float) i * 1000.f / (float) cfg.ks.rate;
+            if ((i & 15) == 0)
+            {
+                PitchEval pe; pe.c = &cfg;
+                const float depth = cfg.pitch[dsp::PTail].depthSt;
+                pitchNormNow = std::abs (depth) > 0.01f ? juce::jlimit (0.f, 1.f, pe.semis (dsp::PTail, m.sinceHitMs) / depth) : 0.f;
+            }
+            m.pitchNorm = pitchNormNow; m.velocity = lastVelocity;
+            return m;
+        }
+        void globalDist (float* L, float* R, int on)
+        {
+            for (int i = 0; i < on; ++i)
+            {
+                const auto mc = modCtx (i);
+                L[i] = distChain[0].process (cfg.dist, dsp::dist::LocGlobal, L[i], mc, cfg.ks.rate);
+                R[i] = distChain[1].process (cfg.dist, dsp::dist::LocGlobal, R[i], mc, cfg.ks.rate);
+            }
+        }
+        std::unique_ptr<std::array<dsp::dist::ChainState, 12>> distChainsOwned = std::make_unique<std::array<dsp::dist::ChainState, 12>>();
+        std::array<dsp::dist::ChainState, 12>& distChain = *distChainsOwned;     // GLOBAL, PUNCH, BODY, TAIL, SUB, TEXTURE x L / R
+        dsp::dist::DistTables distTables;
+        const dsp::dist::DistData* distData = nullptr;
+        std::array<bool, 6> distOn {};
+        float sinceHitMs = 1.0e9f, pitchNormNow = 0.f, lastVelocity = 1.f;
+        bool offline = false;
+    public:
+        void setDistData (const dsp::dist::DistData* d) { distData = d; }
+        void setOffline (bool o) { offline = o; }
+    private:
 
         double sr = 44100.0, hostBpm = 0.0;
         int maxBlockSize = 512;
@@ -684,7 +748,8 @@ namespace fge
     //  one kick at 'rate', 'seconds' long; soloPart = -1 the full kick, 0..3 = only that part (mixer settings kept)
     inline juce::AudioBuffer<float> renderKick (ParamFrame f, int note, double rate, double seconds, int soloPart = -1, float velocity = 1.f,
                                                 const env::Bank* bank = nullptr, double bpm = 0.0, double noteOffAt = -1.0,
-                                                const dsp::OscTables* tables = nullptr, const dsp::OscData* oscData = nullptr)
+                                                const dsp::OscTables* tables = nullptr, const dsp::OscData* oscData = nullptr,
+                                                const dsp::dist::DistData* distData = nullptr)
     {
         // no tables given: build them here from the parameters (+ the given / default oscillator data) - offline only
         std::array<dsp::TablePtr, dsp::maxOsc> keep;
@@ -710,6 +775,8 @@ namespace fge
         engine->setBank (bank);
         engine->setHostBpm (bpm);
         engine->setTables (tables);
+        engine->setDistData (distData);
+        engine->setOffline (true);                       // renderKick = the export path (OFFLINE QUALITY applies)
         juce::AudioBuffer<float> out (2, total), tmp (2, block);
         out.clear();
         for (int pos = 0; pos < total; pos += block)

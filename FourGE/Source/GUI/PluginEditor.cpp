@@ -96,8 +96,10 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     addChildComponent (*oscPage);
     layerPage = std::make_unique<fge::gui::LayerPage> (proc, lnf);
     addChildComponent (*layerPage);
-    const char* pages[4] { "MAIN", "ENVELOPES", "OSCILLATORS", "LAYERS" };
-    for (int i = 0; i < 4; ++i)
+    distortionPage = std::make_unique<fge::gui::DistPage> (proc, lnf);
+    addChildComponent (*distortionPage);
+    const char* pages[5] { "MAIN", "ENVELOPES", "OSC", "LAYERS", "DISTORTION" };
+    for (int i = 0; i < 5; ++i)
     {
         pageBtn[(size_t) i].setButtonText (pages[i]);
         pageBtn[(size_t) i].onClick = [this, i] { showPage (i); };
@@ -107,6 +109,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     pageBtn[1].setTooltip ("Draw the pitch / amplitude / filter / distortion / resonance envelope of every part.");
     pageBtn[2].setTooltip ("Four extra oscillators (waveforms, wavetables, harmonics, unison, FM, ring, sync) routed into the parts.");
     pageBtn[3].setTooltip ("Noise generators, the transient engine and 8 layers with groups and routing.");
+    pageBtn[4].setTooltip ("16 distortion stages: 11 types, serial / parallel / multiband chains on the whole kick, a part, the texture or a layer; pre / post filters, dynamic modulation, visualizer.");
     selectPart (2);
     showPage (0);
     updateEnabled();
@@ -150,7 +153,7 @@ void GeCanvas::selectPart (int i)
 
 void GeCanvas::showPage (int i)
 {
-    pageIdx = jlimit (0, 3, i);
+    pageIdx = jlimit (0, 4, i);
     const bool main = pageIdx == 0;
     for (int p = 0; p < 4; ++p)
     {
@@ -162,9 +165,10 @@ void GeCanvas::showPage (int i)
     envPage->setVisible (pageIdx == 1);
     oscPage->setVisible (pageIdx == 2);
     layerPage->setVisible (pageIdx == 3);
+    distortionPage->setVisible (pageIdx == 4);
     wave.setVisible (pageIdx < 2);
     const auto& c = palette();
-    for (int k = 0; k < 4; ++k)
+    for (int k = 0; k < 5; ++k)
     {
         pageBtn[(size_t) k].setColour (TextButton::buttonColourId, k == pageIdx ? c.red : c.control);
         pageBtn[(size_t) k].setColour (TextButton::textColourOffId, k == pageIdx ? c.ground : c.silver);
@@ -226,10 +230,12 @@ void GeCanvas::resized()
     if (envPage != nullptr) envPage->setBounds (16, 430, W - 32, H - 430 - 16);
     if (oscPage != nullptr) oscPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (layerPage != nullptr) layerPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
-    pageBtn[0].setBounds (742, 40, 106, 26);
-    pageBtn[1].setBounds (852, 40, 106, 26);
-    pageBtn[2].setBounds (742, 70, 106, 26);
-    pageBtn[3].setBounds (852, 70, 106, 26);
+    if (distortionPage != nullptr) distortionPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
+    pageBtn[0].setBounds (742, 40, 70, 26);
+    pageBtn[1].setBounds (815, 40, 70, 26);
+    pageBtn[2].setBounds (888, 40, 70, 26);
+    pageBtn[3].setBounds (742, 70, 70, 26);
+    pageBtn[4].setBounds (815, 70, 143, 26);
 }
 
 void GeCanvas::layoutDetail()
@@ -362,7 +368,7 @@ void GeCanvas::timerCallback()
 {
     presetBar.refresh();
     const auto tb = proc.currentTables();
-    wave.update (proc.frame(), proc.auditionNote, &proc.shapes(), proc.shapesVersion(), &tb);
+    wave.update (proc.frame(), proc.auditionNote, &proc.shapes(), proc.shapesVersion(), &tb, &proc.distData(), proc.distDataVersion());
     auto& e = proc.getEngine();
     for (int i = 0; i < 4; ++i) meter[(size_t) i] = jmax (e.partPeak[(size_t) i].exchange (0.f), meter[(size_t) i] * 0.85f);
     outMeter = jmax (e.outPeak.exchange (0.f), outMeter * 0.85f);

@@ -67,6 +67,22 @@ namespace fge
         const juce::StringArray& routeModes();
         const juce::StringArray& layerLinks();
         const juce::StringArray& soloModes();
+        // module 05
+        const juce::StringArray& distTypes();
+        const juce::StringArray& distLocations();
+        const juce::StringArray& distPaths();
+        const juce::StringArray& distBands();
+        const juce::StringArray& driveCurves();
+        const juce::StringArray& ditherModes();
+        const juce::StringArray& rectModes();
+        const juce::StringArray& curveInterps();
+        const juce::StringArray& stageOversampling();
+        const juce::StringArray& distFilterTypes();
+        const juce::StringArray& filterSlopes();
+        const juce::StringArray& distModSources();
+        const juce::StringArray& bandSolo();
+        const juce::StringArray& globalDistPos();
+        const juce::StringArray& offlineQuality();
         const juce::StringArray& none();
     }
 
@@ -232,7 +248,15 @@ namespace fge
     FGE_GROUP (F, B, C, Sub, "sub", "Sub", 3) FGE_GROUP (F, B, C, Texture, "texture", "Texture", 4) FGE_GROUP (F, B, C, Custom, "custom", "Custom", 5) \
     F (busTextureLvl, "bus_texture_level", "Texture Bus Level",  Unit::Db, -60.f, 12.f, 0.f, 0.f, FMod | FSmooth | FGlobal) \
     F (busCustomLvl,  "bus_custom_level",  "Custom Bus Level",   Unit::Db, -60.f, 12.f, 0.f, 0.f, FMod | FSmooth | FGlobal) \
-    C (layerSoloMode, "layer_solo_mode",   "Layer Solo Mode",    soloModes, 0, FGlobal)
+    C (layerSoloMode, "layer_solo_mode",   "Layer Solo Mode",    soloModes, 0, FGlobal) \
+    FGE_DIST (F, B, C, 1) FGE_DIST (F, B, C, 2) FGE_DIST (F, B, C, 3) FGE_DIST (F, B, C, 4) FGE_DIST (F, B, C, 5) FGE_DIST (F, B, C, 6) \
+    FGE_DIST (F, B, C, 7) FGE_DIST (F, B, C, 8) FGE_DIST (F, B, C, 9) FGE_DIST (F, B, C, 10) FGE_DIST (F, B, C, 11) FGE_DIST (F, B, C, 12) \
+    FGE_DIST (F, B, C, 13) FGE_DIST (F, B, C, 14) FGE_DIST (F, B, C, 15) FGE_DIST (F, B, C, 16) \
+    F (distXLow,    "dist_xover_low",    "Distortion Low / Mid Crossover", Unit::Hz,  20.f,  2000.f, 200.f,  200.f, FMod) \
+    F (distXHigh,   "dist_xover_high",   "Distortion Mid / High Crossover",Unit::Hz, 200.f, 20000.f, 2500.f, 2500.f, FMod) \
+    C (distBandSolo,"dist_band_solo",    "Distortion Band Solo",           bandSolo, 0, FNone) \
+    C (distGlobPos, "dist_global_position","Global Distortion Position",   globalDistPos, 0, FNone) \
+    C (distOffline, "dist_offline_quality","Offline Render Quality",       offlineQuality, 0, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -356,6 +380,61 @@ namespace fge
     F (noise##X##ModCol, id "_mod_color",   nm " Mod -> Color",     Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod) \
     F (noise##X##ModWid, id "_mod_width",   nm " Mod -> Width",     Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod) \
     F (noise##X##ModGrn, id "_mod_grain",   nm " Mod -> Grain",     Unit::Bip,  -1.f,   1.f,   0.f,  0.f,  FMod)
+    // module 05: one DISTORTION STAGE (16 in a pool; each stage sits at a LOCATION in an ORDER, serial / parallel / multiband)
+#define FGE_DIST(F, B, C, n) \
+    B (dist##n##On,      "dist" #n "_on",          "Dist " #n " On",              false, FNone) \
+    C (dist##n##Loc,     "dist" #n "_location",    "Dist " #n " Location",        distLocations, 0, FNone) \
+    F (dist##n##Order,   "dist" #n "_order",       "Dist " #n " Order",           Unit::None,  1.f,  16.f, (float) n, 0.f, FNone) \
+    C (dist##n##Path,    "dist" #n "_path",        "Dist " #n " Path",            distPaths, 0, FNone) \
+    C (dist##n##Band,    "dist" #n "_band",        "Dist " #n " Band",            distBands, 0, FNone) \
+    C (dist##n##Type,    "dist" #n "_type",        "Dist " #n " Type",            distTypes, 0, FNone) \
+    C (dist##n##MorphT,  "dist" #n "_morph_type",  "Dist " #n " Morph To",        distTypes, 1, FNone) \
+    F (dist##n##Morph,   "dist" #n "_morph",       "Dist " #n " Morph",           Unit::Pct,   0.f,   1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##Drive,   "dist" #n "_drive",       "Dist " #n " Drive",           Unit::Pct,   0.f,   1.f,  0.4f, 0.f,  FMod) \
+    C (dist##n##DCurve,  "dist" #n "_drive_curve", "Dist " #n " Drive Curve",     driveCurves, 1, FNone) \
+    F (dist##n##In,      "dist" #n "_input",       "Dist " #n " Input Gain",      Unit::Db,  -24.f,  24.f,  0.f,  0.f,  FMod) \
+    F (dist##n##Out,     "dist" #n "_output",      "Dist " #n " Output Gain",     Unit::Db,  -24.f,  12.f,  0.f,  0.f,  FMod) \
+    F (dist##n##Mix,     "dist" #n "_mix",         "Dist " #n " Mix",             Unit::Pct,   0.f,   1.f,  1.f,  0.f,  FMod) \
+    B (dist##n##Auto,    "dist" #n "_auto_gain",   "Dist " #n " Auto Gain",       true, FNone) \
+    F (dist##n##Bias,    "dist" #n "_bias",        "Dist " #n " Bias",            Unit::Bip,  -1.f,   1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##Sym,     "dist" #n "_symmetry",    "Dist " #n " Symmetry",        Unit::Bip,  -1.f,   1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##Thr,     "dist" #n "_threshold",   "Dist " #n " Threshold",       Unit::Pct,   0.f,   1.f,  0.8f, 0.f,  FMod) \
+    F (dist##n##Shape,   "dist" #n "_shape",       "Dist " #n " Knee / Hardness / Warmth / Amount", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FMod) \
+    F (dist##n##Ceil,    "dist" #n "_ceiling",     "Dist " #n " Ceiling",         Unit::Db,  -24.f,   0.f, -3.f,  0.f,  FMod) \
+    F (dist##n##Even,    "dist" #n "_even",        "Dist " #n " Even Harmonics",  Unit::Pct,   0.f,   1.f,  0.4f, 0.f,  FMod) \
+    F (dist##n##Odd,     "dist" #n "_odd",         "Dist " #n " Odd Harmonics",   Unit::Pct,   0.f,   1.f,  0.8f, 0.f,  FMod) \
+    F (dist##n##Stages,  "dist" #n "_fold_stages", "Dist " #n " Fold Stages",     Unit::None,  1.f,   8.f,  3.f,  0.f,  FMod) \
+    F (dist##n##NegDrv,  "dist" #n "_neg_drive",   "Dist " #n " Negative Drive",  Unit::Pct,   0.f,   1.f,  0.7f, 0.f,  FMod) \
+    F (dist##n##NegThr,  "dist" #n "_neg_threshold","Dist " #n " Negative Threshold",Unit::Pct, 0.f,   1.f,  0.5f, 0.f,  FMod) \
+    F (dist##n##Bits,    "dist" #n "_bits",        "Dist " #n " Bit Depth",       Unit::None,  1.f,  24.f,  8.f,  0.f,  FMod) \
+    F (dist##n##Srr,     "dist" #n "_sr_reduce",   "Dist " #n " Sample Rate Reduction", Unit::Pct, 0.01f, 1.f, 0.3f, 0.f, FMod) \
+    C (dist##n##Dither,  "dist" #n "_dither",      "Dist " #n " Dither",          ditherModes, 0, FNone) \
+    C (dist##n##Rect,    "dist" #n "_rect_mode",   "Dist " #n " Rectifier Mode",  rectModes, 1, FNone) \
+    C (dist##n##Interp,  "dist" #n "_curve_interp","Dist " #n " Curve Interpolation", curveInterps, 1, FNone) \
+    C (dist##n##Os,      "dist" #n "_oversampling","Dist " #n " Oversampling",    stageOversampling, 0, FNone) \
+    B (dist##n##PreOn,   "dist" #n "_pre_on",      "Dist " #n " Pre Filter On",   false, FNone) \
+    C (dist##n##PreType, "dist" #n "_pre_type",    "Dist " #n " Pre Filter Type", distFilterTypes, 1, FNone) \
+    F (dist##n##PreCut,  "dist" #n "_pre_cutoff",  "Dist " #n " Pre Cutoff",      Unit::Hz,   20.f, 20000.f, 120.f, 1000.f, FMod) \
+    F (dist##n##PreRes,  "dist" #n "_pre_resonance","Dist " #n " Pre Resonance",  Unit::Pct,   0.f,   1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##PreDrv,  "dist" #n "_pre_drive",   "Dist " #n " Pre Filter Drive",Unit::Pct,   0.f,   1.f,  0.f,  0.f,  FMod) \
+    C (dist##n##PreSlope,"dist" #n "_pre_slope",   "Dist " #n " Pre Slope",       filterSlopes, 1, FNone) \
+    B (dist##n##PostOn,  "dist" #n "_post_on",     "Dist " #n " Post Filter On",  false, FNone) \
+    C (dist##n##PostType,"dist" #n "_post_type",   "Dist " #n " Post Filter Type",distFilterTypes, 0, FNone) \
+    F (dist##n##PostCut, "dist" #n "_post_cutoff", "Dist " #n " Post Cutoff",     Unit::Hz,   20.f, 20000.f, 8000.f, 1000.f, FMod) \
+    F (dist##n##PostRes, "dist" #n "_post_resonance","Dist " #n " Post Resonance",Unit::Pct,   0.f,   1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##PostDrv, "dist" #n "_post_drive",  "Dist " #n " Post Filter Drive",Unit::Pct,  0.f,   1.f,  0.f,  0.f,  FMod) \
+    C (dist##n##PostSlope,"dist" #n "_post_slope", "Dist " #n " Post Slope",      filterSlopes, 1, FNone) \
+    F (dist##n##PostMix, "dist" #n "_post_mix",    "Dist " #n " Post Filter Mix", Unit::Pct,   0.f,   1.f,  1.f,  0.f,  FMod) \
+    C (dist##n##ModSrc,  "dist" #n "_mod_source",  "Dist " #n " Mod Source",      distModSources, 0, FNone) \
+    F (dist##n##ModA,    "dist" #n "_mod_attack",  "Dist " #n " Mod Attack",      Unit::Ms,    0.f, 2500.f, 20.f, 50.f,  FMod) \
+    F (dist##n##ModD,    "dist" #n "_mod_decay",   "Dist " #n " Mod Decay",       Unit::Ms,    1.f, 2500.f, 200.f, 200.f, FMod) \
+    F (dist##n##MDrive,  "dist" #n "_mod_drive",   "Dist " #n " Mod -> Drive",    Unit::Bip,  -1.f,   1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##MBias,   "dist" #n "_mod_bias",    "Dist " #n " Mod -> Bias",     Unit::Bip,  -1.f,   1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##MThr,    "dist" #n "_mod_threshold","Dist " #n " Mod -> Threshold",Unit::Bip, -1.f,   1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##MFold,   "dist" #n "_mod_fold",    "Dist " #n " Mod -> Fold / Shape",Unit::Bip,-1.f,  1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##MMix,    "dist" #n "_mod_mix",     "Dist " #n " Mod -> Mix",      Unit::Bip,  -1.f,   1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##MOut,    "dist" #n "_mod_output",  "Dist " #n " Mod -> Output",   Unit::Bip,  -1.f,   1.f,  0.f,  0.f,  FMod) \
+    F (dist##n##MCut,    "dist" #n "_mod_cutoff",  "Dist " #n " Mod -> Post Cutoff",Unit::Bip, -1.f,  1.f,  0.f,  0.f,  FMod)
     // module 04: TRANSIENT engine (click generator + attack gain + transient shaper)
 #define FGE_TRANSIENT(F, B, C) \
     B (trOn,        "tr_on",           "Transient On",          false, FNone) \

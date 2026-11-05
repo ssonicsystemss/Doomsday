@@ -4,6 +4,8 @@
 #include "../Source/PluginProcessor.h"
 #include "../Source/GUI/PluginEditor.h"
 #include "../Source/Presets/LayerTools.h"
+#include "../Source/Presets/DistTools.h"
+#include "../Source/GUI/DistScope.h"
 #include "../Source/Presets/FactoryPresets.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <cmath>
@@ -101,11 +103,39 @@ static int renderMode (const File& settings, const File& outFile)
     return 0;
 }
 
+// module 05: all 16 distortion stages (4 x 16x oversampling, parallel, multiband, pre / post, modulation) - CPU test + --bench
+static void cpuStress (GeProcessor& p)
+{
+    for (int st = 0; st < 16; ++st)
+    {
+        const String o = "dist" + String (st + 1) + "_";
+        setP (p, (o + "on").toRawUTF8(), 1.f); setP (p, (o + "location").toRawUTF8(), (float) (st / 4 == 0 ? 0 : st / 4 == 1 ? 3 : st / 4 == 2 ? 2 : 1));
+        setP (p, (o + "type").toRawUTF8(), (float) (st % 10)); setP (p, (o + "drive").toRawUTF8(), 0.6f);
+        if (st < 4) setP (p, (o + "oversampling").toRawUTF8(), 2.f);
+        if (st / 4 == 2) setP (p, (o + "path").toRawUTF8(), (float) (st % 3 + 1));
+        if (st / 4 == 3) setP (p, (o + "band").toRawUTF8(), (float) (st % 3 + 1));
+        setP (p, (o + "pre_on").toRawUTF8(), 1.f); setP (p, (o + "post_on").toRawUTF8(), 1.f); setP (p, (o + "mod_drive").toRawUTF8(), 0.3f);
+    }
+}
+static double cpuTime (GeProcessor& pp, double seconds)
+{
+    pp.prepareToPlay (sr, 512);
+    const auto t0 = Time::getMillisecondCounterHiRes();
+    for (int blk = 0; blk < (int) (seconds * sr / 512); ++blk)
+    {
+        AudioBuffer<float> bb (2, 512); bb.clear(); MidiBuffer m;
+        if (blk % 40 == 0) m.addEvent (MidiMessage::noteOn (1, 31, 1.f), 0);
+        pp.processBlock (bb, m);
+    }
+    return (Time::getMillisecondCounterHiRes() - t0) / (1000.0 * seconds);      // seconds of CPU per second of audio
+}
+
 int main (int argc, char** argv)
 {
     ScopedJuceInitialiser_GUI init;
     const File outDir (argc > 1 ? File::getCurrentWorkingDirectory().getChildFile (argv[1]) : File::getCurrentWorkingDirectory().getChildFile ("4ge_out"));
     outDir.createDirectory();
+    if (argc > 2 && String (argv[2]) == "--bench") { GeProcessor p; cpuStress (p); printf ("%.1f %% of one core\n", 100.0 * cpuTime (p, argc > 3 ? String (argv[3]).getDoubleValue() : 2.0)); return 0; }
     if (argc > 4 && String (argv[2]) == "--render") return renderMode (File::getCurrentWorkingDirectory().getChildFile (argv[3]), File::getCurrentWorkingDirectory().getChildFile (argv[4]));
 
     const ParamFrame base = ParamFrame::defaults();
@@ -358,7 +388,8 @@ int main (int argc, char** argv)
     {
         StringArray dead;
         int tested = 0;
-        for (int id = 0; id < P::count; ++id)
+        const bool quick = std::getenv ("FGE_QUICK") != nullptr;          // (developer runs: skip this long check)
+        for (int id = quick ? P::count : 0; id < P::count; ++id)
         {
             const auto& d = def (id);
             ParamFrame a = base, b = base;
@@ -486,11 +517,46 @@ int main (int argc, char** argv)
                 if (sid == "bus_custom_level") { set2 ("layer1_on", 1.f); set2 ("layer1_group", 5.f); }
                 if (sid == "layer_solo_mode") { set2 ("layer1_on", 1.f); set2 ("layer1_solo", 1.f); set2 ("layer1_filter_on", 1.f); set2 ("layer1_drive", 0.6f); }
             }
+            // module 05 contexts: the stage is ON (GLOBAL, drive up) and set to the type / mode the control belongs to
+            {
+                auto set2 = [&] (const String& pid, float v) { const int k = idOf (pid); if (k >= 0 && k != id) { a[k] = v; b[k] = v; } };
+                if (sid.startsWith ("dist") && ! sid.startsWith ("dist_"))
+                {
+                    const String o = sid.upToFirstOccurrenceOf ("_", true, false);      // "distN_"
+                    const String k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    const String other = o == "dist1_" ? "dist2_" : "dist1_";
+                    set2 (o + "on", 1.f); set2 (o + "drive", 0.7f);
+                    auto type = [&] (int t) { set2 (o + "type", (float) t); };
+                    if (k == "ceiling") type (1);
+                    if (k == "even" || k == "odd") type (2);
+                    if (k == "fold_stages") { type (4); set2 (o + "drive", 1.f); set2 (o + "shape", 1.f); }
+                    if (k == "bits" || k == "sr_reduce" || k == "dither") { type (5); if (k == "dither") set2 (o + "bits", 4.f); }
+                    if (k == "rect_mode") type (6);
+                    if (k == "neg_drive" || k == "neg_threshold") type (7);
+                    if (k == "curve_interp") type (10);
+                    if (k == "morph_type") set2 (o + "morph", 0.5f);
+                    if (k == "path") { set2 (other + "on", 1.f); set2 (other + "type", 4.f); set2 (other + "drive", 0.8f); set2 (other + "path", 2.f); }   // the other in PARALLEL B
+                    if (k == "order") { type (1); set2 (other + "on", 1.f); set2 (other + "type", 4.f); set2 (other + "drive", 0.8f); set2 (other + "order", 8.f); }
+                    if (k.startsWith ("pre_") && k != "pre_on") set2 (o + "pre_on", 1.f);
+                    if (k == "pre_resonance" || k == "pre_drive" || k == "pre_slope") set2 (o + "pre_cutoff", 1500.f);
+                    if (k.startsWith ("post_") && k != "post_on") set2 (o + "post_on", 1.f);
+                    if (k == "post_resonance" || k == "post_drive" || k == "post_slope" || k == "post_mix") set2 (o + "post_cutoff", 1500.f);
+                    if (k == "mod_source" || k == "mod_attack" || k == "mod_decay") set2 (o + "mod_drive", 0.8f);
+                    if (k == "mod_cutoff") { set2 (o + "post_on", 1.f); set2 (o + "post_cutoff", 1500.f); }
+                    if (k == "mod_fold") type (4);
+                    if (k == "mod_mix") set2 (o + "mix", 0.5f);
+                    if (k == "oversampling") { type (1); set2 (o + "drive", 1.f); }
+                }
+                if (sid == "dist_xover_low" || sid == "dist_xover_high" || sid == "dist_band_solo")
+                { set2 ("dist1_on", 1.f); set2 ("dist1_drive", 1.f); set2 ("dist1_band", sid == "dist_xover_high" ? 3.f : 1.f);
+                  if (sid == "dist_band_solo") { set2 ("dist2_on", 1.f); set2 ("dist2_band", 3.f); } }
+                if (sid == "dist_global_position" || sid == "dist_offline_quality") { set2 ("dist1_on", 1.f); set2 ("dist1_type", 1.f); set2 ("dist1_drive", 1.f); }
+            }
             if (sid.endsWith ("_trigger")) continue;                                                // MIDI behaviour (note-off / legato): checked below
             if (d.kind == Kind::Choice)
             {
                 bool any = false;
-                for (int c = 0; c < d.choices().size(); ++c) { if (c == (int) d.def) continue; b[id] = (float) c; any |= diff (renderKick (a, G1, sr, 0.6), renderKick (b, G1, sr, 0.6)) > 1.0e-4; }
+                for (int c = 0; c < d.choices().size() && ! any; ++c) { if (c == (int) d.def) continue; b[id] = (float) c; any |= diff (renderKick (a, G1, sr, 0.6), renderKick (b, G1, sr, 0.6)) > 1.0e-4; }
                 ++tested; if (! any) dead.add (d.id);
                 continue;
             }
@@ -917,6 +983,305 @@ int main (int argc, char** argv)
             check (diff (renderKick (f, 43, sr, 0.3), renderKick (t, 43, sr, 0.3)) > 1.0e-3, "M04 noise PITCH TRACKING moves the filter with the note");
         }
     }
+    // ---------------------------------------------------------------- module 05: distortion & waveshaper engine (MODULE05.md 19)
+    {
+        namespace dd = fge::dsp::dist;
+        const int ds = P::dist2On - P::dist1On;
+        auto S = [&] (int st, int first) { return first + st * ds; };
+        ParamFrame q = base; q[P::clipDrive] = 0.f;
+        auto stage = [&] (ParamFrame& f, int st, int loc, int type, float drive)
+        { f[S (st, P::dist1On)] = 1.f; f[S (st, P::dist1Loc)] = (float) loc; f[S (st, P::dist1Type)] = (float) type; f[S (st, P::dist1Drive)] = drive; f[S (st, P::dist1Order)] = (float) (st + 1); };
+        auto band = [] (const AudioBuffer<float>& x, double lo, double hi, double a, double len, double rate = 44100.0)
+        {
+            const int order = 13, n = 1 << order, start = (int) (a * rate);
+            juce::dsp::FFT fft (order);
+            std::vector<float> buf ((size_t) n * 2, 0.f);
+            const int m = jmin (n, (int) (len * rate));
+            for (int i = 0; i < m && start + i < x.getNumSamples(); ++i) buf[(size_t) i] = x.getSample (0, start + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * (float) i / (float) m));
+            fft.performFrequencyOnlyForwardTransform (buf.data());
+            double e = 0.0;
+            for (int k = 1; k < n / 2; ++k) { const double f = k * rate / n; if (f >= lo && f < hi) e += (double) buf[(size_t) k] * buf[(size_t) k]; }
+            return 10.0 * std::log10 (e + 1.0e-12);
+        };
+        auto relDiff = [&] (const AudioBuffer<float>& a, const AudioBuffer<float>& b, double from, double len)
+        {
+            const int i0 = (int) (from * sr), n = (int) (len * sr);
+            double e = 0, r = 0;
+            for (int i = i0; i < i0 + n && i < a.getNumSamples(); ++i) { const double d = a.getSample (0, i) - b.getSample (0, i); e += d * d; r += (double) b.getSample (0, i) * b.getSample (0, i); }
+            return std::sqrt (e / (r + 1.0e-12));
+        };
+        const auto dry = renderKick (q, G1, sr, 0.5);
+        // 1. eleven types, each its own curve (not one tanh with names)
+        {
+            std::vector<AudioBuffer<float>> o; String e;
+            for (int t = 0; t < dd::NumTypes; ++t) { ParamFrame f = q; stage (f, 0, dd::LocGlobal, t, 0.7f); o.push_back (renderKick (f, G1, sr, 0.5)); }
+            double minD = 1.0e9; int ma = 0, mb = 0;
+            for (int i = 0; i < dd::NumTypes; ++i) for (int j = i + 1; j < dd::NumTypes; ++j) { const double d = diff (o[(size_t) i], o[(size_t) j]); if (d < minD) { minD = d; ma = i; mb = j; } }
+            double minDry = 1.0e9; for (auto& x : o) minDry = jmin (minDry, diff (x, dry));
+            check (minD > 1.0e-3 && minDry > 1.0e-3, "M05 19.1 11 distortion types, 11 different results",
+                   "closest " + Choices::distTypes()[ma] + " / " + Choices::distTypes()[mb] + " " + String (minD, 4));
+        }
+        // 2. CUSTOM waveshaper: the drawn curve is the real curve (table = the points), two curves = two sounds
+        {
+            dd::ShapeParams sp; sp.type = dd::Custom; sp.interp = 0; const auto cv = dd::CurveData::preset (2); sp.curve = &cv;
+            dd::Table t; t.build (sp, 1.f);
+            const bool pts = std::abs (t.eval (0.25) - 0.8f) < 0.01f && std::abs (t.eval (-0.3) + 0.4f) < 0.01f && std::abs (t.eval (1.0) - 1.f) < 0.01f;
+            ParamFrame f = q; stage (f, 0, dd::LocGlobal, dd::Custom, 0.3f);
+            dd::DistData a, b; a.curve[0] = dd::CurveData::preset (1); b.curve[0] = dd::CurveData::preset (3); b.curveVersion[0] = 1;
+            const double d = diff (renderKick (f, G1, sr, 0.5, -1, 1.f, nullptr, 0.0, -1.0, nullptr, nullptr, &a), renderKick (f, G1, sr, 0.5, -1, 1.f, nullptr, 0.0, -1.0, nullptr, nullptr, &b));
+            check (pts && d > 1.0e-3, "M05 19.2 CUSTOM waveshaper: own curves, the points are the real curve", "two curves diff " + String (d, 4));
+        }
+        // 3 + 4. four+ independent stages; the order changes the signal
+        {
+            ParamFrame f = q; stage (f, 0, dd::LocTail, dd::Hard, 0.6f); stage (f, 1, dd::LocTail, dd::Wavefold, 0.6f); stage (f, 2, dd::LocTail, dd::Tube, 0.5f); stage (f, 3, dd::LocTail, dd::Digital, 0.5f);
+            const auto all = renderKick (f, G1, sr, 0.5);
+            bool each = true; String e;
+            for (int st = 0; st < 4; ++st) { ParamFrame g = f; g[S (st, P::dist1On)] = 0.f; const double d = diff (all, renderKick (g, G1, sr, 0.5)); each &= d > 1.0e-4; e << String (d, 4) << " "; }
+            ParamFrame sw = f; sw[S (0, P::dist1Order)] = 2.f; sw[S (1, P::dist1Order)] = 1.f;
+            const double ord = diff (all, renderKick (sw, G1, sr, 0.5));
+            check (each && ord > 1.0e-3, "M05 19.3 / 19.4 four independent stages, the ORDER changes the sound", "each " + e + "swap 1<->2 " + String (ord, 4));
+        }
+        // 5. serial vs parallel (and parallel is not just MIX)
+        {
+            ParamFrame ser = q; stage (ser, 0, dd::LocGlobal, dd::Wavefold, 0.7f); stage (ser, 1, dd::LocGlobal, dd::Hard, 0.7f);
+            ParamFrame par = ser; par[S (0, P::dist1Path)] = 1.f; par[S (1, P::dist1Path)] = 2.f;
+            ParamFrame mix = q; stage (mix, 0, dd::LocGlobal, dd::Wavefold, 0.7f); mix[S (0, P::dist1Mix)] = 0.5f;
+            const auto a = renderKick (ser, G1, sr, 0.5), b = renderKick (par, G1, sr, 0.5), c = renderKick (mix, G1, sr, 0.5);
+            check (diff (a, b) > 1.0e-3 && diff (b, c) > 1.0e-3, "M05 19.5 SERIAL and PARALLEL routing (parallel != MIX)", "serial vs parallel " + String (diff (a, b), 4));
+        }
+        // 6. multiband: the bands sum flat (nothing distorted), one band distorted leaves the others
+        {
+            // the magnitude response of the split + sum (an impulse through the chain at the engine rate) = flat
+            ParamFrame f = q; for (int k = 0; k < 3; ++k) { stage (f, k, dd::LocGlobal, dd::Hard, 1.f); f[S (k, P::dist1Band)] = (float) (k + 1); f[S (k, P::dist1Mix)] = 0.f; }
+            double worst = 0.0;
+            {
+                const double rate = 44100.0 * 4.0;
+                env::Bank eb; auto bank = std::make_unique<dd::DistBank>(); auto tb = std::make_unique<dd::DistTables>(); tb->allocate();
+                dd::cookDist (f, nullptr, eb, *bank, *tb, rate, false);
+                auto cs = std::make_unique<dd::ChainState>(); cs->reset();
+                const int order = 15, n = 1 << order; juce::dsp::FFT fft (order); std::vector<float> buf ((size_t) n * 2, 0.f);
+                for (int i = 0; i < n; ++i) buf[(size_t) i] = cs->process (*bank, dd::LocGlobal, i == 0 ? 1.f : 0.f, dd::ModCtx {}, rate);
+                fft.performFrequencyOnlyForwardTransform (buf.data());
+                for (int k = 1; k < n / 2; ++k) { const double fr = k * rate / n; if (fr > 20.0 && fr < 20000.0) worst = jmax (worst, std::abs (20.0 * std::log10 (buf[(size_t) k] + 1.0e-12))); }
+            }
+            const auto flat = renderKick (f, G1, sr, 0.5);
+            ParamFrame hi = f; hi[S (2, P::dist1Mix)] = 1.f; hi[S (2, P::dist1Auto)] = 0.f;     // the HIGH band distorted, LOW + MID clean
+            const auto h = renderKick (hi, G1, sr, 0.5);
+            const double lowMove = std::abs (band (h, 40, 150, 0.0, 0.18) - band (flat, 40, 150, 0.0, 0.18)), highMove = std::abs (band (h, 4000, 12000, 0.0, 0.18) - band (flat, 4000, 12000, 0.0, 0.18));
+            check (worst < 0.1 && lowMove < 1.0 && highMove > 1.0, "M05 19.6 MULTIBAND: LR4 bands sum flat, a HIGH-only stage leaves the low end",
+                   "sum dev " + String (worst, 2) + " dB, low " + String (lowMove, 2) + " dB, high " + String (highMove, 1) + " dB");
+        }
+        // 7. PRE and POST filter are separate (pre = what gets distorted, post = what comes out)
+        {
+            ParamFrame pre = q; stage (pre, 0, dd::LocGlobal, dd::Hard, 1.f); pre[S (0, P::dist1Auto)] = 0.f;
+            ParamFrame post = pre;
+            pre[S (0, P::dist1PreOn)] = 1.f; pre[S (0, P::dist1PreType)] = 0.f; pre[S (0, P::dist1PreCut)] = 300.f;
+            post[S (0, P::dist1PostOn)] = 1.f; post[S (0, P::dist1PostType)] = 0.f; post[S (0, P::dist1PostCut)] = 300.f;
+            const auto a = renderKick (pre, G1, sr, 0.5), b = renderKick (post, G1, sr, 0.5);
+            const double hfPre = band (a, 3000, 10000, 0.0, 0.18), hfPost = band (b, 3000, 10000, 0.0, 0.18);
+            check (diff (a, b) > 1.0e-3 && hfPre > hfPost + 6.0, "M05 19.7 PRE and POST filters work independently", "HF 3-10k: pre LP " + String (hfPre, 1) + " vs post LP " + String (hfPost, 1) + " dB");
+        }
+        // 8. dynamic distortion follows its envelope (drive up at the start, gone later)
+        {
+            ParamFrame f = q; stage (f, 0, dd::LocGlobal, dd::Hard, 0.f);
+            ParamFrame m = f; m[S (0, P::dist1MDrive)] = 1.f; m[S (0, P::dist1ModA)] = 0.f; m[S (0, P::dist1ModD)] = 30.f;
+            const auto a = renderKick (f, G1, sr, 0.5), b = renderKick (m, G1, sr, 0.5);
+            const double early = relDiff (b, a, 0.0, 0.03), late = relDiff (b, a, 0.3, 0.1);
+            check (early > 0.05 && early > late * 8.0, "M05 19.8 DYNAMIC distortion follows the envelope", "change early " + String (early, 3) + " late " + String (late, 4));
+        }
+        // 9. per layer / per group
+        {
+            ParamFrame f = q; for (int id : { P::mixPunchMute, P::mixBodyMute, P::mixTailMute, P::mixSubMute }) f[id] = 1.f;
+            f[P::layer1On] = 1.f; f[P::layer2On] = 1.f; f[P::layer2Pitch] = 19.f;
+            ParamFrame d = f; stage (d, 0, dd::LocLayer1, dd::Hard, 1.f);
+            ParamFrame only2 = f; only2[P::layer1On] = 0.f; ParamFrame only2d = d; only2d[P::layer1On] = 0.f;
+            const bool layerOk = diff (renderKick (f, G1, sr, 0.4), renderKick (d, G1, sr, 0.4)) > 1.0e-3 && diff (renderKick (only2, G1, sr, 0.4), renderKick (only2d, G1, sr, 0.4)) < 1.0e-7;
+            ParamFrame g = q; stage (g, 0, dd::LocBody, dd::Hard, 1.f);
+            ParamFrame gm = g; gm[P::mixBodyMute] = 1.f; ParamFrame qm = q; qm[P::mixBodyMute] = 1.f;
+            const bool groupOk = diff (renderKick (g, G1, sr, 0.4), dry) > 1.0e-3 && diff (renderKick (gm, G1, sr, 0.4), renderKick (qm, G1, sr, 0.4)) < 1.0e-7;
+            check (layerOk && groupOk, "M05 19.9 distortion per LAYER and per GROUP (only there)");
+        }
+        // 10. oversampling really lowers the aliasing (a hard clip of a 7.3 kHz sine at the engine rate)
+        {
+            const double rate = 44100.0 * 4.0;
+            auto alias = [&] (int os)
+            {
+                ParamFrame f = q; stage (f, 0, dd::LocGlobal, dd::Hard, 1.f); f[S (0, P::dist1Os)] = (float) os; f[S (0, P::dist1Auto)] = 0.f;
+                env::Bank eb; auto bank = std::make_unique<dd::DistBank>(); auto tb = std::make_unique<dd::DistTables>(); tb->allocate();
+                dd::cookDist (f, nullptr, eb, *bank, *tb, rate, false);
+                auto cs = std::make_unique<dd::ChainState>(); cs->reset();
+                AudioBuffer<float> out (1, 1 << 15);
+                for (int i = 0; i < out.getNumSamples(); ++i) out.setSample (0, i, cs->process (*bank, dd::LocGlobal, 0.5f * (float) std::sin (2.0 * MathConstants<double>::pi * 7300.0 * i / rate), dd::ModCtx {}, rate));
+                const int order = 14, n = 1 << order; juce::dsp::FFT fft (order); std::vector<float> buf ((size_t) n * 2, 0.f);
+                for (int i = 0; i < n; ++i) buf[(size_t) i] = out.getSample (0, 8000 + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * (float) i / (float) n));
+                fft.performFrequencyOnlyForwardTransform (buf.data());
+                double e = 0.0;
+                for (int k = 1; k < n / 2; ++k)
+                {
+                    const double fr = k * rate / n; if (fr < 30.0 || fr > 20000.0) continue;
+                    bool harm = false; for (int h = 1; h * 7300.0 < 21000.0; ++h) harm |= std::abs (fr - h * 7300.0) < 6.0 * rate / n;
+                    if (! harm) e += (double) buf[(size_t) k] * buf[(size_t) k];
+                }
+                return 10.0 * std::log10 (e + 1.0e-20);
+            };
+            const double a0 = alias (0), a2 = alias (2);
+            check (a2 < a0 - 6.0, "M05 19.10 OVERSAMPLING lowers the aliasing (0..20 kHz, non-harmonic)", "4x " + String (a0, 1) + " dB -> 16x " + String (a2, 1) + " dB");
+        }
+        // 11 + 12. the visualizer is real: the transfer curve = the measured stage, the spectrum = the real kick's
+        {
+            ParamFrame f = q; stage (f, 0, dd::LocGlobal, dd::Soft, 0.5f); f[S (0, P::dist1Auto)] = 0.f; f[S (0, P::dist1Bias)] = 0.f;
+            fge::gui::DistScope::Request rq; rq.f = f; rq.stage = 0;
+            const auto r = fge::gui::DistScope::analyse (rq);
+            const double rate = 44100.0 * 4.0;
+            env::Bank eb; auto bank = std::make_unique<dd::DistBank>(); auto tb = std::make_unique<dd::DistTables>(); tb->allocate();
+            dd::cookDist (f, nullptr, eb, *bank, *tb, rate, false);
+            auto cs = std::make_unique<dd::ChainState>(); cs->reset();
+            auto curveAt = [&] (float x) { const float pos = (x + 1.5f) / 3.f * (float) (r.curveX.size() - 1); const int i = jlimit (0, (int) r.curveX.size() - 2, (int) pos); const float fr = pos - (float) i;
+                                            return r.curveY[(size_t) i] + fr * (r.curveY[(size_t) i + 1] - r.curveY[(size_t) i]); };
+            float worst = 0.f, pk = 0.f, xPrev = 0.f;
+            for (int i = 0; i < 40000; ++i)
+            {
+                const float x = 1.4f * (float) std::sin (2.0 * MathConstants<double>::pi * 1000.0 * i / rate);
+                const float y = cs->process (*bank, dd::LocGlobal, x, dd::ModCtx {}, rate);
+                if (i > 20000) { worst = jmax (worst, std::abs (y - curveAt (0.5f * (x + xPrev)))); pk = jmax (pk, std::abs (y)); }
+                xPrev = x;
+            }
+            ParamFrame g = f; g[S (0, P::dist1Drive)] = 0.9f; rq.f = g;
+            const auto r2 = fge::gui::DistScope::analyse (rq);
+            const bool moves = std::abs (r2.curveY[155] - r.curveY[155]) > 0.02f;           // (x = 0.05: drive moves the curve)
+            // spectrum: a hard clip adds highs to the 'after' spectrum; MIX 0 = the same spectrum
+            ParamFrame h = q; stage (h, 0, dd::LocGlobal, dd::Hard, 1.f); rq.f = h;
+            const auto s1 = fge::gui::DistScope::analyse (rq);
+            auto hf = [] (const std::vector<float>& sp) { double e = 0; int n = 0; for (int k = 0; k < fge::gui::DistScope::bins; ++k) if (fge::gui::DistScope::binHz (k) > 4000.f) { e += sp[(size_t) k]; ++n; } return e / jmax (1, n); };
+            ParamFrame h0 = h; h0[S (0, P::dist1Mix)] = 0.f; rq.f = h0;
+            const auto s0 = fge::gui::DistScope::analyse (rq);
+            double same = 0; for (int k = 0; k < fge::gui::DistScope::bins; ++k) same = jmax (same, (double) std::abs (s0.specA[(size_t) k] - s0.specB[(size_t) k]));
+            check (worst < 0.03f * pk && moves && hf (s1.specA) > hf (s1.specB) + 3.0 && same < 0.1,
+                   "M05 19.11 / 19.12 TRANSFER CURVE = the measured stage, SPECTRUM = the real kick",
+                   "curve error " + String (worst / jmax (1.0e-6f, pk), 4) + ", HF after - before " + String (hf (s1.specA) - hf (s1.specB), 1) + " dB, mix 0 " + String (same, 3) + " dB");
+        }
+        // 13. MORPH moves smoothly (11 steps: no step much bigger than the others)
+        {
+            ParamFrame f = q; stage (f, 0, dd::LocGlobal, dd::Soft, 0.7f); f[S (0, P::dist1MorphT)] = (float) dd::Wavefold;
+            std::vector<AudioBuffer<float>> o;
+            for (int k = 0; k <= 10; ++k) { ParamFrame g = f; g[S (0, P::dist1Morph)] = (float) k / 10.f; o.push_back (renderKick (g, G1, sr, 0.4)); }
+            double mx = 0, sum = 0, mn = 1.0e9;
+            for (int k = 0; k < 10; ++k) { const double d = diff (o[(size_t) k], o[(size_t) k + 1]); mx = jmax (mx, d); mn = jmin (mn, d); sum += d; }
+            check (mn > 1.0e-5 && mx < 2.5 * sum / 10.0, "M05 19.13 MORPH is continuous (both algorithms run, the outputs blend)", "max step / mean " + String (mx / (sum / 10.0), 2));
+        }
+        // 14. presets / files keep the whole configuration (+ every factory preset makes a sound)
+        {
+            GeProcessor p;
+            distt::apply (p, distt::presets()[12]);                                // DIGITAL CHAOS (multiband)
+            dd::CurveData cv = dd::CurveData::preset (3); p.setDistCurve (5, cv);
+            setP (p, "dist6_on", 1.f); setP (p, "dist6_type", (float) dd::Custom); setP (p, "dist6_location", 1.f); setP (p, "dist_xover_low", 333.f);
+            const auto before = p.frame(); const auto curveBefore = p.distData().curve[5].toString();
+            auto x = distt::save (p, distt::ScFull, 0, 0);
+            distt::resetAll (p);
+            const bool reset = p.apvts.getRawParameterValue ("dist1_on")->load() < 0.5f;
+            distt::load (p, *x, 0, 0);
+            bool same = p.distData().curve[5].toString() == curveBefore;
+            for (int i = 0; i < P::count; ++i) if (String (def (i).id).startsWith ("dist")) same &= std::abs (p.frame()[i] - before[i]) < 1.0e-4f;
+            // a chain file into another location
+            auto ch = distt::save (p, distt::ScChain, 0, dd::LocTail);
+            distt::load (p, *ch, 0, dd::LocPunch);
+            const bool chain = distt::chain (p, dd::LocPunch).size() == 3;
+            bool allSound = true; String e;
+            for (auto& pr : distt::presets())
+            {
+                GeProcessor pp; distt::apply (pp, pr);
+                ParamFrame pf = pp.frame(), ref = base; pf[P::layer1On] = ref[P::layer1On] = 1.f; pf[P::layer1Group] = ref[P::layer1Group] = 4.f;   // something on TEXTURE too
+                const auto k = renderKick (pf, G1, sr, 0.4, -1, 1.f, nullptr, 0.0, -1.0, nullptr, nullptr, &pp.distData());
+                const bool good = std::isfinite (rms (k)) && peak (k) < 4.f && diff (k, renderKick (ref, G1, sr, 0.4)) > 1.0e-4;
+                if (! good) e << pr.name << " ";
+                allSound &= good;
+            }
+            check (reset && same && chain && allSound, "M05 19.14 presets / files restore the full configuration (stage, chain, multiband, parallel, full)", e);
+        }
+        // 15. no uncontrolled level: every type at full drive with AUTO GAIN stays near the input level
+        {
+            const double r0 = rms (dry); double worst = 0; String e;
+            for (int t = 0; t < dd::NumTypes; ++t)
+            {
+                ParamFrame f = q; stage (f, 0, dd::LocGlobal, t, 1.f);
+                const auto x = renderKick (f, G1, sr, 0.5);
+                const double dB = 20.0 * std::log10 (rms (x) / r0);
+                worst = jmax (worst, std::abs (dB)); e << String (dB, 1) << " ";
+            }
+            check (worst < 6.0, "M05 19.15 AUTO GAIN: no level jumps (every type at full drive within 6 dB)", e + "dB");
+        }
+        // 16. switching the type / moving DRIVE during a kick does not click
+        {
+            auto run = [&] (bool sw)
+            {
+                GeProcessor p; setP (p, "dist1_on", 1.f); setP (p, "dist1_location", 3.f); setP (p, "dist1_drive", 0.7f);
+                p.prepareToPlay (sr, 256);
+                float maxStep = 0.f, last = 0.f, pk = 0.f;
+                for (int blk = 0; blk < 60; ++blk)
+                {
+                    AudioBuffer<float> bb (2, 256); bb.clear(); MidiBuffer m;
+                    if (blk == 0) m.addEvent (MidiMessage::noteOn (1, G1, 1.f), 0);
+                    if (sw && blk > 4 && blk % 4 == 0) { setP (p, "dist1_type", (float) ((blk / 4) % dd::NumTypes)); setP (p, "dist1_drive", (blk / 4) % 2 ? 0.2f : 0.9f); }
+                    p.processBlock (bb, m);
+                    for (int i = 0; i < 256; ++i) { const float v = bb.getSample (0, i); if (blk > 4) maxStep = jmax (maxStep, std::abs (v - last)); last = v; pk = jmax (pk, std::abs (v)); }
+                }
+                return maxStep / jmax (1.0e-6f, pk);
+            };
+            float worstType = 0.f;
+            for (int t = 0; t < dd::NumTypes; ++t)
+            {
+                GeProcessor p; setP (p, "dist1_on", 1.f); setP (p, "dist1_location", 3.f); setP (p, "dist1_type", (float) t); setP (p, "dist1_drive", 0.9f);
+                auto x = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.35);
+                float ms = 0.f, pk = peak (x); for (int i = 2000; i < x.getNumSamples(); ++i) ms = jmax (ms, std::abs (x.getSample (0, i) - x.getSample (0, i - 1)));
+                worstType = jmax (worstType, ms / jmax (1.0e-6f, pk));
+            }
+            const float s = run (true);
+            check (s < worstType * 1.3f + 0.02f, "M05 19.16 switching TYPE / DRIVE during a kick does not click", "max step " + String (s, 3) + " vs steady types " + String (worstType, 3));
+        }
+        // 17. CPU with all 16 stages (4 x 16x oversampling, parallel, multiband, layer)
+        {
+            GeProcessor p; cpuStress (p);
+            GeProcessor plain;
+            GeProcessor typical; distt::apply (typical, distt::presets()[5]);    // DENSE DISTORTION (3 tail stages) + a 8x global hard clip
+            setP (typical, "dist4_on", 1.f); setP (typical, "dist4_type", 1.f); setP (typical, "dist4_oversampling", 1.f);
+            const double base0 = cpuTime (plain, 2.0), typ = cpuTime (typical, 2.0), full = cpuTime (p, 2.0);
+            // (this cloud machine is slow and shared: the extreme case must still run in real time, a usual chain must stay light)
+            check (full < 1.0 && typ - base0 < 0.15, "M05 19.17 CPU: 16 stages (4 at 16x) in real time, a usual chain light",
+                   "no dist " + String (100.0 * base0, 1) + " %, 4 stages " + String (100.0 * typ, 1) + " %, 16 stages " + String (100.0 * full, 1) + " % of one core");
+        }
+        // the owner's listening file: the MODERN factory kick, one bar (4 kicks at 150 BPM, cut on the beat, 6 ms fade) per distortion preset
+        {
+            const char* names[] { "(dry)", "MODERN HARD CLIP", "CLEAN AGGRESSION", "DENSE DISTORTION", "RAW ASYMMETRIC", "BRUTAL FOLD", "HARD DIGITAL", "CRUSHED TAIL", "CLASSIC SATURATION", "METALLIC FOLD" };
+            const int beat = (int) (0.4 * sr), fade = (int) (0.006 * sr);
+            AudioBuffer<float> demo (2, beat * 4 * (int) std::size (names)); demo.clear();
+            String order;
+            for (int k = 0; k < (int) std::size (names); ++k)
+            {
+                GeProcessor pp; pp.setCurrentProgram (1);
+                for (auto& pr : distt::presets()) if (String (pr.name) == names[k]) distt::apply (pp, pr);
+                auto x = renderKick (pp.frame(), G1, sr, 0.4, -1, 1.f, &pp.shapes(), 0.0, -1.0, nullptr, nullptr, &pp.distData());
+                for (int i = 0; i < fade; ++i) for (int c = 0; c < 2; ++c) x.setSample (c, beat - fade + i, x.getSample (c, beat - fade + i) * (1.f - (float) i / (float) fade));
+                for (int b = 0; b < 4; ++b) for (int c = 0; c < 2; ++c) demo.copyFrom (c, (k * 4 + b) * beat, x, c, 0, beat);
+                order << String (k * 1.6, 1) << " s " << names[k] << "\n";
+            }
+            demo.applyGain (0.5f / jmax (1.0e-6f, peak (demo)) * 1.4f);
+            writeWav (outDir.getChildFile ("4ge_m05_distortion_presets.wav"), demo);
+            outDir.getChildFile ("4ge_m05_distortion_presets.txt").replaceWithText (order);
+        }
+        // 18. realtime = export (stages everywhere, a custom curve, a layer stage, multiband, parallel)
+        {
+            GeProcessor p;
+            distt::apply (p, distt::presets()[13]);                                // COMPLEX HARMONICS (parallel)
+            setP (p, "dist4_on", 1.f); setP (p, "dist4_type", (float) dd::Custom); setP (p, "dist4_location", 0.f); setP (p, "dist4_band", 2.f);
+            p.setDistCurve (3, dd::CurveData::preset (2));
+            setP (p, "layer1_on", 1.f); setP (p, "dist5_on", 1.f); setP (p, "dist5_location", (float) dd::LocLayer1); setP (p, "dist5_type", (float) dd::Foldback); setP (p, "dist5_oversampling", 1.f);
+            setP (p, "dist5_mod_source", 3.f); setP (p, "dist5_mod_drive", 0.5f);
+            const auto rt = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, (uint8) 127) } }, 0.5);
+            const auto off = renderKick (p.frame(), G1, sr, 0.5, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, nullptr, &p.distData());
+            const bool finite = std::isfinite (rms (rt)) && peak (rt) < 8.f;
+            check (finite && diff (rt, off) < 1.0e-6, "M05 19.18 realtime = export (+ stable)", "rt vs export " + String (diff (rt, off), 8));
+        }
+    }
     // ---------------------------------------------------------------- module 03 wiring: oscillator data in the state (OSCS), presets, realtime = export
     {
         GeProcessor p; setP (p, "osc1_on", 1.f); setP (p, "osc1_wave", 6.f); setP (p, "osc2_on", 1.f); setP (p, "osc2_wave", 8.f);
@@ -1118,6 +1483,39 @@ int main (int argc, char** argv)
                 if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
             }
             setP (p, "layer1_on", 0.f); setP (p, "layer2_on", 0.f);
+            ge->canvas.showPage (0);
+        }
+        // DISTORTION page (module 05): only the controls the type uses, the chain list, the real visualizer
+        {
+            ge->canvas.showPage (4);
+            auto& dp = ge->canvas.distPage();
+            p.undo.beginNewTransaction();
+            const int st = distt::addStage (p, fge::dsp::dist::LocTail, fge::dsp::dist::Hard);
+            dp.selectLocation (fge::dsp::dist::LocTail); dp.selectStage (st);
+            const String o = "dist" + String (st + 1) + "_";
+            auto vis = dp.visibleIds();
+            const bool hard = vis.contains (o + "ceiling") && ! vis.contains (o + "even") && ! vis.contains (o + "bits");
+            setP (p, (o + "type").toRawUTF8(), 2.f); dp.selectStage (st);
+            vis = dp.visibleIds();
+            const bool tube = vis.contains (o + "even") && vis.contains (o + "odd") && ! vis.contains (o + "ceiling");
+            setP (p, (o + "drive").toRawUTF8(), 0.9f);
+            dp.requestScope();
+            fge::gui::DistScope::Result r;
+            for (int i = 0; i < 400; ++i) { Thread::sleep (20); r = dp.scopeResult(); if (r.valid && r.stage == st) break; }
+            const bool scopeOk = r.valid && r.stage == st && r.curveX.size() == (size_t) fge::gui::DistScope::columns && ! r.specA.empty();
+            p.undo.undo();
+            const bool undone = p.apvts.getRawParameterValue ((o + "on").toRawUTF8())->load() < 0.5f;
+            distt::apply (p, distt::presets()[6]);                                  // RAW ASYMMETRIC (tail) for the snapshot
+            dp.selectLocation (fge::dsp::dist::LocTail);
+            for (int i = 0; i < 100; ++i) { dp.requestScope(); Thread::sleep (20); if (dp.scopeResult().valid && dp.scopeResult().stage == dp.stage()) break; }
+            dp.adoptScope();
+            check (hard && tube && scopeOk && undone, "M05 GUI: per-type controls, chain, real visualizer, ADD = one undo step",
+                   String (hard ? "" : "hard! ") + (tube ? "" : "tube! ") + (scopeOk ? "" : "scope! ") + (undone ? "" : "undo!"));
+            PNGImageFormat png;
+            auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os (outDir.getChildFile ("gui_distortion.png"));
+            if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            distt::resetAll (p);
             ge->canvas.showPage (0);
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);

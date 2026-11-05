@@ -90,6 +90,11 @@ public:
     // the tables the engine plays now (shared copies for the waveform renderer)
     std::array<fge::dsp::TablePtr, fge::dsp::maxOsc> currentTables() const { const juce::SpinLock::ScopedLockType l (tableLock); return tablesNow; }
     void refreshTables();                                    // message thread (timer) / state load; cheap when nothing changed
+    // ---- DISTORTION data (module 05): the CUSTOM waveshaper curve of each stage, state child DIST (undoable)
+    static constexpr const char* distTag = "DIST";
+    const fge::dsp::dist::DistData& distData() const { return distNow; }
+    uint32_t distDataVersion() const { return distVersion; }
+    void setDistCurve (int stage, const fge::dsp::dist::CurveData&, bool newUndoStep = true);
     static float slotMin (int slot) { return fge::env::isBipolar (slot) ? -1.f : 0.f; }
     int auditionNote = 31;          // G1 in FL (49 Hz)
 
@@ -99,15 +104,20 @@ private:
     void valueTreePropertyChanged (juce::ValueTree& t, const juce::Identifier&) override { onTreeChange (t); }
     void valueTreeChildAdded (juce::ValueTree& t, juce::ValueTree&) override { onTreeChange (t); }
     void valueTreeChildRemoved (juce::ValueTree& t, juce::ValueTree&, int) override { onTreeChange (t); }
-    void valueTreeRedirected (juce::ValueTree&) override { rebuildShapes(); rebuildOscData(); }
+    void valueTreeRedirected (juce::ValueTree&) override { rebuildShapes(); rebuildOscData(); rebuildDistData(); }
     void onTreeChange (juce::ValueTree& t)
     {
         if (t.getType() == juce::Identifier ("PARAM")) return;            // parameter values: the tables follow on the timer
         if (t.getType() == juce::Identifier (oscsTag) || t.getParent().getType() == juce::Identifier (oscsTag)) rebuildOscData();
+        else if (t.getType() == juce::Identifier (distTag)) rebuildDistData();
         else rebuildShapes();
     }
     void timerCallback() override { refreshTables(); }
     void rebuildOscData();
+    void rebuildDistData();
+    fge::dsp::dist::DistData distNow;
+    uint32_t distVersion = 1;
+    fge::dsp::Exchange<fge::dsp::dist::DistData> distX;
     fge::dsp::OscData oscDataNow;
     uint32_t oscVersion = 1;
     std::array<fge::dsp::TablePtr, fge::dsp::maxOsc> tablesNow;

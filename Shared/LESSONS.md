@@ -307,3 +307,6 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   8 ms wyraźny błysk >2 kHz (+6–7 dB ponad resztę) – u nas brak → PUNCH = CLICK; (2) tok referencji jest GĘSTY (płaskość widma
   ~−12 dB: dużo szumu / nieharmonicznych składowych między prążkami), nasz był czystymi prążkami (−37…−41 dB) = „plastik” → pod tokiem
   BODY = NOISE (filtr ~7 kHz, długość = HOLD). Czyste harmoniczne bez szumu zawsze brzmią tanio. A/B dawać w STEREO.
+- **4GE – oversampling 16x dawał WIĘCEJ aliasingu niż 4x (2026-11-05, test 19.10)** – `f (shape (a1), shape (a2))`: kolejność liczenia
+  argumentów w C++ jest nieokreślona (GCC liczy od prawej), a krzywa z ADAA ma pamięć → próbki szły w złej kolejności. Każde wywołanie
+  procesu z pamięcią (ADAA, filtr, obwiednia) w OSOBNEJ instrukcji. Sprawdzać aliasing pomiarem (energia poza harmonicznymi 0–20 kHz).

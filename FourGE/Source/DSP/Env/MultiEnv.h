@@ -169,6 +169,9 @@ namespace fge::env
         // module 04 (appended)
         AmpNoiseA, AmpNoiseB, ModNoiseA, ModNoiseB, ProfileNoiseA, ProfileNoiseB, TransientCustom,
         AmpLayer1, AmpLayer2, AmpLayer3, AmpLayer4, AmpLayer5, AmpLayer6, AmpLayer7, AmpLayer8,
+        // module 05: the drawn modulation envelope of each distortion stage
+        ModDist1, ModDist2, ModDist3, ModDist4, ModDist5, ModDist6, ModDist7, ModDist8,
+        ModDist9, ModDist10, ModDist11, ModDist12, ModDist13, ModDist14, ModDist15, ModDist16,
         NumSlots
     };
     inline bool isPitch (int slot) { return slot <= PitchSub; }
@@ -183,7 +186,9 @@ namespace fge::env
                                          "env_amp_noise_a", "env_amp_noise_b", "env_mod_noise_a", "env_mod_noise_b", "env_profile_noise_a", "env_profile_noise_b",
                                          "env_transient_custom",
                                          "env_amp_layer1", "env_amp_layer2", "env_amp_layer3", "env_amp_layer4", "env_amp_layer5", "env_amp_layer6",
-                                         "env_amp_layer7", "env_amp_layer8" };
+                                         "env_amp_layer7", "env_amp_layer8",
+                                         "env_mod_dist1", "env_mod_dist2", "env_mod_dist3", "env_mod_dist4", "env_mod_dist5", "env_mod_dist6", "env_mod_dist7", "env_mod_dist8",
+                                         "env_mod_dist9", "env_mod_dist10", "env_mod_dist11", "env_mod_dist12", "env_mod_dist13", "env_mod_dist14", "env_mod_dist15", "env_mod_dist16" };
         return k[juce::jlimit (0, (int) NumSlots - 1, s)];
     }
     // the default drawn shape of every slot

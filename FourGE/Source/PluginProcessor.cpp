@@ -39,6 +39,7 @@ GeProcessor::GeProcessor()
     setCurrentProgram (0);
     rebuildShapes();
     rebuildOscData();
+    rebuildDistData();
     refreshTables();
     startTimerHz (20);
 }
@@ -67,6 +68,8 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     engine.setHostBpm (bpm);
     engine.setBank (&bankX.front());
     engine.setTables (&tablesX.front());
+    engine.setDistData (&distX.front());
+    engine.setOffline (isNonRealtime());
     if (pendingAudition.exchange (false)) { engine.cookOnly (f); engine.trigger (auditionNote, 1.f); }
     engine.process (buffer, midi, f);
 }
@@ -100,6 +103,28 @@ void GeProcessor::setOscProperty (int osc, const String& key, const String& text
     if (! t.isValid()) { t = ValueTree (id); root.appendChild (t, nullptr); }
     if (undoable && newUndoStep) undo.beginNewTransaction ("Oscillator");
     t.setProperty (key, text, undoable ? &undo : nullptr);
+}
+void GeProcessor::setDistCurve (int stage, const fge::dsp::dist::CurveData& c, bool newUndoStep)
+{
+    if (! isPositiveAndBelow (stage, fge::dsp::dist::numStages)) return;
+    auto t = apvts.state.getChildWithName (distTag);
+    if (! t.isValid()) { t = ValueTree (distTag); apvts.state.appendChild (t, nullptr); }
+    if (newUndoStep) undo.beginNewTransaction ("Waveshaper curve");
+    t.setProperty ("curve" + String (stage + 1), c.toString(), &undo);
+}
+void GeProcessor::rebuildDistData()
+{
+    const auto t = apvts.state.getChildWithName (distTag);
+    fge::dsp::dist::DistData d;
+    for (int i = 0; i < fge::dsp::dist::numStages; ++i)
+    {
+        fge::dsp::dist::CurveData c;
+        if (t.isValid() && fge::dsp::dist::CurveData::fromString (t.getProperty ("curve" + String (i + 1)).toString(), c)) d.curve[(size_t) i] = c;
+        else d.curve[(size_t) i] = fge::dsp::dist::CurveData::preset (1);           // a gentle S-curve to start from
+        d.curveVersion[(size_t) i] = (int) distVersion;
+    }
+    distNow = d; ++distVersion;
+    distX.back() = d; distX.publish();
 }
 void GeProcessor::rebuildOscData()
 {
@@ -168,6 +193,8 @@ void GeProcessor::setCurrentProgram (int i)
     resetShapes (false);
     auto oscs = apvts.state.getChildWithName (oscsTag);
     if (oscs.isValid()) { apvts.state.removeChild (oscs, nullptr); rebuildOscData(); }
+    auto dd = apvts.state.getChildWithName (distTag);
+    if (dd.isValid()) { apvts.state.removeChild (dd, nullptr); rebuildDistData(); }
 }
 bool GeProcessor::loadUserPresetFile (const File& f)
 {
@@ -185,6 +212,11 @@ bool GeProcessor::loadUserPresetFile (const File& f)
         if (auto xml = XmlDocument::parse (f))
             if (auto* e = xml->getChildByName (oscsTag)) apvts.state.appendChild (ValueTree::fromXml (*e), nullptr);
         rebuildOscData();
+        auto oldD = apvts.state.getChildWithName (distTag);
+        if (oldD.isValid()) apvts.state.removeChild (oldD, nullptr);
+        if (auto xml = XmlDocument::parse (f))
+            if (auto* e = xml->getChildByName (distTag)) apvts.state.appendChild (ValueTree::fromXml (*e), nullptr);
+        rebuildDistData();
     }
     presetName = f.getFileNameWithoutExtension();
     return true;

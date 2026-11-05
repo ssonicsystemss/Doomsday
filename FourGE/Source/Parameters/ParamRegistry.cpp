@@ -1,3 +1,4 @@
+#include <map>
 #include "ParamRegistry.h"
 #include <cmath>
 
@@ -45,6 +46,23 @@ namespace fge
         const juce::StringArray& routeModes()     { static const juce::StringArray a { "SINGLE (GROUP)", "MULTI (SENDS)" }; return a; }
         const juce::StringArray& layerLinks()     { static const juce::StringArray a { "INDEPENDENT", "LAYER 1", "LAYER 2", "LAYER 3", "LAYER 4", "LAYER 5", "LAYER 6", "LAYER 7", "LAYER 8" }; return a; }
         const juce::StringArray& soloModes()      { static const juce::StringArray a { "SOLO PROCESSED", "SOLO SOURCE" }; return a; }
+        const juce::StringArray& distTypes()      { static const juce::StringArray a { "SOFT CLIP", "HARD CLIP", "TUBE", "DIODE", "WAVEFOLD", "BITCRUSH", "RECTIFIER",
+                                                                                       "ASYMMETRIC", "FOLDBACK", "DIGITAL CLIP", "CUSTOM" }; return a; }
+        const juce::StringArray& distLocations()  { static const juce::StringArray a { "GLOBAL", "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE", "LAYER 1", "LAYER 2", "LAYER 3",
+                                                                                       "LAYER 4", "LAYER 5", "LAYER 6", "LAYER 7", "LAYER 8" }; return a; }
+        const juce::StringArray& distPaths()      { static const juce::StringArray a { "SERIAL", "PARALLEL A", "PARALLEL B", "PARALLEL C" }; return a; }
+        const juce::StringArray& distBands()      { static const juce::StringArray a { "FULL BAND", "LOW", "MID", "HIGH" }; return a; }
+        const juce::StringArray& driveCurves()    { static const juce::StringArray a { "LINEAR", "EXPONENTIAL", "LOGARITHMIC" }; return a; }
+        const juce::StringArray& ditherModes()    { static const juce::StringArray a { "OFF", "TPDF", "NOISE" }; return a; }
+        const juce::StringArray& rectModes()      { static const juce::StringArray a { "HALF WAVE", "FULL WAVE", "POSITIVE", "NEGATIVE", "CUSTOM" }; return a; }
+        const juce::StringArray& curveInterps()   { static const juce::StringArray a { "LINEAR", "CUBIC", "BEZIER" }; return a; }
+        const juce::StringArray& stageOversampling(){ static const juce::StringArray a { "4x (ENGINE)", "8x", "16x" }; return a; }
+        const juce::StringArray& distFilterTypes(){ static const juce::StringArray a { "LOW PASS", "HIGH PASS", "BAND PASS", "NOTCH", "LADDER LP" }; return a; }
+        const juce::StringArray& filterSlopes()   { static const juce::StringArray a { "6 dB", "12 dB", "24 dB", "48 dB" }; return a; }
+        const juce::StringArray& distModSources() { static const juce::StringArray a { "OWN ENV", "DRAWN ENV", "PITCH ENV", "INPUT LEVEL", "VELOCITY" }; return a; }
+        const juce::StringArray& bandSolo()       { static const juce::StringArray a { "ALL BANDS", "LOW ONLY", "MID ONLY", "HIGH ONLY" }; return a; }
+        const juce::StringArray& globalDistPos()  { static const juce::StringArray a { "BEFORE MASTER CLIP (SUB CLEAN)", "AFTER MASTER CLIP (WITH SUB)" }; return a; }
+        const juce::StringArray& offlineQuality() { static const juce::StringArray a { "SAME AS REALTIME", "HIGHER (EXPORT)" }; return a; }
         const juce::StringArray& none()           { static const juce::StringArray a; return a; }
     }
 
@@ -76,7 +94,10 @@ namespace fge
             case Unit::Ms:    return v >= 1000.f ? String (v / 1000.f, 2) + " s" : (v < 10.f ? String (v, 1) : String ((int) std::lround (v))) + " ms";
             case Unit::Db:    return v <= d.min + 0.05f && d.min <= -59.f ? String ("-inf") : (v > 0.05f ? "+" : "") + String (v, 1) + " dB";
             case Unit::Pct:   return String ((int) std::lround (v * 100.f)) + "%";
-            case Unit::Bip:   return std::abs (v) < 0.005f ? String ("C") : (v < 0.f ? "L " : "R ") + String ((int) std::lround (std::abs (v) * 100.f));
+            case Unit::Bip:
+                if (String (d.name).endsWithIgnoreCase ("pan"))           // a position: L / C / R
+                    return std::abs (v) < 0.005f ? String ("C") : (v < 0.f ? "L " : "R ") + String ((int) std::lround (std::abs (v) * 100.f));
+                return (v > 0.005f ? "+" : "") + String ((int) std::lround (v * 100.f)) + "%";   // an amount: -100 .. +100 %
             case Unit::Semi:  return (v > 0.05f ? "+" : "") + String (v, 1) + " st";
             case Unit::Cents: return (v > 0.5f ? "+" : "") + String ((int) std::lround (v)) + " ct";
             case Unit::Deg:   return String ((int) std::lround (v)) + juce::String (juce::CharPointer_UTF8 ("\xc2\xb0"));
@@ -101,7 +122,7 @@ namespace fge
             case Unit::Ms:  return (s.endsWithIgnoreCase ("s") && ! s.containsIgnoreCase ("ms")) ? n * 1000.f : n;
             case Unit::Db:  return s.containsIgnoreCase ("inf") ? d.min : n;
             case Unit::Pct: return n / 100.f;
-            case Unit::Bip: return (s.containsIgnoreCase ("l") ? -std::abs (n) : n) / 100.f;
+            case Unit::Bip: return (juce::String (d.name).endsWithIgnoreCase ("pan") && s.containsIgnoreCase ("l") ? -std::abs (n) : n) / 100.f;
             default:        return n;
         }
     }
@@ -153,6 +174,58 @@ namespace fge
         }
         const auto& d = def (id);
         juce::String n (d.name);
+        // module 05: the distortion stages (one text per setting, the same for all 16 stages)
+        if (const juce::String pid (d.id); pid.startsWith ("dist") && pid.containsChar ('_'))
+        {
+            static const std::map<juce::String, const char*> t {
+                { "on", "Switch this distortion stage on." },
+                { "location", "Where the stage works: GLOBAL = the whole kick, PUNCH / BODY / TAIL / SUB = that part (group), TEXTURE = the texture bus, LAYER n = one layer alone." },
+                { "order", "Position in its chain (lower = earlier). The order changes the sound." },
+                { "path", "SERIAL = one after another. PARALLEL A / B / C = branches fed by the same signal and summed (level compensated)." },
+                { "band", "FULL BAND, or only the LOW / MID / HIGH band of a multiband block (the bands sum flat when nothing distorts)." },
+                { "type", "The distortion algorithm (each one its own curve)." },
+                { "morph_type", "The second algorithm MORPH blends to (both run, the outputs crossfade)." },
+                { "morph", "Blend from TYPE to MORPH TO." },
+                { "drive", "How hard the signal hits the curve." },
+                { "drive_curve", "How DRIVE grows: LINEAR, EXPONENTIAL (slow at first) or LOGARITHMIC (fast at first)." },
+                { "input", "Level into the stage (before the curve)." },
+                { "output", "Level out of the stage." },
+                { "mix", "Dry / distorted blend (the dry path is delay-matched - no comb filter)." },
+                { "auto_gain", "Keeps the loudness about the same as the input (slow RMS, never per sample)." },
+                { "bias", "DC offset before the curve: more even harmonics, an asymmetric sound (the offset itself is removed)." },
+                { "symmetry", "Drives the positive and the negative half differently." },
+                { "threshold", "Where the curve starts to bend / clip / fold." },
+                { "shape", "The type's own amount: KNEE (soft), WARMTH (tube), ASYMMETRY (diode), FOLD AMOUNT, QUANTIZATION (bitcrush), RECTIFY AMOUNT, STEEPNESS (foldback), HARDNESS (digital)." },
+                { "ceiling", "The clip level (HARD / DIGITAL clip)." },
+                { "even", "Even harmonics (TUBE)." },
+                { "odd", "Odd harmonics (TUBE)." },
+                { "fold_stages", "How many times the wave may fold (WAVEFOLD)." },
+                { "neg_drive", "Drive of the negative half (ASYMMETRIC)." },
+                { "neg_threshold", "Threshold of the negative half (ASYMMETRIC)." },
+                { "bits", "Bit depth (BITCRUSH)." },
+                { "sr_reduce", "Sample rate reduction - the value is held for longer (BITCRUSH)." },
+                { "dither", "Noise added before the quantization (BITCRUSH)." },
+                { "rect_mode", "Which half is flipped / kept (RECTIFIER)." },
+                { "curve_interp", "How the CUSTOM curve goes between its points." },
+                { "oversampling", "Extra oversampling for this stage (on top of the engine's 4x) - less aliasing on hard curves, more CPU." },
+                { "pre_on", "A filter before the curve (what gets distorted)." }, { "post_on", "A filter after the curve (what the distortion made)." },
+                { "pre_type", "Pre filter type." }, { "post_type", "Post filter type." },
+                { "pre_cutoff", "Pre filter cutoff." }, { "post_cutoff", "Post filter cutoff." },
+                { "pre_resonance", "Pre filter resonance." }, { "post_resonance", "Post filter resonance." },
+                { "pre_drive", "Saturation inside the pre filter." }, { "post_drive", "Saturation inside the post filter." },
+                { "pre_slope", "Pre filter slope." }, { "post_slope", "Post filter slope." },
+                { "post_mix", "Filtered / unfiltered blend after the curve." },
+                { "mod_source", "What moves the stage in time: its own envelope, a drawn envelope, the pitch envelope, the input level or the velocity." },
+                { "mod_attack", "Rise time of the stage's own modulation envelope." }, { "mod_decay", "Fall time of the stage's own modulation envelope." },
+                { "mod_drive", "Modulation -> DRIVE." }, { "mod_bias", "Modulation -> BIAS." }, { "mod_threshold", "Modulation -> THRESHOLD." },
+                { "mod_fold", "Modulation -> SHAPE / FOLD (the curve really changes)." }, { "mod_mix", "Modulation -> MIX." },
+                { "mod_output", "Modulation -> OUTPUT (+- 12 dB)." }, { "mod_cutoff", "Modulation -> POST filter cutoff (+- 5 octaves)." },
+                { "xover_low", "Multiband: the LOW / MID crossover." }, { "xover_high", "Multiband: the MID / HIGH crossover." },
+                { "band_solo", "Listen to one band of the multiband distortion." },
+                { "global_position", "GLOBAL stages before the master clip (the sub stays clean) or after it (with the sub)." },
+                { "offline_quality", "Export / offline render: the same as realtime, or one oversampling step higher." } };
+            if (auto it = t.find (pid.fromFirstOccurrenceOf ("_", false, false)); it != t.end()) return it->second;
+        }
         if (n.endsWith ("Mute"))   return "Silence this part.";
         if (n.endsWith ("Solo"))   return "Hear only the soloed parts.";
         if (n.endsWith ("Invert")) return "Flip the polarity of this part in the mixer.";

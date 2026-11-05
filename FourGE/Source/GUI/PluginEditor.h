@@ -14,6 +14,7 @@
 #include "EnvPage.h"
 #include "OscPage.h"
 #include "LayerPage.h"
+#include "DistPage.h"
 #include "Palette.h"
 
 class GeCanvas : public juce::Component, private juce::Timer
@@ -32,6 +33,7 @@ public:
     void showPage (int);                                             // 0 = MAIN, 1 = ENVELOPES (module 02), 2 = OSCILLATORS (module 03)
     fge::gui::OscPage& oscillators() { return *oscPage; }
     fge::gui::LayerPage& layersPage() { return *layerPage; }
+    fge::gui::DistPage& distPage() { return *distortionPage; }
     int page() const { return pageIdx; }
     fge::gui::EnvPage& envelopes() { return *envPage; }
 private:
@@ -73,7 +75,8 @@ private:
     std::unique_ptr<fge::gui::EnvPage> envPage;
     std::unique_ptr<fge::gui::OscPage> oscPage;
     std::unique_ptr<fge::gui::LayerPage> layerPage;
-    std::array<juce::TextButton, 4> pageBtn;
+    std::unique_ptr<fge::gui::DistPage> distortionPage;
+    std::array<juce::TextButton, 5> pageBtn;
     std::array<float, 4> meter {};
     float outMeter = 0.f;
 };

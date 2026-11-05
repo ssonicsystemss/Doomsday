@@ -10,6 +10,7 @@
 #include "NoiseGen.h"
 #include "Transient.h"
 #include "../Osc/OscBank.h"
+#include "../Dist/Distortion.h"
 
 namespace fge::dsp
 {
@@ -165,6 +166,7 @@ namespace fge::dsp
             for (int i = 0; i < numLayers; ++i)
             {
                 started[(size_t) i] = b.layer[(size_t) i].on;
+                (*chains)[(size_t) i].reset();
                 fadeG[(size_t) i] = b.layer[(size_t) i].on && b.layer[(size_t) i].audible ? 1.f : 0.f;
                 if (started[(size_t) i]) layer[(size_t) i].start (b.layer[(size_t) i], b, osc, (uint32_t) (i + 1) * 977u, hitCount, clock, partHz);
             }
@@ -172,7 +174,8 @@ namespace fge::dsp
         // adds the noise generators into the part inputs (ext / tail L R), and everything else into the 7 stereo buses
         inline void tick (const LayerBankSettings& b, const OscBankSettings& osc, const OscTables& tb, const std::array<float, 4>& partHz,
                           const std::array<float, 4>& partAmp, float noteRatio, float ms, float inv, float rate,
-                          std::array<float, 4>& ext, float& extL, float& extR, float* busL, float* busR)
+                          std::array<float, 4>& ext, float& extL, float& extR, float* busL, float* busR,
+                          const dist::DistBank* dist = nullptr, const dist::ModCtx* mod = nullptr)
         {
             for (int k = 0; k < 2; ++k)
             {
@@ -198,7 +201,10 @@ namespace fge::dsp
                 g = target > g ? juce::jmin (target, g + step) : juce::jmax (target, g - step);
                 if (! started[(size_t) i] || g <= 0.f) continue;                     // a layer switched on during a kick waits for the next hit
                 auto& v = layer[(size_t) i];
-                const float x = v.tick (s, b, osc, tb, partHz, ms, inv, rate) * g;
+                float x = v.tick (s, b, osc, tb, partHz, ms, inv, rate) * g;
+                // module 05: the LAYER distortion (before pan / width / fader)
+                if (dist != nullptr && dist->count[(size_t) (dist::LocLayer1 + i)] > 0 && mod != nullptr)
+                    x = (*chains)[(size_t) i].process (*dist, dist::LocLayer1 + i, x, *mod, rate);
                 if (x == 0.f) continue;
                 const float sd = s.side > 0.001f ? v.side (x) * s.side : 0.f;
                 const float l = (x + sd) * s.panL, r = (x - sd) * s.panR;
@@ -215,6 +221,7 @@ namespace fge::dsp
         ClickVoice click;
         std::array<LayerVoice, numLayers> layer;
         std::array<float, numLayers> fadeG {};
+        std::unique_ptr<std::array<dist::ChainState, numLayers>> chains = std::make_unique<std::array<dist::ChainState, numLayers>>();
         std::array<bool, numLayers> started {};
     };
 }

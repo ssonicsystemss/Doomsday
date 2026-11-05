@@ -496,7 +496,7 @@ namespace fge::gui
     {
         alignDone = false;
         SafePointer<LayerPage> self (this);
-        renders.update (proc.frame(), proc.shapes(), proc.shapesVersion(), proc.currentTables());
+        renders.update (proc.frame(), proc.shapes(), proc.shapesVersion(), proc.currentTables(), &proc.distData(), proc.distDataVersion());
         renders.analyse (alignRef.getSelectedId() - 1, alignTarget.getSelectedId() - 1, 0.f, 60.f, (float) alignSearch.getValue(), proc.auditionNote,
                          [self] (const dsp::AlignResult& r) { if (self != nullptr) { self->lastAlign = r; self->alignDone = true; self->repaint(); } });
     }
@@ -510,7 +510,7 @@ namespace fge::gui
     void LayerPage::timerCallback()
     {
         if (! isShowing()) return;
-        renders.update (proc.frame(), proc.shapes(), proc.shapesVersion(), proc.currentTables());
+        renders.update (proc.frame(), proc.shapes(), proc.shapesVersion(), proc.currentTables(), &proc.distData(), proc.distDataVersion());
         const auto w = renders.waves();
         for (int i = 0; i < 8; ++i) if (i < (int) w.size()) rows[(size_t) i].wave = w[(size_t) i];
         if (proc.shapesVersion() != lastShapes && ! editor.isDragging()) { lastShapes = proc.shapesVersion(); refreshEditor(); }

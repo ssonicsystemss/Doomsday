@@ -3,6 +3,7 @@
 //   RenderTest <outdir> --render <settings.txt> <out.wav> one kick: lines "note N", "seconds S", "<param id> <value>"
 #include "../Source/PluginProcessor.h"
 #include "../Source/GUI/PluginEditor.h"
+#include "../Source/Presets/LayerTools.h"
 #include "../Source/Presets/FactoryPresets.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <cmath>
@@ -1072,6 +1073,52 @@ int main (int argc, char** argv)
             if (os2.openedOk()) { os2.setPosition (0); os2.truncate(); png.writeImageToStream (img2, os2); }
             ge->canvas.showPage (0);
             setP (p, "osc1_on", 0.f);
+        }
+        // LAYERS page (module 04): randomizer respects LOCK, phase align only on APPLY, the displays are real, sets restore
+        {
+            ge->canvas.showPage (3);
+            auto& lp = ge->canvas.layersPage();
+            setP (p, "layer1_on", 1.f); setP (p, "layer2_on", 1.f); setP (p, "layer2_phase", 90.f);
+            p.undo.beginNewTransaction();
+            layers::setLocked (p, 1, true);
+            const float l2Before = p.apvts.getRawParameterValue ("layer2_pitch")->load(), l1Before = p.apvts.getRawParameterValue ("layer1_pitch")->load();
+            layers::RandSettings rs; rs.mode = layers::RPitch; rs.intensity = 1.f; rs.seed = 5;
+            layers::randomize (p, rs);
+            const bool lockOk = p.apvts.getRawParameterValue ("layer2_pitch")->load() == l2Before && p.apvts.getRawParameterValue ("layer1_pitch")->load() != l1Before;
+            p.undo.undo();
+            const bool undoOk = p.apvts.getRawParameterValue ("layer1_pitch")->load() == l1Before;
+            // phase align: analysis changes nothing; the best phase of layer 2 against layer 1 (same sine) is ~0 degrees
+            const auto before = p.frame();
+            p.refreshTables();
+            const auto tb2 = p.currentTables(); fge::dsp::OscTables ot2; for (int i = 0; i < 8; ++i) ot2.t[(size_t) i] = tb2[(size_t) i].get();
+            const auto r = fge::dsp::analysePhase (p.frame(), 0, 1, 0.f, 60.f, 360.f, 31, &p.shapes(), &ot2);
+            const auto after = p.frame();
+            bool untouched = true; for (int i = 0; i < P::count; ++i) untouched &= before[i] == after[i];
+            const float err = std::abs (std::remainder (r.bestDeg, 360.f));
+            // the displays show the real signals (layer 1 on = waveform, layer 3 off = silent)
+            lp.preview().update (p.frame(), p.shapes(), p.shapesVersion() + 1000, p.currentTables());
+            std::vector<fge::gui::KickPreview::Wave> w;
+            for (int i = 0; i < 400; ++i) { w = lp.preview().waves(); if (w.size() >= 12) break; Thread::sleep (20); }
+            const bool real = w.size() >= 12 && ! w[0].silent && w[2].silent;
+            // a layer set file restores the full configuration
+            auto x = layers::setToXml (p);
+            setP (p, "layer1_level", -30.f); setP (p, "group_texture_level", -10.f);
+            layers::xmlToSet (p, *x);
+            const bool restored = std::abs (p.apvts.getRawParameterValue ("layer1_level")->load() + 6.f) < 0.01f && std::abs (p.apvts.getRawParameterValue ("group_texture_level")->load()) < 0.01f;
+            check (lockOk && undoOk && untouched && err < 12.f && r.bestCorr > 0.9f && real && restored,
+                   "M04 19.12-19.15 randomizer LOCK + undo, phase align only on APPLY, real displays, sets restore",
+                   "best " + String (r.bestDeg, 0) + " deg corr " + String (r.bestCorr, 2) + (lockOk ? "" : " lock!") + (undoOk ? "" : " undo!") + (untouched ? "" : " changed!")
+                   + (real ? "" : " display!") + (restored ? "" : " set!"));
+            PNGImageFormat png;
+            for (int v = 0; v < 3; ++v)
+            {
+                lp.showView (v);
+                auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+                FileOutputStream os (outDir.getChildFile ("gui_layers" + String (v) + ".png"));
+                if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            }
+            setP (p, "layer1_on", 0.f); setP (p, "layer2_on", 0.f);
+            ge->canvas.showPage (0);
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);
         check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());

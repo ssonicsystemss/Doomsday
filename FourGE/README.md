@@ -3,7 +3,7 @@
 Syntezator kicków hardstyle (instrument VST3, FL Studio). **v0.5 to nowy 4GE budowany od zera** według Twojej specyfikacji
 17 modułów (`SPEC.md`, `MODULE01.md`…`MODULE12.md`, `MODULES13-17_overview.md`, zasady nadrzędne w `RULES.md`, plan w `PLAN.md`).
 Ta wersja to **moduł 01 – CORE KICK ENGINE** (cztery niezależne części kicka i ich mikser) + **moduł 02 – obwiednie** (strona ENVELOPES)
-+ **moduł 03 – oscylatory** (strona OSCILLATORS).
++ **moduł 03 – oscylatory** (strona OSCILLATORS) + **moduł 04 – szum, transient, warstwy** (strona LAYERS).
 Kolejne moduły dokładają resztę.
 
 > **Ważne przy instalacji:** nowy 4GE ma wszystkie parametry nowe, więc ma też **nowy identyfikator wtyczki**.
@@ -91,6 +91,27 @@ filtrem i przesterem, więc oscylator wysłany do TAIL przechodzi przez CHARACTE
 - **Podgląd po prawej**: prawdziwy przebieg i prawdziwe widmo (harmoniczne 1–64) wybranego oscylatora albo SUMY, przed / po FM, ringu i syncu.
 - Makra oscylatorów (OSC MIX, HARMONICS, DETUNE…) przyjdą jako lokalne kontrolery z mapowaniem w module 09 (zasada 8 MASTER MACROS).
 
+## Strona LAYERS (moduł 04)
+Przycisk **LAYERS** u góry, w środku trzy widoki:
+- **NOISE**: dwa generatory szumu (NOISE A / B). Źródła WHITE, PINK, BROWN, BLUE, VIOLET, METALLIC (rezonatory: FREQ, Q, AMOUNT, METAL),
+  DIGITAL (BITS, SR REDUCE, QUANT, GRAIN) i CUSTOM (rysowane widmo). Do tego COLOR, filtr LP / HP / BP / NOTCH, RESO, DRIVE, MIX, WIDTH,
+  obwiednia (własna ATTACK / DECAY / LENGTH, z części PUNCH / BODY / TAIL / SUB albo rysowana), PITCH TRACK, seed z trybem FIXED (ten sam szum
+  przy każdym kicku) / PER TRIGGER / FREE RUN. Szum wysyłasz do części (> PUNCH / > BODY / > TAIL / > SUB – przed ich przesterem)
+  i na magistralę TEXTURE. **MOD ENV** rusza poziomem, cutoffem, rezonansem, drive, kolorem, szerokością i grainem w czasie.
+- **TRANSIENT**: dodatkowe stuknięcie (SINE CLICK, NOISE CLICK, IMPULSE, SHORT PULSE, METALLIC CLICK, OSC SNAP, CUSTOM rysowany) z poziomem,
+  długością, wysokością, TONE, DRIVE, MIX, WIDTH i POSITION liczonym od początku kicka / puncha / body / taila (np. stuk w momencie wejścia
+  taila po toku). **ATTACK LEVEL / TIME / DECAY + LOW / HIGH TRANSIENT** podbijają atak całego kicka (osobno dół i góra),
+  **TRANSIENT SHAPER** (ATTACK / SUSTAIN / SENSITIVITY / TIME / MIX) działa na prawdziwym detektorze obwiedni, przed MASTER CLIP.
+- **LAYERS**: 8 niezależnych warstw w liście (nazwa, ON, GRUPA, ŹRÓDŁO, LEVEL, PITCH, LENGTH, PAN, PHASE, filtr, DRIVE, M, S, ROUTING
+  i mini-waveform warstwy). Źródło warstwy to jej własna kopia: SINE / TRI / SAW / SQUARE, NOISE A / B, TRANSIENT albo OSC 1–4.
+  Pod listą: **LAYER** (obwiednia ADSR / ONE SHOT / MULTIPOINT rysowana, START, WIDTH, filtr, LINK do innej warstwy – poziom / pitch / długość /
+  obwiednia osobno, PRE-FADER, wysyłki do 7 magistral w trybie MULTI), **GROUPS** (6 grup: ON, LEVEL, PAN, WIDTH, M, S, OUTPUT; magistrale
+  TEXTURE / CUSTOM; SOLO PROCESSED / SOURCE), **TOOLS** (RANDOMIZER z trybami, INTENSITY, SEED, PRESERVE GROUPS / ROUTING – zablokowane
+  warstwy LOCK zostają nietknięte; PHASE ALIGN – liczy korelację dwóch warstw dla każdej fazy, zmienia fazę dopiero po APPLY).
+  COPY / PASTE / DUPLICATE / DELETE / MOVE UP / DOWN (tylko kolejność na liście) / RENAME / LOCK. Wszystko z jednym UNDO.
+- PRESETS / SAVE / LOAD w każdym widoku (`Dokumenty\4GE\Layers`): szumy (WHITE IMPACT, DARK NOISE…), transienty (CLASSIC CLICK, HARD IMPACT…)
+  i zestawy warstw (CLASSIC PUNCH STACK, MODERN BODY STACK, RAW TAIL TEXTURE…).
+
 ## Presety
 INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
@@ -98,6 +119,6 @@ MODERN / RAW: CLICK na początku (stuknięcie), tok na HOLD z szumem pod spodem 
 TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – stąd power.
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 04 szum / transient / warstwy → 04 szum / transient / warstwy →
+Moduł po module wg `PLAN.md`: 05 przester → 04 szum / transient / warstwy →
 05 przester → 06 filtry / screech → 07 EQ → 08 dynamika → 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
 13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.

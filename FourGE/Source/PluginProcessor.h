@@ -63,7 +63,7 @@ public:
     //      (saved with the project and user presets, undoable). Message thread only; the audio thread reads a lock-free copy.
     static constexpr const char* envsTag = "ENVS";
     const fge::env::Shape& shape (int slot) const { return current.s[(size_t) juce::jlimit (0, (int) fge::env::NumSlots - 1, slot)]; }
-    void setShape (int slot, const fge::env::Shape&, bool undoable = true);
+    void setShape (int slot, const fge::env::Shape&, bool undoable = true, bool newUndoStep = true);
     void resetShapes (bool undoable = true);
     const fge::env::Bank& shapes() const { return current; }
     uint32_t shapesVersion() const { return version; }
@@ -71,7 +71,13 @@ public:
     void setParamInUndoStep (const juce::String& id, float plainValue)
     {
         auto child = apvts.state.getChildWithProperty ("id", id);
-        if (child.isValid()) child.setProperty ("value", plainValue, &undo);
+        if (child.isValid())
+        {
+            // the APVTS writes parameter values into the tree only on its timer: bring the tree up to date first (no undo),
+            // so the undo step records "current -> new" and the change is never swallowed as "no change"
+            if (auto* a = apvts.getRawParameterValue (id)) child.setProperty ("value", a->load(), nullptr);
+            child.setProperty ("value", plainValue, &undo);
+        }
         else if (auto* a = apvts.getParameter (id)) a->setValueNotifyingHost (a->convertTo0to1 (plainValue));
     }
     // ---- OSCILLATOR data (module 03): drawn CUSTOM cycle, imported cycle, harmonic profile, USER wavetable frames.

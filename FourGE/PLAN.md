@@ -135,6 +135,11 @@ wartości na blok), `Source/DSP/Core/` (Blocks: Osc / Noise / kickEnv / pitchSha
 referencji `kmatch4.py`, A/B `kab4.py`, cechy `kana.py`, wykresy `kplot.py`). Nowy kod wtyczki `Fg5K` (stare projekty z v0.4 zostają na starym pliku).
 Wniosek z A/B: rdzeń (1 oscylator na część) daje czyste, „sterylne” prążki – gęstość referencji przyjdzie z M03 (unison / drift), M04 (szum),
 M05 (stopnie przesteru). DIRTY potrzebuje ~40 dB gainu, żeby mieć górę jak referencje (zakresy drive per CHARACTER w `Engine::cook`).
+**STAN 2026-11-05 (rano): MODUŁ 04 GOTOWY** – `DSP/Layers/` (NoiseGen, Transient, Layers, LayerCook, PhaseAlign), 7 stereo magistral w silniku
+(PUNCH / BODY / TAIL / SUB dokładane do kanałów części, TEXTURE / CUSTOM przed clipem, MASTER po clipie), AttackShaper przed clipem,
+15 nowych slotów rysowanych obwiedni, GUI `GUI/LayerPage.*` + `GUI/KickPreview.h` (rendery i analiza fazy w tle), narzędzia / pliki
+`Presets/LayerTools.h` (nazwy / LOCK / kolejność w child LAYERS), `setParamInUndoStep` synchronizuje drzewo APVTS przed zapisem.
+Testy M04 19.1–19.18. NASTĘPNY: moduł 05 (distortion).
 **STAN 2026-11-05: MODUŁ 03 GOTOWY** (silnik `DSP/Osc/` OscBank / Noise / Wavetable / OscTables, dane w child OSCS, tablice budowane w procesorze
 poza wątkiem audio i oddawane lock-free; GUI `GUI/OscPage.*` + `GUI/OscScope.*`; pliki / presety oscylatorów `Presets/OscFiles.h`,
 `Presets/OscPresets.h`; testy M03 17.1–17.15 + GUI). Makra oscylatorów (spec 13) odłożone do M09 (RULES: lokalne kontrolery + mapowanie).

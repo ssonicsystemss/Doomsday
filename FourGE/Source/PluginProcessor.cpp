@@ -78,10 +78,10 @@ ValueTree GeProcessor::envTree (bool create)
     if (! t.isValid() && create) { t = ValueTree (envsTag); apvts.state.appendChild (t, nullptr); }
     return t;
 }
-void GeProcessor::setShape (int slot, const env::Shape& s, bool undoable)
+void GeProcessor::setShape (int slot, const env::Shape& s, bool undoable, bool newUndoStep)
 {
     if (! isPositiveAndBelow (slot, (int) env::NumSlots)) return;
-    if (undoable) undo.beginNewTransaction ("Envelope");
+    if (undoable && newUndoStep) undo.beginNewTransaction ("Envelope");
     envTree (true).setProperty (env::slotKey (slot), s.toString(), undoable ? &undo : nullptr);
 }
 void GeProcessor::resetShapes (bool undoable)

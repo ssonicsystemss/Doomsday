@@ -313,4 +313,5 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - **4GE – „kick drewniany” (2026-11-05, przy odsłuchu presetów przesteru M05)** – bazowy kick MODERN dalej brzmi płasko / drewnianie,
   więc nie da się ocenić presetów przesteru. Najpierw poprawić sam kick (właściciel: „będziemy testować poprawki” – później),
   presety przesteru oceniać dopiero na dobrym kicku. Do sprawdzenia: za mało jasnego ataku / szumu w toku, za krótki / za czysty tail.
-
+- **4GE – „za wysoko to gra” (screech, 2026-11-05, plik M06)** – screech RELATIVE grał nutę ×8 (3 oktawy: G1 → 392 Hz) + obwiednia
+  pitchu startowała +12 st (~784 Hz). Rejestr screecha = 2 oktawy nad nutą (G1 → 196 Hz, `scr::registerMul`), ABSOLUTE domyślnie 200 Hz.

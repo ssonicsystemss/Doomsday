@@ -759,8 +759,8 @@ namespace fge
             {
                 const float ms = sinceHitMs + (float) i * 1000.f / (float) cfg.ks.rate;
                 if (cfg.scr.pitchMode == 1 && (i & 15) == 0) semis = pe.semis (dsp::PTail, ms);
-                // RELATIVE: the played note 3 octaves up (the screech register); MIDI TRACKED: + the kick's pitch engine; ABSOLUTE: BASE HZ
-                const float base = cfg.scr.pitchMode == 2 ? cfg.scr.baseHz : lastNoteHz * 8.f * (cfg.scr.pitchMode == 1 ? std::exp2 (semis / 12.f) : 1.f);
+                // RELATIVE: the played note two octaves up (the screech register); MIDI TRACKED: + the kick's pitch engine; ABSOLUTE: BASE HZ
+                const float base = cfg.scr.pitchMode == 2 ? cfg.scr.baseHz : lastNoteHz * dsp::scr::registerMul * (cfg.scr.pitchMode == 1 ? std::exp2 (semis / 12.f) : 1.f);
                 float l = 0.f, r = 0.f, o = 0.f;
                 for (auto& v : scrEng.v) { float vl, vr, vo; v->process (cfg.scr, tb, base, cfg.ks.rate, lastNoteHz, vl, vr, vo); l += vl; r += vr; o += vo; }
                 scrOsc[(size_t) i] = o;

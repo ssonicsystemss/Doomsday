@@ -21,6 +21,9 @@
 
 namespace fge::dsp::scr
 {
+    // the screech register: RELATIVE pitch = the played note this many times up (4 = two octaves: G1 49 Hz -> 196 Hz)
+    // (owner 2026-11-05: three octaves up was too high)
+    constexpr float registerMul = 4.f, registerHz = 49.f * registerMul;
     enum Mode { Tonal = 0, Metallic, Formant, Fm, Noise, Feedback, Hybrid, Custom };
     enum Wave { WSine = 0, WSaw, WSquare, WTri, WPulse, WTable };
     enum Start { SManual = 0, SBodyEnd, SBodyOffset, STail, SKick, SHost };
@@ -30,7 +33,7 @@ namespace fge::dsp::scr
     struct FltS { bool on = false; int type = m06::FBp; float cut = 3000.f, res = 0.5f, drive = 0.f, key = 1.f, env = 0.f, mix = 1.f; };
     struct Settings
     {
-        bool on = false; int mode = Tonal, output = OTail, pitchMode = 0; float level = 0.5f, width = 0.5f, baseHz = 400.f;
+        bool on = false; int mode = Tonal, output = OTail, pitchMode = 0; float level = 0.5f, width = 0.5f, baseHz = registerHz;
         float fmRatio = 2.f, fmIndex = 0.5f, fmFb = 0.2f, metal = 0.5f, metalQ = 0.6f, noiseCol = 0.f, noiseQ = 0.85f;
         float vowel = 0.f, vowelEnd = 2.f, fmtWidth = 0.5f, fmtReso = 0.6f; bool vowelAuto = false;
         float fbAmt = 0.6f, fbTone = 0.5f, fbDelay = 0.f, fbDrive = 0.5f, fbMix = 1.f, fbStab = 0.5f; int fbFilter = 2;
@@ -123,7 +126,7 @@ namespace fge::dsp::scr
                 ampTarget = a;
                 vowelNow = juce::jlimit (0.f, 4.f, (s.vowelAuto ? s.vowel + (s.vowelEnd - s.vowel) * juce::jlimit (0.f, 1.f, lt / juce::jmax (1.f, len)) : s.vowel) + s.mFmt * modV * 4.f);
                 updatePaths (s, rate);
-                cx.ms = juce::jmax (0.f, lt); cx.lengthMs = juce::jmax (1.f, len); cx.noteHz = hz * 49.f / 400.f; cx.relMs = -1.f;   // (KEY TRACK follows the screech pitch)
+                cx.ms = juce::jmax (0.f, lt); cx.lengthMs = juce::jmax (1.f, len); cx.noteHz = hz / registerMul; cx.relMs = -1.f;   // (KEY TRACK follows the screech pitch)
             }
             amp += 0.02f * (ampTarget - amp);
             // ---- the oscillators (stereo by pan x width)
@@ -222,7 +225,7 @@ namespace fge::dsp::scr
             }
             const auto v = m06::vowelAt (vowelNow);
             const float spread = 0.7f + 0.6f * s.fmtWidth;
-            const float sc = juce::jlimit (0.5f, 3.f, hz / 400.f);
+            const float sc = juce::jlimit (0.5f, 3.f, hz / registerHz);
             for (int k = 0; k < 3; ++k)
             {
                 const float f = v[(size_t) k] * std::sqrt (sc) * (k == 0 ? 1.f : spread);
@@ -327,7 +330,7 @@ namespace fge::dsp::scr
         float fbD = 100.f; std::array<float, 2> noiseD { 100.f, 66.f };
         std::array<uint32_t, 2> rng {};
         m06::Ctx cx;
-        float hz = 400.f, amp = 0.f, ampTarget = 0.f, modV = 0.f, vowelNow = 0.f, fade = 1.f, fadeStep = 0.f, fbScale = 1.f, energy = 0.f;
+        float hz = registerHz, amp = 0.f, ampTarget = 0.f, modV = 0.f, vowelNow = 0.f, fade = 1.f, fadeStep = 0.f, fbScale = 1.f, energy = 0.f;
         uint32_t tick = 0; double clock = 0.0;
     };
 

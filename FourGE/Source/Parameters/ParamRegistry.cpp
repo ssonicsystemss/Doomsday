@@ -74,7 +74,7 @@ namespace fge
         const juce::StringArray& scrModes()       { static const juce::StringArray a { "TONAL", "METALLIC", "FORMANT", "FM SCREECH", "NOISE SCREECH", "FEEDBACK", "HYBRID", "CUSTOM" }; return a; }
         const juce::StringArray& scrWaves()       { static const juce::StringArray a { "SINE", "SAW", "SQUARE", "TRIANGLE", "PULSE", "OSC TABLE" }; return a; }
         const juce::StringArray& scrOscSel()      { static const juce::StringArray a { "OFF", "OSC 1", "OSC 2", "OSC 3", "OSC 4" }; return a; }
-        const juce::StringArray& scrOutputs()     { static const juce::StringArray a { "TAIL", "TEXTURE", "MASTER", "PUNCH", "BODY", "SUB" }; return a; }
+        const juce::StringArray& scrOutputs()     { static const juce::StringArray a { "TAIL", "TEXTURE", "MASTER", "PUNCH", "BODY", "SUB", "INSIDE TAIL (GLUED)" }; return a; }
         const juce::StringArray& fbFilters()      { static const juce::StringArray a { "LOW PASS", "HIGH PASS", "BAND PASS" }; return a; }
         const juce::StringArray& scrPitchModes()  { static const juce::StringArray a { "RELATIVE (NOTE)", "MIDI TRACKED (+ PITCH ENGINE)", "ABSOLUTE (BASE HZ)" }; return a; }
         const juce::StringArray& scrStartModes()  { static const juce::StringArray a { "MANUAL", "BODY END", "BODY END + OFFSET", "TAIL START", "KICK START", "HOST SYNC" }; return a; }

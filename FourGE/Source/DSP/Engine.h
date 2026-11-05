@@ -149,6 +149,7 @@ namespace fge
 
         // adds this voice into the four part buses (oversampled rate)
         const dsp::OscTables* tables = nullptr;
+        const float* scrInL = nullptr; const float* scrInR = nullptr;          // the screech into this voice's tail (the newest voice only)
         void render (const KickConfig& cfg, float* const* bus, int n)
         {
             using namespace dsp;
@@ -176,6 +177,11 @@ namespace fge
                 // ---- module 03: the oscillators, pitched by the part they follow, feed the part inputs
                 std::array<float, 4> ext {};
                 float extL = 0.f, extR = 0.f;
+                if (scrInL != nullptr)                                            // module 06: the screech INSIDE the tail (before its drive)
+                {
+                    const float l = scrInL[i], r = scrInR[i];
+                    ext[PTail] += 0.5f * (l + r); extL += l; extR += r;
+                }
                 if (cfg.osc.any)
                 {
                     const std::array<float, 4> hz { juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
@@ -305,6 +311,7 @@ namespace fge
             for (auto& ch : distChain) ch.reset();
             m06St->reset(); scrEng.reset();
             scrOsc.assign ((size_t) (maxBlockSize * osFactor), 0.f);
+            scrInBufL.assign ((size_t) (maxBlockSize * osFactor), 0.f); scrInBufR.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             sinceHitMs = 1.0e9f;
             wl1 = wl2 = wh1 = wh2 = wr1 = wr2 = {}; clipped = false;
             stereo.setSize (2, maxBlockSize);
@@ -612,9 +619,25 @@ namespace fge
             for (int c = 0; c < numBusCh; ++c) juce::FloatVectorOperations::clear (bus.getWritePointer (c), on);
             float* b[numBusCh];
             for (int c = 0; c < numBusCh; ++c) b[c] = bus.getWritePointer (c);
-            for (auto& v : voices) { v.tables = tables; v.render (cfg, b, on); }
+            const bool inside = cfg.scr.on && cfg.scr.output == dsp::scr::OInside;
+            bool scrAny = false;
+            KickVoice* newest = nullptr;
+            if (inside)
+            {
+                std::fill (scrInBufL.begin(), scrInBufL.begin() + on, 0.f); std::fill (scrInBufR.begin(), scrInBufR.begin() + on, 0.f);
+                float* tgt[2] { scrInBufL.data(), scrInBufR.data() };
+                scrAny = renderScreech (b, on, tgt);
+                for (auto& v : voices) if (v.isActive() && (newest == nullptr || v.order() > newest->order())) newest = &v;
+            }
+            for (auto& v : voices)
+            {
+                v.tables = tables;
+                v.scrInL = &v == newest ? scrInBufL.data() : nullptr; v.scrInR = &v == newest ? scrInBufR.data() : nullptr;
+                v.render (cfg, b, on);
+                v.scrInL = v.scrInR = nullptr;
+            }
             for (int l = 0; l < 6; ++l) distOn[(size_t) l] = cfg.dist.count[(size_t) l] > 0;
-            const bool scrAny = renderScreech (b, on);
+            if (! inside) scrAny = renderScreech (b, on);
             const bool busAny = cfg.lbAny || scrAny;
             const bool m6 = cfg.m06.any;
             clockSec += (double) n / sr;
@@ -744,14 +767,14 @@ namespace fge
             if (z) for (int i = 0; i < on; ++i) m06St->process (cfg.m06, dsp::m06::LGlobal, 1, L[i], R[i], m6Ctx (i), cfg.ks.rate);
         }
         // module 06: the screech (+ the filters / resonators placed on SCREECH) into its output bus; true = it sounds
-        bool renderScreech (float* const* b, int on)
+        bool renderScreech (float* const* b, int on, float* const* inside = nullptr)
         {
             bool any = false;
             for (auto& v : scrEng.v) any |= v->active;
             std::fill (scrOsc.begin(), scrOsc.begin() + juce::jmin ((int) scrOsc.size(), on), 0.f);
             if (! any || ! cfg.scr.on) { if (! cfg.scr.on) scrEng.reset(); return false; }
-            static const int busOf[6] { dsp::BusTail, dsp::BusTexture, dsp::BusMaster, dsp::BusPunch, dsp::BusBody, dsp::BusSub };
-            const int bus = busOf[juce::jlimit (0, 5, cfg.scr.output)];
+            static const int busOf[7] { dsp::BusTail, dsp::BusTexture, dsp::BusMaster, dsp::BusPunch, dsp::BusBody, dsp::BusSub, dsp::BusTail };
+            const int bus = busOf[juce::jlimit (0, 6, cfg.scr.output)];
             const dsp::OscTables& tb = tables != nullptr ? *tables : noOscTables;
             PitchEval pe; pe.c = &cfg;
             float semis = 0.f;
@@ -765,7 +788,8 @@ namespace fge
                 for (auto& v : scrEng.v) { float vl, vr, vo; v->process (cfg.scr, tb, base, cfg.ks.rate, lastNoteHz, vl, vr, vo); l += vl; r += vr; o += vo; }
                 scrOsc[(size_t) i] = o;
                 if (cfg.m06.any && cfg.m06.at (dsp::m06::LScreech, 0)) m06St->process (cfg.m06, dsp::m06::LScreech, 0, l, r, m6Ctx (i), cfg.ks.rate);
-                b[6 + 2 * bus][i] += l; b[7 + 2 * bus][i] += r;
+                if (inside != nullptr) { inside[0][i] = l; inside[1][i] = r; }
+                else { b[6 + 2 * bus][i] += l; b[7 + 2 * bus][i] += r; }
             }
             return true;
         }
@@ -788,6 +812,7 @@ namespace fge
         dsp::scr::Engine scrEng;
         dsp::scr::Timing scrTiming;
         std::vector<float> scrOsc;                                             // the screech oscillators per sample (resonator excitation)
+        std::vector<float> scrInBufL, scrInBufR;                               // the screech INSIDE the tail (sized in prepare)
         static inline const dsp::OscTables noOscTables {};
     public:
         const dsp::scr::Timing& screechTiming() const { return scrTiming; }

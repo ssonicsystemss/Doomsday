@@ -315,3 +315,8 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   presety przesteru oceniać dopiero na dobrym kicku. Do sprawdzenia: za mało jasnego ataku / szumu w toku, za krótki / za czysty tail.
 - **4GE – „za wysoko to gra” (screech, 2026-11-05, plik M06)** – screech RELATIVE grał nutę ×8 (3 oktawy: G1 → 392 Hz) + obwiednia
   pitchu startowała +12 st (~784 Hz). Rejestr screecha = 2 oktawy nad nutą (G1 → 196 Hz, `scr::registerMul`), ABSOLUTE domyślnie 200 Hz.
+- **4GE – „dziwnie brzmi”: screech jak osobny synth, nie stroi, cienki, a kick drewniany (2026-11-05)** – (1) screech dodawany OBOK taila
+  zawsze brzmi jak doklejony: domyślnie idzie teraz DO ŚRODKA generatora taila (przed CHARACTER drive) – przester skleja oba w jeden dźwięk;
+  (2) strój: domyślnie MIDI TRACKED = 4. harmoniczna PRAWDZIWEGO pitchu taila (też w czasie spadku); (3) „drewniany” = zbyt czysty tail:
+  gęstość (płaskość widma 1–8 kHz) referencji ~−7 dB, nasz −11…−18 → szum (PINK, obwiednia TAIL) wpuszczony do taila przed przesterem;
+  MODERN / RAW dostrojone automatycznie do OPS KICK2_D (D1) / KICK_G (G1). Porównywać zawsze w TONACJI referencji.

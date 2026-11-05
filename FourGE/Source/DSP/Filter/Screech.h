@@ -27,13 +27,13 @@ namespace fge::dsp::scr
     enum Mode { Tonal = 0, Metallic, Formant, Fm, Noise, Feedback, Hybrid, Custom };
     enum Wave { WSine = 0, WSaw, WSquare, WTri, WPulse, WTable };
     enum Start { SManual = 0, SBodyEnd, SBodyOffset, STail, SKick, SHost };
-    enum Out { OTail = 0, OTexture, OMaster, OPunch, OBody, OSub };
+    enum Out { OTail = 0, OTexture, OMaster, OPunch, OBody, OSub, OInside };   // INSIDE = into the tail generator before its drive (one glued sound)
 
     struct OscS { bool on = false; int wave = WSaw, fmSrc = 0, ringSrc = 0; float level = 0.8f, pitch = 0.f, fine = 0.f, phase01 = 0.f, detune = 0.f, pw = 0.3f, fm = 0.f, ring = 0.f, pan = 0.f; };
     struct FltS { bool on = false; int type = m06::FBp; float cut = 3000.f, res = 0.5f, drive = 0.f, key = 1.f, env = 0.f, mix = 1.f; };
     struct Settings
     {
-        bool on = false; int mode = Tonal, output = OTail, pitchMode = 0; float level = 0.5f, width = 0.5f, baseHz = registerHz;
+        bool on = false; int mode = Tonal, output = OInside, pitchMode = 1; float level = 0.5f, width = 0.5f, baseHz = registerHz;
         float fmRatio = 2.f, fmIndex = 0.5f, fmFb = 0.2f, metal = 0.5f, metalQ = 0.6f, noiseCol = 0.f, noiseQ = 0.85f;
         float vowel = 0.f, vowelEnd = 2.f, fmtWidth = 0.5f, fmtReso = 0.6f; bool vowelAuto = false;
         float fbAmt = 0.6f, fbTone = 0.5f, fbDelay = 0.f, fbDrive = 0.5f, fbMix = 1.f, fbStab = 0.5f; int fbFilter = 2;

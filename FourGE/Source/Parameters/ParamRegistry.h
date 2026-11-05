@@ -516,9 +516,9 @@ namespace fge
     B (scrOn,        "scr_on",            "Screech On",               false, FNone) \
     C (scrMode,      "scr_mode",          "Screech Mode",             scrModes, 0, FNone) \
     F (scrLevel,     "scr_level",         "Screech Level",            Unit::Db,  -60.f,  12.f,  0.f,   0.f,  FMod | FSmooth) \
-    C (scrOutput,    "scr_output",        "Screech Output",           scrOutputs, 0, FNone) \
+    C (scrOutput,    "scr_output",        "Screech Output",           scrOutputs, 6, FNone) \
     F (scrWidth,     "scr_width",         "Screech Width",            Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \
-    C (scrPitchMode, "scr_pitch_mode",    "Screech Pitch Mode",       scrPitchModes, 0, FNone) \
+    C (scrPitchMode, "scr_pitch_mode",    "Screech Pitch Mode",       scrPitchModes, 1, FNone) \
     F (scrBaseHz,    "scr_base_hz",       "Screech Base Frequency",   Unit::Hz,   20.f, 5000.f, 200.f, 300.f, FMod) \
     F (scrFmRatio,   "scr_fm_ratio",      "Screech FM Ratio",         Unit::None, 0.25f, 16.f,  2.f,   2.f,  FMod) \
     F (scrFmIndex,   "scr_fm_index",      "Screech FM Index",         Unit::Pct,   0.f,   1.f,  0.5f,  0.f,  FMod) \

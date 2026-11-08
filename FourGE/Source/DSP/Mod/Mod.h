@@ -25,13 +25,15 @@ namespace fge::dsp::mod
         SVel = 24, SKey = 25, SPitchEnv = 26,
         SAmpPunch = 27, SAmpBody = 28, SAmpTail = 29, SAmpSub = 30, SAmpKick = 31,
         SFiltEnv = 32,
-        NumSrc = 33
+        SFollower = 33, SCc1 = 34,      // 34..37 MIDI CC 1..4
+        NumSrc = 38
     };
     inline const juce::StringArray& sourceNames()
     {
         static const juce::StringArray a { "-", "IMPACT", "BODY", "TAIL", "PITCH", "GRIT", "SCREAM", "WEIGHT", "CHAOS", "USER 1", "USER 2", "USER 3", "USER 4",
                                            "LFO 1", "LFO 2", "LFO 3", "LFO 4", "LFO 5", "LFO 6", "LFO 7", "LFO 8", "STEP SEQ", "RANDOM 1", "RANDOM 2",
-                                           "VELOCITY", "KEY", "PITCH ENV", "AMP PUNCH", "AMP BODY", "AMP TAIL", "AMP SUB", "AMP KICK", "FILTER ENV" };
+                                           "VELOCITY", "KEY", "PITCH ENV", "AMP PUNCH", "AMP BODY", "AMP TAIL", "AMP SUB", "AMP KICK", "FILTER ENV",
+                                           "FOLLOWER", "CC 1", "CC 2", "CC 3", "CC 4" };
         return a;
     }
     inline bool isMacro (int s) { return s >= SMacro1 && s < SLfo1; }
@@ -60,10 +62,15 @@ namespace fge::dsp::mod
         bool tie = false, accent = false, mute = false;
         int ratchet = 1, curve = KStep;
     };
+    static constexpr int maxPts = 16;
+    struct LfoShape { int n = 0; std::array<float, maxPts> x {}, y {}; };   // CUSTOM LFO: points x 0..1 ascending, y -1..1
     struct Data
     {
         std::array<Slot, numSlots> slot {};
         std::array<Step, maxSteps> step {};
+        std::array<LfoShape, 8> lfoShape {};
+        std::array<float, 12> morphA {}, morphB {};       // MACRO MORPH: two sets of the 12 macro values
+        bool morphValid = false;
         int active = 0;                           // number of usable slots (on, a source, a destination)
         uint32_t version = 0;
     };
@@ -149,6 +156,8 @@ namespace fge::dsp::mod
     {
         float velocity = 1.f, key = 0.f, pitchEnv = 0.f, filtEnv = 0.f;
         std::array<float, 5> amp {};             // PUNCH, BODY, TAIL, SUB, KICK
+        float follower = 0.f;                     // the AUDIO FOLLOWER (the engine measures it, 0..1)
+        std::array<float, 4> cc {};               // the last value of each MIDI CC source (0..1)
         double bpm = 150.0, ppq = 0.0;            // ppq = the host position at the start of this tick (or the engine clock)
         bool playing = false;
         int barBeats = 4;
@@ -242,6 +251,7 @@ namespace fge::dsp::mod
                     case 6:  v = hashNoise (seed, (uint32_t) L.cycles); break;
                     case 7:  { const float a = hashNoise (seed, (uint32_t) L.cycles), b = hashNoise (seed, (uint32_t) L.cycles + 1u);
                                const float u = 0.5f - 0.5f * std::cos ((float) p * juce::MathConstants<float>::pi); v = a + (b - a) * u; break; }
+                    case 8:  v = customAt (d.lfoShape[(size_t) i], (float) p, m.idx (P::lfo1Interp + i) == 1); break;
                     default: v = (float) std::sin (p * juce::MathConstants<double>::twoPi); break;
                 }
                 if (L.done) v = mode == LOneZero ? 0.f : L.endV; else L.endV = v;
@@ -283,7 +293,17 @@ namespace fge::dsp::mod
                 srcVal[(size_t) (SRnd1 + i)] = R.out;
             }
             // ---- the rest
-            for (int i = 0; i < 12; ++i) srcVal[(size_t) (SMacro1 + i)] = juce::jlimit (0.f, 1.f, base[P::macro_impact + i]);
+            const bool morph = d.morphValid && base.on (P::macroMorphOn);
+            for (int i = 0; i < 12; ++i)                                         // MACRO MORPH: the macros glide between set A and set B
+                srcVal[(size_t) (SMacro1 + i)] = juce::jlimit (0.f, 1.f, morph ? d.morphA[(size_t) i] + (d.morphB[(size_t) i] - d.morphA[(size_t) i]) * base[P::macroMorph]
+                                                                               : base[P::macro_impact + i]);
+            srcVal[SFollower] = juce::jlimit (0.f, 1.f, cx.follower);
+            for (int i = 0; i < 4; ++i)
+            {
+                auto& c = ccOut[(size_t) i];
+                c = smooth (c, juce::jlimit (0.f, 1.f, cx.cc[(size_t) i]), m[P::cc1Smooth + i * (P::cc2Num - P::cc1Num)], dtSec, ! anyTick);
+                srcVal[(size_t) (SCc1 + i)] = c;
+            }
             srcVal[SVel] = cx.velocity; srcVal[SKey] = cx.key; srcVal[SPitchEnv] = cx.pitchEnv; srcVal[SFiltEnv] = cx.filtEnv;
             for (int i = 0; i < 5; ++i) srcVal[(size_t) (SAmpPunch + i)] = cx.amp[(size_t) i];
 
@@ -360,10 +380,29 @@ namespace fge::dsp::mod
             if (s >= SLfo1 && s < SLfo1 + numLfo) return m.idx (P::lfo1Pol + (s - SLfo1) * (P::lfo2Wave - P::lfo1Wave)) == 0;
             if (s == SSeq) return m.idx (P::seqPol) == 0;
             if (s == SRnd1 || s == SRnd2) return m.idx (P::rnd1Pol + (s - SRnd1) * (P::rnd2Mode - P::rnd1Mode)) == 0;
-            return s == SKey || s == SFiltEnv;
+            return s == SKey || s == SFiltEnv;            // (macros, velocity, envelopes, follower, CC = 0..1)
         }
         void setMatrixFrame (const ParamFrame& f) { lastFinal = f; }     // (before the first tick: the module 09 settings)
 
+        bool uses (int s) const { return s >= 0 && s < NumSrc && used[(size_t) s]; }
+        // CUSTOM LFO: the drawn points (LINEAR or CUBIC through them; the cycle wraps from the last point to the first)
+        static float customAt (const LfoShape& sh, float ph, bool cubic)
+        {
+            if (sh.n <= 0) return 0.f;
+            if (sh.n == 1) return sh.y[0];
+            const int n = sh.n;
+            int j = -1;
+            for (int k = 0; k < n; ++k) if (sh.x[(size_t) k] <= ph) j = k;
+            int ia, ib; float xa, xb;
+            if (j < 0) { ia = n - 1; xa = sh.x[(size_t) (n - 1)] - 1.f; ib = 0; xb = sh.x[0]; }
+            else { ia = j; xa = sh.x[(size_t) j]; ib = (j + 1) % n; xb = j + 1 < n ? sh.x[(size_t) (j + 1)] : sh.x[0] + 1.f; }
+            const float t = xb - xa > 1.0e-6f ? juce::jlimit (0.f, 1.f, (ph - xa) / (xb - xa)) : 0.f;
+            const float y0 = sh.y[(size_t) ia], y1 = sh.y[(size_t) ib];
+            if (! cubic) return y0 + (y1 - y0) * t;
+            const float ym = sh.y[(size_t) ((ia - 1 + n) % n)], y2 = sh.y[(size_t) ((ib + 1) % n)];   // Catmull-Rom
+            const float v = 0.5f * ((2.f * y0) + (-ym + y1) * t + (2.f * ym - 5.f * y0 + 4.f * y1 - y2) * t * t + (-ym + 3.f * y0 - 3.f * y1 + y2) * t * t * t);
+            return juce::jlimit (-1.f, 1.f, v);
+        }
     private:
         static float smooth (float y, float x, float ms, double dtSec, bool jump)
         {
@@ -451,6 +490,7 @@ namespace fge::dsp::mod
         std::array<RndSt, numRnd> rnd {};
         std::array<SlotSt, numSlots> slotSt {};
         std::array<float, NumSrc> srcVal {};
+        std::array<float, 4> ccOut {};
         std::array<bool, NumSrc> used {};
         std::array<Acc, P::count> acc {};
         std::array<float, P::count> final {};

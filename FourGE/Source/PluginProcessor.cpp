@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "Presets/VariantRandomizer.h"
 #include "GUI/PluginEditor.h"
 #include "Presets/FactoryPresets.h"
 
@@ -40,6 +41,7 @@ GeProcessor::GeProcessor()
     rebuildShapes();
     rebuildOscData();
     rebuildDistData();
+    for (auto& m : macroPending) m.store (-1.f);
     rebuildModData();
     refreshTables();
     startTimerHz (20);
@@ -83,6 +85,13 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
         engine.setHostPos (ppq, playing, bar);
     }
     if (pendingAudition.exchange (false)) { engine.cookOnly (f); engine.trigger (auditionNote, 1.f); }
+    for (const auto meta : midi)                                       // module 09: MIDI LEARN + CC -> macros (applied on the message thread)
+    {
+        const auto m = meta.getMessage();
+        if (! m.isController()) continue;
+        if (learnTarget.load() >= 0) learnedCc.store (m.getControllerNumber());
+        for (int i = 0; i < 12; ++i) if (macroCc[(size_t) i].load() == m.getControllerNumber()) macroPending[(size_t) i].store ((float) m.getControllerValue() / 127.f);
+    }
     engine.process (buffer, midi, f);
     // module 08: a LOOKAHEAD at MASTER OUTPUT delays the output - the host is told (it compensates)
     if (const int lat = engine.latencySamples(); lat != getLatencySamples()) setLatencySamples (lat);
@@ -246,11 +255,45 @@ void GeProcessor::clearModMatrix()
     auto t = modTree();
     for (int i = 0; i < fge::dsp::mod::numSlots; ++i) t.removeProperty ("s" + String (i + 1), &undo);
 }
+void GeProcessor::setModProperty (const String& key, const String& text, bool newUndoStep)
+{
+    if (newUndoStep) undo.beginNewTransaction ("Modulation");
+    modTree().setProperty (key, text, &undo);
+}
+void GeProcessor::storeMorph (bool toB)
+{
+    const auto f = frame();
+    setModProperty (toB ? "morphB" : "morphA", fge::modstate::floatsToCsv (&f.v[(size_t) P::macro_impact], 12));
+}
+void GeProcessor::serviceMidi()
+{
+    const int t = learnTarget.load(), cc = learnedCc.load();
+    if (t >= 0 && cc >= 0)
+    {
+        learnTarget.store (-1); learnedCc.store (-1);
+        if (t < 4) { undo.beginNewTransaction ("MIDI learn"); setParamInUndoStep ("cc" + String (t + 1) + "_number", (float) cc); }
+        else if (t >= 100 && t < 112)
+        {
+            auto map = modNow.ccMacro;
+            for (auto& v : map) if ((int) v == cc) v = -1.f;                  // one CC drives one macro
+            map[(size_t) (t - 100)] = (float) cc;
+            setModProperty ("ccMacro", fge::modstate::floatsToCsv (map.data(), 12));
+        }
+    }
+    static const char* ids[12] { "macro_impact", "macro_body", "macro_tail", "macro_pitch", "macro_grit", "macro_scream", "macro_weight", "macro_chaos",
+                                 "macro_user1", "macro_user2", "macro_user3", "macro_user4" };
+    for (int i = 0; i < 12; ++i)
+    {
+        const float v = macroPending[(size_t) i].exchange (-1.f);
+        if (v >= 0.f) if (auto* a = apvts.getParameter (ids[i])) a->setValueNotifyingHost (a->convertTo0to1 (v));   // one value model for GUI / host / DSP
+    }
+}
 void GeProcessor::rebuildModData()
 {
     modNow = fge::modstate::fromTree (apvts.state.getChildWithName (modTag));
     ++modVer;
     fge::modstate::resolve (modNow, modResolved, modUnknown, modVer);
+    for (int i = 0; i < 12; ++i) macroCc[(size_t) i].store ((int) modNow.ccMacro[(size_t) i]);
     modX.back() = modResolved;
     modX.publish();
 }
@@ -326,30 +369,7 @@ void GeProcessor::setStateInformation (const void* data, int size) { doomsday::P
 
 // RANDOM (simple, module 01): musical ranges for the sound-design parameters only - never the mixer / master / mute / solo.
 // The full randomizer (modes / styles / LOCK / seed) is module 09.
-void GeProcessor::randomizeSound()
-{
-    undo.beginNewTransaction ("Random");
-    auto setV = [this] (int id, float v)
-    {
-        if (auto* p = apvts.getParameter (def (id).id)) p->setValueNotifyingHost (p->convertTo0to1 (v));
-    };
-    auto r = [this] (float a, float b) { return a + (b - a) * rng.nextFloat(); };
-    setV (P::peMode, (float) rng.nextInt (4));
-    setV (P::peStart, r (150.f, 420.f));
-    setV (P::peTime, r (40.f, 220.f));
-    setV (P::peCurve, r (0.1f, 0.6f));
-    setV (P::tailChar, (float) (1 + rng.nextInt (6)));
-    setV (P::tailSrc, (float) rng.nextInt (4));
-    setV (P::tailDrive, r (0.35f, 0.9f));
-    setV (P::tailTone, r (3000.f, 14000.f));
-    setV (P::tailReso, r (0.f, 0.5f));
-    setV (P::punchSrc, (float) rng.nextInt (6));
-    setV (P::punchPitch, r (180.f, 600.f));
-    setV (P::punchDrive, r (0.f, 0.7f));
-    setV (P::bodyPitch, r (90.f, 260.f));
-    setV (P::bodyLevel, r (-18.f, -6.f));
-    setV (P::bodyDrive, r (0.f, 0.6f));
-}
+void GeProcessor::randomizeSound() { fge::variant::randomize (*this); }      // module 09: the VARIANT RANDOMIZER (style / scope / locks / seed)
 
 AudioProcessorEditor* GeProcessor::createEditor() { return new GeEditor (*this); }
 AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new GeProcessor(); }

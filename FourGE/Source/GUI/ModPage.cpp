@@ -1,5 +1,6 @@
 #include "ModPage.h"
 #include "Palette.h"
+#include "../Presets/VariantRandomizer.h"
 
 using namespace juce;
 
@@ -101,6 +102,7 @@ namespace fge::gui
         {
             const auto& c = palette();
             g.setColour (slot % 2 ? c.panel : c.panel.brighter (0.03f)); g.fillRect (getLocalBounds());
+            if (slot == page.selectedSlot()) { g.setColour (c.red.withAlpha (0.25f)); g.fillRect (0, 0, 24, getHeight()); }
             g.setColour (c.textDim); g.setFont (FontOptions (10.f, Font::bold));
             g.drawText (String (slot + 1), 0, 0, 24, getHeight(), Justification::centred);
             const auto& d = page.proc.modDesc().slot[(size_t) slot];
@@ -117,6 +119,7 @@ namespace fge::gui
                 g.setColour (c.silver); g.fillRect (r.getX() + r.getWidth() * jlimit (0.f, 1.f, base) - 1.f, r.getY() - 2.f, 2.f, r.getHeight() + 4.f);
             }
         }
+        void mouseDown (const MouseEvent& e) override { if (e.x < 26) page.selectSlot (slot); }
         void edit (const std::function<void (SlotDesc&)>& f, bool newStep = true)
         {
             if (loading) return;
@@ -254,7 +257,7 @@ namespace fge::gui
     // ===================================================================== page
     ModPage::ModPage (GeProcessor& p, doomsday::flat::FlatLookAndFeel& l) : proc (p), lnf (l)
     {
-        const char* tabs[NumTabs] { "LFO 1-8", "STEP SEQUENCER", "RANDOM / MACROS" };
+        const char* tabs[NumTabs] { "LFO 1-8", "STEP SEQUENCER", "RANDOM / MACROS", "MORPH / MIDI / FOLLOW", "VARIANT RANDOMIZER" };
         for (int i = 0; i < NumTabs; ++i) { tabBtn[(size_t) i].setButtonText (tabs[i]); tabBtn[(size_t) i].onClick = [this, i] { showTab (i); }; addAndMakeVisible (tabBtn[(size_t) i]); }
         for (int i = 0; i < 8; ++i) { lfoBtn[(size_t) i].setButtonText ("LFO " + String (i + 1)); lfoBtn[(size_t) i].onClick = [this, i] { showLfo (i); }; addChildComponent (lfoBtn[(size_t) i]); }
         for (int i = 0; i < 4; ++i) { viewBtn[(size_t) i].setButtonText (String (i * 16 + 1) + "-" + String (i * 16 + 16)); viewBtn[(size_t) i].onClick = [this, i] { setView (i * 16); }; addAndMakeVisible (viewBtn[(size_t) i]); }
@@ -291,6 +294,45 @@ namespace fge::gui
         seqClear.onClick = [this] { proc.setModSteps ({}); };
         seqRev.setTooltip ("Reverse the steps."); seqShift.setTooltip ("Shift every step one place to the right."); seqRand.setTooltip ("Random step values.");
         for (Component* c : std::initializer_list<Component*> { &seqCopy, &seqPaste, &seqRev, &seqShift, &seqRand, &seqClear }) addChildComponent (c);
+        // MORPH / MIDI / FOLLOWER
+        storeA.setTooltip ("MACRO MORPH: remember the 12 macro values now as set A."); storeB.setTooltip ("MACRO MORPH: remember the 12 macro values now as set B.");
+        storeA.onClick = [this] { proc.storeMorph (false); }; storeB.onClick = [this] { proc.storeMorph (true); };
+        for (int i = 0; i < 4; ++i)
+        {
+            ccLearn[(size_t) i].setButtonText ("LEARN"); ccLearn[(size_t) i].setTooltip ("MIDI LEARN: move a knob on your controller - its CC becomes CC " + String (i + 1) + ".");
+            ccLearn[(size_t) i].onClick = [this, i] { proc.startMidiLearn (proc.midiLearnTarget() == i ? -1 : i); };
+            addChildComponent (ccLearn[(size_t) i]);
+        }
+        for (int i = 0; i < 12; ++i) macroBox.addItem (mo::sourceNames()[i + 1], i + 1);
+        macroBox.setSelectedId (1, dontSendNotification); macroBox.onChange = [this] { learnMacro = macroBox.getSelectedId() - 1; };
+        macroBox.setTooltip ("Which macro the controller should move.");
+        macroLearn.setTooltip ("MIDI LEARN for the chosen macro: move a knob on your controller (the macro knob then follows it, also in automation).");
+        macroLearn.onClick = [this] { proc.startMidiLearn (proc.midiLearnTarget() == 100 + learnMacro ? -1 : 100 + learnMacro); };
+        // VARIANT RANDOMIZER
+        styleBox.addItemList (fge::variant::styleNames(), 1); scopeBox.addItemList (fge::variant::scopeNames(), 1);
+        styleBox.setTooltip ("STYLE: the musical ranges - EARLY clean / tonal, MODERN controlled, RAW aggressive, EXPERIMENTAL everything.");
+        scopeBox.setTooltip ("SCOPE: the whole kick or one area.");
+        amountSl.setSliderStyle (Slider::LinearBar); amountSl.setRange (0.0, 1.0, 0.01); amountSl.textFromValueFunction = [] (double v) { return "AMOUNT " + String (roundToInt (v * 100.0)) + " %"; };
+        amountSl.setTooltip ("AMOUNT: 100 % = a new sound inside the style, less = a variation of the current one.");
+        seedSl.setSliderStyle (Slider::LinearBar); seedSl.setRange (1.0, 9999.0, 1.0); seedSl.textFromValueFunction = [] (double v) { return "SEED " + String (roundToInt (v)); };
+        seedSl.setTooltip ("SEED: the same seed + settings = the same result.");
+        amountSl.updateText(); seedSl.updateText();
+        for (int a = 0; a < 7; ++a)
+        {
+            auto& b = lockBtn[(size_t) a]; b.setButtonText ("LOCK " + fge::variant::areaNames()[a]); b.setClickingTogglesState (true);
+            b.setTooltip ("This area never changes."); b.onClick = [this] { saveVariant(); }; addChildComponent (b);
+        }
+        styleBox.onChange = scopeBox.onChange = [this] { saveVariant(); };
+        amountSl.onValueChange = seedSl.onValueChange = [this] { saveVariant(); };
+        routingTg.onClick = [this] { saveVariant(); };
+        rndGo.setTooltip ("A new seed and a new kick (one undo step; the level stays the same).");
+        rndRegen.setTooltip ("Back to the sound before the last RANDOMIZE and the same seed with the settings now (try another STYLE / AMOUNT).");
+        rndGo.onClick = [this] { fge::variant::randomize (proc); loadVariant(); };
+        rndRegen.onClick = [this] { fge::variant::apply (proc, fge::variant::load (proc), true); };
+        doomsday::flat::FlatLookAndFeel::makePrimary (rndGo);
+        for (Component* c : std::initializer_list<Component*> { &storeA, &storeB, &macroBox, &macroLearn, &styleBox, &scopeBox, &amountSl, &seedSl, &routingTg, &rndGo, &rndRegen })
+            addChildComponent (c);
+        loadVariant();
         showTab (TLfo);
         startTimerHz (30);
     }
@@ -303,6 +345,86 @@ namespace fge::gui
         auto d = proc.modDesc().slot[(size_t) slot];
         change (d);
         proc.setModSlot (slot, d);
+    }
+    void ModPage::loadVariant()
+    {
+        const auto v = fge::variant::load (proc);
+        styleBox.setSelectedId (v.style + 1, dontSendNotification); scopeBox.setSelectedId (v.scope + 1, dontSendNotification);
+        amountSl.setValue (v.amount, dontSendNotification); seedSl.setValue (v.seed, dontSendNotification); routingTg.setToggleState (v.routing, dontSendNotification);
+        for (int a = 0; a < 7; ++a) lockBtn[(size_t) a].setToggleState ((v.locks >> a) & 1u, dontSendNotification);
+    }
+    void ModPage::saveVariant()
+    {
+        fge::variant::Settings v;
+        v.style = styleBox.getSelectedId() - 1; v.scope = scopeBox.getSelectedId() - 1; v.amount = (float) amountSl.getValue(); v.seed = (int) seedSl.getValue();
+        v.routing = routingTg.getToggleState();
+        for (int a = 0; a < 7; ++a) if (lockBtn[(size_t) a].getToggleState()) v.locks |= 1u << a;
+        fge::variant::save (proc, v);
+    }
+    juce::String ModPage::destinationMonitor() const
+    {
+        if (! isPositiveAndBelow (selSlot, mo::numSlots)) return "click a slot number in the matrix: BASE / MODULATION / FINAL of its target";
+        const auto& d = proc.modDesc().slot[(size_t) selSlot];
+        const int id = d.dst.isEmpty() ? -1 : idOf (d.dst);
+        if (id < 0 || ! mo::modulatable (id)) return "SLOT " + String (selSlot + 1) + ": no target";
+        auto* prm = proc.apvts.getParameter (def (id).id);
+        const auto& R = mo::Ranges::get().r[(size_t) id];
+        const float base = prm != nullptr ? prm->getValue() : 0.f, fin = d.on ? proc.getEngine().slotFinal[(size_t) selSlot].load() : base;
+        return "SLOT " + String (selSlot + 1) + "  " + String (def (id).name).toUpperCase() + "\nBASE " + formatValue (def (id), R.convertFrom0to1 (base))
+               + "   MOD " + (fin >= base ? "+" : "") + String (roundToInt ((fin - base) * 100.f)) + " %   FINAL " + formatValue (def (id), R.convertFrom0to1 (jlimit (0.f, 1.f, fin)));
+    }
+    // ---- CUSTOM LFO editor: the points of the selected LFO in its view (click = add, drag = move, right-click = remove)
+    Point<float> ModPage::ptAt (const mo::LfoShape& sh, int k) const
+    {
+        const auto r = lfoView.toFloat().reduced (6.f);
+        return { r.getX() + r.getWidth() * sh.x[(size_t) k], r.getCentreY() - sh.y[(size_t) k] * r.getHeight() * 0.5f };
+    }
+    Point<float> ModPage::fromView (Point<float> p) const
+    {
+        const auto r = lfoView.toFloat().reduced (6.f);
+        return { jlimit (0.f, 0.999f, (p.x - r.getX()) / r.getWidth()), jlimit (-1.f, 1.f, (r.getCentreY() - p.y) / (r.getHeight() * 0.5f)) };
+    }
+    void ModPage::addLfoPoint (float x, float y)
+    {
+        auto sh = proc.modDesc().lfo[(size_t) lfoSel];
+        if (sh.n >= mo::maxPts) return;
+        sh.x[(size_t) sh.n] = jlimit (0.f, 0.999f, x); sh.y[(size_t) sh.n] = jlimit (-1.f, 1.f, y); ++sh.n;
+        proc.setLfoShape (lfoSel, sh);                     // (the text form sorts the points)
+    }
+    void ModPage::mouseDown (const MouseEvent& e)
+    {
+        auto* w = proc.apvts.getRawParameterValue ("lfo" + String (lfoSel + 1) + "_wave");
+        if (tabIdx != TLfo || w == nullptr || roundToInt (w->load()) != 8 || ! lfoView.contains (e.getPosition())) return;
+        const auto& sh = proc.modDesc().lfo[(size_t) lfoSel];
+        int near = -1;
+        for (int k = 0; k < sh.n; ++k) if (ptAt (sh, k).getDistanceFrom (e.position) < 8.f) near = k;
+        if (e.mods.isPopupMenu())
+        {
+            if (near >= 0 && sh.n > 1) { auto s2 = sh; for (int k = near; k < s2.n - 1; ++k) { s2.x[(size_t) k] = s2.x[(size_t) k + 1]; s2.y[(size_t) k] = s2.y[(size_t) k + 1]; } --s2.n; proc.setLfoShape (lfoSel, s2); }
+            return;
+        }
+        if (near < 0) { const auto p = fromView (e.position); addLfoPoint (p.x, p.y); }
+        dragPt = near; newPtStep = true;
+    }
+    void ModPage::mouseDrag (const MouseEvent& e)
+    {
+        if (monitorArea.contains (e.getMouseDownPosition()))          // drag a source from the monitor onto a knob
+        {
+            auto r = monitorArea.reduced (8, 6); r.removeFromTop (40);
+            const int rowsN = mo::NumSrc / 2, colW = r.getWidth() / 2, rh = (r.getHeight() - 20) / rowsN;
+            const auto p = e.getMouseDownPosition();
+            const int k = ((p.x - r.getX()) / colW) * rowsN + (p.y - r.getY() - 20) / rh, src = k + 1;
+            if (p.y > r.getY() + 20 && src > 0 && src < mo::NumSrc)
+                if (auto* dc = DragAndDropContainer::findParentDragContainerFor (this)) if (! dc->isDragAndDropActive()) dc->startDragging ("modsrc:" + String (src), this);
+            return;
+        }
+        if (dragPt < 0 || tabIdx != TLfo) return;
+        auto sh = proc.modDesc().lfo[(size_t) lfoSel];
+        if (dragPt >= sh.n) return;
+        const auto p = fromView (e.position);
+        const float lo = dragPt > 0 ? sh.x[(size_t) dragPt - 1] + 0.005f : 0.f, hi = dragPt + 1 < sh.n ? sh.x[(size_t) dragPt + 1] - 0.005f : 0.999f;
+        sh.x[(size_t) dragPt] = dragPt == 0 ? 0.f : jlimit (lo, jmax (lo, hi), p.x); sh.y[(size_t) dragPt] = p.y;
+        proc.setLfoShape (lfoSel, sh, newPtStep); newPtStep = false;
     }
     void ModPage::drawStep (int step, float value) { grid->set (step, [value] (mo::Step& s) { s.value = jlimit (-1.f, 1.f, value); }, true); }
     void ModPage::setView (int f) { firstSlot = jlimit (0, mo::numSlots - 16, f); filterSrc = -1; filterBox.setSelectedId (1, dontSendNotification); refreshRows(); }
@@ -332,6 +454,10 @@ namespace fge::gui
         auto knobRow = [&] (std::initializer_list<std::tuple<String, String, bool>> ks, int x, int y, Colour col, int step = 74)
         { int k = 0; for (auto& [pid, lab, bip] : ks) place (knob (pid, lab, col, bip), x + (k++) * step, y, step - 4, kh); };
         for (int i = 0; i < 8; ++i) lfoBtn[(size_t) i].setVisible (tabIdx == TLfo);
+        for (Component* c : std::initializer_list<Component*> { &storeA, &storeB, &macroBox, &macroLearn }) c->setVisible (tabIdx == TMidi);
+        for (auto& b : ccLearn) b.setVisible (tabIdx == TMidi);
+        for (Component* c : std::initializer_list<Component*> { &styleBox, &scopeBox, &amountSl, &seedSl, &routingTg, &rndGo, &rndRegen }) c->setVisible (tabIdx == TVariant);
+        for (auto& b : lockBtn) b.setVisible (tabIdx == TVariant);
         grid->setVisible (tabIdx == TSeq);
         for (Component* c : std::initializer_list<Component*> { &seqCopy, &seqPaste, &seqRev, &seqShift, &seqRand, &seqClear }) c->setVisible (tabIdx == TSeq);
         if (tabIdx == TLfo)
@@ -340,11 +466,12 @@ namespace fge::gui
             const auto col = pc.part[2];
             int x = 0;
             for (auto& [pid, cap] : std::initializer_list<std::pair<String, String>> { { o + "wave", "WAVE" }, { o + "retrigger", "RETRIGGER" }, { o + "mode", "MODE" }, { o + "polarity", "POLARITY" }, { o + "division", "DIVISION" } })
-            { place (combo (pid, cap), x, y0 + 14, 128, 22); x += 134; }
-            place (toggle (o + "sync", "HOST SYNC", col), x, y0 + 14, 110, 22);
+            { place (combo (pid, cap), x, y0 + 46, 118, 22); x += 124; }
+            place (toggle (o + "sync", "HOST SYNC", col), x, y0 + 46, 100, 22);
+            place (combo (o + "interp", "CUSTOM"), x + 106, y0 + 46, 84, 22);
             knobRow ({ { o + "rate", "RATE", false }, { o + "phase", "PHASE", false }, { o + "fade_in", "FADE IN", false }, { o + "fade_out", "FADE OUT", false },
-                       { o + "smooth", "SMOOTH", false }, { o + "pw", "PULSE W", false } }, 0, y0 + 52, col);
-            lfoView = { 460, y0 + 50, 420, kh + 10 };
+                       { o + "smooth", "SMOOTH", false }, { o + "pw", "PULSE W", false } }, 0, y0 + 82, col);
+            lfoView = { 460, y0 + 80, 420, kh + 26 };
         }
         else if (tabIdx == TSeq)
         {
@@ -362,6 +489,28 @@ namespace fge::gui
             const int bx = 532 + 4 * 64 + 6;
             int k = 0;
             for (Component* c : std::initializer_list<Component*> { &seqCopy, &seqPaste, &seqRev, &seqShift, &seqRand, &seqClear }) c->setBounds (editArea.getX() + bx, y0 + 86 + (k++) * 26, 70, 22);
+        }
+        else if (tabIdx == TMidi)
+        {
+            const auto col = pc.part[3];
+            titles.push_back ({ { 0, y0 - 2, 300, 12 }, "MACRO MORPH (the 12 macros glide from set A to set B)" });
+            place (toggle ("macro_morph_on", "MORPH ON", pc.red), 0, y0 + 14, 100, 22);
+            place (knob ("macro_morph", "MORPH A > B", pc.red), 106, y0 + 4, 80, kh);
+            titles.push_back ({ { 0, y0 + 76, 400, 12 }, "MIDI CC 1-4 (sources) + MIDI LEARN of a macro" });
+            for (int i = 0; i < 4; ++i)
+            {
+                place (knob ("cc" + String (i + 1) + "_number", "CC " + String (i + 1), col, false, 22), i * 104, y0 + 92, 60, kh - 4);
+                place (knob ("cc" + String (i + 1) + "_smooth", "SMOOTH", col, false, 22), i * 104 + 52, y0 + 92, 52, kh - 4);
+            }
+            titles.push_back ({ { 450, y0 - 2, 400, 12 }, "AUDIO FOLLOWER (the level of a part as a source)" });
+            place (combo ("fol_source", "SOURCE"), 450, y0 + 26, 100, 22);
+            place (combo ("fol_detect", "DETECTION"), 556, y0 + 26, 100, 22);
+            knobRow ({ { "fol_attack", "ATTACK", false }, { "fol_release", "RELEASE", false }, { "fol_gain", "GAIN", true }, { "fol_threshold", "THRESHOLD", false },
+                       { "fol_range", "RANGE", false }, { "fol_sensitivity", "GATE", false }, { "fol_smooth", "SMOOTH", false } }, 450, y0 + 54, pc.part[3], 60);
+        }
+        else if (tabIdx == TVariant)
+        {
+            titles.push_back ({ { 0, y0 - 2, 600, 12 }, "VARIANT RANDOMIZER: STYLE + SCOPE + LOCKS + SEED - one click = one undo step, the level stays the same" });
         }
         else
         {
@@ -440,6 +589,17 @@ namespace fge::gui
             en (o + "rate", ! sync); en (o + "division", sync); en (o + "pw", w == 4 || w == 5);
             repaint (lfoView);
         }
+        if (tabIdx == TLfo) en ("lfo" + String (lfoSel + 1) + "_interp", roundToInt (rawOf ("lfo" + String (lfoSel + 1) + "_wave")) == 8);
+        if (tabIdx == TMidi)
+        {
+            const int lt = proc.midiLearnTarget();
+            for (int i = 0; i < 4; ++i) ccLearn[(size_t) i].setColour (TextButton::buttonColourId, lt == i ? pc.red : pc.control);
+            macroLearn.setColour (TextButton::buttonColourId, lt == 100 + learnMacro ? pc.red : pc.control);
+            storeA.setColour (TextButton::buttonColourId, proc.modDesc().hasA ? pc.control.brighter (0.3f) : pc.control);
+            storeB.setColour (TextButton::buttonColourId, proc.modDesc().hasB ? pc.control.brighter (0.3f) : pc.control);
+            en ("macro_morph", proc.modDesc().hasA && proc.modDesc().hasB);
+        }
+        repaint (0, 0, getWidth(), 28);
         if (tabIdx == TSeq)
         {
             const bool sync = rawOf ("seq_sync") > 0.5f;
@@ -465,8 +625,17 @@ namespace fge::gui
         for (int r = 0; r < 16; ++r) rows[(size_t) r]->setBounds (0, matrixArea.getY() + 18 + r * 22, w, 22);
         editArea = { 0, matrixArea.getBottom() + 8, w - 300, h - matrixArea.getBottom() - 8 };
         monitorArea = { w - 290, editArea.getY(), 290, editArea.getHeight() };
-        for (int i = 0; i < NumTabs; ++i) tabBtn[(size_t) i].setBounds (editArea.getX() + i * 136, editArea.getY(), 132, 24);
-        for (int i = 0; i < 8; ++i) lfoBtn[(size_t) i].setBounds (editArea.getX() + 420 + i * 58, editArea.getY(), 54, 24);
+        for (int i = 0; i < NumTabs; ++i) tabBtn[(size_t) i].setBounds (editArea.getX() + i * 174, editArea.getY(), 170, 24);
+        const int y0 = editArea.getY() + 34;
+        for (int i = 0; i < 8; ++i) lfoBtn[(size_t) i].setBounds (editArea.getX() + i * 58, y0, 54, 22);
+        storeA.setBounds (editArea.getX() + 196, y0 + 14, 74, 22); storeB.setBounds (editArea.getX() + 274, y0 + 14, 74, 22);
+        for (int i = 0; i < 4; ++i) ccLearn[(size_t) i].setBounds (editArea.getX() + i * 104, y0 + 92 + 70, 98, 20);
+        macroBox.setBounds (editArea.getX() + 450, y0 + 140, 120, 22); macroLearn.setBounds (editArea.getX() + 576, y0 + 140, 80, 22);
+        styleBox.setBounds (editArea.getX(), y0 + 24, 160, 24); scopeBox.setBounds (editArea.getX() + 168, y0 + 24, 160, 24);
+        amountSl.setBounds (editArea.getX() + 336, y0 + 24, 200, 24); seedSl.setBounds (editArea.getX() + 544, y0 + 24, 160, 24);
+        for (int a = 0; a < 7; ++a) lockBtn[(size_t) a].setBounds (editArea.getX() + a * 122, y0 + 64, 116, 24);
+        routingTg.setBounds (editArea.getX(), y0 + 100, 420, 24);
+        rndGo.setBounds (editArea.getX(), y0 + 140, 180, 34); rndRegen.setBounds (editArea.getX() + 188, y0 + 140, 160, 34);
         if (builtFor != editArea) { builtFor = editArea; build(); return; }          // (the editors are laid out in the editor area)
         for (auto& [c, r] : layoutMap) c->setBounds (r);
     }
@@ -509,6 +678,7 @@ namespace fge::gui
                     case 6: v = mo::hashNoise (5u, (uint32_t) (ph * 6.f)); break;
                     case 7: { const float a = mo::hashNoise (5u, (uint32_t) (ph * 6.f)), b = mo::hashNoise (5u, (uint32_t) (ph * 6.f) + 1u), u = ph * 6.f - std::floor (ph * 6.f);
                               v = a + (b - a) * (0.5f - 0.5f * std::cos (u * MathConstants<float>::pi)); break; }
+                    case 8: v = mo::Engine::customAt (proc.modDesc().lfo[(size_t) lfoSel], ph, rawOf (o + "interp") > 0.5f); break;
                     default: v = std::sin (ph * MathConstants<float>::twoPi); break;
                 }
                 if (uni) v = 0.5f * (v + 1.f);
@@ -516,17 +686,37 @@ namespace fge::gui
                 i == 0 ? p.startNewSubPath (px, py) : p.lineTo (px, py);
             }
             g.setColour (c.part[2]); g.strokePath (p, PathStrokeType (1.6f));
+            if (wv == 8 && ! uni)
+            {
+                const auto& sh = proc.modDesc().lfo[(size_t) lfoSel];
+                for (int k = 0; k < sh.n; ++k) { const auto q = ptAt (sh, k); g.setColour (c.silver); g.fillEllipse (q.x - 4.f, q.y - 4.f, 8.f, 8.f); }
+                g.setColour (c.textDim); g.setFont (FontOptions (9.f)); g.drawText ("click = add point, drag = move, right-click = remove", r.toNearestInt().reduced (6, 3), Justification::bottomLeft);
+            }
             const float now = proc.getEngine().srcMon[(size_t) (mo::SLfo1 + lfoSel)].load();
             const float ny = uni ? r.getBottom() - 6.f - now * (r.getHeight() - 12.f) : r.getCentreY() - now * (r.getHeight() * 0.5f - 6.f);
             g.setColour (c.hot); g.fillEllipse (r.getRight() - 16.f, ny - 4.f, 8.f, 8.f);
             g.setColour (c.textDim); g.setFont (FontOptions (9.f)); g.drawText ("one cycle  /  now", r.toNearestInt().reduced (6, 3), Justification::topLeft);
         }
+        // DESTINATION MONITOR (the selected slot)
+
+        if (tabIdx == TMidi)
+        {
+            String map;
+            for (int i = 0; i < 12; ++i) if (proc.modDesc().ccMacro[(size_t) i] >= 0) map << mo::sourceNames()[i + 1] << " = CC " << (int) proc.modDesc().ccMacro[(size_t) i] << "   ";
+            g.setColour (c.textDim); g.setFont (FontOptions (10.f));
+            g.drawText (map.isEmpty() ? String ("no macro on a controller yet") : map, editArea.getX() + 450, editArea.getY() + 34 + 168, 430, 14, Justification::centredLeft);
+        }
         // SOURCE MONITOR: every source's value now
         {
-            const auto r = monitorArea.reduced (8, 6);
-            g.setColour (c.silver); g.setFont (FontOptions (10.5f, Font::bold));
-            g.drawText ("SOURCE MONITOR", r.getX(), r.getY(), 200, 14, Justification::centredLeft);
-            const int rowsN = 16, colW = r.getWidth() / 2, rh = (r.getHeight() - 20) / rowsN;
+            auto r = monitorArea.reduced (8, 6);
+            g.setColour (c.silver); g.setFont (FontOptions (10.f, Font::bold));
+            g.drawText ("DESTINATION MONITOR", r.getX(), r.getY(), 280, 12, Justification::centredLeft);
+            g.setColour (c.textDim); g.setFont (FontOptions (9.5f));
+            g.drawFittedText (destinationMonitor(), r.getX(), r.getY() + 13, r.getWidth(), 24, Justification::topLeft, 2);
+            r.removeFromTop (40);
+            g.setColour (c.silver); g.setFont (FontOptions (10.f, Font::bold));
+            g.drawText ("SOURCE MONITOR  (drag a source onto a knob)", r.getX(), r.getY(), 280, 14, Justification::centredLeft);
+            const int rowsN = (mo::NumSrc) / 2, colW = r.getWidth() / 2, rh = (r.getHeight() - 20) / rowsN;
             for (int s = 1; s < mo::NumSrc; ++s)
             {
                 const int k = s - 1, cx = r.getX() + (k / rowsN) * colW, cy = r.getY() + 20 + (k % rowsN) * rh;

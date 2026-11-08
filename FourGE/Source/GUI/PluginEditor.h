@@ -21,7 +21,7 @@
 #include "ModPage.h"
 #include "Palette.h"
 
-class GeCanvas : public juce::Component, private juce::Timer
+class GeCanvas : public juce::Component, public juce::DragAndDropContainer, public juce::DragAndDropTarget, private juce::Timer
 {
 public:
     static constexpr int W = 1280, H = 930;
@@ -44,6 +44,14 @@ public:
     fge::gui::ModPage& modPage() { return *modPg; }
     int page() const { return pageIdx; }
     fge::gui::EnvPage& envelopes() { return *envPage; }
+    // module 09: modulation from any knob (right-click menu, drag a source onto it), rings BASE / FINAL on modulated knobs
+    int addModulation (const juce::String& paramId, int source);    // -> the slot used (-1 = none free / not modulatable)
+    void knobMenu (doomsday::flat::Knob&);
+    void updateModRings();
+    bool isInterestedInDragSource (const SourceDetails& d) override { return d.description.toString().startsWith ("modsrc:"); }
+    void itemDropped (const SourceDetails&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
+    int dropOnto (juce::Point<int> canvasPos, int source);          // (tests: the same code as a drop)
 private:
     void timerCallback() override;
     using Knob = doomsday::flat::Knob;

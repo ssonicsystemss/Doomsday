@@ -320,7 +320,13 @@ void GeCanvas::paint (Graphics& g)
     {
         panel (macroArea, "MASTER MACROS", c.red);
         g.setColour (c.textDim); g.setFont (lnf.font (9.5f, doomsday::flat::Medium));
-        g.drawFittedText ("what each one moves:\nMOD page > SHOW: <macro>", macroArea.getX() + 14, macroArea.getY() + 30, 140, 30, Justification::topLeft, 2);
+        g.drawFittedText ("drag  >  onto any knob\nright-click a knob = modulate", macroArea.getX() + 14, macroArea.getY() + 30, 140, 30, Justification::topLeft, 2);
+        for (auto* m : macroRow)
+        {
+            const auto h = Rectangle<float> ((float) m->getRight() + 4.f, (float) m->getY() + 8.f, 14.f, 14.f);
+            g.setColour (c.control); g.fillRoundedRectangle (h, 3.f);
+            g.setColour (c.red); g.drawText (">", h, Justification::centred);
+        }
     }
     if (pageIdx == 0) paintMain (g, panel);
     // output meter
@@ -400,7 +406,8 @@ void GeCanvas::timerCallback()
 {
     presetBar.refresh();
     const auto tb = proc.currentTables();
-    wave.update (proc.frame(), proc.auditionNote, &proc.shapes(), proc.shapesVersion(), &tb, &proc.distData(), proc.distDataVersion());
+    wave.update (proc.frame(), proc.auditionNote, &proc.shapes(), proc.shapesVersion(), &tb, &proc.distData(), proc.distDataVersion(), &proc.modAudioCopy(), proc.modVersion());
+    updateModRings();
     auto& e = proc.getEngine();
     for (int i = 0; i < 4; ++i) meter[(size_t) i] = jmax (e.partPeak[(size_t) i].exchange (0.f), meter[(size_t) i] * 0.85f);
     outMeter = jmax (e.outPeak.exchange (0.f), outMeter * 0.85f);
@@ -411,8 +418,103 @@ void GeCanvas::timerCallback()
 }
 
 // ======================================================================= editor
+// ---------------------------------------------------------------- module 09: modulation from the knobs
+int GeCanvas::addModulation (const String& paramId, int source)
+{
+    namespace mo = fge::dsp::mod;
+    const int id = fge::modstate::indexOf (paramId);
+    if (! mo::modulatable (id) || source <= mo::SNone || source >= mo::NumSrc) return -1;
+    for (int s = 0; s < mo::numSlots; ++s)
+        if (proc.modDesc().slot[(size_t) s].empty())
+        {
+            fge::modstate::SlotDesc d; d.on = true; d.src = source; d.dst = paramId; d.depth = 0.25f;
+            d.pol = (mo::isMacro (source) || source == mo::SVel || (source >= mo::SAmpPunch && source <= mo::SAmpKick) || source >= mo::SFollower) ? mo::PUniPos : mo::PBipolar;
+            d.smoothMs = mo::isMacro (source) ? 20.f : 0.f;
+            d.label = mo::sourceNames()[source] + " > " + String (fge::def (id).name).toUpperCase();
+            proc.setModSlot (s, d);
+            if (modPg != nullptr) modPg->selectSlot (s);
+            return s;
+        }
+    return -1;
+}
+void GeCanvas::knobMenu (doomsday::flat::Knob& k)
+{
+    namespace mo = fge::dsp::mod;
+    const String pid = k.parameterId();
+    const int id = fge::modstate::indexOf (pid);
+    PopupMenu m;
+    if (! mo::modulatable (id)) { m.addItem (-1, "(this control is not a modulation target)", false); m.showMenuAsync (PopupMenu::Options().withTargetComponent (&k)); return; }
+    PopupMenu with;
+    for (int s = 1; s < mo::NumSrc; ++s) with.addItem (s, mo::sourceNames()[s]);
+    m.addSubMenu ("MODULATE " + String (fge::def (id).name).toUpperCase() + " WITH", with);
+    std::vector<int> mine;
+    for (int s = 0; s < mo::numSlots; ++s) { const auto& d = proc.modDesc().slot[(size_t) s]; if (d.dst == pid && ! d.empty()) mine.push_back (s); }
+    if (! mine.empty())
+    {
+        m.addSeparator();
+        for (int s : mine)
+        {
+            const auto& d = proc.modDesc().slot[(size_t) s];
+            m.addItem (1000 + s, "REMOVE slot " + String (s + 1) + ": " + mo::sourceNames()[d.src] + " " + (d.depth >= 0 ? "+" : "") + String (roundToInt (d.depth * 100.f)) + " %");
+        }
+        m.addItem (999, "SHOW IN THE MATRIX");
+    }
+    SafePointer<GeCanvas> self (this);
+    m.showMenuAsync (PopupMenu::Options().withTargetComponent (&k), [self, pid, mine] (int r)
+    {
+        if (self == nullptr || r <= 0) return;
+        if (r < 1000 && r != 999) { self->addModulation (pid, r); return; }
+        if (r == 999) { self->showPage (8); self->modPg->setView ((mine.front() / 16) * 16); self->modPg->selectSlot (mine.front()); return; }
+        self->proc.setModSlot (r - 1000, {});
+    });
+}
+void GeCanvas::updateModRings()
+{
+    namespace mo = fge::dsp::mod;
+    std::map<String, std::pair<float, int>> mod;                      // target -> (sum of depths, a slot)
+    for (int s = 0; s < mo::numSlots; ++s)
+    {
+        const auto& d = proc.modDesc().slot[(size_t) s];
+        if (! d.on || d.mute || d.dst.isEmpty() || d.src <= 0) continue;
+        auto& e = mod[d.dst]; e.first += d.depth; e.second = s;
+    }
+    std::function<void (Component&)> walk = [&] (Component& c)
+    {
+        for (auto* ch : c.getChildren())
+        {
+            if (! ch->isVisible()) continue;
+            if (auto* k = dynamic_cast<Knob*> (ch))
+            {
+                const auto it = mod.find (k->parameterId());
+                if (it == mod.end()) k->setModulation (0.f);
+                else k->setModulation (jlimit (-1.f, 1.f, it->second.first), proc.getEngine().slotFinal[(size_t) it->second.second].load());
+                continue;
+            }
+            walk (*ch);
+        }
+    };
+    walk (*this);
+}
+int GeCanvas::dropOnto (Point<int> pos, int source)
+{
+    for (auto* c = getComponentAt (pos); c != nullptr && c != this; c = c->getParentComponent())
+        if (auto* k = dynamic_cast<Knob*> (c)) return addModulation (k->parameterId(), source);
+    return -1;
+}
+void GeCanvas::itemDropped (const SourceDetails& d) { dropOnto (d.localPosition, d.description.toString().fromFirstOccurrenceOf ("modsrc:", false, false).getIntValue()); }
+void GeCanvas::mouseDrag (const MouseEvent& e)
+{
+    // the small handles next to the macro knobs on MAIN: drag a macro onto any knob
+    if (pageIdx >= 2 || isDragAndDropActive() || ! macroArea.contains (e.getMouseDownPosition())) return;
+    for (size_t i = 0; i < macroRow.size(); ++i)
+        if (macroRow[i]->getBounds().withX (macroRow[i]->getRight()).withWidth (22).contains (e.getMouseDownPosition()))
+            startDragging ("modsrc:" + String (fge::dsp::mod::SMacro1 + (int) i), this);
+}
+
 GeEditor::GeEditor (GeProcessor& p) : AudioProcessorEditor (p), canvas (p)
 {
+    doomsday::flat::Knob::onContextMenu = [] (doomsday::flat::Knob& k, const MouseEvent&)
+    { if (auto* cv = k.findParentComponentOfClass<GeCanvas>()) cv->knobMenu (k); };
     addAndMakeVisible (canvas);
     setResizable (true, true);
     setResizeLimits (GeCanvas::W * 6 / 10, GeCanvas::H * 6 / 10, GeCanvas::W * 16 / 10, GeCanvas::H * 16 / 10);

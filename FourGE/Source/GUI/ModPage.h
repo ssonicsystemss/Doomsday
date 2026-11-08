@@ -17,7 +17,7 @@ namespace fge::gui
     class ModPage : public juce::Component, private juce::Timer
     {
     public:
-        enum Tab { TLfo = 0, TSeq, TRandom, NumTabs };
+        enum Tab { TLfo = 0, TSeq, TRandom, TMidi, TVariant, NumTabs };
         ModPage (GeProcessor&, doomsday::flat::FlatLookAndFeel&);
         ~ModPage() override;
         void paint (juce::Graphics&) override;
@@ -35,6 +35,14 @@ namespace fge::gui
         void pickDestination (int slot, const juce::String& id) { editSlot (slot, [&] (auto& s) { s.dst = id; if (s.src == 0) s.src = dsp::mod::SLfo1; s.on = true; }); }
         // the sequencer grid (tests): set a step value by the same code the mouse uses
         void drawStep (int step, float value);
+        void selectSlot (int slot) { selSlot = slot; repaint(); }
+        int selectedSlot() const { return selSlot; }
+        juce::String destinationMonitor() const;          // BASE / MODULATION / FINAL of the selected slot's target (in its units)
+        // the CUSTOM LFO editor (tests use the same code as the mouse)
+        void addLfoPoint (float x, float y);
+        void mouseDown (const juce::MouseEvent&) override;
+        void mouseDrag (const juce::MouseEvent&) override;
+        void mouseUp (const juce::MouseEvent&) override { dragPt = -1; }
 
         class Row;
         class StepGrid;
@@ -51,7 +59,10 @@ namespace fge::gui
 
         GeProcessor& proc;
         doomsday::flat::FlatLookAndFeel& lnf;
-        int tabIdx = TLfo, lfoSel = 0, firstSlot = 0, filterSrc = -1;
+        int tabIdx = TLfo, lfoSel = 0, firstSlot = 0, filterSrc = -1, selSlot = -1, dragPt = -1, learnMacro = 0;
+        bool newPtStep = true;
+        juce::Point<float> ptAt (const dsp::mod::LfoShape&, int) const;
+        juce::Point<float> fromView (juce::Point<float>) const;
         uint32_t shownVersion = 0;
         std::array<juce::TextButton, NumTabs> tabBtn;
         std::array<juce::TextButton, 8> lfoBtn;
@@ -60,6 +71,14 @@ namespace fge::gui
         juce::TextButton clearBtn { "CLEAR ALL" }, resetBtn { "DEFAULT MACROS" }, addBtn { "+ ADD" };
         std::vector<std::unique_ptr<Row>> rows;
         std::unique_ptr<StepGrid> grid;
+        juce::TextButton storeA { "STORE A" }, storeB { "STORE B" }, rndGo { "RANDOMIZE" }, rndRegen { "REGENERATE" }, macroLearn { "LEARN" };
+        std::array<juce::TextButton, 4> ccLearn;
+        std::array<juce::TextButton, 7> lockBtn;
+        juce::ComboBox styleBox, scopeBox, macroBox;
+        juce::Slider amountSl, seedSl;
+        juce::ToggleButton routingTg { "ROUTING (a few LFO / SEQ / RANDOM connections)" };
+        void loadVariant();
+        void saveVariant();
         juce::TextButton seqCopy { "COPY" }, seqPaste { "PASTE" }, seqRev { "REVERSE" }, seqShift { "SHIFT >" }, seqRand { "RANDOM" }, seqClear { "CLEAR" };
         std::array<dsp::mod::Step, dsp::mod::maxSteps> seqClip {}; bool hasSeqClip = false;
         std::vector<std::unique_ptr<juce::Component>> ctl;

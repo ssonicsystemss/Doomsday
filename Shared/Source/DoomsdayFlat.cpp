@@ -231,8 +231,9 @@ void FlatLookAndFeel::drawTooltip (Graphics& g, const String& text, int w, int h
 
 // ======================================================================= Knob
 Knob::Knob (AudioProcessorValueTreeState& apvts, const String& paramId, const String& text, Colour accent, bool bipolar, int d)
-    : label (text), diameter (d)
+    : label (text), paramId (paramId), diameter (d)
 {
+    slider.addMouseListener (this, false);                 // (a right-click reaches onContextMenu)
     slider.getProperties().set ("bipolar", bipolar);
     slider.getProperties().set ("accent", (int64) accent.getARGB());
     slider.getProperties().set ("valueSize", d >= 80 ? 18.f : 13.f);

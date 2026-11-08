@@ -9,6 +9,7 @@
 #include "../Source/Presets/M07Tools.h"
 #include "../Source/Presets/M08Tools.h"
 #include "../Source/Presets/ModState.h"
+#include "../Source/Presets/VariantRandomizer.h"
 #include "../Source/GUI/DistScope.h"
 #include "../Source/Presets/FactoryPresets.h"
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -848,6 +849,16 @@ int main (int argc, char** argv)
                     if (k == "deviation") set2 (o + "mode", 4.f);
                 }
                 if (sid == "mod_movement") route (mo::SLfo1);
+                if (sid.startsWith ("cc") && (sid.endsWith ("_number") || sid.endsWith ("_smooth"))) continue;       // (needs MIDI CC: the M09 MIDI check)
+                if (sid.startsWith ("fol_")) { route (mo::SFollower); if (sid == "fol_threshold") set2 ("fol_range", 10.f);
+                                               if (sid == "fol_detect" || sid == "fol_sensitivity") { set2 ("fol_threshold", sid == "fol_detect" ? -60.f : -40.f); set2 ("fol_range", 60.f); if (sid == "fol_sensitivity") set2 ("fol_gain", -24.f); } }
+                if (sid.endsWith ("_interp")) { const int n = sid.substring (3, 4).getIntValue(); route (mo::SLfo1 + n - 1); set2 ("lfo" + String (n) + "_wave", 8.f); }
+                if (sid == "macro_morph_on" || sid == "macro_morph")
+                {
+                    fge::modstate::Desc dd = fge::modstate::defaults(); dd.hasA = dd.hasB = true; dd.morphA.fill (0.f); dd.morphB.fill (1.f);
+                    md = std::make_unique<mo::Data>(); int unk = 0; fge::modstate::resolve (dd, *md, unk, 1);
+                    if (sid == "macro_morph") set2 ("macro_morph_on", 1.f); else set2 ("macro_morph", 1.f);
+                }
             }
             auto rk = [&] (const ParamFrame& pf) { return renderKick (pf, G1, sr, 0.6, -1, 1.f, nullptr, 0.0, offAt, nullptr, nullptr, nullptr, nullptr, md.get()); };
             if (d.kind == Kind::Choice)
@@ -2288,6 +2299,72 @@ int main (int argc, char** argv)
             writeWav (outDir.getChildFile ("4ge_m09_macros_modulation.wav"), demo);
             outDir.getChildFile ("4ge_m09_macros_modulation.txt").replaceWithText (order);
         }
+        // part 2 - MIDI LEARN: a CC source and a macro learn their controller; the CC moves the sound, the macro knob follows it
+        {
+            GeProcessor p; p.clearModMatrix(); p.setModSlot (0, slot (mo::SCc1 + 1, "tail_tone", 0.6f, mo::PUniPos));
+            auto blockWith = [&] (std::vector<MidiMessage> msgs) { AudioBuffer<float> b (2, 512); b.clear(); MidiBuffer m; for (auto& x : msgs) m.addEvent (x, 0); p.processBlock (b, m); return b; };
+            p.prepareToPlay (sr, 512);
+            p.startMidiLearn (1); blockWith ({ MidiMessage::controllerEvent (1, 20, 64) }); p.serviceMidi();
+            p.startMidiLearn (100 + 4); blockWith ({ MidiMessage::controllerEvent (1, 21, 10) }); p.serviceMidi();
+            const bool learned = (int) p.frame()[P::cc2Num] == 20 && (int) p.modDesc().ccMacro[4] == 21;
+            blockWith ({ MidiMessage::controllerEvent (1, 21, 127) }); p.serviceMidi();
+            const bool macroMoved = p.frame()[P::macro_grit] > 0.99f;
+            auto kick = [&] (int ccVal) { GeProcessor q; q.clearModMatrix(); q.setModSlot (0, slot (mo::SCc1 + 1, "tail_tone", 0.6f, mo::PUniPos)); setP (q, "cc2_number", 20.f);
+                                          return hitProc (q, { { 0, MidiMessage::controllerEvent (1, 20, ccVal) }, { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.4); };
+            check (learned && macroMoved && diff (kick (0), kick (127)) > 1.0e-3, "M09 MIDI LEARN: CC source + macro learn, the CC moves the sound, the macro knob follows (one value for GUI / host / DSP)");
+        }
+        // part 2 - AUDIO FOLLOWER: high while the tail plays, 0 in silence (the gate), no NaN
+        {
+            GeProcessor p; p.clearModMatrix(); p.setModSlot (0, slot (mo::SFollower, "body_tone", 0.3f, mo::PUniPos)); setP (p, "fol_source", 3.f);
+            p.prepareToPlay (sr, 512);
+            float during = 0.f, after = 1.f;
+            for (int blk = 0; blk < 200; ++blk)
+            {
+                AudioBuffer<float> b (2, 512); b.clear(); MidiBuffer m; if (blk == 0) m.addEvent (MidiMessage::noteOn (1, G1, 1.f), 0);
+                p.processBlock (b, m);
+                const float v = p.getEngine().srcMon[(size_t) mo::SFollower].load();
+                if (blk == 10) during = v;
+                if (blk == 199) after = v;
+            }
+            check (during > 0.3f && after == 0.f, "M09 AUDIO FOLLOWER: follows the tail, 0 in silence (gate)", "during " + String (during, 2) + ", after " + String (after, 3));
+        }
+        // part 2 - CUSTOM LFO through the drawn points + MACRO MORPH between two sets
+        {
+            mo::LfoShape sh; sh.n = 3; sh.x = { 0.f, 0.5f, 0.75f }; sh.y = { -1.f, 1.f, 0.f };
+            const float a = mo::Engine::customAt (sh, 0.25f, false), b = mo::Engine::customAt (sh, 0.875f, false), c = mo::Engine::customAt (sh, 0.5f, true);
+            GeProcessor p; p.storeMorph (false); setP (p, "macro_grit", 1.f); setP (p, "macro_body", 0.4f); p.storeMorph (true);
+            setP (p, "macro_grit", 0.f); setP (p, "macro_body", 0.f); setP (p, "macro_morph_on", 1.f); setP (p, "macro_morph", 0.5f);
+            hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.1);
+            const float g = p.getEngine().srcMon[(size_t) (mo::SMacro1 + 4)].load(), bo = p.getEngine().srcMon[(size_t) (mo::SMacro1 + 1)].load();
+            check (std::abs (a) < 1e-4f && std::abs (b + 0.5f) < 1e-4f && std::abs (c - 1.f) < 1e-4f && std::abs (g - 0.5f) < 1e-3f && std::abs (bo - 0.2f) < 1e-3f,
+                   "M09 CUSTOM LFO (points, linear / cubic) + MACRO MORPH (A -> B)", "custom " + String (a, 2) + " / " + String (b, 2) + " / " + String (c, 2) + ", morph GRIT " + String (g, 2) + " BODY " + String (bo, 2));
+        }
+        // part 2 - VARIANT RANDOMIZER: styles keep their ranges, seed repeatable, locks, level matched, one undo step, regenerate
+        {
+            auto run = [&] (int style, int seed, uint32_t locks = 0) { GeProcessor p; fge::variant::Settings v; v.style = style; v.seed = seed; v.locks = locks; fge::variant::save (p, v); fge::variant::apply (p, v); return p.frame(); };
+            bool early = true, raw = true;
+            for (int sd = 1; sd <= 6; ++sd)
+            {
+                const auto e = run (fge::variant::Early, sd), r = run (fge::variant::Raw, sd);
+                early &= e.idx (P::tailChar) <= 2 && e[P::tailDrive] <= 0.501f && ! e.on (P::scrOn);
+                raw &= r.idx (P::tailChar) >= 3 && r[P::tailDrive] >= 0.649f;
+            }
+            const auto a = run (fge::variant::Modern, 42), b = run (fge::variant::Modern, 42), c = run (fge::variant::Modern, 43);
+            bool same = true, other = false; for (int i = 0; i < P::count; ++i) { same &= a[i] == b[i]; other |= a[i] != c[i]; }
+            const auto lk = run (fge::variant::Raw, 5, 1u << fge::variant::ATail); const auto d0 = ParamFrame::defaults();
+            const bool locked = std::abs (lk[P::tailDrive] - d0[P::tailDrive]) < 1e-4f && std::abs (lk[P::tailTone] - d0[P::tailTone]) < 0.1f && std::abs (lk[P::peStart] - d0[P::peStart]) > 1.f;
+            GeProcessor p; const double r0 = fge::variant::kickRms (p);
+            fge::variant::Settings v; v.style = fge::variant::Raw; v.seed = 9; fge::variant::save (p, v); fge::variant::apply (p, v);
+            const double r1 = fge::variant::kickRms (p); const auto f1 = p.frame();
+            fge::variant::apply (p, v, true); const auto f2 = p.frame();
+            bool regen = true; for (int i = 0; i < P::count; ++i) regen &= std::abs (f1[i] - f2[i]) < 1e-4f;
+            p.undo.undo(); p.undo.undo();
+            const bool undone = std::abs (p.frame()[P::tailDrive] - d0[P::tailDrive]) < 1e-5f;
+            const double lvl = 20.0 * std::log10 (r1 / r0);
+            check (early && raw && same && other && locked && std::abs (lvl) < 1.5 && regen && undone, "M09 VARIANT RANDOMIZER: style ranges, seed, locks, level matched, regenerate, undo",
+                   String (early ? "" : "EARLY range! ") + (raw ? "" : "RAW range! ") + (same ? "" : "seed! ") + (locked ? "" : "lock! ") + (regen ? "" : "regenerate! ") + (undone ? "" : "undo! ")
+                   + "level " + String (lvl, 2) + " dB");
+        }
         // 14. CPU: 32 slots of LFO / sequencer / random / envelopes
         {
             GeProcessor full; full.clearModMatrix();
@@ -2881,6 +2958,23 @@ int main (int argc, char** argv)
             const bool lfoCtl = mp.visibleIds().contains ("lfo3_rate") && ! mp.visibleIds().contains ("lfo1_rate");
             ge->canvas.showPage (0);
             const bool macros = ge->canvas.findControl ("macro_grit") != nullptr && ge->canvas.findControl ("macro_grit")->isVisible();
+            // part 2: right-click "modulate with", the ring on the knob, a drop onto a knob, the custom LFO editor, the destination monitor
+            p.clearModMatrix(); ge->canvas.showPage (0); ge->canvas.selectPart (2);
+            const int s1 = ge->canvas.addModulation ("tail_tone", mo::SLfo1);
+            auto* tk = dynamic_cast<doomsday::flat::Knob*> (ge->canvas.findControl ("tail_tone"));
+            ge->canvas.updateModRings();
+            const bool ring = s1 >= 0 && tk != nullptr && std::abs ((float) tk->slider.getProperties().getWithDefault ("modDepth", 0.f) - 0.25f) < 1e-3f;
+            auto* bk = ge->canvas.findControl ("body_level");
+            const int s2 = bk != nullptr ? ge->canvas.dropOnto (ge->canvas.getLocalPoint (bk, bk->getLocalBounds().getCentre()), mo::SMacro1 + 1) : -1;
+            const bool dropped = s2 >= 0 && p.modDesc().slot[(size_t) s2].dst == "body_level" && p.modDesc().slot[(size_t) s2].src == mo::SMacro1 + 1;
+            ge->canvas.showPage (8); mp.showTab (0); mp.showLfo (0);
+            const int n0 = p.modDesc().lfo[0].n; mp.addLfoPoint (0.9f, 0.5f);
+            const bool pts = p.modDesc().lfo[0].n == n0 + 1;
+            mp.selectSlot (s1); const bool mon = mp.destinationMonitor().contains ("BASE") && mp.destinationMonitor().contains ("FINAL");
+            p.clearModMatrix();
+            ge->canvas.showPage (0);
+            check (ring && dropped && pts && mon, "M09 GUI part 2: modulate from a knob, ring on the knob, drop a source on a knob, custom LFO points, destination monitor",
+                   String (ring ? "" : "ring! ") + (dropped ? "" : "drop! ") + (pts ? "" : "points! ") + (mon ? "" : "monitor!"));
             check (grit && picked && undone && drawn && lfoCtl && macros, "M09 GUI: MACRO MAPPING view, destination pick + undo, step drawing, LFO tabs, 8 macros on MAIN",
                    String (grit ? "" : "filter! ") + (picked ? "" : "pick! ") + (undone ? "" : "undo! ") + (drawn ? "" : "steps! ") + (lfoCtl ? "" : "lfo tab! ") + (macros ? "" : "macros!"));
             PNGImageFormat png;
@@ -2890,7 +2984,7 @@ int main (int argc, char** argv)
             std::array<mo::Step, mo::maxSteps> st {}; for (int k = 0; k < 16; ++k) { st[(size_t) k].value = std::sin ((float) k * 0.7f); st[(size_t) k].ratchet = k % 5 == 0 ? 2 : 1; st[(size_t) k].accent = k % 4 == 0; st[(size_t) k].prob = k % 3 ? 1.f : 0.6f; }
             p.setModSteps (st, false);
             hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.2);
-            for (int t = 0; t < 3; ++t)
+            for (int t = 0; t < fge::gui::ModPage::NumTabs; ++t)
             {
                 mp.showTab (t); mp.setView (t == 0 ? 16 : 0);
                 auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());

@@ -88,7 +88,10 @@ namespace fge
         const juce::StringArray& dynOrders()      { static const juce::StringArray a { "COMP > TRANSIENT > CLIP > LIMIT > CREST", "TRANSIENT > COMP > CLIP > LIMIT > CREST",
                                                                                        "COMP > CLIP > TRANSIENT > LIMIT > CREST", "CLIP > COMP > TRANSIENT > LIMIT > CREST" }; return a; }
         // module 09
-        const juce::StringArray& lfoWaves()       { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW UP", "SAW DOWN", "SQUARE", "PULSE", "SAMPLE & HOLD", "SMOOTH RANDOM" }; return a; }
+        const juce::StringArray& lfoWaves()       { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW UP", "SAW DOWN", "SQUARE", "PULSE", "SAMPLE & HOLD", "SMOOTH RANDOM", "CUSTOM" }; return a; }
+        const juce::StringArray& folSources()     { static const juce::StringArray a { "KICK", "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE" }; return a; }
+        const juce::StringArray& folDetects()     { static const juce::StringArray a { "PEAK", "RMS", "HYBRID" }; return a; }
+        const juce::StringArray& lfoInterps()     { static const juce::StringArray a { "LINEAR", "CUBIC" }; return a; }
         const juce::StringArray& modDivisions()   { static const juce::StringArray a { "1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/2 D", "1/4 D", "1/8 D", "1/16 D",
                                                                                        "1/2 T", "1/4 T", "1/8 T", "1/16 T", "1/32 T" }; return a; }
         const juce::StringArray& modRetrigs()     { static const juce::StringArray a { "OFF", "ON NOTE", "ON KICK TRIGGER", "ON BAR" }; return a; }
@@ -369,6 +372,17 @@ namespace fge
                 { "smooth", "Glide between random values." }, { "amount", "How much of the random value goes out." }, { "deviation", "CONTROLLED RANDOM: the largest step per kick." },
                 { "polarity", "BIPOLAR -1..+1 or UNIPOLAR 0..1." } };
             if (pid.startsWith ("rnd")) if (auto it = rnd.find (pid.fromFirstOccurrenceOf ("_", false, false)); it != rnd.end()) return it->second;
+            if (pid.startsWith ("cc") && pid.endsWith ("_number")) return "MIDI CC number of this source (LEARN on the MOD page: move a knob on your controller).";
+            if (pid.startsWith ("cc") && pid.endsWith ("_smooth")) return "Smooths the controller steps (CC has only 128 steps).";
+            static const std::map<juce::String, const char*> fol {
+                { "fol_source", "Which part the follower listens to (before the effects)." }, { "fol_detect", "PEAK = fast, RMS = average, HYBRID = both." },
+                { "fol_attack", "How fast it rises." }, { "fol_release", "How fast it falls." }, { "fol_gain", "Input level of the follower." },
+                { "fol_threshold", "Level where the follower starts (0 below)." }, { "fol_range", "dB above the threshold that give the full value." },
+                { "fol_sensitivity", "GATE: smaller values become 0 (stable in silence)." }, { "fol_smooth", "Smooths the follower output." } };
+            if (auto it = fol.find (pid); it != fol.end()) return it->second;
+            if (pid.endsWith ("_interp")) return "CUSTOM wave: LINEAR lines or a CUBIC curve through the drawn points.";
+            if (pid == "macro_morph_on") return "MACRO MORPH: the 12 macros follow the MORPH knob between the stored sets A and B.";
+            if (pid == "macro_morph") return "MACRO MORPH: 0 = set A, 100 % = set B, in between a smooth blend.";
             if (pid == "mod_movement") return "MOVEMENT - scales every LFO / sequencer / random connection at once (0 = still, 200 % = double).";
         }
         // module 08: dynamics (one text per setting)

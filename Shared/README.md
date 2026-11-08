@@ -135,7 +135,7 @@ Testy klocków bez wtyczki: `Shared/Tests` (`SharedTests`: aliasing, poziom, lat
 - `tokens()` – kolory (tło, powierzchnia, kontrolki, tekst, jeden gorący `hot` + jeden zimny `cool` akcent).
 - `FlatLookAndFeel` – font Inter (Medium / SemiBold / Bold), cienkie łuki pokręteł, płaskie przyciski / listy / menu / okna / dymki.
   `FlatLookAndFeel::makePrimary (button)` = przycisk wypełniony akcentem (np. SAVE).
-- `Knob(apvts, id, label, accentColour, bipolar, diameter = 44)` – łuk + wartość (klik = wpisz) + etykieta; `setModulation (depth, now)` = pierścień modulacji;
+- `Knob(apvts, id, label, accentColour, bipolar, diameter = 44)` – łuk + wartość (klik = wpisz) + etykieta; `setModulation (depth, now)` = pierścień modulacji; `parameterId()`; static `Knob::onContextMenu` (prawy klik na dowolnej gałce, np. menu „modulate with” w 4GE);
   `Knob::heightFor (d)` = potrzebna wysokość.
 - `Toggle(apvts, id, text, Pill|Chip, accent)`, `Segmented(apvts, id, labels, accent)` (poziomy), `TabStrip(names, accent)` (zakładki z kropką ON),
   `card(g, lnf, rect, title, dotColour)` – płaski panel z tytułem.

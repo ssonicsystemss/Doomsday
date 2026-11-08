@@ -215,6 +215,17 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
   wartość, PROBABILITY, RATCHET, CURVE, TIE, ACCENT, MUTE; kierunki, SWING, HUMANIZE, SEED, COPY / PASTE / REVERSE / SHIFT / RANDOM),
   **RANDOM 1–2** (FIXED SEED, PER TRIGGER, FREE RUN, ONE SHOT, CONTROLLED; ten sam SEED = ten sam wynik), VELOCITY, KEY, PITCH ENV,
   obwiednie głośności PUNCH / BODY / TAIL / SUB / KICK, FILTER ENV. **MOVEMENT** skaluje naraz wszystkie LFO / sekwencer / random.
+- **Modulacja z każdej gałki:** prawy klik na gałce → MODULATE … WITH (źródło) albo REMOVE; albo przeciągnij źródło (strzałka „>” przy
+  makrze na MAIN albo wiersz w SOURCE MONITOR) na gałkę. Modulowana gałka ma pierścień: jak daleko sięga i gdzie jest teraz.
+- **CUSTOM LFO**: kształt WAVE = CUSTOM, rysujesz do 16 punktów (klik = dodaj, przeciągnij, prawy klik = usuń), LINEAR albo CUBIC.
+- **MORPH / MIDI / FOLLOW**: MACRO MORPH (STORE A, STORE B, gałka MORPH = płynne przejście wszystkich makr), 4 źródła MIDI CC z LEARN,
+  MIDI LEARN makra (kręcisz gałką kontrolera – makro w 4GE idzie za nią, też w automatyce), AUDIO FOLLOWER (głośność KICK / PUNCH / BODY /
+  TAIL / SUB / TEXTURE jako źródło: ATTACK, RELEASE, GAIN, THRESHOLD, RANGE, GATE, SMOOTH).
+- **VARIANT RANDOMIZER** (też przycisk RANDOMIZE na górze): STYLE EARLY (czysty, tonalny ogon, mało przesteru) / MODERN / RAW (SCREAM /
+  METAL / BUZZ / CRUSH, dużo drive) / EXPERIMENTAL, SCOPE (cały kick albo jedna część), AMOUNT (100 % = nowy kick, mniej = wariacja),
+  SEED (ten sam = ten sam wynik), LOCK części, ROUTING (kilka połączeń LFO / SEQ / RANDOM). Głośność wyrównana po każdym losowaniu,
+  REGENERATE = ten sam start i seed z nowymi ustawieniami. Jedno kliknięcie = jeden UNDO.
+- **DESTINATION MONITOR** (klik w numer wiersza): BAZA / MODULACJA / FINAL wybranego celu w jego jednostkach.
 - **SOURCE MONITOR** pokazuje każde źródło na żywo. Bezpieczeństwo: MASTER i sufit limitera modulacja może tylko obniżyć, LOOKAHEAD
   nie jest celem (latencja), wartości zawsze w zakresie. Eksport = to samo co w FL (ten sam seed, LFO na kicku).
 

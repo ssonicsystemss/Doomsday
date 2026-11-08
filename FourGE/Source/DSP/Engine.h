@@ -338,7 +338,7 @@ namespace fge
             for (auto& g : gainNow) g = { 0.f, 0.f };
             masterNow = 0.f; first = true; dcL = {}; dcR = {};
             for (auto& p : freePhase) p = 0.f;
-            modEng.reset (sampleRate); sinceTick = 0; modFresh = true; heldNotes = 0;
+            modEng.reset (sampleRate); sinceTick = 0; folEnv = folMs = folOut = 0.f; ccVal = {}; modFresh = true; heldNotes = 0;
         }
         int latencySamples() const { return (int) std::lround (os->getLatencyInSamples()) + cfg.dyn.masterLook; }
         // the drawn shapes (module 02) - set before process() each block; nullptr = the defaults
@@ -453,6 +453,9 @@ namespace fge
                     const auto m = (*it).getMessage();
                     if (m.isNoteOn()) { modEng.onNoteOn (heldNotes == 0); ++heldNotes; lastKey = m.getNoteNumber(); lastVel = m.getFloatVelocity(); kicked = true; pendingNotes[(size_t) juce::jmin (15, pendingN++)] = { m.getNoteNumber(), m.getFloatVelocity() }; }
                     else if (m.isNoteOff()) { heldNotes = juce::jmax (0, heldNotes - 1); release (m.getNoteNumber()); }
+                    else if (m.isController())
+                        for (int c = 0; c < 4; ++c)
+                            if (m.getControllerNumber() == (int) std::lround (base[P::cc1Num + c * (P::cc2Num - P::cc1Num)])) ccVal[(size_t) c] = (float) m.getControllerValue() / 127.f;
                     ++it;
                 }
                 if (kicked || full || sinceTick >= dsp::mod::ctlN) { tick (sinceTick); sinceTick = 0; }
@@ -474,7 +477,7 @@ namespace fge
         dsp::mod::Ctx modCtx() const
         {
             dsp::mod::Ctx cx;
-            cx.bpm = tempo(); cx.velocity = lastVel; cx.key = juce::jlimit (-1.f, 1.f, (float) (lastKey - 60) / 24.f);
+            cx.bpm = tempo(); cx.velocity = lastVel; cx.follower = folOut; cx.cc = ccVal; cx.key = juce::jlimit (-1.f, 1.f, (float) (lastKey - 60) / 24.f);
             const KickVoice* newest = nullptr;
             for (auto& v : voices) if (v.isActive() && (newest == nullptr || v.order() > newest->order())) newest = &v;
             if (newest != nullptr)
@@ -485,6 +488,40 @@ namespace fge
             }
             return cx;
         }
+        // AUDIO FOLLOWER: the envelope of one part bus (oversampled rate), 0..1 above its threshold over its range
+        void follow (float* const* b, int on)
+        {
+            const auto& f = frame;
+            const double r = cfg.ks.rate;
+            const float aC = 1.f - std::exp (-1.f / (float) (f[P::folAttack] * 0.001 * r)), rC = 1.f - std::exp (-1.f / (float) (f[P::folRelease] * 0.001 * r));
+            const float g = std::pow (10.f, f[P::folGain] / 20.f);
+            const int src = f.idx (P::folSource), det = f.idx (P::folDetect);
+            for (int i = 0; i < on; ++i)
+            {
+                float x;
+                switch (src)
+                {
+                    case 1: x = b[0][i]; break;
+                    case 2: x = b[1][i]; break;
+                    case 3: x = b[2][i] + 0.5f * (b[4][i] + b[5][i]); break;
+                    case 4: x = b[3][i]; break;
+                    case 5: x = 0.5f * (b[6 + 2 * dsp::BusTexture][i] + b[7 + 2 * dsp::BusTexture][i]); break;
+                    default: x = b[0][i] + b[1][i] + b[2][i] + b[3][i] + 0.5f * (b[4][i] + b[5][i]); break;
+                }
+                x = std::abs (x) * g;
+                folMs += (x * x - folMs) * rC;                                    // (RMS: a mean-square window = the release time)
+                const float lvl = det == 0 ? x : det == 1 ? std::sqrt (folMs) * 1.4142f : 0.5f * (x + std::sqrt (folMs) * 1.4142f);
+                folEnv += (lvl - folEnv) * (lvl > folEnv ? aC : rC);
+            }
+            const float db = folEnv > 1.0e-6f ? 20.f * std::log10 (folEnv) : -120.f;
+            float v = juce::jlimit (0.f, 1.f, (db - f[P::folThresh]) / juce::jmax (1.f, f[P::folRange]));
+            if (v < f[P::folSens]) v = 0.f;                                       // the GATE: silence stays 0
+            const float sm = f[P::folSmooth];
+            folOut = sm < 0.5f ? v : folOut + (1.f - std::exp (-(float) on / (float) (sm * 0.001 * r))) * (v - folOut);
+            if (! std::isfinite (folOut)) folOut = folEnv = folMs = 0.f;
+        }
+        float folEnv = 0.f, folMs = 0.f, folOut = 0.f;
+        std::array<float, 4> ccVal {};
         dsp::mod::Engine modEng;
         const dsp::mod::Data* modData = nullptr;
         uint32_t modVersion = 0;
@@ -754,6 +791,7 @@ namespace fge
                 v.scrInL = v.scrInR = nullptr;
             }
             for (int l = 0; l < 6; ++l) distOn[(size_t) l] = cfg.dist.count[(size_t) l] > 0;
+            if (modData != nullptr && modEng.uses (dsp::mod::SFollower)) follow (b, on);   // module 09: the AUDIO FOLLOWER (the raw part buses)
             if (! inside) scrAny = renderScreech (b, on);
             const bool busAny = cfg.lbAny || scrAny;
             const bool m6 = cfg.m06.any, m7 = cfg.tone.any, m8 = cfg.dyn.any;

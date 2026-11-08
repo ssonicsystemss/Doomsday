@@ -328,3 +328,6 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   TAIL DRIVE 0.35–0.9, nigdy CLEAN, TONE do 14 kHz i losuje na wierzchu aktualnego presetu (łańcuchy distortion z MODERN / RAW) –
   więc każdy wynik ląduje w RAW. Losowanie musi znać STYL (EARLY = czysty / tonalny ogon, mało drive) – randomizer ze stylami w module 09.
   Wybrane przez właściciela wyniki (10 sztuk) są presetami „RANDOM - Pick 01…10”: jasne, gęste (centroid 360–850 Hz, płaskość ~ −6 dB).
+- **Czas „od uderzenia” jako suma float per blok = inny dźwięk przy innym rozmiarze bloku (2026-11-08, 4GE M09)** – `sinceHitMs += n*1000/rate`
+  sumowane co blok dawało różnice 8e-4 między blokami 32 a 256 (M07 spectral / obwiednie w ms). Czas liczyć z licznika próbek (int64)
+  w każdej próbce. Tak samo modulacja: siatka ticków restartowana przy każdym kicku, nie na granicach bloków hosta – wtedy realtime = eksport.

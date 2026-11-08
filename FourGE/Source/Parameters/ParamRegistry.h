@@ -91,6 +91,7 @@ namespace fge
         const juce::StringArray& excModes(); const juce::StringArray& dynLocations(); const juce::StringArray& cmpTypes(); const juce::StringArray& cmpDetections();
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
+        const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
         const juce::StringArray& dynOrders(); const juce::StringArray& mbLinks(); const juce::StringArray& excHarm(); const juce::StringArray& toneOrders(); const juce::StringArray& stwLocations();
@@ -303,7 +304,24 @@ namespace fge
     FGE_MACRO (F, user1, "user1", "USER 1") FGE_MACRO (F, user2, "user2", "USER 2") FGE_MACRO (F, user3, "user3", "USER 3") FGE_MACRO (F, user4, "user4", "USER 4") \
     FGE_LFO (F, B, C, 1) FGE_LFO (F, B, C, 2) FGE_LFO (F, B, C, 3) FGE_LFO (F, B, C, 4) FGE_LFO (F, B, C, 5) FGE_LFO (F, B, C, 6) FGE_LFO (F, B, C, 7) FGE_LFO (F, B, C, 8) \
     FGE_SEQ (F, B, C) FGE_RND (F, B, C, 1) FGE_RND (F, B, C, 2) \
-    F (modMovement,  "mod_movement",    "MOVEMENT",                Unit::Pct,   0.f,   2.f,   1.f,   1.f,   FMod)
+    F (modMovement,  "mod_movement",    "MOVEMENT",                Unit::Pct,   0.f,   2.f,   1.f,   1.f,   FMod) \
+    /* module 09 part 2: MIDI CC 1-4, AUDIO FOLLOWER, CUSTOM LFO interpolation, MACRO MORPH */ \
+    FGE_CC (F, 1, 1.f) FGE_CC (F, 2, 74.f) FGE_CC (F, 3, 71.f) FGE_CC (F, 4, 11.f) \
+    C (folSource,    "fol_source",      "Follower Source",         folSources, 0, FNone) \
+    C (folDetect,    "fol_detect",      "Follower Detection",      folDetects, 0, FNone) \
+    F (folAttack,    "fol_attack",      "Follower Attack",         Unit::Ms,    0.1f, 200.f,  2.f,  10.f,   FMod) \
+    F (folRelease,   "fol_release",     "Follower Release",        Unit::Ms,    1.f, 2000.f, 80.f, 100.f,   FMod) \
+    F (folGain,      "fol_gain",        "Follower Input Gain",     Unit::Db,   -24.f,  24.f,  0.f,   0.f,   FMod) \
+    F (folThresh,    "fol_threshold",   "Follower Threshold",      Unit::Db,   -80.f,   0.f, -40.f,  0.f,   FMod) \
+    F (folRange,     "fol_range",       "Follower Range",          Unit::Db,     3.f,  60.f,  30.f, 20.f,   FMod) \
+    F (folSens,      "fol_sensitivity", "Follower Gate",           Unit::Pct,    0.f,   0.5f, 0.02f, 0.f,   FMod) \
+    F (folSmooth,    "fol_smooth",      "Follower Smoothing",      Unit::Ms,     0.f, 200.f,   0.f,  20.f,   FMod) \
+    C (lfo1Interp,   "lfo1_interp",     "LFO 1 Custom Interpolation", lfoInterps, 0, FNone) C (lfo2Interp, "lfo2_interp", "LFO 2 Custom Interpolation", lfoInterps, 0, FNone) \
+    C (lfo3Interp,   "lfo3_interp",     "LFO 3 Custom Interpolation", lfoInterps, 0, FNone) C (lfo4Interp, "lfo4_interp", "LFO 4 Custom Interpolation", lfoInterps, 0, FNone) \
+    C (lfo5Interp,   "lfo5_interp",     "LFO 5 Custom Interpolation", lfoInterps, 0, FNone) C (lfo6Interp, "lfo6_interp", "LFO 6 Custom Interpolation", lfoInterps, 0, FNone) \
+    C (lfo7Interp,   "lfo7_interp",     "LFO 7 Custom Interpolation", lfoInterps, 0, FNone) C (lfo8Interp, "lfo8_interp", "LFO 8 Custom Interpolation", lfoInterps, 0, FNone) \
+    B (macroMorphOn, "macro_morph_on",  "Macro Morph On",          false, FGlobal) \
+    F (macroMorph,   "macro_morph",     "Macro Morph",             Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FGlobal)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -915,6 +933,10 @@ namespace fge
     // module 09: a macro (0..1; a modulation SOURCE only - FINAL = BASE + mapping, RULES.md 1 / 2)
 #define FGE_MACRO(F, e, id, nm) \
     F (macro_##e,    "macro_" id,       nm,                        Unit::Pct,   0.f,   1.f,   0.f,   0.f,   FGlobal)
+    // module 09: a MIDI CC source (MIDI LEARN sets the number)
+#define FGE_CC(F, n, defCc) \
+    F (cc##n##Num,    "cc" #n "_number",    "MIDI CC " #n " Number",   Unit::None,  0.f, 127.f, defCc, 0.f, FNone) \
+    F (cc##n##Smooth, "cc" #n "_smooth",    "MIDI CC " #n " Smoothing",Unit::Ms,    0.f, 500.f, 10.f, 50.f, FMod)
     // module 09: an LFO (a modulation signal, not audio)
 #define FGE_LFO(F, B, C, n) \
     C (lfo##n##Wave,  "lfo" #n "_wave",     "LFO " #n " Wave",        lfoWaves, 0, FNone) \

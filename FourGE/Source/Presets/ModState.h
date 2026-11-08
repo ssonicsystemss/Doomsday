@@ -61,10 +61,44 @@ namespace fge::modstate
         }
         return st;
     }
+    // CUSTOM LFO shape text "x,y;x,y;..." (x 0..1 ascending, y -1..1); empty = the default shape
+    inline LfoShape defaultShape()
+    {
+        LfoShape s; const float xs[5] { 0.f, 0.2f, 0.45f, 0.6f, 0.8f }, ys[5] { 1.f, -0.3f, 0.6f, -1.f, 0.2f };
+        s.n = 5; for (int i = 0; i < 5; ++i) { s.x[(size_t) i] = xs[i]; s.y[(size_t) i] = ys[i]; }
+        return s;
+    }
+    inline juce::String shapeToText (const LfoShape& sh)
+    {
+        juce::StringArray a; for (int i = 0; i < sh.n; ++i) a.add (juce::String (sh.x[(size_t) i], 4) + "," + juce::String (sh.y[(size_t) i], 4));
+        return a.joinIntoString (";");
+    }
+    inline LfoShape shapeFromText (const juce::String& t)
+    {
+        LfoShape sh;
+        const auto a = juce::StringArray::fromTokens (t, ";", "");
+        std::vector<std::pair<float, float>> p;
+        for (auto& e : a) { const auto b = juce::StringArray::fromTokens (e, ",", ""); if (b.size() == 2) p.push_back ({ juce::jlimit (0.f, 0.9999f, b[0].getFloatValue()), juce::jlimit (-1.f, 1.f, b[1].getFloatValue()) }); }
+        std::sort (p.begin(), p.end());
+        for (auto& [x, y] : p) { if (sh.n >= maxPts) break; sh.x[(size_t) sh.n] = x; sh.y[(size_t) sh.n] = y; ++sh.n; }
+        return sh.n > 0 ? sh : defaultShape();
+    }
+    inline juce::String floatsToCsv (const float* v, int n) { juce::StringArray a; for (int i = 0; i < n; ++i) a.add (juce::String (v[i], 4)); return a.joinIntoString (","); }
+    inline bool csvToFloats (const juce::String& t, float* v, int n, float lo, float hi)
+    {
+        const auto a = juce::StringArray::fromTokens (t, ",", "");
+        if (a.size() != n) return false;
+        for (int i = 0; i < n; ++i) v[i] = juce::jlimit (lo, hi, a[i].getFloatValue());
+        return true;
+    }
     struct Desc
     {
         std::array<SlotDesc, numSlots> slot {};
         std::array<Step, maxSteps> step {};
+        std::array<LfoShape, 8> lfo { defaultShape(), defaultShape(), defaultShape(), defaultShape(), defaultShape(), defaultShape(), defaultShape(), defaultShape() };
+        std::array<float, 12> morphA {}, morphB {};
+        bool hasA = false, hasB = false;
+        std::array<float, 12> ccMacro { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };   // MIDI LEARN: the CC number of each macro (-1 = none)
     };
 
     // ---- the DEFAULT MACRO MAPPING (MASTER MACROS, PLAN "Odpowiedzi na pytania końcowe"): every macro at 0 = the sound is unchanged
@@ -99,6 +133,10 @@ namespace fge::modstate
         Desc d;
         for (int i = 0; i < numSlots; ++i) if (t.hasProperty ("s" + juce::String (i + 1))) d.slot[(size_t) i] = SlotDesc::fromText (t.getProperty ("s" + juce::String (i + 1)).toString());
         if (t.hasProperty ("steps")) d.step = stepsFromText (t.getProperty ("steps").toString());
+        for (int i = 0; i < 8; ++i) if (t.hasProperty ("lfo" + juce::String (i + 1))) d.lfo[(size_t) i] = shapeFromText (t.getProperty ("lfo" + juce::String (i + 1)).toString());
+        d.hasA = csvToFloats (t.getProperty ("morphA").toString(), d.morphA.data(), 12, 0.f, 1.f);
+        d.hasB = csvToFloats (t.getProperty ("morphB").toString(), d.morphB.data(), 12, 0.f, 1.f);
+        csvToFloats (t.getProperty ("ccMacro").toString(), d.ccMacro.data(), 12, -1.f, 127.f);
         return d;
     }
     // the parameter index of every ID (built once)
@@ -125,6 +163,8 @@ namespace fge::modstate
             if (o.on && o.dst >= 0 && o.src > SNone) last = i + 1;
         }
         out.step = d.step;
+        out.lfoShape = d.lfo;
+        out.morphA = d.morphA; out.morphB = d.morphB; out.morphValid = d.hasA && d.hasB;
         out.active = last;
         out.version = version;
     }

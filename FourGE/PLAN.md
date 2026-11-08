@@ -148,8 +148,13 @@ control, AUTO GAIN (okno 50 ms) / LEVEL MATCH, ORDER, BAND LINK multibandu M07. 
 znormalizowanej parametru; tick co 32 próbki na własnej siatce restartowanej przy każdym kicku = realtime == eksport; sekcje cooka `Engine::cookSubs`
 re-gotowane tylko gdy modulacja je ruszy – test „partial = full” dla 1743 celów), `Presets/ModState.h` (64 sloty + 64 kroki, child MODM, brak = domyślny
 MACRO MAPPING 25 slotów), parametry: 8 MASTER + 4 USER MACROS (tylko źródła), LFO 1–8, SEQ, RND 1–2, MOVEMENT; `GUI/ModPage.*` + 8 makr na MAIN.
-Testy M09 (tabela 13) OK. Część 2: AUDIO FOLLOWER, MIDI CC + MIDI LEARN, drag & drop źródło → gałka + pierścienie BASE / FINAL na gałkach,
-DESTINATION MONITOR, CUSTOM LFO (16 punktów), MACRO MORPH, Randomizer wariantów (SCOPE / LOCK / REGENERATE ze stylami EARLY / MODERN / RAW / EXPERIMENTAL).
+Testy M09 (tabela 13) OK.
+**STAN 2026-11-08 (wieczór): MODUŁ 09 – część 2 GOTOWA** – AUDIO FOLLOWER (`Engine::follow`, surowe szyny części), MIDI CC 1–4 + MIDI LEARN
+(CC źródło / makro; CC → makro przez parametr hosta na wątku wiadomości = jedna wartość GUI / host / DSP), CUSTOM LFO (16 punktów, LINEAR /
+CUBIC, w MODM „lfo1..8”), MACRO MORPH (zestawy A / B w MODM), VARIANT RANDOMIZER `Presets/VariantRandomizer.h` (style, scope, locks, seed,
+regenerate, routing, wyrównanie głośności; podpięty pod RANDOMIZE), pierścienie modulacji na gałkach (`Knob::parameterId` + `setModulation`),
+prawy klik na gałce = MODULATE WITH (`Knob::onContextMenu` w Shared), drag & drop źródła na gałkę (`GeCanvas` = DragAndDropContainer / Target),
+DESTINATION MONITOR, waveform i drag WAV z modulacją. Moduł 09 kompletny wg tabeli 13. Następny: moduł 10.
 
 **STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
 przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH

@@ -107,6 +107,13 @@ public:
     void setModSteps (const std::array<fge::dsp::mod::Step, fge::dsp::mod::maxSteps>&, bool newUndoStep = true);
     void resetModMatrix (bool undoable = true);                         // back to the default macro mapping
     void clearModMatrix();                                              // every slot empty (one undo step)
+    void setModProperty (const juce::String& key, const juce::String& text, bool newUndoStep = true);   // lfo1..8 shapes, morphA / B, ccMacro
+    void setLfoShape (int lfo, const fge::dsp::mod::LfoShape& sh, bool newUndoStep = true) { setModProperty ("lfo" + juce::String (lfo + 1), fge::modstate::shapeToText (sh), newUndoStep); }
+    void storeMorph (bool toB);                                         // MACRO MORPH: the 12 macro values now -> set A / B
+    // MIDI LEARN (module 09 8): the next CC sets CC source n (0..3) or macro i (100 + i, 0..11); -1 = off
+    void startMidiLearn (int target) { learnTarget.store (target); learnedCc.store (-1); }
+    int midiLearnTarget() const { return learnTarget.load(); }
+    void serviceMidi();                                                 // message thread (timer): learned CC + CC -> macro values
     static float slotMin (int slot) { return fge::env::isBipolar (slot) ? -1.f : 0.f; }
     int auditionNote = 31;          // G1 in FL (49 Hz)
 
@@ -125,7 +132,7 @@ private:
         else if (t.getType() == juce::Identifier (modTag)) rebuildModData();
         else rebuildShapes();
     }
-    void timerCallback() override { refreshTables(); }
+    void timerCallback() override { refreshTables(); serviceMidi(); }
     void rebuildOscData();
     void rebuildDistData();
     void rebuildModData();
@@ -135,6 +142,9 @@ private:
     uint32_t modVer = 1;
     int modUnknown = 0;
     fge::dsp::Exchange<fge::dsp::mod::Data> modX;
+    std::atomic<int> learnTarget { -1 }, learnedCc { -1 };
+    std::array<std::atomic<int>, 12> macroCc {};
+    std::array<std::atomic<float>, 12> macroPending {};               // < 0 = nothing new from MIDI
     fge::dsp::dist::DistData distNow;
     uint32_t distVersion = 1;
     fge::dsp::Exchange<fge::dsp::dist::DistData> distX;

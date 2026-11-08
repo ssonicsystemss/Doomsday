@@ -84,9 +84,13 @@ namespace doomsday::flat
         // modulation ring outside the arc: depth = fraction of the travel (-1..1, 0 hides), nowPos01 = live dot (< 0 none)
         void setModulation (float depth, float nowPos01 = -1.f);
         static int heightFor (int diameter) { return diameter + 36; }
+        const juce::String& parameterId() const { return paramId; }
+        // a right-click on any knob (e.g. a plugin's "modulate with ..." menu); empty = nothing happens
+        inline static std::function<void (Knob&, const juce::MouseEvent&)> onContextMenu;
+        void mouseDown (const juce::MouseEvent& e) override { if (e.mods.isPopupMenu() && onContextMenu) onContextMenu (*this, e); }
         juce::Slider slider;
     private:
-        juce::String label;
+        juce::String label, paramId;
         int diameter;
         juce::Rectangle<int> labelArea;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;

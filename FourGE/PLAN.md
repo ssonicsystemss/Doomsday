@@ -164,6 +164,14 @@ zwalniany po 96000 próbkach audio, overview + transienty, PREVIEW pliku / regio
 ulubione / ostatnie w `4GE/browser.settings`), API procesora (import w tle z jednym UNDO, CLEAR, narzędzia, RELINK, COLLECT,
 `samplePlayPos` z `Engine::smpPosMon`), `GUI/SamplePage.*` (strona SMP: sloty, edytor znaczników ze snapem, zoom, przeglądarka),
 waveform i drag WAV z samplami. Testy M10 (tabela 13 + narzędzia, FLAC, 4 kanały, crossfade, CPU) i 14.11 dla `smp*` OK. Następny: moduł 11.
+**STAN 2026-11-09: MODUŁ 11 GOTOWY** – STEREO & SPATIAL ENGINE: `DSP/Spatial/Spatial.h` (`Unit`: SWAP → POLARITY → CH DELAY (ułamkowe,
+bufor 65536) → LOW MONO (LR4 tylko na side, mid nietknięty) → WIDTH: M/S / DECORRELATION (3 all-passy 1. rzędu, inne rogi L / R,
+150 Hz–5 kHz, tylko z wysokich mid) / HAAS / OFF + MIX → adaptacyjna kompensacja energii (nigdy głośniej) → M/S ENGINE → PAN (mid,
+stała moc) → BALANCE → OUTPUT; wygładzanie 5 / 30 ms; `Analyzer` korelacja / M / S / L / R / punkty scope), `SpatialCook.h`
+(parametry `spc_<grupa>_*` x 7 + `spc_sub_mono_lock`, kuchnia w grupie GTone M09), w `Engine`: grupy PUNCH–SUB po M08 AFTER,
+TEXTURE / CUSTOM w pętli szyn, MASTER przed downsamplingiem; SUB MONO LOCK = SUB zawsze mono + MASTER low mono ≥ 120 Hz (gdy master ON);
+procesor: `analyzer` + `monoAudition` (poza stanem); `GUI/StereoPage.*` (zakładki, ALL UNITS, scope); nagłówek: siatka 5 x 3 przycisków.
+Testy M11 (tabela 13 + CPU) i 14.11 dla `spc*` OK. Następny: moduł 12.
 
 **STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
 przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH

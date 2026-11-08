@@ -121,7 +121,7 @@ namespace fge::dsp::mod
                                      { "pe_", GCore }, { "env_", GCore }, { "master", GCore }, { "osc", GOsc }, { "fm_", GOsc },
                                      { "layer", GLayers }, { "noise", GLayers }, { "tr_", GLayers }, { "group", GLayers }, { "bus", GLayers }, { "shaper", GLayers },
                                      { "dist", GDist }, { "flt", GM06 }, { "res", GM06 }, { "scr", GM06 }, { "filter", GM06 },
-                                     { "eq", GTone }, { "deq", GTone }, { "mb", GTone }, { "sp_", GTone }, { "stw", GTone }, { "tone", GTone },
+                                     { "eq", GTone }, { "deq", GTone }, { "mb", GTone }, { "sp_", GTone }, { "spc_", GTone }, { "stw", GTone }, { "tone", GTone },
                                      { "cmp", GDyn }, { "ts", GDyn }, { "clp", GDyn }, { "lim", GDyn }, { "crest", GDyn }, { "dyn_", GDyn } };
             for (int i = 0; i < P::count; ++i)
             {

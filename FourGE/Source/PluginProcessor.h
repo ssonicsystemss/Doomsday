@@ -124,7 +124,10 @@ public:
     bool applySampleTool (int slot, int tool);                          // NORMALIZE / DC OFFSET / TRIM SILENCE on the working copy (undoable)
     int collectSamples (const juce::File& folder);                      // COLLECT SAMPLES: copy the used files there, point the slots to them
     fge::smp::SlotInfo sampleInfo (int slot) const { return samplePool.info (slot); }
-    int relinkSamples (const juce::File& folder);                       // RELINK: find the MISSING slots' files (by name) in a folder
+    int relinkSamples (const juce::File& folder);
+    // module 11: the output's stereo analyzer (GUI reads it) and MONO AUDITION (a listening switch - not saved, not a parameter)
+    fge::dsp::spatial::Analyzer analyzer;
+    std::atomic<bool> monoAudition { false };                       // RELINK: find the MISSING slots' files (by name) in a folder
     float samplePlayPos (int slot) const { return engine.smpPosMon[(size_t) juce::jlimit (0, fge::dsp::numSampleSlots - 1, slot)].load (std::memory_order_relaxed); }
     std::function<void (int slot, const juce::String& error)> onSampleImported;   // (GUI)
     static float slotMin (int slot) { return fge::env::isBipolar (slot) ? -1.f : 0.f; }

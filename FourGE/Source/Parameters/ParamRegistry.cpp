@@ -90,6 +90,9 @@ namespace fge
         // module 09
         const juce::StringArray& lfoWaves()       { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW UP", "SAW DOWN", "SQUARE", "PULSE", "SAMPLE & HOLD", "SMOOTH RANDOM", "CUSTOM" }; return a; }
         const juce::StringArray& smpModes()       { static const juce::StringArray a { "ONE SHOT", "GATE", "LOOP", "PING-PONG" }; return a; }
+        const juce::StringArray& spcModes()       { static const juce::StringArray a { "M/S WIDTH", "DECORRELATION", "HAAS (CREATIVE)", "DISABLED" }; return a; }
+        const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
+        const juce::StringArray& spcHaasCh()      { static const juce::StringArray a { "DELAY LEFT", "DELAY RIGHT" }; return a; }
         const juce::StringArray& smpLinks()       { static const juce::StringArray a { "INDEPENDENT", "SAMPLE 1", "SAMPLE 2", "SAMPLE 3", "SAMPLE 4", "SAMPLE 5", "SAMPLE 6", "SAMPLE 7", "SAMPLE 8" }; return a; }
         const juce::StringArray& folSources()     { static const juce::StringArray a { "KICK", "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE" }; return a; }
         const juce::StringArray& folDetects()     { static const juce::StringArray a { "PEAK", "RMS", "HYBRID" }; return a; }
@@ -338,6 +341,29 @@ namespace fge
             if (num ("deq")) if (auto it = deq.find (k); it != deq.end()) return it->second;
             if (num ("mb")) if (auto it = mb.find (k); it != mb.end()) return it->second;
             if (auto it = other.find (pid); it != other.end()) return it->second;
+        }
+        // module 11: the stereo units (one text per setting, the same for every group and the master)
+        if (const juce::String pid (d.id); pid.startsWith ("spc_"))
+        {
+            if (pid == "spc_sub_mono_lock") return "SUB MONO LOCK: the SUB group always stays mono and centred, and the MASTER keeps everything below its crossover (at least 120 Hz) mono - stronger than any WIDTH.";
+            static const std::map<juce::String, const char*> t {
+                { "on", "Switch this stereo unit on (OFF = bypass: the signal passes untouched)." },
+                { "pan", "PAN: moves the position of the sound (its centre) left / right with constant power. Not the same as BALANCE." },
+                { "balance", "BALANCE: only turns the opposite channel down (0 dB in the middle) - the stereo image stays, its weight moves." },
+                { "width", "STEREO WIDTH: 0 % = mono, 100 % = as it is, 200 % = the widest of the chosen algorithm (the level does not jump)." },
+                { "mode", "M/S WIDTH = predictable (side level); DECORRELATION = a wide side made from the highs (mono safe); HAAS = one channel later (creative, mono can suffer); DISABLED." },
+                { "mix", "How much of the width algorithm is used (0 % = the original width)." },
+                { "gain", "Output level of the unit." }, { "swap", "CHANNEL SWAP: left <-> right (check / creative)." },
+                { "ms_on", "Switch the MID / SIDE engine on." }, { "mid", "Level of the MID (the centre)." }, { "side", "Level of the SIDE (the difference L - R)." },
+                { "ms_width", "M/S WIDTH of the M/S engine: 0 % = mono, 100 % = nominal." },
+                { "mid_solo", "Listen to the MID only." }, { "side_solo", "Listen to the SIDE only." },
+                { "low_mono", "LOW FREQUENCY MONO: everything below the crossover goes to the centre (a stable low end)." },
+                { "crossover", "Below this frequency the sound is mono." },
+                { "polarity", "POLARITY INVERT: flip the left, the right or both channels." },
+                { "delay", "CHANNEL DELAY: below 0 the left channel comes later, above 0 the right (precise correction / space)." },
+                { "haas_time", "HAAS: how much later the chosen channel comes (1-40 ms)." }, { "haas_channel", "HAAS: which channel comes later." } };
+            const juce::String key = pid.fromFirstOccurrenceOf ("_", false, false).fromFirstOccurrenceOf ("_", false, false);
+            if (auto it = t.find (key); it != t.end()) return it->second;
         }
         // module 10: the sample slots (one text per setting, the same for all 8 slots)
         if (const juce::String pid (d.id); pid.startsWith ("smp") && pid.length() > 4 && juce::CharacterFunctions::isDigit (pid[3]))

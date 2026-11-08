@@ -92,6 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -324,7 +325,12 @@ namespace fge
     B (macroMorphOn, "macro_morph_on",  "Macro Morph On",          false, FGlobal) \
     F (macroMorph,   "macro_morph",     "Macro Morph",             Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FGlobal) \
     /* ================= MODULE 10 - ADVANCED SAMPLE ENGINE: 8 sample slots (the audio itself is state data, SAMPLES) ================= */ \
-    FGE_SMP (F, B, C, 1) FGE_SMP (F, B, C, 2) FGE_SMP (F, B, C, 3) FGE_SMP (F, B, C, 4) FGE_SMP (F, B, C, 5) FGE_SMP (F, B, C, 6) FGE_SMP (F, B, C, 7) FGE_SMP (F, B, C, 8)
+    FGE_SMP (F, B, C, 1) FGE_SMP (F, B, C, 2) FGE_SMP (F, B, C, 3) FGE_SMP (F, B, C, 4) FGE_SMP (F, B, C, 5) FGE_SMP (F, B, C, 6) FGE_SMP (F, B, C, 7) FGE_SMP (F, B, C, 8) \
+    /* ================= MODULE 11 - STEREO & SPATIAL ENGINE: one unit per group (PUNCH ... CUSTOM) + MASTER ================= */ \
+    FGE_SPC (F, B, C, Punch, "punch", "Punch", 1.f, true) FGE_SPC (F, B, C, Body, "body", "Body", 1.f, false) FGE_SPC (F, B, C, Tail, "tail", "Tail", 1.2f, false) \
+    FGE_SPC (F, B, C, Sub, "sub", "Sub", 0.f, true) FGE_SPC (F, B, C, Tex, "texture", "Texture", 1.3f, false) FGE_SPC (F, B, C, Cust, "custom", "Custom", 1.f, false) \
+    FGE_SPC (F, B, C, Master, "master", "Master", 1.f, false) \
+    B (spcSubLock,   "spc_sub_mono_lock", "Sub Mono Lock",         true, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -921,6 +927,28 @@ namespace fge
     B (layer##n##LinkLen, "layer" #n "_link_length", "Layer " #n " Link Length",  false, FNone) \
     B (layer##n##LinkEnv, "layer" #n "_link_env",    "Layer " #n " Link Envelope",false, FNone)
     // module 10: a SAMPLE SLOT = the layer path (level, pan, width, pitch, envelope, filter, drive, group / sends) + the sample playback
+#define FGE_SPC(F, B, C, T, t, N, wDef, lmDef) \
+    B (spc##T##On,     "spc_" t "_on",           N " Stereo On",          false, FNone) \
+    F (spc##T##Pan,    "spc_" t "_pan",          N " Stereo Pan",         Unit::Bip,  -1.f,  1.f,  0.f,   0.f,  FMod) \
+    F (spc##T##Bal,    "spc_" t "_balance",      N " Balance",            Unit::Bip,  -1.f,  1.f,  0.f,   0.f,  FMod) \
+    F (spc##T##Width,  "spc_" t "_width",        N " Stereo Width",       Unit::Pct,   0.f,  2.f,  wDef,  0.f,  FMod) \
+    C (spc##T##Mode,   "spc_" t "_mode",         N " Width Mode",         spcModes, 0, FNone) \
+    F (spc##T##Mix,    "spc_" t "_mix",          N " Stereo Mix",         Unit::Pct,   0.f,  1.f,  1.f,   0.f,  FMod) \
+    F (spc##T##Gain,   "spc_" t "_gain",         N " Stereo Output",      Unit::Db,  -24.f, 12.f,  0.f,   0.f,  FMod) \
+    B (spc##T##Swap,   "spc_" t "_swap",         N " Channel Swap",       false, FNone) \
+    B (spc##T##MsOn,   "spc_" t "_ms_on",        N " M/S On",             false, FNone) \
+    F (spc##T##Mid,    "spc_" t "_mid",          N " Mid Level",          Unit::Db,  -24.f, 12.f,  0.f,   0.f,  FMod) \
+    F (spc##T##Side,   "spc_" t "_side",         N " Side Level",         Unit::Db,  -24.f, 12.f,  0.f,   0.f,  FMod) \
+    F (spc##T##MsW,    "spc_" t "_ms_width",     N " M/S Width",          Unit::Pct,   0.f,  2.f,  1.f,   0.f,  FMod) \
+    B (spc##T##MidSo,  "spc_" t "_mid_solo",     N " Mid Solo",           false, FNone) \
+    B (spc##T##SideSo, "spc_" t "_side_solo",    N " Side Solo",          false, FNone) \
+    B (spc##T##LoMono, "spc_" t "_low_mono",     N " Low Mono",           lmDef, FNone) \
+    F (spc##T##Xover,  "spc_" t "_crossover",    N " Low Mono Crossover", Unit::Hz,   20.f, 300.f, 120.f, 120.f, FMod) \
+    C (spc##T##Pol,    "spc_" t "_polarity",     N " Polarity Invert",    spcPolarity, 0, FNone) \
+    F (spc##T##Delay,  "spc_" t "_delay",        N " Channel Delay",      Unit::Ms,  -10.f, 10.f,  0.f,   0.f,  FMod) \
+    F (spc##T##HTime,  "spc_" t "_haas_time",    N " Haas Time",          Unit::Ms,    1.f, 40.f, 15.f,   0.f,  FMod) \
+    C (spc##T##HCh,    "spc_" t "_haas_channel", N " Haas Channel",       spcHaasCh, 1, FNone)
+
 #define FGE_SMP(F, B, C, n) \
     B (smp##n##On,      "smp" #n "_on",          "Sample " #n " On",           false, FNone) \
     C (smp##n##Group,   "smp" #n "_group",       "Sample " #n " Group",        layerGroups, 4, FNone) \

@@ -200,6 +200,24 @@ int main (int argc, char** argv)
         printf ("%s\n", outDir.getChildFile ("m10_listen.wav").getFullPathName().toRawUTF8());
         return 0;
     }
+    if (argc > 2 && String (argv[2]) == "--stdemo")                            // module 11 listening file: as it is / wider tail / the wide one in mono
+    {
+        const int prog = argc > 3 ? String (argv[3]).getIntValue() : 1;
+        AudioBuffer<float> out (2, (int) (44100.0 * 3 * 1.1)); out.clear();
+        for (int v = 0; v < 3; ++v)
+        {
+            GeProcessor p; p.setCurrentProgram (prog);
+            if (v > 0)
+                for (auto& [id, x] : std::vector<std::pair<const char*, float>> { { "spc_tail_on", 1 }, { "spc_tail_mode", 1 }, { "spc_tail_width", 1.7f }, { "spc_tail_low_mono", 1 }, { "spc_tail_crossover", 160 },
+                                                                                 { "spc_texture_on", 1 }, { "spc_texture_mode", 1 }, { "spc_texture_width", 1.6f } })
+                    setP (p, id, x);
+            auto b = renderKick (p.frame(), 31, 44100.0, 1.0, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy());
+            if (v == 2) for (int i = 0; i < b.getNumSamples(); ++i) { const float m = 0.5f * (b.getSample (0, i) + b.getSample (1, i)); b.setSample (0, i, m); b.setSample (1, i, m); }
+            for (int c = 0; c < 2; ++c) out.addFrom (c, (int) (44100.0 * 1.1 * v), b, c, 0, b.getNumSamples());
+        }
+        writeWav (outDir.getChildFile ("m11_listen.wav"), out);
+        return 0;
+    }
     if (argc > 4 && String (argv[2]) == "--cmp")                               // a preset file vs a factory program: the params that differ
     {
         GeProcessor a; a.loadUserPresetFile (File::getCurrentWorkingDirectory().getChildFile (argv[3]));
@@ -893,6 +911,27 @@ int main (int argc, char** argv)
                     if (k == "deviation") set2 (o + "mode", 4.f);
                 }
                 if (sid == "mod_movement") route (mo::SLfo1);
+                if (sid.startsWith ("spc_"))                                                        // module 11: a stereo source in that group, the unit ON
+                {
+                    const String key = sid.fromFirstOccurrenceOf ("_", false, false).fromFirstOccurrenceOf ("_", false, false);
+                    const String o = "spc_" + sid.fromFirstOccurrenceOf ("_", false, false).upToFirstOccurrenceOf ("_", true, false);   // "spc_<target>_"
+                    const String tgt = o.fromFirstOccurrenceOf ("_", false, false).upToFirstOccurrenceOf ("_", false, false);
+                    const int grp = tgt == "punch" ? 0 : tgt == "body" ? 1 : tgt == "sub" ? 3 : tgt == "texture" ? 4 : tgt == "custom" ? 5 : 2;
+                    set2 ("layer1_on", 1.f); set2 ("layer1_group", (float) grp); set2 ("layer1_pan", -0.8f); set2 ("layer1_level", 0.f); set2 ("layer1_source", 2.f);
+                    set2 ("spc_sub_mono_lock", 0.f);
+                    if (sid == "spc_sub_mono_lock") { set2 ("layer1_group", 3.f); set2 ("layer1_pitch", 24.f); }
+                    else
+                    {
+                        set2 (o + "on", 1.f);
+                        if (key != "low_mono" && key != "crossover") set2 (o + "low_mono", 0.f); else { set2 (o + "low_mono", 1.f); set2 ("layer1_pitch", 12.f); set2 (o + "crossover", 300.f); }
+                        if (key == "mix" || key == "on") set2 (o + "width", 0.f);
+                        if (tgt == "sub" && key != "polarity") { set2 (o + "polarity", 1.f); set2 ("layer1_pitch", 36.f); if (key != "width" && key != "mix" && key != "on") set2 (o + "width", 1.f); }   // (SUB layers are mono and low: a flipped channel = a side, higher up)
+                        if (key == "mode") set2 (o + "width", 1.6f);
+                        if (key == "mid" || key == "side" || key == "ms_width" || key == "mid_solo" || key == "side_solo") set2 (o + "ms_on", 1.f);
+                        if (key == "ms_on") set2 (o + "side", -12.f);
+                        if (key == "haas_time" || key == "haas_channel") { set2 (o + "mode", 2.f); set2 (o + "width", 1.f); }
+                    }
+                }
                 if (sid.startsWith ("smp"))                                                         // module 10: the slot ON, playing the test sample
                 {
                     const String o = sid.upToFirstOccurrenceOf ("_", true, false), k = sid.fromFirstOccurrenceOf ("_", false, false);
@@ -2654,6 +2693,141 @@ int main (int argc, char** argv)
         }
         dir.deleteRecursively();
     }
+    // ---------------------------------------------------------------- module 11: stereo & spatial engine (MODULE11.md 13)
+    {
+        namespace sp = fge::dsp::spatial;
+        ParamFrame st = ParamFrame::defaults();                                                // a stereo kick: a layer panned left in the TAIL group
+        auto S = [&] (ParamFrame& f, const char* id, float v) { f[idOf (id)] = v; };
+        S (st, "layer1_on", 1); S (st, "layer1_group", 2); S (st, "layer1_pan", -0.8f); S (st, "layer1_source", 2); S (st, "layer1_pitch", 12); S (st, "layer1_level", 0);
+        auto rk = [&] (const ParamFrame& f, int part = -1) { return renderKick (f, G1, sr, 0.6, part, 1.f); };
+        auto sideRms = [] (const AudioBuffer<float>& b) { double q = 0; for (int i = 0; i < b.getNumSamples(); ++i) { const double d = 0.5 * (b.getSample (0, i) - b.getSample (1, i)); q += d * d; } return std::sqrt (q / jmax (1, b.getNumSamples())); };
+        auto rmsLR = [] (const AudioBuffer<float>& b) { double q = 0; for (int c = 0; c < 2; ++c) for (int i = 0; i < b.getNumSamples(); ++i) q += (double) b.getSample (c, i) * b.getSample (c, i); return std::sqrt (q / (2.0 * jmax (1, b.getNumSamples()))); };
+        const auto plain = rk (st);
+        // 1 + 2. WIDTH 0 % = mono, WIDTH 100 % = the original (bit-near), 200 % never louder
+        {
+            ParamFrame a = st; S (a, "spc_master_on", 1); S (a, "spc_master_low_mono", 0); S (a, "spc_master_width", 0); S (a, "spc_sub_mono_lock", 0);   // (the lock keeps the master lows mono)
+            const auto mono = rk (a);
+            S (a, "spc_master_width", 1); const auto same = rk (a);
+            S (a, "spc_master_width", 2); const auto wide = rk (a);
+            S (a, "spc_master_mode", 1); const auto deco = rk (a);
+            auto midRms = [] (const AudioBuffer<float>& b) { double q = 0; for (int i = 0; i < b.getNumSamples(); ++i) { const double d = 0.5 * (b.getSample (0, i) + b.getSample (1, i)); q += d * d; } return std::sqrt (q / jmax (1, b.getNumSamples())); };
+            auto ratio = [&] (const AudioBuffer<float>& b) { return sideRms (b) / jmax (1.0e-9, midRms (b)); };
+            const double lvlD = 20.0 * std::log10 (rmsLR (deco) / rmsLR (plain));
+            const double lvl = 20.0 * std::log10 (rmsLR (wide) / rmsLR (plain));
+            check (sideRms (plain) > 1.0e-3 && sideRms (mono) < 1.0e-6 && diff (same, plain) < 1.0e-6 && ratio (wide) > 1.5 * ratio (plain) && ratio (deco) > 1.05 * ratio (plain) && lvl < 0.3 && lvlD < 0.3,
+                   "M11 WIDTH 0 % = mono, 100 % = the original, 200 % wider but not louder",
+                   "side " + String (sideRms (plain), 4) + " -> 0 %: " + String (sideRms (mono), 7) + ", 100 % diff " + String (diff (same, plain), 8) + ", 200 %: side / mid x" + String (ratio (wide) / ratio (plain), 2) + " (decorrelation x" + String (ratio (deco) / ratio (plain), 2) + ") level " + String (lvl, 2) + " / " + String (lvlD, 2) + " dB");
+        }
+        // 3. SUB MONO LOCK: a wide, flipped SUB group stays mono; the MASTER keeps the lows mono even at 200 %
+        {
+            ParamFrame a = st; S (a, "layer1_group", 3); S (a, "spc_sub_on", 1); S (a, "spc_sub_width", 2); S (a, "spc_sub_mode", 1); S (a, "spc_sub_polarity", 1); S (a, "spc_sub_low_mono", 0);
+            const auto locked = rk (a, 3);
+            S (a, "spc_sub_mono_lock", 0); const auto free = rk (a, 3);
+            ParamFrame m = st; S (m, "spc_master_on", 1); S (m, "spc_master_width", 2); S (m, "spc_master_low_mono", 0); S (m, "spc_master_polarity", 1); S (m, "layer1_pitch", 0);
+            auto lowSide = [] (const AudioBuffer<float>& b) { double y = 0, q = 0; const double k = 1.0 - std::exp (-2.0 * MathConstants<double>::pi * 60.0 / 44100.0);
+                                                              for (int i = 0; i < b.getNumSamples(); ++i) { y += k * (0.5 * (b.getSample (0, i) - b.getSample (1, i)) - y); q += y * y; } return std::sqrt (q / b.getNumSamples()); };
+            const double lockedLow = lowSide (rk (m)); S (m, "spc_sub_mono_lock", 0); const double freeLow = lowSide (rk (m));
+            check (sideRms (locked) < 1.0e-6 && sideRms (free) > 1.0e-3 && lockedLow < 0.2 * freeLow, "M11 SUB MONO LOCK: the SUB stays centred, the master lows stay mono (beats WIDTH)",
+                   "sub side " + String (sideRms (locked), 7) + " (unlocked " + String (sideRms (free), 4) + "), master lows " + String (lockedLow, 5) + " vs " + String (freeLow, 5));
+        }
+        // 4. MONO AUDITION: the output is mono, the preset is not touched
+        {
+            GeProcessor p; setP (p, "layer1_on", 1); setP (p, "layer1_group", 2); setP (p, "layer1_pan", -0.8f); setP (p, "layer1_source", 2);
+            MemoryBlock before; p.getStateInformation (before);
+            p.monoAudition.store (true);
+            const auto out = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.4);
+            MemoryBlock after; p.getStateInformation (after);
+            p.monoAudition.store (false);
+            const auto st2 = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.4);
+            check (sideRms (out) == 0.0 && sideRms (st2) > 1.0e-3 && before == after, "M11 MONO AUDITION: mono to the ears, the preset unchanged");
+        }
+        // 5. CORRELATION METER: +1 identical, -1 opposite, ~0 unrelated, a real kick > 0
+        {
+            auto corr = [] (std::function<void (int, float&, float&)> gen)
+            {
+                auto an = std::make_unique<sp::Analyzer>(); std::vector<float> l (44100), r (44100);
+                for (int i = 0; i < 44100; ++i) gen (i, l[(size_t) i], r[(size_t) i]);
+                an->push (l.data(), r.data(), 44100, 44100.0); return an->corr.load();
+            };
+            Random rnd (7);
+            const float c1 = corr ([] (int i, float& l, float& r) { l = r = std::sin (i * 0.05f); });
+            const float c2 = corr ([] (int i, float& l, float& r) { l = std::sin (i * 0.05f); r = -l; });
+            const float c3 = corr ([&] (int, float& l, float& r) { l = rnd.nextFloat() - 0.5f; r = rnd.nextFloat() - 0.5f; });
+            check (c1 > 0.99f && c2 < -0.99f && std::abs (c3) < 0.1f, "M11 CORRELATION METER: +1 / -1 / 0", String (c1, 3) + " / " + String (c2, 3) + " / " + String (c3, 3));
+        }
+        // 6 + 7. PAN vs BALANCE, POLARITY on L / R / both and on one layer
+        {
+            sp::Settings s; s.on = true; s.mode = sp::MOff;
+            auto run = [] (const sp::Settings& x, float l, float r) { sp::Unit u; for (int i = 0; i < 400; ++i) { float a = l, b = r; u.process (x, a, b); if (i == 399) return std::make_pair (a, b); } return std::make_pair (0.f, 0.f); };
+            ParamFrame pf = ParamFrame::defaults(); pf[idOf ("spc_body_on")] = 1; pf[idOf ("spc_body_pan")] = 1; pf[idOf ("spc_body_mode")] = 3;
+            sp::Bank bk; sp::cookBank (pf, bk, 176400.0); const auto pan = run (bk.t[1], 0.5f, 0.5f);
+            pf[idOf ("spc_body_pan")] = 0; pf[idOf ("spc_body_balance")] = 1; sp::cookBank (pf, bk, 176400.0); const auto bal = run (bk.t[1], 0.5f, 0.5f);
+            const auto balSt = run (bk.t[1], 0.6f, 0.2f);
+            pf[idOf ("spc_body_balance")] = 0; pf[idOf ("spc_body_pan")] = 1; sp::cookBank (pf, bk, 176400.0); const auto panSt = run (bk.t[1], 0.6f, 0.2f);
+            const bool panBal = std::abs (pan.first) < 1e-4f && std::abs (pan.second - 0.7071f) < 2e-3f && std::abs (bal.first) < 1e-4f && std::abs (bal.second - 0.5f) < 1e-3f
+                                && std::abs (panSt.second - balSt.second) > 0.05f;
+            pf[idOf ("spc_body_pan")] = 0;
+            bool pol = true;
+            for (int k = 1; k <= 3; ++k)
+            {
+                pf[idOf ("spc_body_polarity")] = (float) k; sp::cookBank (pf, bk, 176400.0); const auto o = run (bk.t[1], 0.6f, 0.2f);
+                pol &= std::abs (o.first - (k == 1 || k == 3 ? -0.6f : 0.6f)) < 1e-4f && std::abs (o.second - (k == 2 || k == 3 ? -0.2f : 0.2f)) < 1e-4f;
+            }
+            ParamFrame lay = st; for (auto* id : { "mix_punch_mute", "mix_body_mute", "mix_tail_mute", "mix_sub_mute" }) S (lay, id, 1);
+            S (lay, "layer1_group", 4); S (lay, "master_clip_drive", 0);
+            const auto l0 = rk (lay); S (lay, "layer1_invert", 1); const auto l1 = rk (lay);
+            double cancel = 0, ref = 0; for (int i = 0; i < l0.getNumSamples(); ++i) { const double a = l0.getSample (0, i) + l1.getSample (0, i); cancel += a * a; ref += (double) l0.getSample (0, i) * l0.getSample (0, i); }
+            pol &= ref > 1.0e-3 && cancel < 1.0e-6 * ref;
+            check (panBal && pol, "M11 PAN moves the position (+3 dB), BALANCE only turns a side down; POLARITY on L / R / both and on one layer",
+                   "pan " + String (pan.first, 3) + "/" + String (pan.second, 3) + ", balance " + String (bal.first, 3) + "/" + String (bal.second, 3) + (pol ? "" : ", polarity!"));
+        }
+        // 8. WIDTH modulated in steps (every 32 samples 0 <-> 200 %): no clicks
+        {
+            sp::Settings a; a.on = true; a.mode = sp::MMs; sp::Settings b = a; a.width = 0.f; b.width = 2.f;
+            sp::Unit u; u.setRate (176400.0);
+            float worst = 0.f, pl = 0.f, pr = 0.f;
+            const double w1 = 2.0 * MathConstants<double>::pi * 200.0 / 176400.0;
+            for (int i = 0; i < 176400 / 2; ++i)
+            {
+                float l = 0.5f * (float) std::sin (w1 * i), r = 0.5f * (float) std::sin (w1 * i + 1.2);
+                u.process ((i / 32) % 2 ? b : a, l, r);
+                if (i > 0) worst = jmax (worst, std::abs (l - pl), std::abs (r - pr));
+                pl = l; pr = r;
+            }
+            const float natural = (float) (w1 * 0.5 * 2.0);
+            check (worst < 1.5f * natural, "M11 WIDTH modulated 0 <-> 200 % every 32 samples: smooth, no clicks", String (worst / natural, 2) + "x the signal's own step");
+        }
+        // 9. stereo on a LAYER (pan / width), a GROUP and the MASTER - each changes only its place
+        {
+            ParamFrame g = st; S (g, "spc_tail_on", 1); S (g, "spc_tail_width", 0);
+            ParamFrame m = st; S (m, "spc_master_on", 1); S (m, "spc_master_balance", 0.5f);
+            ParamFrame l = st; S (l, "layer1_pan", 0.8f);
+            ParamFrame pOnly = st; S (pOnly, "spc_tail_on", 1); S (pOnly, "spc_tail_width", 0);
+            const bool punchSame = diff (rk (pOnly, 0), rk (st, 0)) < 1.0e-7;
+            check (diff (rk (g), plain) > 1.0e-3 && diff (rk (m), plain) > 1.0e-3 && diff (rk (l), plain) > 1.0e-3 && punchSame && sideRms (rk (g, 2)) < 1.0e-6,
+                   "M11 stereo per LAYER, GROUP and MASTER (the TAIL group's width leaves the PUNCH untouched)");
+        }
+        // 10. offline render = realtime (delay, Haas, decorrelation, M/S), and the settings survive save / load
+        {
+            GeProcessor p; for (auto& [id, v] : std::vector<std::pair<const char*, float>> { { "layer1_on", 1 }, { "layer1_group", 2 }, { "layer1_pan", -0.8f }, { "layer1_source", 2 },
+                                    { "spc_tail_on", 1 }, { "spc_tail_mode", 2 }, { "spc_tail_haas_time", 12 }, { "spc_tail_delay", 1.5f }, { "spc_texture_on", 1 },
+                                    { "spc_master_on", 1 }, { "spc_master_mode", 1 }, { "spc_master_width", 1.7f }, { "spc_master_ms_on", 1 }, { "spc_master_side", 3 } })
+                setP (p, id, v);
+            const auto rt = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.6);
+            const auto off = renderKick (p.frame(), G1, sr, 0.6, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy());
+            MemoryBlock mb; p.getStateInformation (mb); GeProcessor q; q.setStateInformation (mb.getData(), (int) mb.getSize());
+            const auto off2 = renderKick (q.frame(), G1, sr, 0.6, -1, 1.f, &q.shapes(), 0.0, -1.0, nullptr, &q.oscData(), &q.distData(), nullptr, &q.modAudioCopy());
+            bool finite = true; for (int c = 0; c < 2; ++c) for (int i = 0; i < rt.getNumSamples(); ++i) finite &= std::isfinite (rt.getSample (c, i));
+            check (finite && diff (rt, off) < 1.0e-6 && diff (off, off2) == 0.0, "M11 offline render = realtime, settings restored exactly", "rt vs export " + String (diff (rt, off), 8));
+        }
+        // CPU: all 7 stereo units on (decorrelation + delays)
+        {
+            GeProcessor full; for (auto* t : { "punch", "body", "tail", "sub", "texture", "custom", "master" })
+            { setP (full, ("spc_" + String (t) + "_on").toRawUTF8(), 1); setP (full, ("spc_" + String (t) + "_mode").toRawUTF8(), 1); setP (full, ("spc_" + String (t) + "_delay").toRawUTF8(), 1); }
+            GeProcessor plainP; const double c0 = cpuTime (plainP, 1.0), c1 = cpuTime (full, 1.0);
+            check (c1 < c0 + 0.08, "M11 CPU with all 7 stereo units", String (100.0 * c0, 1) + " % -> " + String (100.0 * c1, 1) + " %");
+        }
+    }
     // ---------------------------------------------------------------- module 08: dynamics, compressor, transient & limiter (MODULE08.md 14)
     {
         namespace dy = fge::dsp::dyn;
@@ -3369,6 +3543,32 @@ int main (int argc, char** argv)
             p.samples().waitIdle();
             ge->canvas.showPage (0);
             dir.deleteRecursively();
+        }
+        // STEREO page (module 11): the unit controls follow the tab, HAAS warns, MONO AUDITION is a listening switch, the scope sees the output
+        {
+            ge->canvas.showPage (10);
+            auto& sp = ge->canvas.stereoPage();
+            sp.select (6); const bool master = sp.findControl ("spc_master_width") != nullptr && sp.findControl ("spc_master_width")->isVisible() && sp.findControl ("spc_tail_width") == nullptr;
+            sp.select (2); const bool tail = sp.findControl ("spc_tail_width") != nullptr && sp.findControl ("spc_master_width") == nullptr;
+            setP (p, "spc_tail_on", 1); setP (p, "spc_tail_mode", 2.f);
+            const bool haas = sp.warning().startsWith ("HAAS");
+            setP (p, "spc_tail_mode", 1.f); setP (p, "spc_tail_width", 1.8f);
+            sp.setMonoAudition (true); const bool monoOn = p.monoAudition.load();
+            sp.setMonoAudition (false);
+            setP (p, "layer1_on", 1); setP (p, "layer1_group", 2); setP (p, "layer1_pan", -0.7f); setP (p, "layer1_source", 2);
+            hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.35);
+            const float corr = p.analyzer.corr.load(), side = p.analyzer.sideRms.load();
+            check (master && tail && haas && monoOn && ! p.monoAudition.load() && corr < 0.999f && side > 1.0e-4f,
+                   "M11 GUI: unit tabs, HAAS warning, MONO AUDITION switch, the analyzer sees the stereo output",
+                   String (master ? "" : "master! ") + (tail ? "" : "tail! ") + (haas ? "" : "haas! ") + (monoOn ? "" : "mono! ") + "corr " + String (corr, 3) + " side " + String (side, 4));
+            PNGImageFormat png;
+            sp.repaint();
+            auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os (outDir.getChildFile ("gui_stereo.png"));
+            if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            for (auto* id : { "spc_tail_on", "spc_tail_mode", "layer1_on", "layer1_group", "layer1_pan", "layer1_source" }) if (auto* a = p.apvts.getParameter (id)) a->setValueNotifyingHost (a->getDefaultValue());
+            setP (p, "spc_tail_width", 1.2f);
+            ge->canvas.showPage (0);
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);
         check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());

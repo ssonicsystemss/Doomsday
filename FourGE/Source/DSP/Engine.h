@@ -18,6 +18,7 @@
 #include "Dist/DistCook.h"
 #include "Tone/ToneCook.h"
 #include "Dyn/DynCook.h"
+#include "Spatial/SpatialCook.h"
 #include "Filter/M06Cook.h"
 #include "Mod/Mod.h"
 #include "DoomsdayKick.h"
@@ -52,6 +53,7 @@ namespace fge
         dsp::m06::Bank m06;                       // module 06: the filters / resonators and their order per place
         dsp::tone::Bank tone;                     // module 07: EQ / dynamic EQ / multiband / spectral / stereo per place
         dsp::dyn::Bank dyn;                       // module 08: compressors / transient shapers / clippers / limiters / crest per place
+        dsp::spatial::Bank spc;                   // module 11: the stereo unit of each group + the master
         dsp::scr::Settings scr;                   // module 06: the screech
         bool lbAny = false;
         float lbEndMs = 0.f;                      // when the last layer / noise / click ends       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
@@ -330,6 +332,11 @@ namespace fge
             distTables.allocate();
             for (auto& ch : distChain) ch.reset();
             m06St->reset(); scrEng.reset(); toneSt->reset(); dynSt->reset();
+            for (auto& u : *spcUnits)
+            {
+                u.reset();
+                u.setRate (sampleRate * osFactor);
+            }
             scrOsc.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             scrInBufL.assign ((size_t) (maxBlockSize * osFactor), 0.f); scrInBufR.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             sinceHitMs = 1.0e9f; sinceHitOs = (int64_t) 1 << 40;
@@ -559,7 +566,7 @@ namespace fge
             if (mask & dsp::mod::GLayers) cookLayers (f, b);
             if (mask & dsp::mod::GDist) dsp::dist::cookDist (f, distData, b, cfg.dist, distTables, cfg.ks.rate, offline);
             if (mask & dsp::mod::GM06) { dsp::m06::cookBank (f, b, cfg.m06, cfg.ks.rate); dsp::scr::cook (f, cfg.scr); }
-            if (mask & dsp::mod::GTone) dsp::tone::cookBank (f, cfg.tone, cfg.ks.rate);
+            if (mask & dsp::mod::GTone) { dsp::tone::cookBank (f, cfg.tone, cfg.ks.rate); dsp::spatial::cookBank (f, cfg.spc, cfg.ks.rate); }
             if (mask & dsp::mod::GDyn) dsp::dyn::cookBank (f, distData, cfg.dyn, cfg.ks.rate, sr);
         }
         void cook (const ParamFrame& f, uint32_t mask = dsp::mod::GAll)
@@ -859,8 +866,11 @@ namespace fge
                             if (m6 && cfg.m06.at (dsp::m06::LTexture, 1)) m06St->process (cfg.m06, dsp::m06::LTexture, 1, tl, tr, m6Ctx (i), cfg.ks.rate);
                             if (m7 && cfg.tone.at (dsp::m06::LTexture, 1)) toneSt->process (cfg.tone, dsp::m06::LTexture, 1, tl, tr, m6Ctx (i), cfg.ks.rate);
                             if (m8 && cfg.dyn.at (dsp::m06::LTexture, 1)) dynSt->process (cfg.dyn, dsp::m06::LTexture, 1, tl, tr, m6Ctx (i), scOf (b, i), cfg.ks.rate);
-                            L[i] += tl + b[6 + 2 * dsp::BusCustom][i] * cg;
-                            R[i] += tr + b[7 + 2 * dsp::BusCustom][i] * cg;
+                            float cl = b[6 + 2 * dsp::BusCustom][i] * cg, cr = b[7 + 2 * dsp::BusCustom][i] * cg;
+                            if (cfg.spc.t[dsp::spatial::TTexture].on) (*spcUnits)[dsp::spatial::TTexture].process (cfg.spc.t[dsp::spatial::TTexture], tl, tr);   // module 11
+                            if (cfg.spc.t[dsp::spatial::TCustom].on) (*spcUnits)[dsp::spatial::TCustom].process (cfg.spc.t[dsp::spatial::TCustom], cl, cr);
+                            L[i] += tl + cl;
+                            R[i] += tr + cr;
                         }
                     if (cfg.dist.globalPos == 0) globalChain (L, R, on);                                  // GLOBAL, before the clip (sub clean)
                     shaper.process (cfg.lb.shaper, L, R, on);
@@ -900,6 +910,7 @@ namespace fge
                     if (m6 && cfg.m06.at (c + 1, 1)) m06St->process (cfg.m06, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 AFTER
                     if (m7 && cfg.tone.at (c + 1, 1)) toneSt->process (cfg.tone, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 AFTER
                     if (m8 && cfg.dyn.at (c + 1, 1)) dynSt->process (cfg.dyn, c + 1, 1, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 AFTER
+                    if (cfg.spc.t[(size_t) c].on) (*spcUnits)[(size_t) c].process (cfg.spc.t[(size_t) c], yl, yr);                   // module 11: the group's stereo
                     yl *= gl; yr *= gr;
                     L[i] = (c == 0 ? 0.f : L[i]) + yl;
                     R[i] = (c == 0 ? 0.f : R[i]) + yr;
@@ -911,6 +922,8 @@ namespace fge
             if (cfg.dist.globalPos == 1) globalChain (L, R, on);                                       // GLOBAL, after the clip (with the sub)
             if (busAny)                                                      // the MASTER bus: after the clip
                 for (int i = 0; i < on; ++i) { L[i] += b[6 + 2 * dsp::BusMaster][i]; R[i] += b[7 + 2 * dsp::BusMaster][i]; }
+            if (cfg.spc.t[dsp::spatial::TMaster].on)                          // module 11: MASTER STEREO (before the output dynamics)
+                for (int i = 0; i < on; ++i) (*spcUnits)[dsp::spatial::TMaster].process (cfg.spc.t[dsp::spatial::TMaster], L[i], R[i]);
             sinceHitOs += on; sinceHitMs = msAt (0);          // (a sample counter: the same at any block size)
             os->processSamplesDown (blk);
             const float m0 = masterNow, m1 = masterTarget, invN = 1.f / (float) n;
@@ -1046,6 +1059,7 @@ namespace fge
         std::unique_ptr<dsp::m06::State> m06St = std::make_unique<dsp::m06::State>();   // module 06 at engine level (not the layers)
         std::unique_ptr<dsp::tone::State> toneSt = std::make_unique<dsp::tone::State>(); // module 07 at engine level (not the layers)
         std::unique_ptr<dsp::dyn::State> dynSt = std::make_unique<dsp::dyn::State>();    // module 08 at engine level (not the layers)
+        std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};
         float* const* curBus = nullptr;
         // module 08 sidechain sources this sample: [1..4] the raw parts (+ their layers), [5] the texture bus

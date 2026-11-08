@@ -97,6 +97,13 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     engine.process (buffer, midi, f);
     samplePool.audioClock.fetch_add (buffer.getNumSamples());
     samplePool.mixPreview (buffer);                                     // the browser's PREVIEW (not a slot)
+    // module 11: the stereo analyzer sees the real output; MONO AUDITION only changes what you hear (never the preset)
+    if (buffer.getNumChannels() > 1)
+    {
+        analyzer.push (buffer.getReadPointer (0), buffer.getReadPointer (1), buffer.getNumSamples(), getSampleRate() > 0 ? getSampleRate() : 44100.0);
+        if (monoAudition.load (std::memory_order_relaxed))
+            for (int i = 0; i < buffer.getNumSamples(); ++i) { const float m = 0.5f * (buffer.getSample (0, i) + buffer.getSample (1, i)); buffer.setSample (0, i, m); buffer.setSample (1, i, m); }
+    }
     // module 08: a LOOKAHEAD at MASTER OUTPUT delays the output - the host is told (it compensates)
     if (const int lat = engine.latencySamples(); lat != getLatencySamples()) setLatencySamples (lat);
 }

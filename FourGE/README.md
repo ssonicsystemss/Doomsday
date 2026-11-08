@@ -230,7 +230,7 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
   nie jest celem (latencja), wartości zawsze w zakresie. Eksport = to samo co w FL (ten sam seed, LFO na kicku).
 
 ## Strona SMP – sample (moduł 10)
-- Przycisk **SMP** (obok MOD). **8 slotów** – każdy to jeszcze jedna warstwa kicka (warstwy 9–16): ma GROUP (PUNCH / BODY / TAIL / SUB /
+- Przycisk **SMP**. **8 slotów** – każdy to jeszcze jedna warstwa kicka (warstwy 9–16): ma GROUP (PUNCH / BODY / TAIL / SUB /
   TEXTURE …), więc działa na nim poziom / mute / solo grupy, moduły 05–08 tej części i cała modulacja (MOD). Łączy się z syntezą.
 - **Ładowanie:** LOAD, przeciągnięcie pliku na waveform albo przeglądarka. WAV / AIFF / FLAC (też OGG / MP3), mono i stereo, dowolne
   sample rate (przeliczane wysokiej jakości filtrem), do 60 s. Do 20 s plik zapisuje się **w projekcie / presecie** – otworzysz go
@@ -248,6 +248,23 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
   LOAD TO SLOT / podwójny klik. Ulubione i ostatnie trzymane w ustawieniach 4GE, nie w presecie.
 - Ładowanie idzie w tle – audio nigdy nie czeka. Ten sam preset = ten sam render (FL = eksport).
 
+## Strona STEREO (moduł 11)
+- Przycisk **STEREO** (górny rząd). **7 jednostek stereo**: grupy PUNCH / BODY / TAIL / SUB / TEXTURE / CUSTOM (każda po swoich
+  filtrach / EQ / przesterze / dynamice) i **MASTER** (cały kick, przed limiterem wyjścia). Każda ma ON (OFF = dźwięk nietknięty).
+- **PAN** przesuwa środek dźwięku (stała moc), **BALANCE** tylko ścisza przeciwny kanał – to dwie różne rzeczy. **WIDTH** 0–200 %
+  (0 % = mono, 100 % = jak jest) z algorytmem: **M/S WIDTH** (przewidywalny), **DECORRELATION** (szerokość z góry pasma, bezpieczna
+  w mono), **HAAS** (jeden kanał później – efekt kreatywny, strona ostrzega: sprawdź mono), DISABLED. Szerokość nigdy nie podbija
+  głośności (wyrównanie energii). **MIX**, **OUTPUT**.
+- **CHANNEL SWAP** (L ↔ R), **POLARITY** (lewy / prawy / oba; pojedyncza warstwa ma swój INVERT na LAYERS / SMP), **CH DELAY**
+  (±10 ms: minus = lewy później, plus = prawy).
+- **LOW MONO** + CROSSOVER 20–300 Hz: wszystko poniżej idzie na środek (środek kicka nietknięty – punch zostaje w kształcie).
+- **M/S ENGINE**: MID / SIDE level, M/S WIDTH, MID SOLO / SIDE SOLO.
+- **SUB MONO LOCK** (domyślnie ON): grupa SUB zawsze mono i na środku, a MASTER trzyma doły (min. 120 Hz) w mono – silniejsze niż WIDTH.
+- **MONO AUDITION**: słuchasz w mono, preset się nie zmienia (nie zapisuje się).
+- Po prawej: **VECTOR SCOPE**, **CORRELATION** (-1…+1; ujemna = problem fazy, nic się samo nie zmienia), mierniki MID / SIDE / L / R,
+  STEREO FIELD. Pod gałkami tabela **ALL UNITS** (klik = otwórz). Wszystko modulowalne z MOD (pan, width, mid, side, crossover, delay…),
+  bez klików.
+
 ## Presety
 INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
@@ -256,5 +273,5 @@ TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – st�
 **RANDOM - Pick 01…11** = Twoje wybrane wyniki z RANDOM (2026-11-08), dokładnie tak, jak je zapisałeś.
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 11 stereo → 12 eksport →
+Moduł po module wg `PLAN.md`: 12 eksport → 12 eksport →
 13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.

@@ -5,6 +5,6 @@
 
 namespace fge
 {
-    struct FactoryPreset { juce::String name; doomsday::PresetValues values; };
+    struct FactoryPreset { juce::String name; doomsday::PresetValues values; juce::String extra {}; };   // extra = drawn shapes / curves (<ENVS .../><DIST .../>)
     const std::vector<FactoryPreset>& factoryPresets();
 }

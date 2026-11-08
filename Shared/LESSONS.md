@@ -324,3 +324,7 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   oktawowych przepuściło wąski bell +9…+12 dB przy ~3 kHz + wysoki RESO taila = pisk; a SUB wchodził dopiero po toku (110–125 ms).
   Automat liczy energię, nie pisk ani „uderzenie”: po dopasowaniu zawsze sprawdzić wąskie podbicia (MID GAIN, RESO) i moment wejścia basu.
   Referencja RAW (KICK_G) ma krótki bas już pod tokiem (~40–70 ms) – to ten „cios”.
+- **4GE – „wszystkie kicki brzmią mocno rawowo” (2026-11-08, pierwsze granie v0.5 w FL)** – prosty RANDOM z ekranu głównego zawsze daje
+  TAIL DRIVE 0.35–0.9, nigdy CLEAN, TONE do 14 kHz i losuje na wierzchu aktualnego presetu (łańcuchy distortion z MODERN / RAW) –
+  więc każdy wynik ląduje w RAW. Losowanie musi znać STYL (EARLY = czysty / tonalny ogon, mało drive) – randomizer ze stylami w module 09.
+  Wybrane przez właściciela wyniki (10 sztuk) są presetami „RANDOM - Pick 01…10”: jasne, gęste (centroid 360–850 Hz, płaskość ~ −6 dB).

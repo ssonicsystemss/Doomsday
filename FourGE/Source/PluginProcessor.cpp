@@ -211,6 +211,17 @@ void GeProcessor::setCurrentProgram (int i)
     if (oscs.isValid()) { apvts.state.removeChild (oscs, nullptr); rebuildOscData(); }
     auto dd = apvts.state.getChildWithName (distTag);
     if (dd.isValid()) { apvts.state.removeChild (dd, nullptr); rebuildDistData(); }
+    if (const auto& ex = factoryPresets()[(size_t) i].extra; ex.isNotEmpty())    // the preset's drawn envelopes / curves
+        if (auto xml = XmlDocument::parse ("<X>" + ex + "</X>"))
+        {
+            if (auto* e = xml->getChildByName (envsTag))
+            {
+                auto t = envTree (true); t.removeAllProperties (nullptr);
+                for (int k = 0; k < e->getNumAttributes(); ++k) t.setProperty (e->getAttributeName (k), e->getAttributeValue (k), nullptr);
+                rebuildShapes();
+            }
+            if (auto* e = xml->getChildByName (distTag)) { apvts.state.appendChild (ValueTree::fromXml (*e), nullptr); rebuildDistData(); }
+        }
 }
 bool GeProcessor::loadUserPresetFile (const File& f)
 {

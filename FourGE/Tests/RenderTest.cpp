@@ -139,6 +139,51 @@ int main (int argc, char** argv)
     const File outDir (argc > 1 ? File::getCurrentWorkingDirectory().getChildFile (argv[1]) : File::getCurrentWorkingDirectory().getChildFile ("4ge_out"));
     outDir.createDirectory();
     if (argc > 2 && String (argv[2]) == "--bench") { GeProcessor p; cpuStress (p); printf ("%.1f %% of one core\n", 100.0 * cpuTime (p, argc > 3 ? String (argv[3]).getDoubleValue() : 2.0)); return 0; }
+    if (argc > 4 && String (argv[2]) == "--cmp")                               // a preset file vs a factory program: the params that differ
+    {
+        GeProcessor a; a.loadUserPresetFile (File::getCurrentWorkingDirectory().getChildFile (argv[3]));
+        GeProcessor b; b.setCurrentProgram (String (argv[4]).getIntValue());
+        for (int i = 0; i < P::count; ++i) if (std::abs (a.frame()[i] - b.frame()[i]) > 1.0e-6f) printf ("%s file %g program %g\n", def (i).id, a.frame()[i], b.frame()[i]);
+        for (auto* q : { &a, &b }) { auto st = q->apvts.copyState(); for (int i = st.getNumChildren(); --i >= 0;) if (st.getChild (i).hasType ("PARAM")) st.removeChild (i, nullptr);
+                                     printf ("---\n%s\n", st.toXmlString().toRawUTF8()); }
+        return 0;
+    }
+    if (argc > 3 && String (argv[2]) == "--diff")                              // a .4gp as factory-preset pairs (only what differs from the defaults)
+    {
+        const auto d = ParamFrame::defaults();
+        for (int a = 3; a < argc; ++a)
+        {
+            GeProcessor p; if (! p.loadUserPresetFile (File::getCurrentWorkingDirectory().getChildFile (argv[a]))) continue;
+            String o; for (int i = 0; i < P::count; ++i) if (std::abs (p.frame()[i] - d[i]) > 1.0e-6f * jmax (1.f, std::abs (d[i]))) o << "{ \"" << def (i).id << "\", " << String (p.frame()[i], 9) << "f }, ";
+            printf ("%s\n%s\n", argv[a], o.toRawUTF8());
+        }
+        return 0;
+    }
+    if (argc > 4 && String (argv[2]) == "--presets")                           // user preset files (.4gp) -> <dir>/<file>.wav (note 31)
+    {
+        const File dir = File::getCurrentWorkingDirectory().getChildFile (argv[3]); dir.createDirectory();
+        for (int a = 4; a < argc; ++a)
+        {
+            const File in (File::getCurrentWorkingDirectory().getChildFile (argv[a]));
+            GeProcessor p; if (! p.loadUserPresetFile (in)) { printf ("cannot load %s\n", argv[a]); continue; }
+            const auto x = renderKick (p.frame(), 31, sr, 0.8, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, nullptr, &p.distData());
+            writeWav (dir.getChildFile (in.getFileNameWithoutExtension() + ".wav"), x);
+        }
+        return 0;
+    }
+    if (argc > 3 && String (argv[2]) == "--programs")                          // every factory program (as FL loads it) -> <dir>/NN name.wav
+    {
+        const File dir = File::getCurrentWorkingDirectory().getChildFile (argv[3]); dir.createDirectory();
+        const int note = argc > 4 ? String (argv[4]).getIntValue() : 31;
+        GeProcessor p0;
+        for (int i = 0; i < p0.getNumPrograms(); ++i)
+        {
+            GeProcessor p; p.setCurrentProgram (i);
+            const auto x = renderKick (p.frame(), note, sr, 0.8, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, nullptr, &p.distData());
+            writeWav (dir.getChildFile (String (i).paddedLeft ('0', 2) + " " + p.getProgramName (i).replaceCharacters ("/\\:", "___") + ".wav"), x);
+        }
+        return 0;
+    }
     if (argc > 4 && String (argv[2]) == "--render") return renderMode (File::getCurrentWorkingDirectory().getChildFile (argv[3]), File::getCurrentWorkingDirectory().getChildFile (argv[4]));
 
     const ParamFrame base = ParamFrame::defaults();

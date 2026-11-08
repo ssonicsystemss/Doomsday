@@ -91,6 +91,8 @@ namespace fge
         const juce::StringArray& excModes(); const juce::StringArray& dynLocations(); const juce::StringArray& cmpTypes(); const juce::StringArray& cmpDetections();
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
+        const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
+        const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
         const juce::StringArray& dynOrders(); const juce::StringArray& mbLinks(); const juce::StringArray& excHarm(); const juce::StringArray& toneOrders(); const juce::StringArray& stwLocations();
         const juce::StringArray& m06FilterTypes();
         const juce::StringArray& stereoModes();
@@ -294,7 +296,14 @@ namespace fge
     FGE_SPEC (F, B, C) FGE_STW (F, B, C) \
     FGE_CMP (F, B, C, 1) FGE_CMP (F, B, C, 2) FGE_CMP (F, B, C, 3) FGE_CMP (F, B, C, 4) \
     FGE_TS (F, B, C, 1, 1) FGE_TS (F, B, C, 2, 2) FGE_TS (F, B, C, 3, 3) FGE_TS (F, B, C, 4, 4) FGE_TS (F, B, C, 5, 5) \
-    FGE_CLP (F, B, C, 1) FGE_CLP (F, B, C, 2) FGE_LIM (F, B, C, 1) FGE_LIM (F, B, C, 2) FGE_DYNG (F, B, C)
+    FGE_CLP (F, B, C, 1) FGE_CLP (F, B, C, 2) FGE_LIM (F, B, C, 1) FGE_LIM (F, B, C, 2) FGE_DYNG (F, B, C) \
+    /* ================= MODULE 09 - MODULATION: MASTER MACROS (sources only - no DSP reads them), LFO 1-8, STEP SEQ, RANDOM 1-2 ================= */ \
+    FGE_MACRO (F, impact, "impact", "IMPACT") FGE_MACRO (F, body, "body", "BODY") FGE_MACRO (F, tail, "tail", "TAIL") FGE_MACRO (F, pitch, "pitch", "PITCH") \
+    FGE_MACRO (F, grit, "grit", "GRIT") FGE_MACRO (F, scream, "scream", "SCREAM") FGE_MACRO (F, weight, "weight", "WEIGHT") FGE_MACRO (F, chaos, "chaos", "CHAOS") \
+    FGE_MACRO (F, user1, "user1", "USER 1") FGE_MACRO (F, user2, "user2", "USER 2") FGE_MACRO (F, user3, "user3", "USER 3") FGE_MACRO (F, user4, "user4", "USER 4") \
+    FGE_LFO (F, B, C, 1) FGE_LFO (F, B, C, 2) FGE_LFO (F, B, C, 3) FGE_LFO (F, B, C, 4) FGE_LFO (F, B, C, 5) FGE_LFO (F, B, C, 6) FGE_LFO (F, B, C, 7) FGE_LFO (F, B, C, 8) \
+    FGE_SEQ (F, B, C) FGE_RND (F, B, C, 1) FGE_RND (F, B, C, 2) \
+    F (modMovement,  "mod_movement",    "MOVEMENT",                Unit::Pct,   0.f,   2.f,   1.f,   1.f,   FMod)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -902,6 +911,48 @@ namespace fge
     // FM MATRIX: modulator a -> carrier b (frequency modulation, the diagonal is each oscillator's FEEDBACK)
 #define FGE_FM(F, a, b) \
     F (fm##a##to##b,     "fm_" #a "_to_" #b,     "FM Osc " #a " -> Osc " #b, Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FMod)
+
+    // module 09: a macro (0..1; a modulation SOURCE only - FINAL = BASE + mapping, RULES.md 1 / 2)
+#define FGE_MACRO(F, e, id, nm) \
+    F (macro_##e,    "macro_" id,       nm,                        Unit::Pct,   0.f,   1.f,   0.f,   0.f,   FGlobal)
+    // module 09: an LFO (a modulation signal, not audio)
+#define FGE_LFO(F, B, C, n) \
+    C (lfo##n##Wave,  "lfo" #n "_wave",     "LFO " #n " Wave",        lfoWaves, 0, FNone) \
+    F (lfo##n##Rate,  "lfo" #n "_rate",     "LFO " #n " Rate",        Unit::Hz,    0.01f, 40.f,  2.f,   2.f,   FMod) \
+    B (lfo##n##Sync,  "lfo" #n "_sync",     "LFO " #n " Host Sync",   false, FNone) \
+    C (lfo##n##Div,   "lfo" #n "_division", "LFO " #n " Division",    modDivisions, 2, FNone) \
+    F (lfo##n##Phase, "lfo" #n "_phase",    "LFO " #n " Phase",       Unit::Deg,   0.f,  360.f,  0.f,   0.f,   FMod) \
+    C (lfo##n##Retrig,"lfo" #n "_retrigger","LFO " #n " Retrigger",   modRetrigs, 2, FNone) \
+    C (lfo##n##Mode,  "lfo" #n "_mode",     "LFO " #n " Mode",        lfoModes, 0, FNone) \
+    C (lfo##n##Pol,   "lfo" #n "_polarity", "LFO " #n " Polarity",    modPolarities, 0, FNone) \
+    F (lfo##n##FadeIn,"lfo" #n "_fade_in",  "LFO " #n " Fade In",     Unit::Ms,    0.f, 5000.f,  0.f, 300.f,   FMod) \
+    F (lfo##n##FadeOut,"lfo" #n "_fade_out","LFO " #n " Fade Out",    Unit::Ms,    0.f, 5000.f,  0.f, 300.f,   FMod) \
+    F (lfo##n##Smooth,"lfo" #n "_smooth",   "LFO " #n " Smoothing",   Unit::Ms,    0.f,  200.f,  0.f,  20.f,   FMod) \
+    F (lfo##n##Pw,    "lfo" #n "_pw",       "LFO " #n " Pulse Width", Unit::Pct,   0.02f, 0.98f, 0.5f,  0.f,   FMod)
+    // module 09: the step sequencer (a modulation source; the steps are state data, not parameters)
+#define FGE_SEQ(F, B, C) \
+    F (seqLength,    "seq_length",      "Seq Length",              Unit::None,  1.f,   64.f,  16.f,  0.f,   FNone) \
+    B (seqSync,      "seq_sync",        "Seq Host Sync",           true,  FNone) \
+    F (seqRate,      "seq_rate",        "Seq Rate",                Unit::Hz,    0.1f,  64.f,  8.f,   8.f,   FMod) \
+    C (seqDiv,       "seq_division",    "Seq Division",            modDivisions, 4, FNone) \
+    C (seqDir,       "seq_direction",   "Seq Direction",           seqDirections, 0, FNone) \
+    C (seqReset,     "seq_reset",       "Seq Reset",               modRetrigs, 0, FNone) \
+    F (seqSwing,     "seq_swing",       "Seq Swing",               Unit::Pct,   0.f,   0.75f, 0.f,   0.f,   FMod) \
+    F (seqHuman,     "seq_humanize",    "Seq Humanize",            Unit::Pct,   0.f,   1.f,   0.f,   0.f,   FMod) \
+    C (seqSkip,      "seq_skip",        "Seq Skipped Step",        seqSkips, 0, FNone) \
+    C (seqPol,       "seq_polarity",    "Seq Polarity",            modPolarities, 0, FNone) \
+    F (seqSmooth,    "seq_smooth",      "Seq Smoothing",           Unit::Ms,    0.f,  200.f,  2.f,  20.f,   FMod) \
+    F (seqAccent,    "seq_accent",      "Seq Accent",              Unit::Pct,   0.f,   1.f,   0.25f, 0.f,   FMod) \
+    F (seqSeed,      "seq_seed",        "Seq Seed",                Unit::None,  0.f, 9999.f,  1.f,   0.f,   FNone)
+    // module 09: a random source (deterministic with a SEED)
+#define FGE_RND(F, B, C, n) \
+    C (rnd##n##Mode,  "rnd" #n "_mode",     "Random " #n " Mode",     rndModes, 1, FNone) \
+    F (rnd##n##Seed,  "rnd" #n "_seed",     "Random " #n " Seed",     Unit::None,  0.f, 9999.f, (float) n, 0.f, FNone) \
+    F (rnd##n##Rate,  "rnd" #n "_rate",     "Random " #n " Rate",     Unit::Hz,    0.01f, 40.f,  2.f,   2.f,   FMod) \
+    F (rnd##n##Smooth,"rnd" #n "_smooth",   "Random " #n " Smoothing",Unit::Ms,    0.f,  500.f,  0.f,  50.f,   FMod) \
+    F (rnd##n##Amount,"rnd" #n "_amount",   "Random " #n " Amount",   Unit::Pct,   0.f,   1.f,   1.f,   0.f,   FMod) \
+    F (rnd##n##Dev,   "rnd" #n "_deviation","Random " #n " Max Step", Unit::Pct,   0.01f, 1.f,  0.25f, 0.f,   FMod) \
+    C (rnd##n##Pol,   "rnd" #n "_polarity", "Random " #n " Polarity", modPolarities, 0, FNone)
 
     // a modulation envelope (filter cutoff / drive / resonance)
 #define FGE_MOD_SLOT(F, B, C, e, id, nm) \

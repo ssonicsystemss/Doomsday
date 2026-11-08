@@ -18,6 +18,7 @@
 #include "ScreechPage.h"
 #include "EqPage.h"
 #include "DynPage.h"
+#include "ModPage.h"
 #include "Palette.h"
 
 class GeCanvas : public juce::Component, private juce::Timer
@@ -40,6 +41,7 @@ public:
     fge::gui::ScreechPage& screechPage() { return *scrPage; }
     fge::gui::EqPage& eqPage() { return *eqPg; }
     fge::gui::DynPage& dynPage() { return *dynPg; }
+    fge::gui::ModPage& modPage() { return *modPg; }
     int page() const { return pageIdx; }
     fge::gui::EnvPage& envelopes() { return *envPage; }
 private:
@@ -52,7 +54,8 @@ private:
     Seg* seg (const char* id, juce::StringArray labels, juce::Colour accent);
     juce::ComboBox* combo (const char* id);
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAtt;
-    std::vector<juce::Component*> masterRow;
+    std::vector<juce::Component*> masterRow, macroRow;
+    juce::Rectangle<int> macroArea;
     void layoutDetail();
     void paintMain (juce::Graphics&, const std::function<void (juce::Rectangle<int>, const juce::String&, juce::Colour)>& panel);
 public:
@@ -85,7 +88,8 @@ private:
     std::unique_ptr<fge::gui::ScreechPage> scrPage;
     std::unique_ptr<fge::gui::EqPage> eqPg;
     std::unique_ptr<fge::gui::DynPage> dynPg;
-    std::array<juce::TextButton, 8> pageBtn;
+    std::unique_ptr<fge::gui::ModPage> modPg;
+    std::array<juce::TextButton, 9> pageBtn;
     std::array<float, 4> meter {};
     float outMeter = 0.f;
 };

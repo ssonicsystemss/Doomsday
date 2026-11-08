@@ -40,6 +40,7 @@ GeProcessor::GeProcessor()
     rebuildShapes();
     rebuildOscData();
     rebuildDistData();
+    rebuildModData();
     refreshTables();
     startTimerHz (20);
 }
@@ -70,6 +71,17 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     engine.setTables (&tablesX.front());
     engine.setDistData (&distX.front());
     engine.setOffline (isNonRealtime());
+    engine.setModData (&modX.front());
+    {
+        double ppq = 0.0; bool playing = false; int bar = 4;                 // module 09: LFO / sequencer HOST SYNC and ON BAR
+        if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition())
+        {
+            playing = pos->getIsPlaying();
+            if (auto q = pos->getPpqPosition()) ppq = *q;
+            if (auto ts = pos->getTimeSignature()) bar = jmax (1, ts->numerator * 4 / jmax (1, ts->denominator));
+        }
+        engine.setHostPos (ppq, playing, bar);
+    }
     if (pendingAudition.exchange (false)) { engine.cookOnly (f); engine.trigger (auditionNote, 1.f); }
     engine.process (buffer, midi, f);
     // module 08: a LOOKAHEAD at MASTER OUTPUT delays the output - the host is told (it compensates)
@@ -197,6 +209,52 @@ void GeProcessor::rebuildShapes()
     ++version;
 }
 
+// ------------------------------------------------------------ MODULATION MATRIX (module 09, state child MODM)
+ValueTree GeProcessor::modTree()
+{
+    auto t = apvts.state.getChildWithName (modTag);
+    if (t.isValid()) return t;
+    t = ValueTree (modTag);                                // first edit: write out what plays now (the default mapping)
+    for (int i = 0; i < fge::dsp::mod::numSlots; ++i) if (! modNow.slot[(size_t) i].empty()) t.setProperty ("s" + String (i + 1), modNow.slot[(size_t) i].toText(), nullptr);
+    t.setProperty ("steps", fge::modstate::stepsToText (modNow.step), nullptr);
+    apvts.state.appendChild (t, &undo);
+    return t;
+}
+void GeProcessor::setModSlot (int slot, const fge::modstate::SlotDesc& d, bool newUndoStep)
+{
+    if (! isPositiveAndBelow (slot, fge::dsp::mod::numSlots)) return;
+    if (newUndoStep) undo.beginNewTransaction ("Modulation");
+    auto t = modTree();
+    const Identifier k ("s" + String (slot + 1));
+    if (d.empty()) t.removeProperty (k, &undo); else t.setProperty (k, d.toText(), &undo);
+}
+void GeProcessor::setModSteps (const std::array<fge::dsp::mod::Step, fge::dsp::mod::maxSteps>& st, bool newUndoStep)
+{
+    if (newUndoStep) undo.beginNewTransaction ("Step sequencer");
+    modTree().setProperty ("steps", fge::modstate::stepsToText (st), &undo);
+}
+void GeProcessor::resetModMatrix (bool undoable)
+{
+    if (undoable) undo.beginNewTransaction ("Reset modulation");
+    auto t = apvts.state.getChildWithName (modTag);
+    if (t.isValid()) apvts.state.removeChild (t, undoable ? &undo : nullptr);
+    rebuildModData();
+}
+void GeProcessor::clearModMatrix()
+{
+    undo.beginNewTransaction ("Clear modulation");
+    auto t = modTree();
+    for (int i = 0; i < fge::dsp::mod::numSlots; ++i) t.removeProperty ("s" + String (i + 1), &undo);
+}
+void GeProcessor::rebuildModData()
+{
+    modNow = fge::modstate::fromTree (apvts.state.getChildWithName (modTag));
+    ++modVer;
+    fge::modstate::resolve (modNow, modResolved, modUnknown, modVer);
+    modX.back() = modResolved;
+    modX.publish();
+}
+
 // ------------------------------------------------------------ presets
 int GeProcessor::getNumPrograms() { return (int) factoryPresets().size(); }
 const String GeProcessor::getProgramName (int i) { return isPositiveAndBelow (i, getNumPrograms()) ? factoryPresets()[(size_t) i].name : String(); }
@@ -211,6 +269,9 @@ void GeProcessor::setCurrentProgram (int i)
     if (oscs.isValid()) { apvts.state.removeChild (oscs, nullptr); rebuildOscData(); }
     auto dd = apvts.state.getChildWithName (distTag);
     if (dd.isValid()) { apvts.state.removeChild (dd, nullptr); rebuildDistData(); }
+    auto mm = apvts.state.getChildWithName (modTag);                              // module 09: the default macro mapping
+    if (mm.isValid()) apvts.state.removeChild (mm, nullptr);
+    rebuildModData();
     if (const auto& ex = factoryPresets()[(size_t) i].extra; ex.isNotEmpty())    // the preset's drawn envelopes / curves
         if (auto xml = XmlDocument::parse ("<X>" + ex + "</X>"))
         {
@@ -244,6 +305,11 @@ bool GeProcessor::loadUserPresetFile (const File& f)
         if (auto xml = XmlDocument::parse (f))
             if (auto* e = xml->getChildByName (distTag)) apvts.state.appendChild (ValueTree::fromXml (*e), nullptr);
         rebuildDistData();
+        auto oldM = apvts.state.getChildWithName (modTag);                        // module 09: the preset's matrix (none = default mapping)
+        if (oldM.isValid()) apvts.state.removeChild (oldM, nullptr);
+        if (auto xml = XmlDocument::parse (f))
+            if (auto* e = xml->getChildByName (modTag)) apvts.state.appendChild (ValueTree::fromXml (*e), nullptr);
+        rebuildModData();
     }
     presetName = f.getFileNameWithoutExtension();
     return true;

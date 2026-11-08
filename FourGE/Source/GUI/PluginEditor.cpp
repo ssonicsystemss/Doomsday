@@ -80,6 +80,10 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };
     }
     masterRow = { knob ("master_clip_drive", "CLIP", c.red, 34), knob ("master_clip_soft", "SOFT", c.red, 34) };
+    // module 09: the 8 MASTER MACROS (sources only - what they move = the MACRO MAPPING on the MOD page)
+    for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "macro_impact", "IMPACT" }, { "macro_body", "BODY" }, { "macro_tail", "TAIL" },
+             { "macro_pitch", "PITCH" }, { "macro_grit", "GRIT" }, { "macro_scream", "SCREAM" }, { "macro_weight", "WEIGHT" }, { "macro_chaos", "CHAOS" } })
+        macroRow.push_back (knob (id, lab, c.red, 30));
     for (auto& [id, comp] : byId)
     {
         const int idx = [&] { for (int i = 0; i < P::count; ++i) if (id == def (i).id) return i; return -1; }();
@@ -104,8 +108,10 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     addChildComponent (*eqPg);
     dynPg = std::make_unique<fge::gui::DynPage> (proc, lnf);
     addChildComponent (*dynPg);
-    const char* pages[8] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ", "DYN" };
-    for (int i = 0; i < 8; ++i)
+    modPg = std::make_unique<fge::gui::ModPage> (proc, lnf);
+    addChildComponent (*modPg);
+    const char* pages[9] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ", "DYN", "MOD" };
+    for (int i = 0; i < 9; ++i)
     {
         pageBtn[(size_t) i].setButtonText (pages[i]);
         pageBtn[(size_t) i].onClick = [this, i] { showPage (i); };
@@ -119,6 +125,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     wave.onScreechStart = [this] (float ms, bool first) { if (first) proc.undo.beginNewTransaction ("Screech start"); proc.setParamInUndoStep ("scr_start", ms); };
     pageBtn[5].setTooltip ("Filters (8), resonators (2) and the SCREECH engine: synthesised screeches with their own envelopes and timing.");
     pageBtn[6].setTooltip ("EQ (16 bands), dynamic EQ, multiband, spectral shaper and stereo engine - on the whole kick, a part, the texture, a layer or the screech.");
+    pageBtn[8].setTooltip ("Modulation: the matrix (64 slots), LFO 1-8, the step sequencer, random sources and the MACRO MAPPING of the 8 MASTER MACROS.");
     pageBtn[7].setTooltip ("Dynamics: 4 compressors, 5 transient shapers, 2 clippers, 2 limiters, crest factor control, auto gain - where the punch and the loudness are made.");
     selectPart (2);
     showPage (0);
@@ -163,7 +170,7 @@ void GeCanvas::selectPart (int i)
 
 void GeCanvas::showPage (int i)
 {
-    pageIdx = jlimit (0, 7, i);
+    pageIdx = jlimit (0, 8, i);
     const bool main = pageIdx == 0;
     for (int p = 0; p < 4; ++p)
     {
@@ -179,9 +186,11 @@ void GeCanvas::showPage (int i)
     scrPage->setVisible (pageIdx == 5);
     eqPg->setVisible (pageIdx == 6);
     dynPg->setVisible (pageIdx == 7);
+    modPg->setVisible (pageIdx == 8);
     wave.setVisible (pageIdx < 2);
+    for (auto* m : macroRow) m->setVisible (pageIdx < 2);
     const auto& c = palette();
-    for (int k = 0; k < 8; ++k)
+    for (int k = 0; k < 9; ++k)
     {
         pageBtn[(size_t) k].setColour (TextButton::buttonColourId, k == pageIdx ? c.red : c.control);
         pageBtn[(size_t) k].setColour (TextButton::textColourOffId, k == pageIdx ? c.ground : c.silver);
@@ -204,13 +213,16 @@ void GeCanvas::resized()
     int x = 330;
     for (int i = 0; i < 3; ++i) { header[(size_t) i]->setBounds (x, 10, 70, Knob::heightFor (44)); x += 74; }
     for (int i = 0; i < 3; ++i) header[(size_t) 3 + (size_t) i]->setBounds (x + 14, 14 + i * 26, 150, 22);
-    header[6]->setBounds (742, 8, 216, 26);
+    header[6]->setBounds (742, 8, 161, 26);
+    pageBtn[8].setBounds (906, 8, 52, 26);
     // pitch engine
     pitchArea = { 16, 104, W - 32, 84 };
     pitchRow[0]->setBounds (pitchArea.getX() + 14, pitchArea.getY() + 40, 520, 28);
     for (int i = 1; i < 9; ++i) pitchRow[(size_t) i]->setBounds (pitchArea.getX() + 570 + (i - 1) * 80, pitchArea.getY() + 4, 76, Knob::heightFor (38));
     // waveform + output meter
-    waveArea = { 16, 196, W - 32 - 34, 226 };
+    waveArea = { 16, 196, W - 32 - 34, 152 };
+    macroArea = { 16, 354, W - 32, 70 };
+    for (size_t i = 0; i < macroRow.size(); ++i) macroRow[i]->setBounds (macroArea.getX() + 160 + (int) i * 130, macroArea.getY() + 2, 100, Knob::heightFor (30));
     wave.setBounds (waveArea);
     meterArea = { waveArea.getRight() + 10, waveArea.getY(), 24, waveArea.getHeight() };
     // part cards
@@ -248,6 +260,7 @@ void GeCanvas::resized()
     for (int k = 4; k < 8; ++k) pageBtn[(size_t) k].setBounds (742 + (k - 4) * 55, 70, 52, 26);
     if (eqPg != nullptr) eqPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (dynPg != nullptr) dynPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
+    if (modPg != nullptr) modPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (scrPage != nullptr) scrPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
 }
 
@@ -303,6 +316,12 @@ void GeCanvas::paint (Graphics& g)
     const bool track = raw (proc, P::coreKeyTrack) > 0.5f;
     g.drawText (track ? "TRACKING: END = the played note, START moves with it" : "FIXED: START -> END in Hz",
                 pitchArea.getX() + 140, pitchArea.getY() + 8, 400, 20, Justification::left);
+    if (pageIdx < 2)
+    {
+        panel (macroArea, "MASTER MACROS", c.red);
+        g.setColour (c.textDim); g.setFont (lnf.font (9.5f, doomsday::flat::Medium));
+        g.drawFittedText ("what each one moves:\nMOD page > SHOW: <macro>", macroArea.getX() + 14, macroArea.getY() + 30, 140, 30, Justification::topLeft, 2);
+    }
     if (pageIdx == 0) paintMain (g, panel);
     // output meter
     {

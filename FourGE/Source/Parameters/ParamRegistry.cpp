@@ -87,6 +87,16 @@ namespace fge
         const juce::StringArray& autoGainModes()  { static const juce::StringArray a { "OFF", "PEAK MATCH", "RMS MATCH", "LOUDNESS MATCH" }; return a; }
         const juce::StringArray& dynOrders()      { static const juce::StringArray a { "COMP > TRANSIENT > CLIP > LIMIT > CREST", "TRANSIENT > COMP > CLIP > LIMIT > CREST",
                                                                                        "COMP > CLIP > TRANSIENT > LIMIT > CREST", "CLIP > COMP > TRANSIENT > LIMIT > CREST" }; return a; }
+        // module 09
+        const juce::StringArray& lfoWaves()       { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW UP", "SAW DOWN", "SQUARE", "PULSE", "SAMPLE & HOLD", "SMOOTH RANDOM" }; return a; }
+        const juce::StringArray& modDivisions()   { static const juce::StringArray a { "1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/2 D", "1/4 D", "1/8 D", "1/16 D",
+                                                                                       "1/2 T", "1/4 T", "1/8 T", "1/16 T", "1/32 T" }; return a; }
+        const juce::StringArray& modRetrigs()     { static const juce::StringArray a { "OFF", "ON NOTE", "ON KICK TRIGGER", "ON BAR" }; return a; }
+        const juce::StringArray& lfoModes()       { static const juce::StringArray a { "LOOP", "ONE SHOT - HOLD END", "ONE SHOT - BACK TO ZERO" }; return a; }
+        const juce::StringArray& modPolarities()  { static const juce::StringArray a { "BIPOLAR", "UNIPOLAR" }; return a; }
+        const juce::StringArray& seqDirections()  { static const juce::StringArray a { "FORWARD", "BACKWARD", "PING-PONG", "RANDOM", "ALTERNATE" }; return a; }
+        const juce::StringArray& seqSkips()       { static const juce::StringArray a { "ZERO", "HOLD", "SKIP" }; return a; }
+        const juce::StringArray& rndModes()       { static const juce::StringArray a { "FIXED SEED", "PER TRIGGER", "FREE RUN", "ONE SHOT", "CONTROLLED RANDOM" }; return a; }
         const juce::StringArray& mbLinks()        { static const juce::StringArray a { "OFF", "SUB + LOW", "MID + HIGH", "SUB + LOW / MID + HIGH", "ALL BANDS" }; return a; }
         const juce::StringArray& excModes()       { static const juce::StringArray a { "WARM", "BRIGHT", "CRISP", "METALLIC", "AGGRESSIVE", "CUSTOM" }; return a; }
         const juce::StringArray& excHarm()        { static const juce::StringArray a { "EVEN", "ODD", "BOTH" }; return a; }
@@ -323,6 +333,43 @@ namespace fge
             if (num ("deq")) if (auto it = deq.find (k); it != deq.end()) return it->second;
             if (num ("mb")) if (auto it = mb.find (k); it != mb.end()) return it->second;
             if (auto it = other.find (pid); it != other.end()) return it->second;
+        }
+        // module 09: modulation sources
+        {
+            const juce::String pid (d.id);
+            static const std::map<juce::String, const char*> macro {
+                { "macro_impact", "IMPACT - strength and character of the hit (default: punch level / drive, transient)." },
+                { "macro_body", "BODY - mass of the body (level, decay, drive)." }, { "macro_tail", "TAIL - length of the tail (length, decay, release)." },
+                { "macro_pitch", "PITCH - the pitch drop (start, time, curve)." }, { "macro_grit", "GRIT - dirt and aggression (tail / body drive, stage 2, distortion 1)." },
+                { "macro_scream", "SCREAM - resonance and screech (tail resonance, screech level, mid bell)." },
+                { "macro_weight", "WEIGHT - low-end energy (sub level, drive, length)." }, { "macro_chaos", "CHAOS - controlled instability (unison drift / detune, pulse width)." } };
+            if (auto it = macro.find (pid); it != macro.end()) return juce::String (it->second) + " What it moves = the MACRO MAPPING (MOD page); it never changes the knobs' own values.";
+            if (pid.startsWith ("macro_user")) return "USER MACRO - your own controller: connect it to anything on the MOD page.";
+            static const std::map<juce::String, const char*> lfo {
+                { "wave", "Shape of the LFO." }, { "rate", "Speed in Hz (free)." }, { "sync", "HOST SYNC: the speed follows the tempo (DIVISION)." },
+                { "division", "Length of one cycle in notes (with HOST SYNC)." }, { "phase", "Start point of the cycle." },
+                { "retrigger", "OFF = runs free (synced: follows the song), ON NOTE = restarts on the first of held notes, ON KICK TRIGGER = every kick, ON BAR = every bar." },
+                { "mode", "LOOP, or ONE SHOT (one cycle, then hold the end / go back to zero)." }, { "polarity", "BIPOLAR -1..+1 or UNIPOLAR 0..1." },
+                { "fade_in", "The LFO fades in after a restart." }, { "fade_out", "The LFO fades out after the note is released." },
+                { "smooth", "Smooths the LFO output (against steps)." }, { "pw", "Pulse width (SQUARE / PULSE)." } };
+            if (pid.startsWith ("lfo")) if (auto it = lfo.find (pid.fromFirstOccurrenceOf ("_", false, false)); it != lfo.end()) return it->second;
+            static const std::map<juce::String, const char*> seq {
+                { "seq_length", "Number of steps (1-64; the steps beyond stay saved)." }, { "seq_sync", "HOST SYNC: steps follow the tempo (DIVISION)." },
+                { "seq_rate", "Steps per second (free)." }, { "seq_division", "Length of one step in notes." },
+                { "seq_direction", "FORWARD, BACKWARD, PING-PONG, RANDOM (seeded) or ALTERNATE (odd steps, then even)." },
+                { "seq_reset", "When it starts again from step 1: OFF, ON NOTE, ON KICK TRIGGER, ON BAR." }, { "seq_swing", "Every second step comes later." },
+                { "seq_humanize", "Small fixed timing shifts per step (seeded - the same every time)." },
+                { "seq_skip", "A step that did not pass its PROBABILITY: ZERO, HOLD the last value, or SKIP to the next step." },
+                { "seq_polarity", "BIPOLAR -1..+1 or UNIPOLAR 0..1." }, { "seq_smooth", "Smooths the jumps between steps." },
+                { "seq_accent", "Extra amount on ACCENT steps." }, { "seq_seed", "Seed of probability / random direction / humanize: the same seed = the same pattern." } };
+            if (auto it = seq.find (pid); it != seq.end()) return it->second;
+            static const std::map<juce::String, const char*> rnd {
+                { "mode", "FIXED SEED = one value, PER TRIGGER = new every kick, FREE RUN = changes at RATE, ONE SHOT = one per playback, CONTROLLED = small steps (MAX STEP) per kick." },
+                { "seed", "The same seed = the same random values (in the plugin and in the export)." }, { "rate", "FREE RUN speed." },
+                { "smooth", "Glide between random values." }, { "amount", "How much of the random value goes out." }, { "deviation", "CONTROLLED RANDOM: the largest step per kick." },
+                { "polarity", "BIPOLAR -1..+1 or UNIPOLAR 0..1." } };
+            if (pid.startsWith ("rnd")) if (auto it = rnd.find (pid.fromFirstOccurrenceOf ("_", false, false)); it != rnd.end()) return it->second;
+            if (pid == "mod_movement") return "MOVEMENT - scales every LFO / sequencer / random connection at once (0 = still, 200 % = double).";
         }
         // module 08: dynamics (one text per setting)
         {

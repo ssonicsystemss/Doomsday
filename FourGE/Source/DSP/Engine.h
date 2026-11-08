@@ -19,6 +19,7 @@
 #include "Tone/ToneCook.h"
 #include "Dyn/DynCook.h"
 #include "Filter/M06Cook.h"
+#include "Mod/Mod.h"
 #include "DoomsdayKick.h"
 #include "../Parameters/ParamFrame.h"
 #include <array>
@@ -89,6 +90,7 @@ namespace fge
                       double absTimeSec = 0.0, uint32_t hitCount = 0)
         {
             using namespace dsp;
+            srcAmp = {}; srcPitch = 1.f; srcFilt = 0.f;
             active = true; t = 0.0; age = order; vel = velocityGain; fade = 1.f; fadeStep = 0.f; held = true; ctl = 0; relAtMs = -1.f;
             noteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f);
             const uint32_t seed = 0x9e3779b9u * (uint32_t) (note + 1);
@@ -196,6 +198,12 @@ namespace fge
                 // ---- the amplitude envelopes of the parts (once per sample: the generators and the noise envelopes use them)
                 std::array<float, 4> amp {};
                 for (int p = 0; p < 4; ++p) amp[(size_t) p] = ms < cfg.partEnd[(size_t) p] ? ampOf (cfg, p, ms) : 0.f;
+                if ((ctl & 15) == 1)                                              // module 09: what the modulation sources read
+                {
+                    srcAmp = amp;
+                    const float depth = cfg.pitch[PTail].depthSt;
+                    srcPitch = std::abs (depth) > 0.01f ? juce::jlimit (0.f, 1.f, pe.semis (PTail, ms) / depth) : 0.f;
+                }
                 // ---- module 04: noise into the part inputs, transient / layers into the 7 buses
                 if (cfg.lbAny)
                 {
@@ -264,7 +272,8 @@ namespace fge
                 if (fs.on || rs.on)
                 {
                     float hz = cfg.toneHz[(size_t) p], reso = cfg.resoBase[(size_t) p];
-                    if (fs.on) hz = juce::jlimit (20.f, 20000.f, hz * std::exp2 (fs.amount * 6.f * slotValue (fs, stFlt[(size_t) p], ms)));
+                    if (fs.on) { const float fv = slotValue (fs, stFlt[(size_t) p], ms); if (p == PTail) srcFilt = fv;
+                                 hz = juce::jlimit (20.f, 20000.f, hz * std::exp2 (fs.amount * 6.f * fv)); }
                     if (rs.on) reso = juce::jlimit (0.f, 1.f, reso + rs.amount * slotValue (rs, stRes[(size_t) p], ms));
                     m.tone = svfCoefs (hz, p == PPunch ? 1.414f : 1.f / (0.7f + reso * reso * 11.f), cfg.ks.rate);
                     m.toneOpen = false;
@@ -280,6 +289,12 @@ namespace fge
                 mod[(size_t) p] = m;
             }
         }
+    public:
+        // module 09: the newest kick's envelopes as modulation sources (updated every 16 samples while it plays)
+        std::array<float, 4> srcAmp {};
+        float srcPitch = 0.f, srcFilt = 0.f;
+        float noteNumberKey() const { return 12.f * std::log2 (noteHz / 440.f) + 69.f; }
+    private:
         dsp::OscBankVoice oscs;
         dsp::LayerBankVoice lbv;
         static inline const dsp::OscTables noTables {};
@@ -316,13 +331,14 @@ namespace fge
             m06St->reset(); scrEng.reset(); toneSt->reset(); dynSt->reset();
             scrOsc.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             scrInBufL.assign ((size_t) (maxBlockSize * osFactor), 0.f); scrInBufR.assign ((size_t) (maxBlockSize * osFactor), 0.f);
-            sinceHitMs = 1.0e9f;
+            sinceHitMs = 1.0e9f; sinceHitOs = (int64_t) 1 << 40;
             wl1 = wl2 = wh1 = wh2 = wr1 = wr2 = {}; clipped = false;
             stereo.setSize (2, maxBlockSize);
             for (auto& v : voices) v = KickVoice();
             for (auto& g : gainNow) g = { 0.f, 0.f };
             masterNow = 0.f; first = true; dcL = {}; dcR = {};
             for (auto& p : freePhase) p = 0.f;
+            modEng.reset (sampleRate); sinceTick = 0; modFresh = true; heldNotes = 0;
         }
         int latencySamples() const { return (int) std::lround (os->getLatencyInSamples()) + cfg.dyn.masterLook; }
         // the drawn shapes (module 02) - set before process() each block; nullptr = the defaults
@@ -332,8 +348,25 @@ namespace fge
         // host tempo (module 02 SYNC); <= 0 = not known (the LOCAL BPM is used)
         void setHostBpm (double b) { hostBpm = b; }
 
+        // module 09: the modulation matrix (nullptr / no active slot = no modulation) and the host position (LFO / sequencer sync)
+        void setModData (const dsp::mod::Data* d)
+        {
+            if (d != modData || (d != nullptr && d->version != modVersion)) { modData = d; modVersion = d != nullptr ? d->version : 0; if (d != nullptr) modEng.scan (*d); }
+        }
+        void setHostPos (double ppq, bool playing, int barBeats = 4) { hostPpq = ppq; hostPlaying = playing; hostBar = juce::jmax (1, barBeats); }
+        const dsp::mod::Engine& modEngine() const { return modEng; }
+        const ParamFrame& finalFrame() const { return frame; }
+        // module 09 monitors for the GUI (SOURCE / DESTINATION MONITOR, lock-free; updated once per block)
+        std::array<std::atomic<float>, dsp::mod::NumSrc> srcMon {};
+        std::array<std::atomic<float>, dsp::mod::numSlots> slotFinal {};          // the FINAL normalised value of each slot's target
+        std::atomic<int> seqStepMon { 0 };
+        bool modFullCook = false;
+        uint32_t modExtraCook = 0;                      // (tests: re-cook these sections at every tick too)                        // (tests: re-cook everything at every control tick)
+
         void process (juce::AudioBuffer<float>& out, const juce::MidiBuffer& midi, const ParamFrame& f)
         {
+            if (modData != nullptr && modData->active > 0) { processMod (out, midi, f); return; }
+            modFresh = true;
             cook (f);
             const int n = out.getNumSamples();
             int pos = 0;
@@ -367,7 +400,7 @@ namespace fge
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter);
             shaper.hit();
-            sinceHitMs = 0.f; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
             {
@@ -379,7 +412,7 @@ namespace fge
             }
             hits.fetch_add (1);
         }
-        void release (int) { for (auto& v : voices) v.noteOff (cfg); if (relMs < 0.f) relMs = sinceHitMs; }
+        void release (int) { for (auto& v : voices) v.noteOff (cfg); if (relMs < 0.f) relMs = sinceHitMs; modEng.onNoteOff(); }
         void stopAll() { for (auto& v : voices) v.choke (3.f, cfg.ks.rate); }
         void cookOnly (const ParamFrame& f) { cook (f); }
 
@@ -391,10 +424,93 @@ namespace fge
         double tempo() const { return hostBpm > 0.0 ? hostBpm : (double) frame[P::envLocalBpm]; }
 
     private:
+        // ---------------------------------------------------------- module 09: the block in control ticks of 32 samples (+ a tick at every kick)
+        void processMod (juce::AudioBuffer<float>& out, const juce::MidiBuffer& midi, const ParamFrame& base)
+        {
+            const int n = out.getNumSamples();
+            // the control ticks run on their own grid (every 32 samples, restarted at each kick) - not on the host blocks,
+            // so the same kick sounds the same at any position / block size (realtime = export). A changed BASE re-cooks at once.
+            bool full = modFresh || std::memcmp (base.v.data(), lastBase.v.data(), sizeof (float) * (size_t) P::count) != 0;
+            if (full) lastBase = base;
+            double ppq = hostPpq;
+            auto tick = [&] (int adv)
+            {
+                dsp::mod::Ctx cx = modCtx();
+                cx.ppq = ppq; cx.playing = hostPlaying; cx.barBeats = hostBar;
+                if (modFresh) { modEng.setMatrixFrame (base); modFresh = false; }
+                const uint32_t moved = modEng.tick (*modData, base, fm, cx, adv);
+                cook (fm, full || modFullCook ? dsp::mod::GAll : (moved | modExtraCook));
+                full = false;
+            };
+            auto it = midi.begin();
+            int pos = 0;
+            const double beatsPerSample = tempo() / 60.0 / sr;
+            while (pos < n || it != midi.end())
+            {
+                bool kicked = false;
+                while (it != midi.end() && (*it).samplePosition <= pos)
+                {
+                    const auto m = (*it).getMessage();
+                    if (m.isNoteOn()) { modEng.onNoteOn (heldNotes == 0); ++heldNotes; lastKey = m.getNoteNumber(); lastVel = m.getFloatVelocity(); kicked = true; pendingNotes[(size_t) juce::jmin (15, pendingN++)] = { m.getNoteNumber(), m.getFloatVelocity() }; }
+                    else if (m.isNoteOff()) { heldNotes = juce::jmax (0, heldNotes - 1); release (m.getNoteNumber()); }
+                    ++it;
+                }
+                if (kicked || full || sinceTick >= dsp::mod::ctlN) { tick (sinceTick); sinceTick = 0; }
+                for (int k = 0; k < juce::jmin (16, pendingN); ++k) trigger (pendingNotes[(size_t) k].first, pendingNotes[(size_t) k].second);
+                pendingN = 0;
+                if (pos >= n) break;
+                int end = juce::jmin (n, pos + (dsp::mod::ctlN - sinceTick));
+                if (it != midi.end()) end = juce::jmin (end, juce::jmax (pos + 1, (*it).samplePosition));
+                render (out, pos, end - pos);
+                sinceTick += end - pos;
+                ppq += (end - pos) * beatsPerSample;
+                pos = end;
+            }
+            hostPpq = ppq;
+            for (int k = 0; k < dsp::mod::NumSrc; ++k) srcMon[(size_t) k].store (modEng.source (k), std::memory_order_relaxed);
+            for (int k = 0; k < modData->active; ++k) slotFinal[(size_t) k].store (modEng.finalNorm (modData->slot[(size_t) k].dst), std::memory_order_relaxed);
+            seqStepMon.store (modEng.seqStep(), std::memory_order_relaxed);
+        }
+        dsp::mod::Ctx modCtx() const
+        {
+            dsp::mod::Ctx cx;
+            cx.bpm = tempo(); cx.velocity = lastVel; cx.key = juce::jlimit (-1.f, 1.f, (float) (lastKey - 60) / 24.f);
+            const KickVoice* newest = nullptr;
+            for (auto& v : voices) if (v.isActive() && (newest == nullptr || v.order() > newest->order())) newest = &v;
+            if (newest != nullptr)
+            {
+                float k = 0.f;
+                for (int p = 0; p < 4; ++p) { cx.amp[(size_t) p] = newest->srcAmp[(size_t) p]; k = juce::jmax (k, newest->srcAmp[(size_t) p]); }
+                cx.amp[4] = k; cx.pitchEnv = newest->srcPitch; cx.filtEnv = newest->srcFilt;
+            }
+            return cx;
+        }
+        dsp::mod::Engine modEng;
+        const dsp::mod::Data* modData = nullptr;
+        uint32_t modVersion = 0;
+        ParamFrame fm = ParamFrame::defaults(), lastBase = ParamFrame::defaults();
+        int sinceTick = 0, heldNotes = 0, lastKey = 60, hostBar = 4, pendingN = 0;
+        float lastVel = 1.f;
+        double hostPpq = 0.0;
+        bool hostPlaying = false, modFresh = true;
+        std::array<std::pair<int, float>, 16> pendingNotes {};
+
         // ---------------------------------------------------------- per block: parameters -> cooked settings
-        void cook (const ParamFrame& f)
+        // the cooked sections (module 09 re-cooks only the sections a modulation moved; GCore also re-cooks oscillators + layers)
+        void cookSubs (const ParamFrame& f, uint32_t mask, const env::Bank& b)
+        {
+            if (mask & dsp::mod::GOsc) cookOscillators (f);
+            if (mask & dsp::mod::GLayers) cookLayers (f, b);
+            if (mask & dsp::mod::GDist) dsp::dist::cookDist (f, distData, b, cfg.dist, distTables, cfg.ks.rate, offline);
+            if (mask & dsp::mod::GM06) { dsp::m06::cookBank (f, b, cfg.m06, cfg.ks.rate); dsp::scr::cook (f, cfg.scr); }
+            if (mask & dsp::mod::GTone) dsp::tone::cookBank (f, cfg.tone, cfg.ks.rate);
+            if (mask & dsp::mod::GDyn) dsp::dyn::cookBank (f, distData, cfg.dyn, cfg.ks.rate, sr);
+        }
+        void cook (const ParamFrame& f, uint32_t mask = dsp::mod::GAll)
         {
             using namespace dsp;
+            static const env::Bank defaultBank;
+            if ((mask & mod::GCore) == 0) { frame = f; cookSubs (f, mask, bank != nullptr ? *bank : defaultBank); return; }
             frame = f;
             static const env::Bank defaults;
             const env::Bank& b = bank != nullptr ? *bank : defaults;
@@ -472,13 +588,7 @@ namespace fge
             cfg.widthSplit = svfCoefs (f[P::tailWidthFrom], 1.414f, rate);
             cfg.clipG = db (f[P::clipDrive]); cfg.clipSoft = f[P::clipSoft];
             cfg.holdGain = db (f[P::tailHoldLvl]);
-            cookOscillators (f);
-            cookLayers (f, b);
-            dsp::dist::cookDist (f, distData, b, cfg.dist, distTables, cfg.ks.rate, offline);
-            dsp::m06::cookBank (f, b, cfg.m06, cfg.ks.rate);
-            dsp::tone::cookBank (f, cfg.tone, cfg.ks.rate);
-            dsp::dyn::cookBank (f, distData, cfg.dyn, cfg.ks.rate, sr);
-            dsp::scr::cook (f, cfg.scr);
+            cookSubs (f, mask | mod::GOsc | mod::GLayers, b);
 
             // ---- envelope slots (module 02, 7)
             const int aMode[4] { P::punchAmpMode, P::bodyAmpMode, P::tailAmpMode, P::subAmpMode };
@@ -731,7 +841,7 @@ namespace fge
             if (cfg.dist.globalPos == 1) globalChain (L, R, on);                                       // GLOBAL, after the clip (with the sub)
             if (busAny)                                                      // the MASTER bus: after the clip
                 for (int i = 0; i < on; ++i) { L[i] += b[6 + 2 * dsp::BusMaster][i]; R[i] += b[7 + 2 * dsp::BusMaster][i]; }
-            sinceHitMs += (float) on * 1000.f / (float) cfg.ks.rate;
+            sinceHitOs += on; sinceHitMs = msAt (0);          // (a sample counter: the same at any block size)
             os->processSamplesDown (blk);
             const float m0 = masterNow, m1 = masterTarget, invN = 1.f / (float) n;
             const float r = (float) std::exp (-juce::MathConstants<double>::twoPi * 5.0 / sr);
@@ -744,7 +854,7 @@ namespace fge
                 float yl = dcL.tick (sl[i], r) * m, yr = dcR.tick (sr2[i], r) * m;
                 if (cfg.dyn.any && cfg.dyn.at (dsp::dyn::LMaster, 1))           // module 08 at MASTER OUTPUT (host rate, lookahead)
                 {
-                    dsp::m06::Ctx cx = m6Ctx (0); cx.ms = sinceHitMs + (float) (i * 1000.0 / sr);
+                    dsp::m06::Ctx cx = m6Ctx (0); cx.ms = msAt (i * osFactor);
                     dynSt->process (cfg.dyn, dsp::dyn::LMaster, 1, yl, yr, cx, nullptr, sr);
                 }
                 out.setSample (0, start + i, yl);
@@ -786,7 +896,7 @@ namespace fge
         dsp::dist::ModCtx modCtx (int i)
         {
             dsp::dist::ModCtx m;
-            m.sinceHitMs = sinceHitMs + (float) i * 1000.f / (float) cfg.ks.rate;
+            m.sinceHitMs = msAt (i);
             if ((i & 15) == 0)
             {
                 PitchEval pe; pe.c = &cfg;
@@ -800,7 +910,7 @@ namespace fge
         dsp::m06::Ctx m6Ctx (int i) const
         {
             dsp::m06::Ctx c;
-            c.ms = sinceHitMs + (float) i * 1000.f / (float) cfg.ks.rate; c.vel = lastVelocity; c.noteHz = lastNoteHz; c.lengthMs = cfg.ks.lengthMs;
+            c.ms = msAt (i); c.vel = lastVelocity; c.noteHz = lastNoteHz; c.lengthMs = cfg.ks.lengthMs;
             c.relMs = relMs; c.scrOsc = i < (int) scrOsc.size() ? scrOsc[(size_t) i] : 0.f;
             return c;
         }
@@ -831,7 +941,7 @@ namespace fge
             float semis = 0.f;
             for (int i = 0; i < on; ++i)
             {
-                const float ms = sinceHitMs + (float) i * 1000.f / (float) cfg.ks.rate;
+                const float ms = msAt (i);
                 if (cfg.scr.pitchMode == 1 && (i & 15) == 0) semis = pe.semis (dsp::PTail, ms);
                 // RELATIVE: the played note two octaves up (the screech register); MIDI TRACKED: + the kick's pitch engine; ABSOLUTE: BASE HZ
                 const float base = cfg.scr.pitchMode == 2 ? cfg.scr.baseHz : lastNoteHz * dsp::scr::registerMul * (cfg.scr.pitchMode == 1 ? std::exp2 (semis / 12.f) : 1.f);
@@ -860,6 +970,8 @@ namespace fge
         dsp::dist::DistTables distTables;
         const dsp::dist::DistData* distData = nullptr;
         std::array<bool, 6> distOn {};
+        int64_t sinceHitOs = (int64_t) 1 << 40;
+        float msAt (int i) const { return sinceHitOs >= ((int64_t) 1 << 39) ? 1.0e9f : (float) ((double) (sinceHitOs + i) * 1000.0 / cfg.ks.rate); }
         float sinceHitMs = 1.0e9f, pitchNormNow = 0.f, lastVelocity = 1.f, lastNoteHz = 49.f, relMs = -1.f;
         std::unique_ptr<dsp::m06::State> m06St = std::make_unique<dsp::m06::State>();   // module 06 at engine level (not the layers)
         std::unique_ptr<dsp::tone::State> toneSt = std::make_unique<dsp::tone::State>(); // module 07 at engine level (not the layers)
@@ -918,7 +1030,8 @@ namespace fge
     inline juce::AudioBuffer<float> renderKick (ParamFrame f, int note, double rate, double seconds, int soloPart = -1, float velocity = 1.f,
                                                 const env::Bank* bank = nullptr, double bpm = 0.0, double noteOffAt = -1.0,
                                                 const dsp::OscTables* tables = nullptr, const dsp::OscData* oscData = nullptr,
-                                                const dsp::dist::DistData* distData = nullptr, dsp::dyn::Probe* probe = nullptr)
+                                                const dsp::dist::DistData* distData = nullptr, dsp::dyn::Probe* probe = nullptr,
+                                                const dsp::mod::Data* modData = nullptr)
     {
         // no tables given: build them here from the parameters (+ the given / default oscillator data) - offline only
         std::array<dsp::TablePtr, dsp::maxOsc> keep;
@@ -946,6 +1059,7 @@ namespace fge
         engine->setTables (tables);
         engine->setDistData (distData);
         engine->setOffline (true);                       // renderKick = the export path (OFFLINE QUALITY applies)
+        engine->setModData (modData);                    // module 09: the same modulation as the plugin (not playing: the engine clock at 'bpm')
         engine->cookOnly (f);
         engine->dynState().probe = probe;                      // (GUI analysis: one module 08 processor's gain history)
         const int look = engine->dynLookahead();               // module 08: the export starts on the beat (the lookahead is taken out)

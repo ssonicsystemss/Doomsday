@@ -199,6 +199,25 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
   EXPERIMENTAL – BROKEN DYNAMICS, MAXIMUM DENSITY – cały łańcuch razem z miejscami), SAVE / LOAD (procesor .4gdyn albo moduł .4gm08),
   A / B, COPY / PASTE / RESET – z UNDO. Makra modułu (PUNCH / LOUDNESS / GLUE) dojdą w module 09.
 
+## MASTER MACROS i strona MOD (moduł 09)
+- **8 MASTER MACROS** na głównym ekranie (pod waveformem): IMPACT, BODY, TAIL, PITCH, GRIT, SCREAM, WEIGHT, CHAOS. Makro niczego
+  nie nadpisuje – dodaje swój ruch na wierzchu gałek (FINAL = BAZA + modulacja); przy 0 % kick brzmi dokładnie tak samo.
+  Domyślne przypisania (MACRO MAPPING): IMPACT → poziom / drive punchu, transient · BODY → poziom / decay / drive body ·
+  TAIL → długość / decay / release taila · PITCH → start / czas / krzywa pitchu · GRIT → drive taila, stage 2, drive body,
+  distortion 1 · SCREAM → rezonans taila, poziom screecha, mid bell · WEIGHT → poziom / drive / długość suba ·
+  CHAOS → dryf / rozstrojenie unisonu, pulse width.
+- Przycisk **MOD** (prawy górny róg) – **MODULATION MATRIX**: 64 połączenia (widok po 16), w każdym SOURCE, DESTINATION (dowolny
+  modulowalny parametr 4GE – menu wg modułów), DEPTH, OFFSET, POLARITY, CURVE, MODE (ADD / MULTIPLY / MAX / MIN / REPLACE),
+  SMOOTH, LAG, MUTE, SOLO, LABEL i pasek BAZA | FINAL na żywo. **SHOW: <makro>** = jego MACRO MAPPING (dodawanie / zmiana celów),
+  CLEAR ALL, DEFAULT MACROS. Wszystko z UNDO, zapisuje się w projekcie i presecie.
+- Źródła: makra (8 + 4 USER), **LFO 1–8** (8 kształtów, RATE albo HOST SYNC z podziałem, PHASE, RETRIGGER OFF / ON NOTE /
+  ON KICK TRIGGER / ON BAR, LOOP / ONE SHOT, FADE IN / OUT, SMOOTH, PULSE WIDTH), **STEP SEQUENCER** (do 64 kroków rysowanych myszką:
+  wartość, PROBABILITY, RATCHET, CURVE, TIE, ACCENT, MUTE; kierunki, SWING, HUMANIZE, SEED, COPY / PASTE / REVERSE / SHIFT / RANDOM),
+  **RANDOM 1–2** (FIXED SEED, PER TRIGGER, FREE RUN, ONE SHOT, CONTROLLED; ten sam SEED = ten sam wynik), VELOCITY, KEY, PITCH ENV,
+  obwiednie głośności PUNCH / BODY / TAIL / SUB / KICK, FILTER ENV. **MOVEMENT** skaluje naraz wszystkie LFO / sekwencer / random.
+- **SOURCE MONITOR** pokazuje każde źródło na żywo. Bezpieczeństwo: MASTER i sufit limitera modulacja może tylko obniżyć, LOOKAHEAD
+  nie jest celem (latencja), wartości zawsze w zakresie. Eksport = to samo co w FL (ten sam seed, LFO na kicku).
+
 ## Presety
 INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).

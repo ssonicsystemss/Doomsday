@@ -144,6 +144,12 @@ tylko na MASTER OUTPUT = lokalizacja 15 po downsamplingu, latencja zgłaszana ho
 2 clippery (7 krzywych, CUSTOM = `DistData::clip`, oversampling), 2 limitery (per-kanał + STEREO LINK, MinQ lookahead, true peak), crest
 control, AUTO GAIN (okno 50 ms) / LEVEL MATCH, ORDER, BAND LINK multibandu M07. Hooki po M07 w każdym miejscu (też warstwy). `Presets/M08Tools.h`,
 `GUI/DynPage.*` + `DynScope.h` (krzywa, historia GR z `dyn::Probe`, crest; mierniki `Engine::m8Meters`). Testy M08 (tabela 14) OK. Następny: moduł 09.
+**STAN 2026-11-08: MODUŁ 09 – część 1 GOTOWA** – `DSP/Mod/Mod.h` (jeden silnik: źródła → slot → ADD / MUL / MAX / MIN / REPLACE → clamp w domenie
+znormalizowanej parametru; tick co 32 próbki na własnej siatce restartowanej przy każdym kicku = realtime == eksport; sekcje cooka `Engine::cookSubs`
+re-gotowane tylko gdy modulacja je ruszy – test „partial = full” dla 1743 celów), `Presets/ModState.h` (64 sloty + 64 kroki, child MODM, brak = domyślny
+MACRO MAPPING 25 slotów), parametry: 8 MASTER + 4 USER MACROS (tylko źródła), LFO 1–8, SEQ, RND 1–2, MOVEMENT; `GUI/ModPage.*` + 8 makr na MAIN.
+Testy M09 (tabela 13) OK. Część 2: AUDIO FOLLOWER, MIDI CC + MIDI LEARN, drag & drop źródło → gałka + pierścienie BASE / FINAL na gałkach,
+DESTINATION MONITOR, CUSTOM LFO (16 punktów), MACRO MORPH, Randomizer wariantów (SCOPE / LOCK / REGENERATE ze stylami EARLY / MODERN / RAW / EXPERIMENTAL).
 
 **STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
 przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH

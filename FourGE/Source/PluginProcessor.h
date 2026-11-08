@@ -6,6 +6,7 @@
 #include "Parameters/ParamRegistry.h"
 #include "Parameters/ParamFrame.h"
 #include "DSP/Engine.h"
+#include "Presets/ModState.h"
 
 namespace fge { inline constexpr const char* versionText = "0.5"; }      // keep in step with CMakeLists.txt
 
@@ -96,6 +97,16 @@ public:
     uint32_t distDataVersion() const { return distVersion; }
     void setDistCurve (int stage, const fge::dsp::dist::CurveData&, bool newUndoStep = true);
     void setClipCurve (int clipper, const fge::dsp::dist::CurveData&, bool newUndoStep = true);   // module 08 (state child DIST, "clip1" / "clip2")
+    // ---- MODULATION MATRIX (module 09): 64 slots + the sequencer steps, state child MODM (undoable; none = the default macro mapping)
+    static constexpr const char* modTag = fge::modstate::tag;
+    const fge::modstate::Desc& modDesc() const { return modNow; }
+    uint32_t modVersion() const { return modVer; }
+    int modUnknownTargets() const { return modUnknown; }               // slots whose target is missing / not modulatable (OFF)
+    const fge::dsp::mod::Data& modAudioCopy() const { return modResolved; }   // (message thread: offline renders / previews)
+    void setModSlot (int slot, const fge::modstate::SlotDesc&, bool newUndoStep = true);
+    void setModSteps (const std::array<fge::dsp::mod::Step, fge::dsp::mod::maxSteps>&, bool newUndoStep = true);
+    void resetModMatrix (bool undoable = true);                         // back to the default macro mapping
+    void clearModMatrix();                                              // every slot empty (one undo step)
     static float slotMin (int slot) { return fge::env::isBipolar (slot) ? -1.f : 0.f; }
     int auditionNote = 31;          // G1 in FL (49 Hz)
 
@@ -103,19 +114,27 @@ private:
     juce::ValueTree envTree (bool create);
     void rebuildShapes();
     void valueTreePropertyChanged (juce::ValueTree& t, const juce::Identifier&) override { onTreeChange (t); }
-    void valueTreeChildAdded (juce::ValueTree& t, juce::ValueTree&) override { onTreeChange (t); }
-    void valueTreeChildRemoved (juce::ValueTree& t, juce::ValueTree&, int) override { onTreeChange (t); }
-    void valueTreeRedirected (juce::ValueTree&) override { rebuildShapes(); rebuildOscData(); rebuildDistData(); }
+    void valueTreeChildAdded (juce::ValueTree& t, juce::ValueTree& c) override { if (c.hasType (modTag)) rebuildModData(); else onTreeChange (t); }
+    void valueTreeChildRemoved (juce::ValueTree& t, juce::ValueTree& c, int) override { if (c.hasType (modTag)) rebuildModData(); else onTreeChange (t); }
+    void valueTreeRedirected (juce::ValueTree&) override { rebuildShapes(); rebuildOscData(); rebuildDistData(); rebuildModData(); }
     void onTreeChange (juce::ValueTree& t)
     {
         if (t.getType() == juce::Identifier ("PARAM")) return;            // parameter values: the tables follow on the timer
         if (t.getType() == juce::Identifier (oscsTag) || t.getParent().getType() == juce::Identifier (oscsTag)) rebuildOscData();
         else if (t.getType() == juce::Identifier (distTag)) rebuildDistData();
+        else if (t.getType() == juce::Identifier (modTag)) rebuildModData();
         else rebuildShapes();
     }
     void timerCallback() override { refreshTables(); }
     void rebuildOscData();
     void rebuildDistData();
+    void rebuildModData();
+    juce::ValueTree modTree();                                          // (creates it from the current data when missing)
+    fge::modstate::Desc modNow = fge::modstate::defaults();
+    fge::dsp::mod::Data modResolved;
+    uint32_t modVer = 1;
+    int modUnknown = 0;
+    fge::dsp::Exchange<fge::dsp::mod::Data> modX;
     fge::dsp::dist::DistData distNow;
     uint32_t distVersion = 1;
     fge::dsp::Exchange<fge::dsp::dist::DistData> distX;

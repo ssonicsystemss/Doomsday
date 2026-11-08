@@ -8,6 +8,7 @@
 #include "../Source/Presets/M06Tools.h"
 #include "../Source/Presets/M07Tools.h"
 #include "../Source/Presets/M08Tools.h"
+#include "../Source/Presets/ModState.h"
 #include "../Source/GUI/DistScope.h"
 #include "../Source/Presets/FactoryPresets.h"
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -139,6 +140,21 @@ int main (int argc, char** argv)
     const File outDir (argc > 1 ? File::getCurrentWorkingDirectory().getChildFile (argv[1]) : File::getCurrentWorkingDirectory().getChildFile ("4ge_out"));
     outDir.createDirectory();
     if (argc > 2 && String (argv[2]) == "--bench") { GeProcessor p; cpuStress (p); printf ("%.1f %% of one core\n", 100.0 * cpuTime (p, argc > 3 ? String (argv[3]).getDoubleValue() : 2.0)); return 0; }
+    if (argc > 2 && String (argv[2]) == "--cookbench")                         // how long one full cook takes (module 09 decides per-block re-cooking)
+    {
+        for (int prog : { 0, 1, 2 })
+        {
+            GeProcessor p; p.setCurrentProgram (prog); p.prepareToPlay (44100.0, 512);
+            auto& e = p.getEngine(); ParamFrame f = p.frame();
+            const auto t0 = Time::getHighResolutionTicks();
+            f[P::eq1On] = 1.f; f[P::eq2On] = 1.f; f[P::dist1On] = 1.f; f[P::cmp1On] = 1.f; f[P::flt1On] = 1.f; f[P::scrOn] = 1.f;
+            for (int i = 0; i < 2000; ++i) { f[P::tailTone] = 3000.f + (float) (i % 50); f[P::eq1Freq] = 300.f + (float) (i % 50); f[P::dist1Drive] = 0.2f + 0.001f * (float) (i % 50);
+                                             f[P::cmp1Thr] = -20.f + 0.1f * (float) (i % 50); f[P::flt1Cut] = 2000.f + (float) (i % 50); e.cookOnly (f); }
+            const double us = Time::highResolutionTicksToSeconds (Time::getHighResolutionTicks() - t0) / 2000.0 * 1.0e6;
+            printf ("program %d: one cook = %.1f us -> every 32 samples at 44.1 kHz = %.1f %% CPU\n", prog, us, us * 1.0e-6 * 44100.0 / 32.0 * 100.0);
+        }
+        return 0;
+    }
     if (argc > 4 && String (argv[2]) == "--cmp")                               // a preset file vs a factory program: the params that differ
     {
         GeProcessor a; a.loadUserPresetFile (File::getCurrentWorkingDirectory().getChildFile (argv[3]));
@@ -780,10 +796,64 @@ int main (int argc, char** argv)
                 if (sid == "mb_link") { set2 ("mb_on", 1.f); for (auto* bnd : { "mb1_", "mb2_", "mb3_", "mb4_" }) { set2 (String (bnd) + "dynamics", 1.f); set2 (String (bnd) + "threshold", -40.f); set2 (String (bnd) + "ratio", 10.f); } }
             }
             if (sid.endsWith ("_trigger")) continue;                                                // MIDI behaviour (note-off / legato): checked below
+            // module 09 contexts: a source works when a matrix slot uses it (-> TAIL TONE, a clearly audible target)
+            std::unique_ptr<fge::dsp::mod::Data> md;
+            double offAt = -1.0;
+            {
+                namespace mo = fge::dsp::mod;
+                auto route = [&] (int src, std::array<mo::Step, mo::maxSteps> steps = {}, int extraSrc = 0)
+                {
+                    fge::modstate::Desc dd = fge::modstate::defaults();
+                    for (auto& sl : dd.slot) sl = {};
+                    auto& sl = dd.slot[0]; sl.on = true; sl.src = src; sl.dst = "tail_tone"; sl.depth = 0.5f; sl.pol = mo::PBipolar;
+                    if (extraSrc > 0) { auto& s2 = dd.slot[1]; s2 = sl; s2.src = extraSrc; s2.dst = "tail_drive"; }
+                    dd.step = steps;
+                    md = std::make_unique<mo::Data>(); int unk = 0; fge::modstate::resolve (dd, *md, unk, 1);
+                    if (id != P::tailTone) a[P::tailTone] = b[P::tailTone] = 2000.f;               // (room to move both ways)
+                };
+                auto set2 = [&] (const String& pid, float v) { const int k = idOf (pid); if (k >= 0 && k != id) { a[k] = v; b[k] = v; } };
+                if (sid.startsWith ("macro_"))
+                {
+                    const int m = id - P::macro_impact;
+                    if (m < 8) { md = std::make_unique<mo::Data>(); int unk = 0; fge::modstate::resolve (fge::modstate::defaults(), *md, unk, 1);
+                                 if (m == 7) { set2 ("tail_uni_voices", 3.f); } if (m == 5) set2 ("scr_on", 1.f); }
+                    else route (mo::SMacro1 + m);
+                }
+                if (sid.startsWith ("lfo"))
+                {
+                    const int n = sid.substring (3, 4).getIntValue();
+                    const String o = "lfo" + String (n) + "_", k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    route (mo::SLfo1 + n - 1);
+                    if (k == "retrigger") continue;                                                 // (needs several kicks: the M09 retrigger check)
+                    if (k == "division") set2 (o + "sync", 1.f);
+                    if (k == "mode") set2 (o + "rate", 5.f);
+                    if (k == "smooth" || k == "pw") set2 (o + "wave", 4.f);
+                    if (k == "fade_out") offAt = 0.05;
+                }
+                if (sid.startsWith ("seq_"))
+                {
+                    std::array<mo::Step, mo::maxSteps> st {};
+                    for (int k = 0; k < mo::maxSteps; ++k) { st[(size_t) k].value = -1.f + 2.f * (float) (k % 5) / 4.f; st[(size_t) k].accent = k % 2 == 0; st[(size_t) k].prob = k % 2 ? 0.5f : 1.f; }
+                    route (mo::SSeq, st);
+                    if (sid == "seq_reset") continue;                                               // (the M09 sequencer check)
+                    if (sid == "seq_rate") set2 ("seq_sync", 0.f);
+                    if (sid == "seq_division" || sid == "seq_swing" || sid == "seq_humanize") set2 ("seq_sync", 1.f);
+                }
+                if (sid.startsWith ("rnd"))
+                {
+                    const int n = sid.substring (3, 4).getIntValue();
+                    const String o = "rnd" + String (n) + "_", k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    route (mo::SRnd1 + n - 1);
+                    if (k == "rate" || k == "smooth") set2 (o + "mode", 2.f);
+                    if (k == "deviation") set2 (o + "mode", 4.f);
+                }
+                if (sid == "mod_movement") route (mo::SLfo1);
+            }
+            auto rk = [&] (const ParamFrame& pf) { return renderKick (pf, G1, sr, 0.6, -1, 1.f, nullptr, 0.0, offAt, nullptr, nullptr, nullptr, nullptr, md.get()); };
             if (d.kind == Kind::Choice)
             {
                 bool any = false;
-                for (int c = 0; c < d.choices().size() && ! any; ++c) { if (c == (int) d.def) continue; b[id] = (float) c; any |= diff (renderKick (a, G1, sr, 0.6), renderKick (b, G1, sr, 0.6)) > 1.0e-4; }
+                for (int c = 0; c < d.choices().size() && ! any; ++c) { if (c == (int) d.def) continue; b[id] = (float) c; any |= diff (rk (a), rk (b)) > 1.0e-4; }
                 ++tested; if (! any) dead.add (d.id);
                 continue;
             }
@@ -791,7 +861,7 @@ int main (int argc, char** argv)
             if (d.unit == Unit::Deg) b[id] = 90.f;                                   // 0 and 360 degrees are the same phase
             if (d.kind == Kind::Bool) a[id] = d.def;
             ++tested;
-            if (diff (renderKick (a, G1, sr, 0.6), renderKick (b, G1, sr, 0.6)) < 1.0e-4) dead.add (d.id);
+            if (diff (rk (a), rk (b)) < 1.0e-4) dead.add (d.id);
         }
         // PHASE RESET: two kicks in a row differ when it is off
         {
@@ -2002,6 +2072,231 @@ int main (int argc, char** argv)
             outDir.getChildFile ("4ge_m07_eq_presets.txt").replaceWithText (order);
         }
     }
+    // ---------------------------------------------------------------- module 09: modulation matrix, LFO, sequencer, random, macros (MODULE09.md 13)
+    {
+        namespace mo = fge::dsp::mod;
+        using fge::modstate::SlotDesc;
+        auto slot = [] (int src, const char* dst, float depth, int pol = mo::PBipolar, int mode = mo::MAdd, float offset = 0.f)
+        { SlotDesc s; s.on = true; s.src = src; s.dst = dst; s.depth = depth; s.pol = pol; s.mode = mode; s.offset = offset; return s; };
+        auto dataOf = [] (std::vector<SlotDesc> sl, std::array<mo::Step, mo::maxSteps> st = {})
+        {
+            fge::modstate::Desc d; for (size_t i = 0; i < sl.size(); ++i) d.slot[i] = sl[i]; d.step = st;
+            auto x = std::make_unique<mo::Data>(); int unk = 0; fge::modstate::resolve (d, *x, unk, 7); return x;
+        };
+        auto rk = [&] (const ParamFrame& f, const mo::Data* md, double secs = 0.5) { return renderKick (f, G1, sr, secs, -1, 1.f, nullptr, 150.0, -1.0, nullptr, nullptr, nullptr, nullptr, md); };
+        const auto& R = mo::Ranges::get();
+        auto norm = [&] (int id, float v) { return R.r[(size_t) id].convertTo0to1 (v); };
+        // 0. the default macro mapping: every target exists, macros at 0 leave the sound bit-exact
+        {
+            GeProcessor p;
+            const auto plain = rk (base, nullptr), mapped = rk (base, &p.modAudioCopy());
+            check (p.modUnknownTargets() == 0 && p.modAudioCopy().active >= 24 && diff (plain, mapped) < 1.0e-8, "M09 default MACRO MAPPING: 8 macros x 3-4 targets, macros at 0 = no change (< -160 dB)",
+                   String (p.modAudioCopy().active) + " slots, unknown targets " + String (p.modUnknownTargets()));
+        }
+        // 1. matrix routing: a slot changes its DSP parameter; switching it OFF removes the effect (bit-exact)
+        {
+            auto on = dataOf ({ slot (mo::SLfo1, "tail_tone", 0.6f) });
+            auto offS = slot (mo::SLfo1, "tail_tone", 0.6f); offS.on = false;
+            auto off = dataOf ({ offS });
+            check (diff (rk (base, on.get()), rk (base, nullptr)) > 1.0e-3 && diff (rk (base, off.get()), rk (base, nullptr)) == 0.0, "M09 MATRIX routing: the source moves the DSP parameter, OFF = no effect");
+        }
+        // 2. several sources on one target: ADD / MULTIPLY / MAX / MIN / REPLACE (macros = constant sources)
+        {
+            ParamFrame f = base; f[P::macro_impact] = 1.f; f[P::macro_body] = 0.5f;
+            const int id = P::tailTone; const float b = norm (id, f[id]);
+            auto run = [&] (std::vector<SlotDesc> sl) { auto d = dataOf (sl); mo::Engine e; e.reset (44100.0); e.scan (*d); ParamFrame out; mo::Ctx cx; e.setMatrixFrame (f);
+                                                        for (int k = 0; k < 4; ++k) e.tick (*d, f, out, cx, 32); return R.r[(size_t) id].convertTo0to1 (out[id]); };
+            const float add = run ({ slot (mo::SMacro1, "tail_tone", 0.05f, mo::PUniPos), slot (mo::SMacro1 + 1, "tail_tone", 0.1f, mo::PUniPos) });
+            const float mul = run ({ slot (mo::SMacro1, "tail_tone", -0.5f, mo::PUniPos, mo::MMultiply) });
+            const float mx = run ({ slot (mo::SMacro1, "tail_tone", 0.05f, mo::PUniPos, mo::MMax), slot (mo::SMacro1 + 1, "tail_tone", 0.2f, mo::PUniPos, mo::MMax) });
+            const float mn = run ({ slot (mo::SMacro1, "tail_tone", -0.05f, mo::PUniPos, mo::MMin), slot (mo::SMacro1 + 1, "tail_tone", -0.2f, mo::PUniPos, mo::MMin) });
+            const float rep = run ({ slot (mo::SMacro1, "tail_tone", 0.3f, mo::PUniPos), slot (mo::SMacro1, "tail_tone", 0.f, mo::PUniPos, mo::MReplace, 0.25f) });
+            const bool ok = std::abs (add - (b + 0.1f)) < 1e-4f && std::abs (mul - b * 0.5f) < 1e-4f && std::abs (mx - (b + 0.1f)) < 1e-4f && std::abs (mn - (b - 0.1f)) < 1e-4f && std::abs (rep - 0.25f) < 1e-4f;
+            check (ok, "M09 several sources: ADD / MULTIPLY / MAX / MIN / REPLACE give the predictable result",
+                   "base " + String (b, 3) + ": add " + String (add, 3) + " mul " + String (mul, 3) + " max " + String (mx, 3) + " min " + String (mn, 3) + " replace " + String (rep, 3));
+        }
+        // 3. LFO HOST SYNC: the phase follows the song position, also after a BPM change and a jump of the transport
+        {
+            ParamFrame f = base; f[P::lfo1Sync] = 1.f; f[P::lfo1Div] = 2.f; f[P::lfo1Retrig] = 0.f;      // 1/4, free (follows the song)
+            auto d = dataOf ({ slot (mo::SLfo1, "tail_tone", 0.5f) });
+            mo::Engine e; e.reset (44100.0); e.scan (*d); e.setMatrixFrame (f); ParamFrame out;
+            float err = 0.f;
+            for (auto [bpm, ppq] : std::vector<std::pair<double, double>> { { 150.0, 0.0 }, { 150.0, 0.30 }, { 128.0, 0.30 }, { 175.0, 7.85 }, { 90.0, 123.4 } })
+            {
+                mo::Ctx cx; cx.bpm = bpm; cx.ppq = ppq; cx.playing = true;
+                e.tick (*d, f, out, cx, 32); e.tick (*d, f, out, cx, 32);
+                err = jmax (err, std::abs (e.source (mo::SLfo1) - (float) std::sin (MathConstants<double>::twoPi * (ppq - std::floor (ppq)))));
+            }
+            check (err < 1.0e-3f, "M09 LFO HOST SYNC holds the song position (BPM change, transport jump)", "max error " + String (err, 5));
+        }
+        // 4. LFO RETRIGGER: ON KICK TRIGGER = every kick starts the same, FREE = they differ, ON NOTE = only the first of held notes resets
+        {
+            auto rtOf = [&] (int retr, bool overlap)
+            {
+                GeProcessor p; p.setModSlot (0, slot (mo::SLfo1, "tail_tone", 0.7f)); p.clearModMatrix(); p.setModSlot (0, slot (mo::SLfo1, "tail_tone", 0.7f));
+                setP (p, "lfo1_retrigger", (float) retr); setP (p, "lfo1_rate", 3.3f); setP (p, "core_voice_mode", 1.f);
+                std::vector<std::pair<int, MidiMessage>> ev { { 0, MidiMessage::noteOn (1, G1, 1.f) } };
+                if (! overlap) ev.push_back ({ 13000, MidiMessage::noteOff (1, G1) });
+                ev.push_back ({ 26000, MidiMessage::noteOn (1, G1, 1.f) });
+                auto y = hitProc (p, ev, 1.2);
+                AudioBuffer<float> a (2, 12000), b (2, 12000);
+                for (int c = 0; c < 2; ++c) { a.copyFrom (c, 0, y, c, 0, 12000); b.copyFrom (c, 0, y, c, 26000, 12000); }
+                return diff (a, b);
+            };
+            const double kick = rtOf (2, false), free = rtOf (0, false), note = rtOf (1, true), kickOv = rtOf (2, true);
+            check (kick < 1.0e-5 && kickOv < 1.0e-5 && free > 1.0e-3 && note > 1.0e-3, "M09 LFO RETRIGGER: ON KICK TRIGGER / FREE RUN / ON NOTE behave differently",
+                   "two kicks differ: kick " + String (kick, 5) + ", free " + String (free, 5) + ", note (held) " + String (note, 5));
+        }
+        // 5. STEP SEQUENCER: steps, probability, ratchet, swing, directions
+        {
+            ParamFrame f = base; f[P::seqSync] = 0.f; f[P::seqRate] = 10.f; f[P::seqLength] = 4.f; f[P::seqSmooth] = 0.f;
+            std::array<mo::Step, mo::maxSteps> st {}; const float vals[4] { -1.f, -0.2f, 0.4f, 1.f };
+            for (int k = 0; k < 4; ++k) st[(size_t) k].value = vals[k];
+            auto valuesOver = [&] (const ParamFrame& pf, const std::array<mo::Step, mo::maxSteps>& steps, int ticks)
+            {
+                auto d = dataOf ({ slot (mo::SSeq, "tail_tone", 0.5f) }, steps);
+                mo::Engine e; e.reset (44100.0); e.scan (*d); e.setMatrixFrame (pf); ParamFrame out; mo::Ctx cx;
+                std::vector<float> v; for (int t = 0; t < ticks; ++t) { e.tick (*d, pf, out, cx, 32); v.push_back (e.source (mo::SSeq)); } return v;
+            };
+            const int perStep = (int) (44100.0 / 10.0 / 32.0);                        // ticks per step
+            const auto fwd = valuesOver (f, st, perStep * 8);
+            bool steps = true; for (int k = 0; k < 8; ++k) steps &= std::abs (fwd[(size_t) (k * perStep + perStep / 2)] - vals[k % 4]) < 1e-4f;
+            ParamFrame bw = f; bw[P::seqDir] = 1.f; const auto back = valuesOver (bw, st, perStep * 4);
+            bool rev = true; for (int k = 0; k < 4; ++k) rev &= std::abs (back[(size_t) (k * perStep + perStep / 2)] - vals[3 - k]) < 1e-4f;
+            auto pr = st; for (int k = 0; k < 4; ++k) pr[(size_t) k].prob = 0.5f;
+            const auto p1 = valuesOver (f, pr, perStep * 32), p2 = valuesOver (f, pr, perStep * 32);
+            int zeros = 0; for (int k = 0; k < 32; ++k) zeros += std::abs (p1[(size_t) (k * perStep + perStep / 2)]) < 1e-6f;
+            auto ra = st; ra[0].ratchet = 4; ra[0].value = 1.f;
+            const auto rt = valuesOver (f, ra, perStep);
+            int edges = 0; for (size_t k = 1; k < rt.size(); ++k) edges += (rt[k] > 0.5f) != (rt[k - 1] > 0.5f);
+            ParamFrame sw = f; sw[P::seqSwing] = 0.6f; const auto swung = valuesOver (sw, st, perStep * 4);
+            int firstOf2 = -1; for (int t = 0; t < (int) swung.size(); ++t) if (std::abs (swung[(size_t) t] - vals[1]) < 1e-4f) { firstOf2 = t; break; }
+            check (steps && rev && p1 == p2 && zeros > 6 && zeros < 26 && edges >= 6 && firstOf2 > perStep + 2, "M09 STEP SEQUENCER: steps, directions, probability (seeded), ratchet, swing",
+                   String ("skipped ") + String (zeros) + "/32, ratchet edges " + String (edges) + ", swung step 2 at tick " + String (firstOf2) + " (straight " + String (perStep) + ")");
+        }
+        // 6. RANDOM: the same seed = the same kick; another seed = another; PER TRIGGER = every kick new
+        {
+            auto run = [&] (float seed, bool two)
+            {
+                GeProcessor p; p.clearModMatrix(); p.setModSlot (0, slot (mo::SRnd1, "pe_start", 0.3f));
+                setP (p, "rnd1_seed", seed); setP (p, "rnd1_mode", 1.f);
+                std::vector<std::pair<int, MidiMessage>> ev { { 0, MidiMessage::noteOn (1, G1, 1.f) } };
+                if (two) ev.push_back ({ 20000, MidiMessage::noteOn (1, G1, 1.f) });
+                return hitProc (p, ev, 0.9);
+            };
+            const auto a = run (5.f, true), b = run (5.f, true), c = run (6.f, true);
+            AudioBuffer<float> h1 (2, 15000), h2 (2, 15000);
+            for (int ch = 0; ch < 2; ++ch) { h1.copyFrom (ch, 0, a, ch, 0, 15000); h2.copyFrom (ch, 0, a, ch, 20000, 15000); }
+            check (diff (a, b) == 0.0 && diff (a, c) > 1.0e-3 && diff (h1, h2) > 1.0e-3, "M09 RANDOMIZER: seed = repeatable, PER TRIGGER = a new value every kick");
+        }
+        // 7. one macro drives parameters in several modules (GRIT -> M01 drives + M05 distortion), BASE untouched
+        {
+            GeProcessor p; setP (p, "macro_grit", 1.f); setP (p, "dist1_on", 1.f);
+            hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.1);
+            const auto& fin = p.getEngine().finalFrame(); const auto bs = p.frame();
+            check (fin[P::tailDrive] > bs[P::tailDrive] + 0.05f && fin[P::dist1Drive] > bs[P::dist1Drive] + 0.05f && fin[P::bodyDrive] > bs[P::bodyDrive] + 0.05f
+                   && std::abs (bs[P::tailDrive] - def (P::tailDrive).def) < 1e-6f,
+                   "M09 MACRO MAPPING: GRIT moves drives in 2 modules, the base values stay", "tail drive " + String (bs[P::tailDrive], 2) + " -> " + String (fin[P::tailDrive], 2)
+                   + ", dist 1 drive " + String (bs[P::dist1Drive], 1) + " -> " + String (fin[P::dist1Drive], 1));
+        }
+        // 9. safety: a safety level (master, limiter ceiling) only goes DOWN; no slot leaves the legal range; lookahead is not a target
+        {
+            ParamFrame f = base; f[P::macro_impact] = 1.f;
+            auto d = dataOf ({ slot (mo::SMacro1, "core_master", 1.f, mo::PUniPos), slot (mo::SMacro1, "lim1_ceiling", 1.f, mo::PUniPos), slot (mo::SMacro1, "tail_tone", 5.f, mo::PUniPos),
+                               slot (mo::SMacro1, "cmp1_lookahead", 1.f, mo::PUniPos) });
+            mo::Engine e; e.reset (44100.0); e.scan (*d); e.setMatrixFrame (f); ParamFrame out; mo::Ctx cx; e.tick (*d, f, out, cx, 32);
+            fge::modstate::Desc dd; dd.slot[0] = slot (mo::SMacro1, "cmp1_lookahead", 1.f); mo::Data dx; int unk = 0; fge::modstate::resolve (dd, dx, unk, 1);
+            check (out[P::coreMaster] <= f[P::coreMaster] && out[P::lim1Ceil] <= f[P::lim1Ceil] && out[P::tailTone] <= def (P::tailTone).max && unk == 1 && d->slot[3].dst < 0,
+                   "M09 SAFETY: master / ceiling never raised, ranges clamped, lookahead is no target");
+        }
+        // 10. presets / project: identical routing after save + load (state and user preset file), unknown targets reported
+        {
+            GeProcessor a; a.clearModMatrix(); a.setModSlot (3, slot (mo::SLfo1 + 2, "body_tone", -0.4f, mo::PUniNeg, mo::MMax, 0.1f));
+            std::array<mo::Step, mo::maxSteps> st {}; st[2].value = 0.7f; st[2].ratchet = 3; a.setModSteps (st);
+            MemoryBlock mb; a.getStateInformation (mb);
+            GeProcessor b; b.setStateInformation (mb.getData(), (int) mb.getSize());
+            const bool same = b.modDesc().slot[3] == a.modDesc().slot[3] && b.modDesc().slot[0].empty() && b.modDesc().step[2].ratchet == 3;
+            auto xml = std::unique_ptr<XmlElement> (b.apvts.copyState().createXml());
+            xml->getChildByName ("MODM")->setAttribute ("s5", slot (mo::SLfo1, "no_such_param", 0.3f).toText());
+            const File tf = File::getSpecialLocation (File::tempDirectory).getChildFile ("m09test.4gp"); xml->writeTo (tf);
+            GeProcessor c; c.loadUserPresetFile (tf); tf.deleteFile();
+            check (same && c.modDesc().slot[3] == a.modDesc().slot[3] && c.modUnknownTargets() == 1, "M09 PRESET / PROJECT keep the matrix, unknown targets stay off and are counted");
+        }
+        // 11 + 12. audio stability (fast square LFOs on filters / drive / pitch) and realtime = export
+        {
+            GeProcessor p; p.clearModMatrix();
+            p.setModSlot (0, slot (mo::SLfo1, "tail_tone", 0.8f)); p.setModSlot (1, slot (mo::SLfo1 + 1, "tail_drive", 0.8f)); p.setModSlot (2, slot (mo::SSeq, "pe_start", 0.5f));
+            p.setModSlot (3, slot (mo::SRnd1, "body_tone", 0.5f)); p.setModSlot (4, slot (mo::SAmpTail, "tail_resonance", 0.6f)); p.setModSlot (5, slot (mo::SPitchEnv, "tail_tone", 0.3f));
+            setP (p, "lfo1_wave", 4.f); setP (p, "lfo1_rate", 40.f); setP (p, "lfo2_wave", 6.f); setP (p, "lfo2_rate", 37.f);
+            const auto rt = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, (uint8) 127) } }, 0.6);
+            const auto off = renderKick (p.frame(), G1, sr, 0.6, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, nullptr, &p.distData(), nullptr, &p.modAudioCopy());
+            bool finite = true; for (int c = 0; c < 2; ++c) for (int i = 0; i < rt.getNumSamples(); ++i) finite &= std::isfinite (rt.getSample (c, i));
+            check (finite && peak (rt) < 4.f && diff (rt, off) < 1.0e-6, "M09 audio stability (40 Hz square LFO, random, envelopes) + realtime = export", "rt vs export " + String (diff (rt, off), 8));
+        }
+        // 13. the engine re-cooks only what moved: identical to re-cooking everything (every modulatable parameter, LFO on it)
+        if (std::getenv ("FGE_QUICK") == nullptr)
+        {
+            ParamFrame f = base;
+            for (auto* on : { "eq1_on", "dist1_on", "flt1_on", "res1_on", "cmp1_on", "ts1_on", "clp1_on", "lim1_on", "scr_on", "layer1_on", "noise_na_on", "tr_on", "osc1_on", "mb_on", "deq1_on" })
+                if (idOf (on) >= 0) f[idOf (on)] = 1.f;
+            StringArray bad; int n = 0;
+            for (int id = 0; id < P::count; ++id)
+            {
+                if (! mo::modulatable (id) || mo::groupOf (id) == mo::GMod) continue;
+                auto d = dataOf ({ slot (mo::SLfo1, def (id).id, 0.4f) });
+                ParamFrame g = f; g[P::lfo1Rate] = 23.f;
+                auto run = [&] (bool full)
+                {
+                    auto e = std::make_unique<Engine>(); e->prepare (sr, 256); e->setModData (d.get()); e->setHostBpm (150.0); e->modFullCook = full;
+                    AudioBuffer<float> o (2, 6000); o.clear();
+                    for (int pos = 0; pos < 6000; pos += 256)
+                    { AudioBuffer<float> t (2, jmin (256, 6000 - pos)); t.clear(); MidiBuffer m; if (pos == 0) m.addEvent (MidiMessage::noteOn (1, G1, 1.f), 0);
+                      e->process (t, m, g); for (int c = 0; c < 2; ++c) o.copyFrom (c, pos, t, c, 0, t.getNumSamples()); }
+                    return o;
+                };
+                ++n;
+                if (diff (run (false), run (true)) > 1.0e-7) bad.add (def (id).id);
+            }
+            check (bad.isEmpty(), "M09 partial re-cook = full re-cook for every modulatable parameter", String (n) + " parameters" + (bad.isEmpty() ? String() : ", WRONG GROUP: " + bad.joinIntoString (" ")));
+        }
+        // the owner's listening file: the MODERN kick, 4 hits per setting - dry, each MASTER MACRO at 100 %, then an LFO on the tail filter and a rhythmic sequencer
+        {
+            const int beat = (int) (0.4 * sr), fade = (int) (0.006 * sr);
+            struct Demo { const char* name; std::function<void (GeProcessor&)> set; };
+            const std::vector<Demo> demos {
+                { "dry", [] (GeProcessor&) {} },
+                { "IMPACT 100 %", [] (GeProcessor& q) { setP (q, "macro_impact", 1.f); } }, { "BODY 100 %", [] (GeProcessor& q) { setP (q, "macro_body", 1.f); } },
+                { "TAIL 100 %", [] (GeProcessor& q) { setP (q, "macro_tail", 1.f); } }, { "PITCH 100 %", [] (GeProcessor& q) { setP (q, "macro_pitch", 1.f); } },
+                { "GRIT 100 %", [] (GeProcessor& q) { setP (q, "macro_grit", 1.f); } }, { "SCREAM 100 %", [] (GeProcessor& q) { setP (q, "macro_scream", 1.f); } },
+                { "WEIGHT 100 %", [] (GeProcessor& q) { setP (q, "macro_weight", 1.f); } }, { "CHAOS 100 %", [&] (GeProcessor& q) { setP (q, "macro_chaos", 1.f); } },
+                { "LFO 1 (1/16, on every kick) > tail tone", [&] (GeProcessor& q) { q.setModSlot (30, slot (mo::SLfo1, "tail_tone", -0.35f)); setP (q, "lfo1_sync", 1.f); setP (q, "lfo1_division", 4.f); } },
+                { "STEP SEQ (1/32) > tail drive + tone", [&] (GeProcessor& q) { q.setModSlot (30, slot (mo::SSeq, "tail_drive", 0.3f)); q.setModSlot (31, slot (mo::SSeq, "tail_tone", 0.25f));
+                    std::array<mo::Step, mo::maxSteps> st {}; const float v[8] { 1.f, -1.f, 0.5f, -1.f, 1.f, 1.f, -0.5f, -1.f }; for (int k = 0; k < 8; ++k) st[(size_t) k].value = v[k];
+                    q.setModSteps (st); setP (q, "seq_length", 8.f); setP (q, "seq_division", 5.f); setP (q, "seq_reset", 2.f); } } };
+            AudioBuffer<float> demo (2, beat * 4 * (int) demos.size()); demo.clear();
+            String order;
+            for (size_t k = 0; k < demos.size(); ++k)
+            {
+                GeProcessor pp; pp.setCurrentProgram (1); demos[k].set (pp);
+                std::vector<std::pair<int, MidiMessage>> ev; for (int b = 0; b < 4; ++b) ev.push_back ({ b * beat, MidiMessage::noteOn (1, G1, (uint8) 127) });
+                auto x = hitProc (pp, ev, 4 * 0.4);
+                for (int b = 0; b < 4; ++b) for (int i = 0; i < fade; ++i) for (int c = 0; c < 2; ++c) x.setSample (c, (b + 1) * beat - fade + i, x.getSample (c, (b + 1) * beat - fade + i) * (1.f - (float) i / (float) fade));
+                for (int c = 0; c < 2; ++c) demo.copyFrom (c, (int) k * 4 * beat, x, c, 0, 4 * beat);
+                order << String ((double) k * 1.6, 1) << " s  " << demos[k].name << "\n";
+            }
+            demo.applyGain (0.95f / jmax (1.0e-6f, peak (demo)));
+            writeWav (outDir.getChildFile ("4ge_m09_macros_modulation.wav"), demo);
+            outDir.getChildFile ("4ge_m09_macros_modulation.txt").replaceWithText (order);
+        }
+        // 14. CPU: 32 slots of LFO / sequencer / random / envelopes
+        {
+            GeProcessor full; full.clearModMatrix();
+            const char* tg[8] { "tail_tone", "body_tone", "tail_drive", "pe_start", "tail_resonance", "punch_drive", "body_drive", "sub_drive" };
+            for (int k = 0; k < 32; ++k) full.setModSlot (k, slot (k < 8 ? mo::SLfo1 + k : k < 16 ? mo::SSeq : k < 24 ? mo::SRnd1 + (k & 1) : mo::SAmpPunch + (k % 5), tg[k % 8], 0.1f));
+            GeProcessor plain; const double c0 = cpuTime (plain, 1.0), c1 = cpuTime (full, 1.0);
+            check (c1 < 2.0 * c0 + 0.01, "M09 CPU with 32 active slots", String (100.0 * c0, 1) + " % -> " + String (100.0 * c1, 1) + " %");
+        }
+    }
     // ---------------------------------------------------------------- module 08: dynamics, compressor, transient & limiter (MODULE08.md 14)
     {
         namespace dy = fge::dsp::dyn;
@@ -2565,6 +2860,44 @@ int main (int argc, char** argv)
                 if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
             }
             m06t::reset (p, m07t::moduleIds());
+            ge->canvas.showPage (0);
+        }
+        // MOD page (module 09): picking a destination / drawing steps goes to the processor, the filter shows a macro's mapping, the 8 macros on MAIN
+        {
+            namespace mo = fge::dsp::mod;
+            ge->canvas.showPage (8);
+            auto& mp = ge->canvas.modPage();
+            p.resetModMatrix (false);
+            mp.setFilter (mo::SMacro1 + 4);                                          // GRIT
+            const bool grit = mp.rowSlot (0) >= 0 && p.modDesc().slot[(size_t) mp.rowSlot (0)].src == mo::SMacro1 + 4 && mp.rowSlot (3) >= 0 && mp.rowSlot (4) < 0;
+            mp.setView (32);
+            mp.pickDestination (40, "body_tone");
+            mp.editSlot (40, [] (auto& d) { d.depth = 0.5f; });
+            const bool picked = p.modDesc().slot[40].dst == "body_tone" && p.modDesc().slot[40].on && std::abs (p.modDesc().slot[40].depth - 0.5f) < 1e-4f;
+            p.undo.undo(); const bool undone = std::abs (p.modDesc().slot[40].depth) < 1e-4f;
+            mp.showTab (1); mp.drawStep (3, 0.75f);
+            const bool drawn = std::abs (p.modDesc().step[3].value - 0.75f) < 1e-3f;
+            mp.showTab (0); mp.showLfo (2);
+            const bool lfoCtl = mp.visibleIds().contains ("lfo3_rate") && ! mp.visibleIds().contains ("lfo1_rate");
+            ge->canvas.showPage (0);
+            const bool macros = ge->canvas.findControl ("macro_grit") != nullptr && ge->canvas.findControl ("macro_grit")->isVisible();
+            check (grit && picked && undone && drawn && lfoCtl && macros, "M09 GUI: MACRO MAPPING view, destination pick + undo, step drawing, LFO tabs, 8 macros on MAIN",
+                   String (grit ? "" : "filter! ") + (picked ? "" : "pick! ") + (undone ? "" : "undo! ") + (drawn ? "" : "steps! ") + (lfoCtl ? "" : "lfo tab! ") + (macros ? "" : "macros!"));
+            PNGImageFormat png;
+            ge->canvas.showPage (8);
+            p.resetModMatrix (false);
+            { auto d = p.modDesc().slot[30]; d.on = true; d.src = mo::SLfo1; d.dst = "tail_tone"; d.depth = 0.4f; d.pol = mo::PBipolar; d.label = "LFO 1 > TAIL TONE"; p.setModSlot (30, d, false); }
+            std::array<mo::Step, mo::maxSteps> st {}; for (int k = 0; k < 16; ++k) { st[(size_t) k].value = std::sin ((float) k * 0.7f); st[(size_t) k].ratchet = k % 5 == 0 ? 2 : 1; st[(size_t) k].accent = k % 4 == 0; st[(size_t) k].prob = k % 3 ? 1.f : 0.6f; }
+            p.setModSteps (st, false);
+            hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.2);
+            for (int t = 0; t < 3; ++t)
+            {
+                mp.showTab (t); mp.setView (t == 0 ? 16 : 0);
+                auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+                FileOutputStream os (outDir.getChildFile ("gui_mod" + String (t) + ".png"));
+                if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            }
+            p.resetModMatrix (false); p.setModSteps ({}, false);
             ge->canvas.showPage (0);
         }
         // DYN page (module 08): per-type enabling, the curve is the real one (cmpGainDb), the probe history shows the gain reduction

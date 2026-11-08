@@ -7,6 +7,7 @@
 #include "Parameters/ParamFrame.h"
 #include "DSP/Engine.h"
 #include "Presets/ModState.h"
+#include "Presets/SamplePool.h"
 
 namespace fge { inline constexpr const char* versionText = "0.5"; }      // keep in step with CMakeLists.txt
 
@@ -114,6 +115,18 @@ public:
     void startMidiLearn (int target) { learnTarget.store (target); learnedCc.store (-1); }
     int midiLearnTarget() const { return learnTarget.load(); }
     void serviceMidi();                                                 // message thread (timer): learned CC + CC -> macro values
+    // ---- SAMPLE SLOTS (module 10): the audio in the state child SAMPLES (working copy embedded, the user's file never written)
+    static constexpr const char* sampleTag = fge::smp::tag;
+    fge::smp::Pool& samples() { return samplePool; }
+    bool importSampleNow (int slot, const juce::File&, juce::String* error = nullptr);   // decode + embed on this thread (tests / tools)
+    void importSample (int slot, const juce::File&);                    // GUI: a background thread, then one undo step on the message thread
+    void clearSample (int slot);
+    bool applySampleTool (int slot, int tool);                          // NORMALIZE / DC OFFSET / TRIM SILENCE on the working copy (undoable)
+    int collectSamples (const juce::File& folder);                      // COLLECT SAMPLES: copy the used files there, point the slots to them
+    fge::smp::SlotInfo sampleInfo (int slot) const { return samplePool.info (slot); }
+    int relinkSamples (const juce::File& folder);                       // RELINK: find the MISSING slots' files (by name) in a folder
+    float samplePlayPos (int slot) const { return engine.smpPosMon[(size_t) juce::jlimit (0, fge::dsp::numSampleSlots - 1, slot)].load (std::memory_order_relaxed); }
+    std::function<void (int slot, const juce::String& error)> onSampleImported;   // (GUI)
     static float slotMin (int slot) { return fge::env::isBipolar (slot) ? -1.f : 0.f; }
     int auditionNote = 31;          // G1 in FL (49 Hz)
 
@@ -121,18 +134,21 @@ private:
     juce::ValueTree envTree (bool create);
     void rebuildShapes();
     void valueTreePropertyChanged (juce::ValueTree& t, const juce::Identifier&) override { onTreeChange (t); }
-    void valueTreeChildAdded (juce::ValueTree& t, juce::ValueTree& c) override { if (c.hasType (modTag)) rebuildModData(); else onTreeChange (t); }
-    void valueTreeChildRemoved (juce::ValueTree& t, juce::ValueTree& c, int) override { if (c.hasType (modTag)) rebuildModData(); else onTreeChange (t); }
-    void valueTreeRedirected (juce::ValueTree&) override { rebuildShapes(); rebuildOscData(); rebuildDistData(); rebuildModData(); }
+    void valueTreeChildAdded (juce::ValueTree& t, juce::ValueTree& c) override
+    { if (c.hasType (modTag)) rebuildModData(); else if (c.hasType (sampleTag)) samplePool.syncFromState (c); else onTreeChange (t); }
+    void valueTreeChildRemoved (juce::ValueTree& t, juce::ValueTree& c, int) override
+    { if (c.hasType (modTag)) rebuildModData(); else if (c.hasType (sampleTag)) samplePool.syncFromState ({}); else onTreeChange (t); }
+    void valueTreeRedirected (juce::ValueTree&) override { rebuildShapes(); rebuildOscData(); rebuildDistData(); rebuildModData(); samplePool.syncFromState (apvts.state.getChildWithName (sampleTag)); }
     void onTreeChange (juce::ValueTree& t)
     {
         if (t.getType() == juce::Identifier ("PARAM")) return;            // parameter values: the tables follow on the timer
         if (t.getType() == juce::Identifier (oscsTag) || t.getParent().getType() == juce::Identifier (oscsTag)) rebuildOscData();
         else if (t.getType() == juce::Identifier (distTag)) rebuildDistData();
         else if (t.getType() == juce::Identifier (modTag)) rebuildModData();
+        else if (t.getType() == juce::Identifier (sampleTag)) samplePool.syncFromState (t);
         else rebuildShapes();
     }
-    void timerCallback() override { refreshTables(); serviceMidi(); }
+    void timerCallback() override { refreshTables(); serviceMidi(); samplePool.collectGarbage(); }
     void rebuildOscData();
     void rebuildDistData();
     void rebuildModData();
@@ -143,6 +159,9 @@ private:
     int modUnknown = 0;
     fge::dsp::Exchange<fge::dsp::mod::Data> modX;
     std::atomic<int> learnTarget { -1 }, learnedCc { -1 };
+    fge::smp::Pool samplePool;
+    std::shared_ptr<bool> alive = std::make_shared<bool> (true);
+    juce::ValueTree sampleTree();
     std::array<std::atomic<int>, 12> macroCc {};
     std::array<std::atomic<float>, 12> macroPending {};               // < 0 = nothing new from MIDI
     fge::dsp::dist::DistData distNow;

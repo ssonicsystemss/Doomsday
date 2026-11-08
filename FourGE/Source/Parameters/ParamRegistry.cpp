@@ -89,6 +89,8 @@ namespace fge
                                                                                        "COMP > CLIP > TRANSIENT > LIMIT > CREST", "CLIP > COMP > TRANSIENT > LIMIT > CREST" }; return a; }
         // module 09
         const juce::StringArray& lfoWaves()       { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW UP", "SAW DOWN", "SQUARE", "PULSE", "SAMPLE & HOLD", "SMOOTH RANDOM", "CUSTOM" }; return a; }
+        const juce::StringArray& smpModes()       { static const juce::StringArray a { "ONE SHOT", "GATE", "LOOP", "PING-PONG" }; return a; }
+        const juce::StringArray& smpLinks()       { static const juce::StringArray a { "INDEPENDENT", "SAMPLE 1", "SAMPLE 2", "SAMPLE 3", "SAMPLE 4", "SAMPLE 5", "SAMPLE 6", "SAMPLE 7", "SAMPLE 8" }; return a; }
         const juce::StringArray& folSources()     { static const juce::StringArray a { "KICK", "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE" }; return a; }
         const juce::StringArray& folDetects()     { static const juce::StringArray a { "PEAK", "RMS", "HYBRID" }; return a; }
         const juce::StringArray& lfoInterps()     { static const juce::StringArray a { "LINEAR", "CUBIC" }; return a; }
@@ -336,6 +338,37 @@ namespace fge
             if (num ("deq")) if (auto it = deq.find (k); it != deq.end()) return it->second;
             if (num ("mb")) if (auto it = mb.find (k); it != mb.end()) return it->second;
             if (auto it = other.find (pid); it != other.end()) return it->second;
+        }
+        // module 10: the sample slots (one text per setting, the same for all 8 slots)
+        if (const juce::String pid (d.id); pid.startsWith ("smp") && pid.length() > 4 && juce::CharacterFunctions::isDigit (pid[3]))
+        {
+            static const std::map<juce::String, const char*> t {
+                { "on", "Switch this sample slot on (load a file on the SAMPLES page)." },
+                { "group", "The part group the sample belongs to: its level / pan / width / mute / solo and its processing (filters, EQ, distortion of that part's bus)." },
+                { "level", "Level of the sample." }, { "pan", "Left / right." }, { "pitch", "Transposition in semitones (the playback speed changes with it)." },
+                { "fine", "Fine tune in cents." }, { "length", "Length of the slot's envelope (ADSR / ONE SHOT envelope)." },
+                { "offset", "Delay of the sample after the hit." }, { "phase", "Start a little later, as a fraction of one period of the ROOT NOTE (phase alignment with the kick)." },
+                { "invert", "Flips the polarity (try it when the sample thins out the kick)." }, { "width", "Extra stereo width (the mono sum stays)." },
+                { "filter_on", "Switch the slot's filter on." }, { "filter_type", "Low pass / high pass / band pass / notch." }, { "cutoff", "Filter frequency." },
+                { "resonance", "Filter resonance." }, { "drive", "Saturation of the sample." },
+                { "env_mode", "The slot's own amplitude envelope: ADSR, ONE SHOT or the drawn shape." }, { "attack", "Envelope attack." }, { "decay", "Envelope decay." },
+                { "sustain", "Envelope sustain level (ADSR)." }, { "release", "Envelope release (ADSR)." }, { "env_delay", "The envelope starts this much later." },
+                { "env_amount", "How much the envelope shapes the sample (0 = the sample plays as it is)." }, { "time_scale", "Stretches all envelope times." },
+                { "mute", "Silences the slot (3 ms fade)." }, { "solo", "Plays only the soloed layers / samples." },
+                { "route_mode", "GROUP = into its group's bus, MULTI = sends into several buses." }, { "send_pre", "MULTI: the sends take the sample before (PRE) or after its LEVEL." },
+                { "send_punch", "MULTI: send into the PUNCH bus." }, { "send_body", "MULTI: send into the BODY bus." }, { "send_tail", "MULTI: send into the TAIL bus." },
+                { "send_sub", "MULTI: send into the SUB bus." }, { "send_texture", "MULTI: send into the TEXTURE bus." }, { "send_custom", "MULTI: send into the CUSTOM bus." },
+                { "send_master", "MULTI: send straight to the master." },
+                { "link_source", "Follow another slot (its level / pitch / length / envelope as chosen)." }, { "link_level", "LINK: the level moves with the linked slot." },
+                { "link_pitch", "LINK: the pitch moves with the linked slot." }, { "link_length", "LINK: the length moves with the linked slot." }, { "link_env", "LINK: use the linked slot's envelope." },
+                { "start", "Where the playback starts (0 = the beginning of the file). A start inside the audio always gets a tiny fade - no click." },
+                { "end", "Where the playback ends." }, { "fade_in", "Fade in at the start of the region." }, { "fade_out", "Fade out before END (ONE SHOT) or after the note (GATE)." },
+                { "rate", "Playback speed (x2 = an octave up and half as long)." }, { "reverse", "Plays the region backwards (the file stays as it is)." },
+                { "play_mode", "ONE SHOT = START to END once, GATE = while the note is held, LOOP = repeats LOOP START..END, PING-PONG = back and forth." },
+                { "loop_start", "Loop start inside the region." }, { "loop_end", "Loop end inside the region." },
+                { "loop_xfade", "Crossfade at the loop point (hides the seam)." }, { "root", "The note the sample was recorded at (KEY TRACKING plays it at the MIDI note)." },
+                { "tracking", "ON: the sample follows the played note (relative to ROOT NOTE). OFF: always the same pitch." } };
+            if (auto it = t.find (pid.fromFirstOccurrenceOf ("_", false, false)); it != t.end()) return it->second;
         }
         // module 09: modulation sources
         {

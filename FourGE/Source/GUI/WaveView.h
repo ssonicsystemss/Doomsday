@@ -10,6 +10,7 @@
 #include "../DSP/Osc/Wavetable.h"
 #include "../DSP/Dist/Distortion.h"
 #include "../DSP/Mod/Mod.h"
+#include "../DSP/Sample/Sample.h"
 #include <array>
 #include <atomic>
 #include <mutex>
@@ -27,6 +28,9 @@ namespace fge::gui
         void update (const ParamFrame&, int note, const env::Bank* shapes = nullptr, uint32_t shapesVersion = 0,
                      const Tables* tables = nullptr, const dsp::dist::DistData* dist = nullptr, uint32_t distVersion = 0,
                      const dsp::mod::Data* mod = nullptr, uint32_t modVersion = 0);
+        // module 10: the sample slots (kept alive by these copies while the background render reads them)
+        using Samples = std::array<std::shared_ptr<const dsp::SampleData>, dsp::numSampleSlots>;
+        void setSamples (const Samples& s, uint32_t version);
         void paint (juce::Graphics&) override;
         void mouseDown (const juce::MouseEvent&) override;
         void mouseDrag (const juce::MouseEvent&) override;
@@ -56,7 +60,8 @@ namespace fge::gui
         std::unique_ptr<env::Bank> pendingBank, bank;
         Tables pendingTables, tables;   // the drawn shapes (copied when they change)
         dsp::dist::DistData pendingDist, distData; uint32_t lastDist = 0xffffffffu;   // the waveshaper curves
-        dsp::mod::Data pendingMod, modData; uint32_t lastMod = 0xffffffffu; bool hasMod = false;   // module 09: the kick with its macros / modulation
+        dsp::mod::Data pendingMod, modData; uint32_t lastMod = 0xffffffffu; bool hasMod = false;
+        Samples pendingSmp, smp; uint32_t lastSmp = 0xffffffffu; bool smpChanged = false;   // module 09: the kick with its macros / modulation
         Render shown;
         std::atomic<bool> ready { false };
         juce::WaitableEvent wake;

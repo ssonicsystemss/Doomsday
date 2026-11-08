@@ -36,6 +36,7 @@ GeProcessor::GeProcessor()
       apvts (*this, &undo, "FOURGE", createLayout())
 {
     for (int i = 0; i < P::count; ++i) pointers.ptr[(size_t) i] = apvts.getRawParameterValue (def (i).id);
+    engine.setSamples (&samplePool.ptrs);                                // module 10
     apvts.state.addListener (this);
     setCurrentProgram (0);
     rebuildShapes();
@@ -54,6 +55,7 @@ void GeProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     const SpinLock::ScopedLockType l (prepareLock);
     refreshTables();
     engine.prepare (sampleRate, samplesPerBlock);
+    samplePool.setTargetRate (sampleRate * Engine::osFactor);
     engine.cookOnly (frame());
     setLatencySamples (engine.latencySamples());
 }
@@ -93,6 +95,8 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
         for (int i = 0; i < 12; ++i) if (macroCc[(size_t) i].load() == m.getControllerNumber()) macroPending[(size_t) i].store ((float) m.getControllerValue() / 127.f);
     }
     engine.process (buffer, midi, f);
+    samplePool.audioClock.fetch_add (buffer.getNumSamples());
+    samplePool.mixPreview (buffer);                                     // the browser's PREVIEW (not a slot)
     // module 08: a LOOKAHEAD at MASTER OUTPUT delays the output - the host is told (it compensates)
     if (const int lat = engine.latencySamples(); lat != getLatencySamples()) setLatencySamples (lat);
 }
@@ -298,6 +302,95 @@ void GeProcessor::rebuildModData()
     modX.publish();
 }
 
+// ------------------------------------------------------------ SAMPLE SLOTS (module 10)
+ValueTree GeProcessor::sampleTree()
+{
+    auto t = apvts.state.getChildWithName (sampleTag);
+    if (! t.isValid()) { t = ValueTree (sampleTag); apvts.state.appendChild (t, &undo); }
+    return t;
+}
+bool GeProcessor::importSampleNow (int slot, const File& f, String* error)
+{
+    if (! isPositiveAndBelow (slot, fge::dsp::numSampleSlots)) return false;
+    AudioBuffer<float> b; double rate = 44100.0; String msg;
+    if (! fge::smp::decode (std::unique_ptr<AudioFormatReader> (fge::smp::formats().createReaderFor (f)), b, rate, msg)) { if (error) *error = msg; return false; }
+    undo.beginNewTransaction ("Load sample");
+    auto t = sampleTree();
+    const String k = "s" + String (slot + 1);
+    t.setProperty (k + "name", f.getFileNameWithoutExtension(), &undo);
+    t.setProperty (k + "path", f.getFullPathName(), &undo);
+    t.setProperty (k + "data", b.getNumSamples() <= rate * fge::smp::maxEmbedSec ? fge::smp::toBase64Wav (b, rate) : String(), &undo);
+    if (error) *error = msg;
+    return true;
+}
+void GeProcessor::importSample (int slot, const File& f)
+{
+    std::weak_ptr<bool> life = alive;
+    Thread::launch ([this, life, slot, f]
+    {
+        AudioBuffer<float> b; double rate = 44100.0; String msg;
+        const bool ok = fge::smp::decode (std::unique_ptr<AudioFormatReader> (fge::smp::formats().createReaderFor (f)), b, rate, msg);
+        const String data = ok && b.getNumSamples() <= rate * fge::smp::maxEmbedSec ? fge::smp::toBase64Wav (b, rate) : String();
+        MessageManager::callAsync ([this, life, slot, f, ok, msg, data]
+        {
+            if (life.expired()) return;
+            if (ok)
+            {
+                undo.beginNewTransaction ("Load sample");
+                auto t = sampleTree(); const String k = "s" + String (slot + 1);
+                t.setProperty (k + "name", f.getFileNameWithoutExtension(), &undo); t.setProperty (k + "path", f.getFullPathName(), &undo); t.setProperty (k + "data", data, &undo);
+            }
+            if (onSampleImported) onSampleImported (slot, ok ? msg : (msg.isEmpty() ? String ("cannot read the file") : msg));
+        });
+    });
+}
+void GeProcessor::clearSample (int slot)
+{
+    undo.beginNewTransaction ("Clear sample");
+    auto t = sampleTree(); const String k = "s" + String (slot + 1);
+    for (auto* p : { "name", "path", "data" }) t.removeProperty (k + p, &undo);
+}
+bool GeProcessor::applySampleTool (int slot, int tool)
+{
+    AudioBuffer<float> b; double rate;
+    if (! samplePool.workingCopy (slot, b, rate)) return false;
+    fge::smp::applyTool (b, tool);
+    undo.beginNewTransaction ("Sample tool");
+    sampleTree().setProperty ("s" + String (slot + 1) + "data", fge::smp::toBase64Wav (b, rate), &undo);   // the working copy (the file stays untouched)
+    return true;
+}
+int GeProcessor::relinkSamples (const File& folder)
+{
+    int n = 0;
+    for (int k = 0; k < fge::dsp::numSampleSlots; ++k)
+    {
+        const auto in = samplePool.info (k);
+        if (in.status != fge::smp::SMissing) continue;
+        const String want = File (in.path).getFileName();
+        Array<File> hits;
+        for (const auto& e : RangedDirectoryIterator (folder, true, want.isNotEmpty() ? want : in.name + ".*", File::findFiles))
+        { hits.add (e.getFile()); break; }
+        if (hits.isEmpty()) continue;
+        if (importSampleNow (k, hits[0])) ++n;
+    }
+    return n;
+}
+int GeProcessor::collectSamples (const File& folder)
+{
+    folder.createDirectory();
+    int n = 0;
+    undo.beginNewTransaction ("Collect samples");
+    auto t = sampleTree();
+    for (int k = 0; k < fge::dsp::numSampleSlots; ++k)
+    {
+        const File src (t.getProperty ("s" + String (k + 1) + "path").toString());
+        if (! src.existsAsFile() || src.isAChildOf (folder)) continue;
+        const File dst = folder.getChildFile (src.getFileName()).getNonexistentSibling (false);
+        if (src.copyFileTo (dst)) { t.setProperty ("s" + String (k + 1) + "path", dst.getFullPathName(), &undo); ++n; }
+    }
+    return n;
+}
+
 // ------------------------------------------------------------ presets
 int GeProcessor::getNumPrograms() { return (int) factoryPresets().size(); }
 const String GeProcessor::getProgramName (int i) { return isPositiveAndBelow (i, getNumPrograms()) ? factoryPresets()[(size_t) i].name : String(); }
@@ -312,6 +405,8 @@ void GeProcessor::setCurrentProgram (int i)
     if (oscs.isValid()) { apvts.state.removeChild (oscs, nullptr); rebuildOscData(); }
     auto dd = apvts.state.getChildWithName (distTag);
     if (dd.isValid()) { apvts.state.removeChild (dd, nullptr); rebuildDistData(); }
+    auto sm = apvts.state.getChildWithName (sampleTag);                           // module 10: a factory preset has no samples
+    if (sm.isValid()) apvts.state.removeChild (sm, nullptr);
     auto mm = apvts.state.getChildWithName (modTag);                              // module 09: the default macro mapping
     if (mm.isValid()) apvts.state.removeChild (mm, nullptr);
     rebuildModData();
@@ -350,8 +445,13 @@ bool GeProcessor::loadUserPresetFile (const File& f)
         rebuildDistData();
         auto oldM = apvts.state.getChildWithName (modTag);                        // module 09: the preset's matrix (none = default mapping)
         if (oldM.isValid()) apvts.state.removeChild (oldM, nullptr);
+        auto oldS = apvts.state.getChildWithName (sampleTag);                    // module 10: the preset's samples
+        if (oldS.isValid()) apvts.state.removeChild (oldS, nullptr);
         if (auto xml = XmlDocument::parse (f))
+        {
             if (auto* e = xml->getChildByName (modTag)) apvts.state.appendChild (ValueTree::fromXml (*e), nullptr);
+            if (auto* e = xml->getChildByName (sampleTag)) apvts.state.appendChild (ValueTree::fromXml (*e), nullptr);
+        }
         rebuildModData();
     }
     presetName = f.getFileNameWithoutExtension();

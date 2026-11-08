@@ -18,6 +18,7 @@
 
 using namespace juce;
 using namespace fge;
+namespace juce::detail { bool dispatchNextMessageOnSystemQueue (bool returnIfNoPendingMessages); }   // (pumps callAsync in the tests)
 static bool ok = true;
 static void check (bool c, const char* what, const String& extra = {}) { printf ("%-62s %s %s\n", what, c ? "OK" : "FAIL", extra.toRawUTF8()); fflush (stdout); ok &= c; }
 static double sr = 44100.0;
@@ -108,6 +109,26 @@ static int renderMode (const File& settings, const File& outFile)
     return 0;
 }
 
+// module 10: a test sample (stereo saw 110 Hz with a decay + a click, 1 s at the engine rate) in all 8 slots
+static const Engine::SamplePtrs& testSamples()
+{
+    static std::shared_ptr<fge::dsp::SampleData> d = []
+    {
+        auto x = std::make_shared<fge::dsp::SampleData>();
+        x->channels = 2; x->rate = 44100.0 * 4.0; x->n = (int64_t) x->rate; x->l.resize ((size_t) x->n); x->r.resize ((size_t) x->n);
+        for (int64_t i = 0; i < x->n; ++i)
+        {
+            const double t = (double) i / x->rate, ph = std::fmod (t * 110.0, 1.0), ph2 = std::fmod (t * 110.7, 1.0);
+            const float e = (float) std::exp (-t * 2.5) * (t < 0.005 ? 1.5f : 1.f);
+            x->l[(size_t) i] = 0.7f * e * (float) (2.0 * ph - 1.0); x->r[(size_t) i] = 0.7f * e * (float) (2.0 * ph2 - 1.0);
+        }
+        return x;
+    }();
+    static Engine::SamplePtrs ptrs;
+    for (auto& q : ptrs) q.store (d.get());
+    return ptrs;
+}
+
 // module 05: all 16 distortion stages (4 x 16x oversampling, parallel, multiband, pre / post, modulation) - CPU test + --bench
 static void cpuStress (GeProcessor& p)
 {
@@ -154,6 +175,29 @@ int main (int argc, char** argv)
             const double us = Time::highResolutionTicksToSeconds (Time::getHighResolutionTicks() - t0) / 2000.0 * 1.0e6;
             printf ("program %d: one cook = %.1f us -> every 32 samples at 44.1 kHz = %.1f %% CPU\n", prog, us, us * 1.0e-6 * 44100.0 / 32.0 * 100.0);
         }
+        return 0;
+    }
+    if (argc > 3 && String (argv[2]) == "--smpdemo")                           // module 10 listening file: synth / synth + sample punch / the sample alone
+    {
+        const File ref = File::getCurrentWorkingDirectory().getChildFile (argv[3]);
+        const int prog = argc > 4 ? String (argv[4]).getIntValue() : 1;
+        AudioBuffer<float> out (2, (int) (44100.0 * 3 * 0.75)); out.clear();
+        for (int v = 0; v < 3; ++v)
+        {
+            GeProcessor p; p.setCurrentProgram (prog);
+            if (v > 0)
+            {
+                String err; if (! p.importSampleNow (0, ref, &err)) { printf ("cannot load: %s\n", err.toRawUTF8()); return 1; }
+                p.samples().setTargetRate (44100.0 * 4.0); p.samples().waitIdle();
+                const double len = (double) p.sampleInfo (0).sourceLen / p.sampleInfo (0).sourceRate;
+                setP (p, "smp1_on", 1.f); setP (p, "smp1_group", 0.f); setP (p, "smp1_end", (float) jmin (1.0, 0.045 / len)); setP (p, "smp1_fade_out", 12.f); setP (p, "smp1_level", -3.f);
+                if (v == 2) { setP (p, "smp1_group", 4.f); for (auto* id : { "mix_punch_mute", "mix_body_mute", "mix_tail_mute", "mix_sub_mute" }) setP (p, id, 1.f); }
+            }
+            auto b = renderKick (p.frame(), 31, 44100.0, 0.6, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy(), &p.samples().ptrs);
+            for (int c = 0; c < 2; ++c) out.addFrom (c, (int) (44100.0 * 0.75 * v), b, c, 0, b.getNumSamples());
+        }
+        writeWav (outDir.getChildFile ("m10_listen.wav"), out);
+        printf ("%s\n", outDir.getChildFile ("m10_listen.wav").getFullPathName().toRawUTF8());
         return 0;
     }
     if (argc > 4 && String (argv[2]) == "--cmp")                               // a preset file vs a factory program: the params that differ
@@ -849,6 +893,33 @@ int main (int argc, char** argv)
                     if (k == "deviation") set2 (o + "mode", 4.f);
                 }
                 if (sid == "mod_movement") route (mo::SLfo1);
+                if (sid.startsWith ("smp"))                                                         // module 10: the slot ON, playing the test sample
+                {
+                    const String o = sid.upToFirstOccurrenceOf ("_", true, false), k = sid.fromFirstOccurrenceOf ("_", false, false);
+                    const String other = o == "smp1_" ? "smp2_" : "smp1_";
+                    set2 (o + "on", 1.f); set2 (o + "level", 0.f);
+                    if (k == "filter_type" || k == "cutoff" || k == "resonance") set2 (o + "filter_on", 1.f);
+                    for (auto* e : { "attack", "decay", "sustain", "release", "env_delay", "env_mode", "time_scale" }) if (k == e) set2 (o + "env_amount", 1.f);
+                    if (k == "sustain" || k == "release") { set2 (o + "env_mode", 0.f); set2 (o + "length", 150.f); }
+                    if (k == "time_scale") set2 (o + "length", 200.f);
+                    if (k == "solo") set2 (other + "on", 1.f);
+                    if (k.startsWith ("send_")) set2 (o + "route_mode", 1.f);
+                    if (k == "send_pre") { set2 (o + "send_texture", 0.f); set2 (o + "level", -12.f); }
+                    if (k.startsWith ("link_"))
+                    {
+                        if (k != "link_source") set2 (o + "link_source", (float) (o == "smp1_" ? 2 : 1));
+                        else set2 (o + "link_level", 1.f);
+                        set2 (other + "level", -20.f); set2 (other + "pitch", 12.f); set2 (other + "length", 100.f); set2 (other + "env_mode", 0.f); set2 (other + "env_amount", 1.f);
+                        if (k == "link_env") set2 (o + "env_amount", 1.f);
+                    }
+                    if (k == "loop_start" || k == "loop_end" || k == "loop_xfade") { set2 (o + "play_mode", 2.f); set2 (o + "end", 0.3f); }
+                    if (k == "loop_xfade") { set2 (o + "loop_start", 0.1f); set2 (o + "loop_end", 0.9f); }
+                    if (k == "fade_out") set2 (o + "end", 0.3f);
+                    if (k == "tracking") set2 (o + "root", 43.f);
+                    if (k == "root") set2 (o + "tracking", 1.f);
+                    if (k == "play_mode") { set2 (o + "end", 0.25f); offAt = 0.1; }
+                    if (k == "phase") set2 (o + "pitch", -24.f);
+                }
                 if (sid.startsWith ("cc") && (sid.endsWith ("_number") || sid.endsWith ("_smooth"))) continue;       // (needs MIDI CC: the M09 MIDI check)
                 if (sid.startsWith ("fol_")) { route (mo::SFollower); if (sid == "fol_threshold") set2 ("fol_range", 10.f);
                                                if (sid == "fol_detect" || sid == "fol_sensitivity") { set2 ("fol_threshold", sid == "fol_detect" ? -60.f : -40.f); set2 ("fol_range", 60.f); if (sid == "fol_sensitivity") set2 ("fol_gain", -24.f); } }
@@ -860,7 +931,7 @@ int main (int argc, char** argv)
                     if (sid == "macro_morph") set2 ("macro_morph_on", 1.f); else set2 ("macro_morph", 1.f);
                 }
             }
-            auto rk = [&] (const ParamFrame& pf) { return renderKick (pf, G1, sr, 0.6, -1, 1.f, nullptr, 0.0, offAt, nullptr, nullptr, nullptr, nullptr, md.get()); };
+            auto rk = [&] (const ParamFrame& pf) { return renderKick (pf, G1, sr, 0.6, -1, 1.f, nullptr, 0.0, offAt, nullptr, nullptr, nullptr, nullptr, md.get(), &testSamples()); };
             if (d.kind == Kind::Choice)
             {
                 bool any = false;
@@ -2374,6 +2445,215 @@ int main (int argc, char** argv)
             check (c1 < 2.0 * c0 + 0.01, "M09 CPU with 32 active slots", String (100.0 * c0, 1) + " % -> " + String (100.0 * c1, 1) + " %");
         }
     }
+    // ---------------------------------------------------------------- module 10: advanced sample engine (MODULE10.md 13)
+    {
+        using fge::dsp::SampleData; using fge::dsp::SampleSettings; using fge::dsp::SamplePlayer;
+        const double er = 44100.0 * 4.0;                                                  // the engine rate
+        const File dir = File::getSpecialLocation (File::tempDirectory).getChildFile ("fge_m10_" + String (Time::currentTimeMillis())); dir.deleteRecursively(); dir.createDirectory();
+        auto sine = [] (int ch, double rate, double secs, double hz, float amp = 0.5f, float dc = 0.f)
+        {
+            AudioBuffer<float> b (ch, (int) (rate * secs));
+            for (int c = 0; c < ch; ++c) for (int i = 0; i < b.getNumSamples(); ++i) b.setSample (c, i, dc + amp * (float) std::sin (2.0 * MathConstants<double>::pi * hz * i / rate + c * 0.3));
+            return b;
+        };
+        auto mkData = [&] (const AudioBuffer<float>& b, double rate) { return fge::smp::prepare (b, rate, er, 1); };
+        // plays one SamplePlayer (mid only) for n samples at the engine rate
+        auto play = [&] (const SampleSettings& st, const SampleData* d, int n, float pitch = 1.f, float note = 49.f, const SampleData* swapTo = nullptr, int swapAt = -1)
+        {
+            SamplePlayer sp; sp.start (st, d); std::vector<float> y ((size_t) n); float side;
+            for (int i = 0; i < n; ++i) y[(size_t) i] = sp.tick (st, (swapAt >= 0 && i >= swapAt) ? swapTo : d, pitch, note, er, side);
+            return y;
+        };
+        auto maxJump = [] (const std::vector<float>& y, int from = 1, int to = -1)
+        { float m = 0.f; if (to < 0) to = (int) y.size(); for (int i = juce::jmax (1, from); i < to; ++i) m = juce::jmax (m, std::abs (y[(size_t) i] - y[(size_t) i - 1])); return m; };
+        auto toBuf = [] (const std::vector<float>& y) { AudioBuffer<float> b (1, (int) y.size()); for (size_t i = 0; i < y.size(); ++i) b.setSample (0, (int) i, y[i]); return b; };
+        auto writeFmt = [] (AudioFormat& fmt, const File& f, const AudioBuffer<float>& b, double rate, int bits)
+        {
+            f.deleteFile();
+            std::unique_ptr<AudioFormatWriter> w (fmt.createWriterFor (new FileOutputStream (f), rate, (unsigned) b.getNumChannels(), bits, {}, 0));
+            if (w) w->writeFromAudioSampleBuffer (b, 0, b.getNumSamples());
+        };
+        WavAudioFormat wavF; AiffAudioFormat aiffF; FlacAudioFormat flacF;
+        // 1. import WAV / AIFF / FLAC, mono and stereo, other rates (resampled to the engine rate), > 2 channels -> the first two
+        {
+            const File wm = dir.getChildFile ("mono.wav"), ws = dir.getChildFile ("stereo48.wav"), ai = dir.getChildFile ("stereo.aif"), fl = dir.getChildFile ("mono.flac"), w4 = dir.getChildFile ("quad.wav");
+            writeFmt (wavF, wm, sine (1, 44100.0, 0.5, 220.0), 44100.0, 24); writeFmt (wavF, ws, sine (2, 48000.0, 0.5, 220.0), 48000.0, 24);
+            writeFmt (aiffF, ai, sine (2, 44100.0, 0.5, 220.0), 44100.0, 16); writeFmt (flacF, fl, sine (1, 96000.0, 0.5, 220.0), 96000.0, 24);
+            writeFmt (wavF, w4, sine (4, 44100.0, 0.3, 220.0), 44100.0, 24);
+            GeProcessor p; bool all = true; String info;
+            const File fs[5] { wm, ws, ai, fl, w4 }; const int chs[5] { 1, 2, 2, 1, 2 };
+            for (int k = 0; k < 5; ++k)
+            {
+                String err; const bool okI = p.importSampleNow (k, fs[k], &err); p.samples().waitIdle();
+                const auto in = p.sampleInfo (k); const auto d = p.samples().data (k);
+                const bool good = okI && in.status == fge::smp::SReady && in.channels == chs[k] && d != nullptr && std::abs ((double) d->n / er - (k == 4 ? 0.3 : 0.5)) < 0.002
+                                  && (k != 4 || err.contains ("4 channels"));
+                // the pitch survives the resampling (220 Hz at the engine rate)
+                AudioBuffer<float> b (1, (int) d->n); if (d != nullptr) for (int i = 0; i < (int) d->n; ++i) b.setSample (0, i, d->l[(size_t) i]);
+                const double hz = d != nullptr ? pitchAt (b, er, 0.05, 0.1) : 0.0;
+                all &= good && std::abs (hz - 220.0) < 1.0;
+                info << fs[k].getFileExtension() << " " << in.channels << "ch " << String (hz, 1) << " Hz  ";
+            }
+            check (all, "M10 import WAV / AIFF / FLAC, mono / stereo, 44.1-96 kHz, 4 ch -> first 2", info);
+        }
+        // 2. START / END without clicks (a start inside a cycle gets >= 1 ms fade, the end FADE OUT)
+        {
+            auto d = mkData (sine (1, er, 0.5, 100.0, 0.8f), er);
+            SampleSettings st; st.slot = 0; st.start = 0.3123f; st.end = 0.4371f; st.fadeInMs = 0.f; st.fadeOutMs = 3.f; st.rootHz = 100.f;
+            const auto y = play (st, d.get(), (int) (0.2 * er));
+            const float natural = (float) (2.0 * MathConstants<double>::pi * 100.0 / er * 0.8);           // the sine's own largest step
+            const float j = maxJump (y);
+            float tailAbs = 0.f; for (size_t i = (size_t) (0.13 * er); i < y.size(); ++i) tailAbs = juce::jmax (tailAbs, std::abs (y[i]));
+            check (j < 2.5f * natural && std::abs (y[0]) < 1.0e-3f && tailAbs == 0.f, "M10 START / END without clicks (inner start fade, end fade out)",
+                   "max step " + String (j / natural, 2) + "x the sine, first " + String (y[0], 5));
+        }
+        // 3. REVERSE = the same audio backwards (non destructive)
+        {
+            AudioBuffer<float> src (1, (int) (0.2 * er));
+            for (int i = 0; i < src.getNumSamples(); ++i) src.setSample (0, i, (float) std::exp (-i / (0.03 * er)) * (float) std::sin (2.0 * MathConstants<double>::pi * 150.0 * i / er));
+            auto d = mkData (src, er);
+            SampleSettings st; st.slot = 0; st.fadeOutMs = 0.f;
+            const auto f = play (st, d.get(), src.getNumSamples());
+            st.reverse = true; const auto r = play (st, d.get(), src.getNumSamples());
+            double e = 0.0, s2 = 0.0; const int n = src.getNumSamples();
+            for (int i = 2; i < n - 2; ++i) { const double x = r[(size_t) i] - f[(size_t) (n - 1 - i)]; e += x * x; s2 += (double) f[(size_t) i] * f[(size_t) i]; }
+            const double early = rms (toBuf (r), 0, n / 4), late = rms (toBuf (r), 3 * n / 4, n / 4);
+            check (std::sqrt (e / s2) < 0.01 && late > 5.0 * early && d->l[100] == src.getSample (0, 100), "M10 REVERSE plays the region backwards, the data stays untouched",
+                   "error " + String (std::sqrt (e / s2), 5) + ", swell " + String (late / early, 1) + "x");
+        }
+        // 4. LOOP without gaps (a loop length that is no whole number of periods: the crossfade hides the seam) + PING-PONG
+        {
+            auto d = mkData (sine (1, er, 0.4, 97.3, 0.7f), er);
+            SampleSettings st; st.slot = 0; st.mode = fge::dsp::SmLoop; st.loopStart = 0.21f; st.loopEnd = 0.6377f; st.xfadeMs = 10.f; st.rootHz = 97.3f;
+            const int n = (int) (1.5 * er);
+            const auto y = play (st, d.get(), n);
+            float minWin = 9.f; const int w = (int) (0.005 * er);
+            for (int a = w; a + w < n; a += w) { double q = 0; for (int i = a; i < a + w; ++i) q += (double) y[(size_t) i] * y[(size_t) i]; minWin = juce::jmin (minWin, (float) std::sqrt (q / w)); }
+            const float natural = (float) (2.0 * MathConstants<double>::pi * 97.3 / er * 0.7);
+            st.xfadeMs = 0.f; const float jHard = maxJump (play (st, d.get(), n), 10);
+            st.xfadeMs = 10.f; const float jX = maxJump (y, 10);
+            st.mode = fge::dsp::SmPingPong; const auto pp = play (st, d.get(), n);
+            float ppMin = 9.f; for (int a = w; a + w < n; a += w) { double q = 0; for (int i = a; i < a + w; ++i) q += (double) pp[(size_t) i] * pp[(size_t) i]; ppMin = juce::jmin (ppMin, (float) std::sqrt (q / w)); }
+            check (minWin > 0.3f && ppMin > 0.3f && jX < 3.f * natural && jX < jHard, "M10 LOOP without gaps (1.5 s from a 0.4 s sample), crossfade smooths the seam, PING-PONG",
+                   "min rms " + String (minWin, 2) + " / " + String (ppMin, 2) + ", seam " + String (jX / natural, 2) + "x (hard " + String (jHard / natural, 2) + "x)");
+        }
+        // 5. PLAYBACK RATE x PITCH x KEY TRACKING (ROOT NOTE)
+        {
+            auto d = mkData (sine (1, 44100.0, 1.0, 100.0, 0.7f), 44100.0);
+            SampleSettings st; st.slot = 0; st.rootHz = 49.f;
+            auto hzOf = [&] (float rate, float pitch, bool track, float note) { st.rate = rate; st.track = track; const auto y = play (st, d.get(), (int) (0.25 * er), pitch, note); return pitchAt (toBuf (y), er, 0.05, 0.1); };
+            const double h1 = hzOf (1.f, 1.f, false, 49.f), h2 = hzOf (2.f, 1.f, false, 49.f), h3 = hzOf (1.f, std::exp2 (7.f / 12.f), false, 49.f), h4 = hzOf (1.f, 1.f, true, 98.f), h5 = hzOf (1.f, 1.f, false, 98.f);
+            check (std::abs (h1 - 100) < 0.5 && std::abs (h2 - 200) < 1 && std::abs (h3 - 149.83) < 1 && std::abs (h4 - 200) < 1 && std::abs (h5 - 100) < 0.5,
+                   "M10 PLAYBACK RATE / PITCH / KEY TRACKING", String (h1, 1) + " / x2 " + String (h2, 1) + " / +7 st " + String (h3, 1) + " / tracked octave " + String (h4, 1) + " / untracked " + String (h5, 1));
+        }
+        // 6. replacing the sample while it plays = a 3 ms crossfade (no click)
+        {
+            auto d1 = mkData (sine (1, er, 0.3, 80.0, 0.8f), er), d2 = mkData (sine (1, er, 0.3, 80.0, -0.8f), er);   // opposite polarity = the worst case
+            SampleSettings st; st.slot = 0; st.rootHz = 80.f;
+            const auto y = play (st, d1.get(), (int) (0.2 * er), 1.f, 49.f, d2.get(), (int) (0.1 * er) + 37);
+            const float natural = (float) (2.0 * MathConstants<double>::pi * 80.0 / er * 0.8);
+            check (maxJump (y) < 4.f * natural, "M10 sample replaced while playing: crossfade, no click", String (maxJump (y) / natural, 2) + "x the sine's step");
+        }
+        // 7. a MISSING file does not crash: status MISSING, the slot is silent, the synthesis plays on
+        {
+            GeProcessor p; setP (p, "smp1_on", 1.f);
+            p.apvts.state.getOrCreateChildWithName (fge::smp::tag, nullptr).setProperty ("s1path", dir.getChildFile ("gone.wav").getFullPathName(), nullptr);
+            p.apvts.state.getOrCreateChildWithName (fge::smp::tag, nullptr).setProperty ("s1name", "gone.wav", nullptr);
+            p.samples().waitIdle();
+            const auto rt = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, (uint8) 127) } }, 0.4);
+            GeProcessor q; const auto ref = hitProc (q, { { 0, MidiMessage::noteOn (1, G1, (uint8) 127) } }, 0.4);
+            check (p.sampleInfo (0).status == fge::smp::SMissing && p.samples().ptrs[0].load() == nullptr && diff (rt, ref) < 1.0e-6 && peak (rt) > 0.3f,
+                   "M10 missing file: no crash, status MISSING (RELINK), the synthesis plays", fge::smp::statusText (p.sampleInfo (0).status));
+        }
+        // 8. samples combine with synthesis (layer on the TAIL group); group MUTE / slot OFF remove exactly the sample
+        {
+            const File f = dir.getChildFile ("hit.wav"); writeFmt (wavF, f, sine (2, 44100.0, 0.4, 330.0, 0.6f), 44100.0, 24);
+            GeProcessor p; p.importSampleNow (0, f); p.samples().waitIdle();
+            auto rk = [&] (GeProcessor& x) { return renderKick (x.frame(), G1, sr, 0.5, -1, 1.f, &x.shapes(), 0.0, -1.0, nullptr, nullptr, &x.distData(), nullptr, &x.modAudioCopy(), &x.samples().ptrs); };
+            const auto synth = rk (p);
+            setP (p, "smp1_on", 1.f); setP (p, "smp1_group", 2.f);
+            const auto both = rk (p);
+            setP (p, "smp1_mute", 1.f); const auto muted = rk (p);
+            const double hz = pitchAt (both, sr, 0.25, 0.08);
+            check (diff (synth, both) > 1.0e-3 && diff (synth, muted) < 1.0e-7, "M10 samples combine with synthesis, MUTE removes exactly the sample", "diff " + String (diff (synth, both), 4) + ", mix f0 " + String (hz, 1));
+        }
+        // 9. slots save and restore (project state + user preset), embedded audio, CLEAR + UNDO
+        {
+            const File f = dir.getChildFile ("keep.wav"); writeFmt (wavF, f, sine (2, 48000.0, 0.3, 140.0, 0.5f), 48000.0, 24);
+            GeProcessor a; a.importSampleNow (2, f); a.samples().waitIdle(); setP (a, "smp3_on", 1.f); setP (a, "smp3_reverse", 1.f); setP (a, "smp3_start", 0.1f);
+            MemoryBlock mb; a.getStateInformation (mb);
+            f.deleteFile();                                                                 // the file is gone: the embedded copy must be used
+            GeProcessor b; b.setStateInformation (mb.getData(), (int) mb.getSize()); b.samples().waitIdle();
+            auto rk = [&] (GeProcessor& x) { return renderKick (x.frame(), G1, sr, 0.5, -1, 1.f, &x.shapes(), 0.0, -1.0, nullptr, nullptr, &x.distData(), nullptr, &x.modAudioCopy(), &x.samples().ptrs); };
+            const auto ra = rk (a), rb = rk (b);
+            const bool restored = b.sampleInfo (2).status == fge::smp::SReady && b.sampleInfo (2).name == "keep" && diff (ra, rb) < 2.0e-5;
+            // user preset file
+            auto xml = std::unique_ptr<XmlElement> (a.apvts.copyState().createXml());
+            const File pf = dir.getChildFile ("smp.4gp"); xml->writeTo (pf);
+            GeProcessor c; c.loadUserPresetFile (pf); c.samples().waitIdle();
+            const bool preset = c.sampleInfo (2).status == fge::smp::SReady && diff (rk (c), ra) < 2.0e-5;
+            b.clearSample (2); b.samples().waitIdle(); const bool cleared = b.sampleInfo (2).status == fge::smp::SEmpty && b.samples().ptrs[2].load() == nullptr;
+            b.undo.undo(); b.samples().waitIdle();
+            const bool undone = b.sampleInfo (2).status == fge::smp::SReady && diff (rk (b), ra) < 2.0e-5;
+            check (restored && preset && cleared && undone, "M10 slots save / restore (state, user preset, embedded audio), CLEAR + UNDO",
+                   String (restored ? "" : "state! ") + (preset ? "" : "preset! ") + (cleared ? "" : "clear! ") + (undone ? "" : "undo! ") + "diff " + String (diff (ra, rb), 7));
+        }
+        // 10. the working-copy tools (NORMALIZE / DC OFFSET / TRIM SILENCE) change the slot, never the file
+        {
+            AudioBuffer<float> src (1, 44100); src.clear();
+            auto s1 = sine (1, 44100.0, 0.5, 200.0, 0.25f, 0.1f); src.copyFrom (0, 11025, s1, 0, 0, 22050);
+            const File f = dir.getChildFile ("tools.wav"); writeFmt (wavF, f, src, 44100.0, 24);
+            const auto before = f.getSize(); const auto mt = f.getLastModificationTime();
+            GeProcessor p; p.importSampleNow (0, f); p.samples().waitIdle();
+            AudioBuffer<float> w; double rate;
+            p.applySampleTool (0, fge::smp::TTrimSilence); p.samples().waitIdle(); p.samples().workingCopy (0, w, rate); const int trimmed = w.getNumSamples();
+            p.applySampleTool (0, fge::smp::TDcOffset); p.samples().waitIdle(); p.samples().workingCopy (0, w, rate);
+            double mean = 0; for (int i = 0; i < w.getNumSamples(); ++i) mean += w.getSample (0, i); mean /= w.getNumSamples();
+            p.applySampleTool (0, fge::smp::TNormalize); p.samples().waitIdle(); p.samples().workingCopy (0, w, rate); const float pk = w.getMagnitude (0, w.getNumSamples());
+            p.undo.undo(); p.samples().waitIdle(); p.samples().workingCopy (0, w, rate);
+            check (std::abs (mean) < 1.0e-4 && trimmed < 30000 && trimmed > 15000 && std::abs (pk - 0.98f) < 0.01f && w.getMagnitude (0, w.getNumSamples()) < 0.9f
+                   && f.getSize() == before && f.getLastModificationTime() == mt, "M10 tools: DC OFFSET, TRIM SILENCE, NORMALIZE on the working copy (undo, file untouched)",
+                   "mean " + String (mean, 6) + ", trimmed to " + String (trimmed) + ", peak " + String (pk, 3));
+        }
+        // 11. no blocking of the audio thread: process blocks while a long file is imported in the background
+        {
+            const File f = dir.getChildFile ("long.wav"); writeFmt (wavF, f, sine (2, 44100.0, 15.0, 77.0, 0.5f), 44100.0, 24);
+            GeProcessor p; p.prepareToPlay (44100.0, 512); setP (p, "smp1_on", 1.f);
+            AudioBuffer<float> b (2, 512); MidiBuffer m;
+            auto blockTimes = [&] (int blocks) { double worst = 0; for (int i = 0; i < blocks; ++i) { b.clear(); m.clear(); if (i % 40 == 0) m.addEvent (MidiMessage::noteOn (1, G1, (uint8) 110), 0);
+                                                  const double t0 = Time::getMillisecondCounterHiRes(); p.processBlock (b, m); worst = juce::jmax (worst, Time::getMillisecondCounterHiRes() - t0); } return worst; };
+            const double idle = blockTimes (200);
+            p.importSample (0, f);
+            std::vector<double> times; const auto t0 = Time::getMillisecondCounter();
+            while ((times.size() < 50 || p.samples().busy() || p.sampleInfo (0).status != fge::smp::SReady) && Time::getMillisecondCounter() - t0 < 30000)
+            { times.push_back (blockTimes (1)); juce::detail::dispatchNextMessageOnSystemQueue (true); }
+            const bool loaded = p.sampleInfo (0).status == fge::smp::SReady;
+            std::sort (times.begin(), times.end());
+            const double p99 = times.empty() ? 0.0 : times[(size_t) (0.99 * (double) (times.size() - 1))], worst = times.empty() ? 0.0 : times.back();
+            // (the 99th percentile: a single OS scheduling hiccup on a busy test machine is not the plugin waiting)
+            check (loaded && p99 < juce::jmax (12.0, 4.0 * idle), "M10 import on a background thread: the audio blocks never wait",
+                   "worst block " + String (idle, 2) + " ms idle, 99 % " + String (p99, 2) + " / worst " + String (worst, 2) + " ms while importing (" + String ((int) times.size()) + " blocks)");
+        }
+        // 12. same preset + seed = the same offline render (and realtime = export with a sample)
+        {
+            const File f = dir.getChildFile ("det.wav"); writeFmt (wavF, f, sine (2, 44100.0, 0.5, 260.0, 0.6f), 44100.0, 24);
+            GeProcessor p; p.importSampleNow (1, f); p.samples().waitIdle(); setP (p, "smp2_on", 1.f); setP (p, "smp2_play_mode", 2.f); setP (p, "smp2_end", 0.4f);
+            auto rk = [&] (GeProcessor& x) { return renderKick (x.frame(), G1, sr, 0.6, -1, 1.f, &x.shapes(), 0.0, -1.0, nullptr, nullptr, &x.distData(), nullptr, &x.modAudioCopy(), &x.samples().ptrs); };
+            MemoryBlock mb; p.getStateInformation (mb); GeProcessor q; q.setStateInformation (mb.getData(), (int) mb.getSize()); q.samples().waitIdle();
+            const auto a = rk (p), b2 = rk (p), c = rk (q);
+            const auto rt = hitProc (p, { { 0, MidiMessage::noteOn (1, G1, (uint8) 127) } }, 0.6);
+            check (diff (a, b2) == 0.0 && diff (a, c) < 2.0e-5 && diff (rt, a) < 1.0e-5, "M10 same preset = the same render (offline twice, restored copy, realtime = export)",
+                   "copy " + String (diff (a, c), 7) + ", rt " + String (diff (rt, a), 7));
+        }
+        // 13. CPU: 8 stereo sample slots
+        {
+            GeProcessor full; for (int k = 0; k < 8; ++k) { const File f = dir.getChildFile ("cpu" + String (k) + ".wav"); writeFmt (wavF, f, sine (2, 44100.0, 1.0, 60.0 + 20 * k), 44100.0, 24); full.importSampleNow (k, f); }
+            full.samples().waitIdle(); for (int k = 0; k < 8; ++k) setP (full, ("smp" + String (k + 1) + "_on").toRawUTF8(), 1.f);
+            GeProcessor plain; const double c0 = cpuTime (plain, 1.0), c1 = cpuTime (full, 1.0);
+            check (c1 < c0 + 0.15, "M10 CPU with 8 stereo sample slots", String (100.0 * c0, 1) + " % -> " + String (100.0 * c1, 1) + " %");
+        }
+        dir.deleteRecursively();
+    }
     // ---------------------------------------------------------------- module 08: dynamics, compressor, transient & limiter (MODULE08.md 14)
     {
         namespace dy = fge::dsp::dyn;
@@ -3035,6 +3315,60 @@ int main (int argc, char** argv)
             }
             m06t::reset (p, m08t::moduleIds());
             ge->canvas.showPage (0);
+        }
+        // SAMPLES page (module 10): slot controls follow the slot, markers drag (+ snap, undo), the browser finds / loads, the play position
+        {
+            const File dir = File::getSpecialLocation (File::tempDirectory).getChildFile ("fge_m10gui_" + String (Time::currentTimeMillis())); dir.deleteRecursively(); dir.createDirectory();
+            AudioBuffer<float> hit (2, 44100); hit.clear();
+            for (int h = 0; h < 3; ++h) for (int i = 0; i < 9000; ++i)
+                for (int c = 0; c < 2; ++c) hit.setSample (c, h * 14000 + 400 + i, 0.8f * (float) std::exp (-i / 1500.0) * (float) std::sin (2.0 * MathConstants<double>::pi * (60.0 + 200.0 * std::exp (-i / 600.0)) * i / 44100.0 + c));
+            writeWav (dir.getChildFile ("hit_triple.wav"), hit); writeWav (dir.getChildFile ("other_loop.wav"), hit);
+            p.importSampleNow (0, dir.getChildFile ("hit_triple.wav")); p.samples().waitIdle();
+            ge->canvas.showPage (9);
+            auto& sp = ge->canvas.samplePage();
+            sp.selectSlot (2); const bool follows = sp.findControl ("smp3_start") != nullptr && sp.findControl ("smp1_start") == nullptr;
+            sp.selectSlot (0);
+            const bool shown = sp.isVisible() && sp.findControl ("smp1_start") != nullptr && sp.findControl ("smp1_start")->isVisible();
+            auto raw = [&] (const char* id) { return p.apvts.getRawParameterValue (id)->load(); };
+            auto& we = sp.wave();
+            p.undo.beginNewTransaction ("m"); we.setMarker (0, 0.2, false);
+            const bool moved = std::abs (raw ("smp1_start") - 0.2f) < 1e-3f;
+            p.undo.undo(); const bool undone = raw ("smp1_start") < 1e-3f;
+            auto ov = p.samples().overview (0);
+            const int nTr = ov != nullptr ? (int) ov->transients.size() : 0;
+            p.undo.beginNewTransaction ("m"); we.setMarker (0, (14400.0 + 300.0) / 44100.0, true);
+            const bool snapped = nTr >= 3 && std::abs (raw ("smp1_start") - ov->transients[1]) < 1e-4f;
+            // the browser: scan a folder, search, load into a slot
+            bool scanned = false;
+            sp.browser().setFolder (dir, [&] { scanned = true; });
+            for (int i = 0; i < 500 && ! scanned; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (2); }
+            sp.setBrowserMode (0); sp.setSearch ("other");
+            const bool found = scanned && sp.listedFiles() == 1;
+            sp.selectSlot (1); sp.loadListed (0);
+            for (int i = 0; i < 2000 && p.sampleInfo (1).status != fge::smp::SReady; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (2); }
+            p.samples().waitIdle();
+            const bool loaded = p.sampleInfo (1).status == fge::smp::SReady && p.sampleInfo (1).name == "other_loop";
+            sp.setBrowserMode (2); const bool recent = sp.listedFiles() >= 1;
+            sp.setSearch ({}); sp.setBrowserMode (0);
+            // the play position (newest kick) while a looping slot plays
+            sp.selectSlot (0);
+            setP (p, "smp1_on", 1.f); setP (p, "smp1_play_mode", 2.f); setP (p, "smp1_loop_start", 0.35f); setP (p, "smp1_loop_end", 0.62f); setP (p, "smp1_start", 0.f);
+            hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.3);
+            const float pos = p.samplePlayPos (0);
+            check (follows && shown && moved && undone && snapped && found && loaded && recent && pos > 0.05f,
+                   "M10 GUI: slot controls, START marker drag + undo, snap to transient, browser search / load / recent, live play position",
+                   String (follows ? "" : "slot! ") + (shown ? "" : "shown! ") + (moved ? "" : "drag! ") + (undone ? "" : "undo! ") + (snapped ? "" : "snap (" + String (nTr) + ")! ")
+                   + (found ? "" : "browser (" + String (sp.listedFiles()) + ")! ") + (loaded ? "" : "load! ") + (recent ? "" : "recent! ") + "pos " + String (pos, 3));
+            PNGImageFormat png;
+            sp.selectSlot (0); sp.wave().repaint();
+            auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os (outDir.getChildFile ("gui_samples.png"));
+            if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            for (int k = 0; k < 2; ++k) p.clearSample (k);
+            setP (p, "smp1_on", 0.f); setP (p, "smp1_play_mode", 0.f);
+            p.samples().waitIdle();
+            ge->canvas.showPage (0);
+            dir.deleteRecursively();
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);
         check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());

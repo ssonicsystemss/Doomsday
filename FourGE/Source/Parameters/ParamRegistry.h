@@ -91,6 +91,7 @@ namespace fge
         const juce::StringArray& excModes(); const juce::StringArray& dynLocations(); const juce::StringArray& cmpTypes(); const juce::StringArray& cmpDetections();
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
+        const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -321,7 +322,9 @@ namespace fge
     C (lfo5Interp,   "lfo5_interp",     "LFO 5 Custom Interpolation", lfoInterps, 0, FNone) C (lfo6Interp, "lfo6_interp", "LFO 6 Custom Interpolation", lfoInterps, 0, FNone) \
     C (lfo7Interp,   "lfo7_interp",     "LFO 7 Custom Interpolation", lfoInterps, 0, FNone) C (lfo8Interp, "lfo8_interp", "LFO 8 Custom Interpolation", lfoInterps, 0, FNone) \
     B (macroMorphOn, "macro_morph_on",  "Macro Morph On",          false, FGlobal) \
-    F (macroMorph,   "macro_morph",     "Macro Morph",             Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FGlobal)
+    F (macroMorph,   "macro_morph",     "Macro Morph",             Unit::Pct,    0.f,   1.f,   0.f,   0.f,   FGlobal) \
+    /* ================= MODULE 10 - ADVANCED SAMPLE ENGINE: 8 sample slots (the audio itself is state data, SAMPLES) ================= */ \
+    FGE_SMP (F, B, C, 1) FGE_SMP (F, B, C, 2) FGE_SMP (F, B, C, 3) FGE_SMP (F, B, C, 4) FGE_SMP (F, B, C, 5) FGE_SMP (F, B, C, 6) FGE_SMP (F, B, C, 7) FGE_SMP (F, B, C, 8)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -917,6 +920,60 @@ namespace fge
     B (layer##n##LinkPit, "layer" #n "_link_pitch",  "Layer " #n " Link Pitch",   false, FNone) \
     B (layer##n##LinkLen, "layer" #n "_link_length", "Layer " #n " Link Length",  false, FNone) \
     B (layer##n##LinkEnv, "layer" #n "_link_env",    "Layer " #n " Link Envelope",false, FNone)
+    // module 10: a SAMPLE SLOT = the layer path (level, pan, width, pitch, envelope, filter, drive, group / sends) + the sample playback
+#define FGE_SMP(F, B, C, n) \
+    B (smp##n##On,      "smp" #n "_on",          "Sample " #n " On",           false, FNone) \
+    C (smp##n##Group,   "smp" #n "_group",       "Sample " #n " Group",        layerGroups, 4, FNone) \
+    F (smp##n##Level,   "smp" #n "_level",       "Sample " #n " Level",        Unit::Db,  -60.f,  12.f,  -6.f,   0.f,  FMod | FSmooth) \
+    F (smp##n##Pan,     "smp" #n "_pan",         "Sample " #n " Pan",          Unit::Bip,  -1.f,   1.f,   0.f,   0.f,  FMod) \
+    F (smp##n##Pitch,   "smp" #n "_pitch",       "Sample " #n " Pitch",        Unit::Semi,-48.f,  48.f,   0.f,   0.f,  FMod) \
+    F (smp##n##Fine,    "smp" #n "_fine",        "Sample " #n " Fine",         Unit::Cents,-100.f,100.f,  0.f,   0.f,  FMod) \
+    F (smp##n##Len,     "smp" #n "_length",      "Sample " #n " Length",       Unit::Ms,    1.f, 2500.f, 2500.f, 300.f, FMod) \
+    F (smp##n##Offset,  "smp" #n "_offset",      "Sample " #n " Start Offset", Unit::Ms,    0.f, 2500.f,  0.f,  100.f, FMod) \
+    F (smp##n##Phase,   "smp" #n "_phase",       "Sample " #n " Phase",        Unit::Deg,   0.f, 360.f,   0.f,   0.f,  FNone) \
+    B (smp##n##Inv,     "smp" #n "_invert",      "Sample " #n " Phase Invert", false, FNone) \
+    F (smp##n##Width,   "smp" #n "_width",       "Sample " #n " Stereo Width", Unit::Pct,   0.f,   1.f,   0.f,   0.f,  FMod) \
+    B (smp##n##FltOn,   "smp" #n "_filter_on",   "Sample " #n " Filter On",    false, FNone) \
+    C (smp##n##FltType, "smp" #n "_filter_type", "Sample " #n " Filter Type",  filterTypes, 0, FNone) \
+    F (smp##n##Cutoff,  "smp" #n "_cutoff",      "Sample " #n " Cutoff",       Unit::Hz,   20.f, 20000.f, 5000.f, 1000.f, FMod) \
+    F (smp##n##Reso,    "smp" #n "_resonance",   "Sample " #n " Resonance",    Unit::Pct,   0.f,   1.f,   0.2f,  0.f,  FMod) \
+    F (smp##n##Drive,   "smp" #n "_drive",       "Sample " #n " Drive",        Unit::Pct,   0.f,   1.f,   0.f,   0.f,  FMod) \
+    C (smp##n##EnvMode, "smp" #n "_env_mode",    "Sample " #n " Env Mode",     layerEnvModes, 1, FNone) \
+    F (smp##n##Atk,     "smp" #n "_attack",      "Sample " #n " Attack",       Unit::Ms,    0.f, 2500.f,  1.f,  20.f,  FMod) \
+    F (smp##n##Dec,     "smp" #n "_decay",       "Sample " #n " Decay",        Unit::Ms,    1.f, 2500.f, 120.f, 150.f, FMod) \
+    F (smp##n##Sus,     "smp" #n "_sustain",     "Sample " #n " Sustain",      Unit::Pct,   0.f,   1.f,   0.3f,  0.f,  FMod) \
+    F (smp##n##Rel,     "smp" #n "_release",     "Sample " #n " Release",      Unit::Ms,    0.f, 2500.f,  30.f,  60.f,  FMod) \
+    F (smp##n##Delay,   "smp" #n "_env_delay",   "Sample " #n " Env Delay",    Unit::Ms,    0.f, 2500.f,  0.f, 100.f,  FMod) \
+    F (smp##n##EnvAmt,  "smp" #n "_env_amount",  "Sample " #n " Env Amount",   Unit::Pct,   0.f,   1.f,   0.f,   0.f,  FMod) \
+    F (smp##n##TScale,  "smp" #n "_time_scale",  "Sample " #n " Time Scale",   Unit::Pct,  0.1f,   4.f,   1.f,   1.f,  FMod) \
+    B (smp##n##Mute,    "smp" #n "_mute",        "Sample " #n " Mute",         false, FNone) \
+    B (smp##n##Solo,    "smp" #n "_solo",        "Sample " #n " Solo",         false, FNone) \
+    C (smp##n##Route,   "smp" #n "_route_mode",  "Sample " #n " Routing",      routeModes, 0, FNone) \
+    B (smp##n##PreFdr,  "smp" #n "_send_pre",    "Sample " #n " Pre-Fader Sends", false, FNone) \
+    F (smp##n##SPunch,  "smp" #n "_send_punch",  "Sample " #n " Send Punch",   Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (smp##n##SBody,   "smp" #n "_send_body",   "Sample " #n " Send Body",    Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (smp##n##STail,   "smp" #n "_send_tail",   "Sample " #n " Send Tail",    Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (smp##n##SSub,    "smp" #n "_send_sub",    "Sample " #n " Send Sub",     Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (smp##n##STex,    "smp" #n "_send_texture","Sample " #n " Send Texture", Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (smp##n##SCust,   "smp" #n "_send_custom", "Sample " #n " Send Custom",  Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    F (smp##n##SMaster, "smp" #n "_send_master", "Sample " #n " Send Master",  Unit::Db,  -60.f,  12.f, -60.f,  0.f,  FMod | FSmooth) \
+    C (smp##n##LinkSrc, "smp" #n "_link_source", "Sample " #n " Link To",      smpLinks, 0, FNone) \
+    B (smp##n##LinkLvl, "smp" #n "_link_level",  "Sample " #n " Link Level",   false, FNone) \
+    B (smp##n##LinkPit, "smp" #n "_link_pitch",  "Sample " #n " Link Pitch",   false, FNone) \
+    B (smp##n##LinkLen, "smp" #n "_link_length", "Sample " #n " Link Length",  false, FNone) \
+    B (smp##n##LinkEnv, "smp" #n "_link_env",    "Sample " #n " Link Envelope",false, FNone) \
+    F (smp##n##Start,     "smp" #n "_start",         "Sample " #n " Start",       Unit::Pct,   0.f,   1.f,   0.f,   0.f,  FMod) \
+    F (smp##n##End,       "smp" #n "_end",           "Sample " #n " End",         Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod) \
+    F (smp##n##FadeIn,    "smp" #n "_fade_in",       "Sample " #n " Fade In",     Unit::Ms,    0.f, 500.f,   0.f,  50.f,  FMod) \
+    F (smp##n##FadeOut,   "smp" #n "_fade_out",      "Sample " #n " Fade Out",    Unit::Ms,    0.f, 500.f,   3.f,  50.f,  FMod) \
+    F (smp##n##Rate,      "smp" #n "_rate",          "Sample " #n " Playback Rate", Unit::None, 0.25f, 4.f,  1.f,   1.f,  FMod) \
+    B (smp##n##Rev,       "smp" #n "_reverse",       "Sample " #n " Reverse",     false, FNone) \
+    C (smp##n##Mode,      "smp" #n "_play_mode",     "Sample " #n " Play Mode",   smpModes, 0, FNone) \
+    F (smp##n##LStart,    "smp" #n "_loop_start",    "Sample " #n " Loop Start",  Unit::Pct,   0.f,   1.f,   0.25f, 0.f,  FMod) \
+    F (smp##n##LEnd,      "smp" #n "_loop_end",      "Sample " #n " Loop End",    Unit::Pct,   0.f,   1.f,   0.75f, 0.f,  FMod) \
+    F (smp##n##XFade,     "smp" #n "_loop_xfade",    "Sample " #n " Loop Crossfade", Unit::Ms, 0.f, 200.f,  10.f,  30.f,  FMod) \
+    F (smp##n##Root,      "smp" #n "_root",          "Sample " #n " Root Note",   Unit::None,  0.f, 127.f,  31.f,  0.f,  FNone) \
+    B (smp##n##Track,     "smp" #n "_tracking",      "Sample " #n " Pitch Tracking", false, FNone)
     // module 04: LAYER GROUP control
 #define FGE_GROUP(F, B, C, X, id, nm, def) \
     B (grp##X##On,    "group_" id "_on",     nm " Group On",     true, FNone) \

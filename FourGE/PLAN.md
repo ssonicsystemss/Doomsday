@@ -155,6 +155,15 @@ CUBIC, w MODM „lfo1..8”), MACRO MORPH (zestawy A / B w MODM), VARIANT RANDOM
 regenerate, routing, wyrównanie głośności; podpięty pod RANDOMIZE), pierścienie modulacji na gałkach (`Knob::parameterId` + `setModulation`),
 prawy klik na gałce = MODULATE WITH (`Knob::onContextMenu` w Shared), drag & drop źródła na gałkę (`GeCanvas` = DragAndDropContainer / Target),
 DESTINATION MONITOR, waveform i drag WAV z modulacją. Moduł 09 kompletny wg tabeli 13. Następny: moduł 10.
+**STAN 2026-11-08 (noc): MODUŁ 10 GOTOWY** – ADVANCED SAMPLE ENGINE: `DSP/Sample/Sample.h` (`SamplePlayer`: region, ONE SHOT / GATE / LOOP
+z crossfade equal-power / PING-PONG, REVERSE, RATE x PITCH x KEY TRACKING (ROOT), fades + min. 1 ms przy starcie w środku, Hermite, 3 ms
+crossfade przy podmianie; `resampleSinc` Kaiser), 8 slotów = warstwy 9–16 w `LayerBankVoice` (te same grupy / routing / link / solo),
+parametry `smpN_*` (dopisane za `macro_morph`), obwiednie `AmpSample1..8`; `Presets/SamplePool.h` (wątek w tle: dekodowanie, osadzanie
+base64 WAV 24 bit ≤ 20 s w dziecku stanu SAMPLES `sNname / sNpath / sNdata`, MISSING / ERROR, generacje zadań, cmentarz wskaźników
+zwalniany po 96000 próbkach audio, overview + transienty, PREVIEW pliku / regionu), `Presets/SampleBrowser.h` (folder, szukanie,
+ulubione / ostatnie w `4GE/browser.settings`), API procesora (import w tle z jednym UNDO, CLEAR, narzędzia, RELINK, COLLECT,
+`samplePlayPos` z `Engine::smpPosMon`), `GUI/SamplePage.*` (strona SMP: sloty, edytor znaczników ze snapem, zoom, przeglądarka),
+waveform i drag WAV z samplami. Testy M10 (tabela 13 + narzędzia, FLAC, 4 kanały, crossfade, CPU) i 14.11 dla `smp*` OK. Następny: moduł 11.
 
 **STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
 przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH

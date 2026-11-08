@@ -174,6 +174,8 @@ namespace fge::env
         ModDist9, ModDist10, ModDist11, ModDist12, ModDist13, ModDist14, ModDist15, ModDist16,
         // module 06: the CUSTOM resonator spectrum (8 harmonics, low -> high)
         ResCustom1, ResCustom2,
+        // module 10: the drawn amplitude envelope of each sample slot
+        AmpSample1, AmpSample2, AmpSample3, AmpSample4, AmpSample5, AmpSample6, AmpSample7, AmpSample8,
         NumSlots
     };
     inline bool isPitch (int slot) { return slot <= PitchSub; }
@@ -191,7 +193,9 @@ namespace fge::env
                                          "env_amp_layer7", "env_amp_layer8",
                                          "env_mod_dist1", "env_mod_dist2", "env_mod_dist3", "env_mod_dist4", "env_mod_dist5", "env_mod_dist6", "env_mod_dist7", "env_mod_dist8",
                                          "env_mod_dist9", "env_mod_dist10", "env_mod_dist11", "env_mod_dist12", "env_mod_dist13", "env_mod_dist14", "env_mod_dist15", "env_mod_dist16",
-                                         "env_res_custom1", "env_res_custom2" };
+                                         "env_res_custom1", "env_res_custom2",
+                                         "env_amp_sample1", "env_amp_sample2", "env_amp_sample3", "env_amp_sample4", "env_amp_sample5", "env_amp_sample6",
+                                         "env_amp_sample7", "env_amp_sample8" };
         return k[juce::jlimit (0, (int) NumSlots - 1, s)];
     }
     // the default drawn shape of every slot

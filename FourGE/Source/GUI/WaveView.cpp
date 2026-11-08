@@ -28,6 +28,14 @@ namespace fge::gui
         wake.signal();
     }
 
+    void WaveView::setSamples (const Samples& s, uint32_t version)
+    {
+        if (version == lastSmp) return;
+        lastSmp = version;
+        { std::lock_guard<std::mutex> l (lock); pendingSmp = s; smpChanged = true; wanted = true; }
+        wake.signal();
+    }
+
     void WaveView::run()
     {
         while (! threadShouldExit())
@@ -35,7 +43,10 @@ namespace fge::gui
             wake.wait (200);
             ParamFrame f; int note;
             { std::lock_guard<std::mutex> l (lock); if (! wanted) continue; f = pending; note = pendingNote; wanted = false;
-              if (pendingBank) bank = std::move (pendingBank); tables = pendingTables; distData = pendingDist; modData = pendingMod; }
+              if (pendingBank) bank = std::move (pendingBank); tables = pendingTables; distData = pendingDist; modData = pendingMod; if (smpChanged) { smp = pendingSmp; smpChanged = false; } }
+            Engine::SamplePtrs sp; bool anySmp = false;
+            for (int k = 0; k < dsp::numSampleSlots; ++k) { sp[(size_t) k].store (smp[(size_t) k].get()); anySmp |= smp[(size_t) k] != nullptr; }
+            const Engine::SamplePtrs* spp = anySmp ? &sp : nullptr;
             const dsp::mod::Data* md = hasMod ? &modData : nullptr;
             const env::Bank* b0 = bank.get();
             dsp::OscTables ot;
@@ -44,7 +55,7 @@ namespace fge::gui
             const double secs = lenMs / 1000.0;
             Render r;
             r.ms = lenMs;
-            auto full = renderKick (f, note, rate, secs, -1, 1.f, b0, 0.0, -1.0, &ot, nullptr, &distData, nullptr, md);
+            auto full = renderKick (f, note, rate, secs, -1, 1.f, b0, 0.0, -1.0, &ot, nullptr, &distData, nullptr, md, spp);
             const int n = full.getNumSamples();
             r.full.resize ((size_t) n); r.stereoL.resize ((size_t) n); r.stereoR.resize ((size_t) n);
             for (int i = 0; i < n; ++i)
@@ -61,7 +72,7 @@ namespace fge::gui
             }
             for (int p = 0; p < 4 && ! threadShouldExit(); ++p)
             {
-                auto b = renderKick (f, note, rate, secs, p, 1.f, b0, 0.0, -1.0, &ot, nullptr, &distData, nullptr, md);
+                auto b = renderKick (f, note, rate, secs, p, 1.f, b0, 0.0, -1.0, &ot, nullptr, &distData, nullptr, md, spp);
                 auto& v = r.part[(size_t) p];
                 v.resize ((size_t) n);
                 for (int i = 0; i < n; ++i) v[(size_t) i] = 0.5f * (b.getSample (0, i) + b.getSample (1, i));

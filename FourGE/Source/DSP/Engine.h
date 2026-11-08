@@ -151,6 +151,7 @@ namespace fge
         bool isHeld() const { return active && held; }
         float elapsedMs() const { return (float) (t * 1000.0); }
         uint64_t order() const { return age; }
+        double samplePos (int slot) const { return lbv.samplePos (slot); }
         void phases (float* out) const { out[0] = punch.phase(); out[1] = body.phase(); out[2] = tail.phase(); out[3] = sub.phase(); }
 
         // adds this voice into the four part buses (oversampled rate)
@@ -353,6 +354,8 @@ namespace fge
         {
             if (d != modData || (d != nullptr && d->version != modVersion)) { modData = d; modVersion = d != nullptr ? d->version : 0; if (d != nullptr) modEng.scan (*d); }
         }
+        using SamplePtrs = std::array<std::atomic<const dsp::SampleData*>, dsp::numSampleSlots>;
+        void setSamples (const SamplePtrs* p) { samplePtrs = p; }           // module 10 (the owner keeps every published sample alive)
         void setHostPos (double ppq, bool playing, int barBeats = 4) { hostPpq = ppq; hostPlaying = playing; hostBar = juce::jmax (1, barBeats); }
         const dsp::mod::Engine& modEngine() const { return modEng; }
         const ParamFrame& finalFrame() const { return frame; }
@@ -360,12 +363,14 @@ namespace fge
         std::array<std::atomic<float>, dsp::mod::NumSrc> srcMon {};
         std::array<std::atomic<float>, dsp::mod::numSlots> slotFinal {};          // the FINAL normalised value of each slot's target
         std::atomic<int> seqStepMon { 0 };
+        // module 10: the playback position of each sample slot in the newest kick (0..1 of the sample, -1 = silent) for the editor
+        std::array<std::atomic<float>, dsp::numSampleSlots> smpPosMon {};
         bool modFullCook = false;
         uint32_t modExtraCook = 0;                      // (tests: re-cook these sections at every tick too)                        // (tests: re-cook everything at every control tick)
 
         void process (juce::AudioBuffer<float>& out, const juce::MidiBuffer& midi, const ParamFrame& f)
         {
-            if (modData != nullptr && modData->active > 0) { processMod (out, midi, f); return; }
+            if (modData != nullptr && modData->active > 0) { processMod (out, midi, f); publishSamplePos(); return; }
             modFresh = true;
             cook (f);
             const int n = out.getNumSamples();
@@ -380,6 +385,19 @@ namespace fge
                 // ONE SHOT: Note Off never cuts the kick (module 01, 11 / module 02, 11) - only RETRIGGER envelopes release
             }
             if (pos < n) render (out, pos, n - pos);
+            publishSamplePos();
+        }
+        void publishSamplePos()
+        {
+            if (samplePtrs == nullptr) return;
+            const KickVoice* newest = nullptr;
+            for (const auto& v : voices) if (v.isActive() && (newest == nullptr || v.order() > newest->order())) newest = &v;
+            for (int k = 0; k < dsp::numSampleSlots; ++k)
+            {
+                const auto* d = (*samplePtrs)[(size_t) k].load (std::memory_order_acquire);
+                const double p = newest != nullptr && d != nullptr && d->n > 0 ? newest->samplePos (k) : -1.0;
+                smpPosMon[(size_t) k].store (p < 0.0 ? -1.f : (float) (p / (double) d->n), std::memory_order_relaxed);
+            }
         }
 
         void trigger (int note, float velocity)
@@ -523,6 +541,7 @@ namespace fge
         float folEnv = 0.f, folMs = 0.f, folOut = 0.f;
         std::array<float, 4> ccVal {};
         dsp::mod::Engine modEng;
+        const SamplePtrs* samplePtrs = nullptr;
         const dsp::mod::Data* modData = nullptr;
         uint32_t modVersion = 0;
         ParamFrame fm = ParamFrame::defaults(), lastBase = ParamFrame::defaults();
@@ -748,11 +767,24 @@ namespace fge
             using namespace dsp;
             auto& lb = cfg.lb;
             cookLayerBank (f, b, lb, cfg.ks.rate);
+            for (int k = 0; k < dsp::numSampleSlots; ++k)                      // module 10: the audio of the sample slots (lock-free pointers)
+                lb.samples[(size_t) k] = samplePtrs != nullptr ? (*samplePtrs)[(size_t) k].load (std::memory_order_acquire) : nullptr;
             cfg.lbAny = lb.anyLayer || lb.anyNoise || lb.click.on;
             float end = 0.f;
             for (const auto& n : lb.noise) if (n.on) end = juce::jmax (end, n.envSrc == NeOwn || n.envSrc == NeDrawn ? n.lengthMs + 5.f : cfg.ks.lengthMs);
             if (lb.click.on) end = juce::jmax (end, lb.click.positionMs + 300.f + lb.click.lenMs + 5.f);
-            for (const auto& l : lb.layer) if (l.on) end = juce::jmax (end, l.offsetMs + l.delay + l.lenMs + (l.envMode == LeAdsr ? l.rel : 0.f) + 5.f);
+            for (const auto& l : lb.layer)
+            {
+                if (! l.on) continue;
+                float len = l.lenMs;
+                if (l.smp.slot >= 0 && l.smp.mode == SmOneShot)                     // a one-shot sample ends with its region
+                {
+                    const auto* d = lb.samples[(size_t) l.smp.slot];
+                    len = d == nullptr ? 0.f : juce::jmin (len, (float) ((double) std::abs (l.smp.end - l.smp.start) * (double) d->n / d->rate * 1000.0
+                                                                          / juce::jmax (0.01, (double) l.smp.rate * l.pitchMul * (l.smp.track ? 0.25 : 1.0))) + 10.f);   // (tracking: assume the longest)
+                }
+                end = juce::jmax (end, l.offsetMs + l.delay + len + (l.envMode == LeAdsr ? l.rel : 0.f) + 5.f);
+            }
             cfg.lbEndMs = end;
             for (const auto& n : lb.noise) if (n.on && n.route[2] > 0.f && n.width > 0.001f) cfg.wide = true;
         }
@@ -1069,7 +1101,7 @@ namespace fge
                                                 const env::Bank* bank = nullptr, double bpm = 0.0, double noteOffAt = -1.0,
                                                 const dsp::OscTables* tables = nullptr, const dsp::OscData* oscData = nullptr,
                                                 const dsp::dist::DistData* distData = nullptr, dsp::dyn::Probe* probe = nullptr,
-                                                const dsp::mod::Data* modData = nullptr)
+                                                const dsp::mod::Data* modData = nullptr, const Engine::SamplePtrs* samples = nullptr)
     {
         // no tables given: build them here from the parameters (+ the given / default oscillator data) - offline only
         std::array<dsp::TablePtr, dsp::maxOsc> keep;
@@ -1097,7 +1129,8 @@ namespace fge
         engine->setTables (tables);
         engine->setDistData (distData);
         engine->setOffline (true);                       // renderKick = the export path (OFFLINE QUALITY applies)
-        engine->setModData (modData);                    // module 09: the same modulation as the plugin (not playing: the engine clock at 'bpm')
+        engine->setModData (modData);
+        engine->setSamples (samples);                    // module 10: the sample slots                    // module 09: the same modulation as the plugin (not playing: the engine clock at 'bpm')
         engine->cookOnly (f);
         engine->dynState().probe = probe;                      // (GUI analysis: one module 08 processor's gain history)
         const int look = engine->dynLookahead();               // module 08: the export starts on the beat (the lookahead is taken out)

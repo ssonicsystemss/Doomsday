@@ -110,8 +110,10 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     addChildComponent (*dynPg);
     modPg = std::make_unique<fge::gui::ModPage> (proc, lnf);
     addChildComponent (*modPg);
-    const char* pages[9] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ", "DYN", "MOD" };
-    for (int i = 0; i < 9; ++i)
+    smpPg = std::make_unique<fge::gui::SamplePage> (proc, lnf);
+    addChildComponent (*smpPg);
+    const char* pages[10] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ", "DYN", "MOD", "SMP" };
+    for (int i = 0; i < 10; ++i)
     {
         pageBtn[(size_t) i].setButtonText (pages[i]);
         pageBtn[(size_t) i].onClick = [this, i] { showPage (i); };
@@ -126,6 +128,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     pageBtn[5].setTooltip ("Filters (8), resonators (2) and the SCREECH engine: synthesised screeches with their own envelopes and timing.");
     pageBtn[6].setTooltip ("EQ (16 bands), dynamic EQ, multiband, spectral shaper and stereo engine - on the whole kick, a part, the texture, a layer or the screech.");
     pageBtn[8].setTooltip ("Modulation: the matrix (64 slots), LFO 1-8, the step sequencer, random sources and the MACRO MAPPING of the 8 MASTER MACROS.");
+    pageBtn[9].setTooltip ("Samples: 8 slots (WAV / AIFF / FLAC), the waveform editor (start / end / loop / fades / reverse), the browser - each slot is one more layer of the kick.");
     pageBtn[7].setTooltip ("Dynamics: 4 compressors, 5 transient shapers, 2 clippers, 2 limiters, crest factor control, auto gain - where the punch and the loudness are made.");
     selectPart (2);
     showPage (0);
@@ -170,7 +173,7 @@ void GeCanvas::selectPart (int i)
 
 void GeCanvas::showPage (int i)
 {
-    pageIdx = jlimit (0, 8, i);
+    pageIdx = jlimit (0, 9, i);
     const bool main = pageIdx == 0;
     for (int p = 0; p < 4; ++p)
     {
@@ -187,10 +190,11 @@ void GeCanvas::showPage (int i)
     eqPg->setVisible (pageIdx == 6);
     dynPg->setVisible (pageIdx == 7);
     modPg->setVisible (pageIdx == 8);
+    smpPg->setVisible (pageIdx == 9);
     wave.setVisible (pageIdx < 2);
     for (auto* m : macroRow) m->setVisible (pageIdx < 2);
     const auto& c = palette();
-    for (int k = 0; k < 9; ++k)
+    for (int k = 0; k < 10; ++k)
     {
         pageBtn[(size_t) k].setColour (TextButton::buttonColourId, k == pageIdx ? c.red : c.control);
         pageBtn[(size_t) k].setColour (TextButton::textColourOffId, k == pageIdx ? c.ground : c.silver);
@@ -213,7 +217,8 @@ void GeCanvas::resized()
     int x = 330;
     for (int i = 0; i < 3; ++i) { header[(size_t) i]->setBounds (x, 10, 70, Knob::heightFor (44)); x += 74; }
     for (int i = 0; i < 3; ++i) header[(size_t) 3 + (size_t) i]->setBounds (x + 14, 14 + i * 26, 150, 22);
-    header[6]->setBounds (742, 8, 161, 26);
+    header[6]->setBounds (742, 8, 106, 26);
+    pageBtn[9].setBounds (851, 8, 52, 26);
     pageBtn[8].setBounds (906, 8, 52, 26);
     // pitch engine
     pitchArea = { 16, 104, W - 32, 84 };
@@ -261,6 +266,7 @@ void GeCanvas::resized()
     if (eqPg != nullptr) eqPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (dynPg != nullptr) dynPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (modPg != nullptr) modPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
+    if (smpPg != nullptr) smpPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (scrPage != nullptr) scrPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
 }
 
@@ -406,6 +412,11 @@ void GeCanvas::timerCallback()
 {
     presetBar.refresh();
     const auto tb = proc.currentTables();
+    {
+        fge::gui::WaveView::Samples ss;
+        for (int k = 0; k < fge::dsp::numSampleSlots; ++k) ss[(size_t) k] = proc.samples().data (k);
+        wave.setSamples (ss, proc.samples().version());
+    }
     wave.update (proc.frame(), proc.auditionNote, &proc.shapes(), proc.shapesVersion(), &tb, &proc.distData(), proc.distDataVersion(), &proc.modAudioCopy(), proc.modVersion());
     updateModRings();
     auto& e = proc.getEngine();

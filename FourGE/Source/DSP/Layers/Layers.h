@@ -14,6 +14,7 @@
 #include "../Filter/Filters.h"
 #include "../Tone/Tone.h"
 #include "../Dyn/Dyn.h"
+#include "../Sample/Sample.h"
 
 namespace fge::dsp
 {
@@ -35,6 +36,7 @@ namespace fge::dsp
         float atk = 1.f, dec = 120.f, sus = 0.3f, rel = 30.f, delay = 0.f, amount = 1.f;
         const env::Shape* shape = nullptr;
         std::array<float, NumBus> send {};
+        SampleSettings smp;                                 // module 10: slot >= 0 = this layer plays a SAMPLE SLOT
     };
     struct LayerBankSettings
     {
@@ -46,6 +48,7 @@ namespace fge::dsp
         std::array<LayerSettings, maxLayers> layer {};
         float texGain = 1.f, custGain = 1.f;
         bool anyLayer = false, anyNoise = false;
+        std::array<const SampleData*, numSampleSlots> samples {};   // module 10: the audio of the 8 slots (layers 9..16 play them)
     };
 
     // ---- one layer inside one kick voice (all its DSP state is its own)
@@ -54,7 +57,8 @@ namespace fge::dsp
         void start (const LayerSettings& s, const LayerBankSettings& bank, const OscBankSettings& osc, uint32_t seed, uint32_t hitCount,
                     uint64_t clock, const std::array<float, 4>& partHz)
         {
-            ph = s.phase01; flt = {}; ap1 = ap2 = 0.f; ap1x = ap2x = 0.f; seg = 0; relFrom = 0.f;
+            ph = s.phase01; flt = {}; flt2 = {}; ap1 = ap2 = 0.f; ap1x = ap2x = 0.f; seg = 0; relFrom = 0.f; sideOut = 0.f;
+            if (s.smp.slot >= 0) sp.start (s.smp, bank.samples[(size_t) s.smp.slot]);
             if (s.source == LsNoiseA || s.source == LsNoiseB) nv.start (bank.layerNoise[(size_t) (s.source - LsNoiseA)], hitCount + seed, clock);
             if (s.source == LsTransient) cv.start (seed * 7919u + hitCount, s.offsetMs);
             if (s.source >= LsOsc1) ov.start (osc, partHz, 0.0, hitCount);
@@ -87,8 +91,9 @@ namespace fge::dsp
             const float env = (1.f - s.amount) * (tl >= 0.f && tl < end ? 1.f : 0.f) + s.amount * e;
             // ---- source (own copy)
             const float hz = juce::jlimit (5.f, rate * 0.45f, partHz[(size_t) s.track] * s.pitchMul);
-            float x = 0.f;
-            switch (s.source)
+            float x = 0.f, sx = 0.f;
+            if (s.smp.slot >= 0) x = sp.tick (s.smp, bank.samples[(size_t) s.smp.slot], s.pitchMul, noteHz, (double) rate, sx);   // module 10
+            else switch (s.source)
             {
                 case LsNoiseA: case LsNoiseB:
                 {
@@ -122,23 +127,34 @@ namespace fge::dsp
                     }
                 }
             }
-            x *= env;
-            // ---- FILTER + DRIVE (SOLO SOURCE hears the layer before them)
+            x *= env; sx *= env;
+            // ---- FILTER + DRIVE (SOLO SOURCE hears the layer before them); a stereo sample's side goes through the same filter
             if (! s.sourceOnly)
             {
                 if (s.fltOn)
                 {
-                    float l, b; flt.tick (x, s.flt, l, b);
-                    switch (s.fltType)
+                    auto filt = [&] (doomsday::dsp::Svf& st, float in)
                     {
-                        case FtHigh:  x = x - s.flt.k * b - l; break;
-                        case FtBand:  x = b; break;
-                        case FtNotch: x = x - s.flt.k * b; break;
-                        default:      x = l; break;
-                    }
+                        float l, b; st.tick (in, s.flt, l, b);
+                        switch (s.fltType)
+                        {
+                            case FtHigh:  return in - s.flt.k * b - l;
+                            case FtBand:  return b;
+                            case FtNotch: return in - s.flt.k * b;
+                            default:      return l;
+                        }
+                    };
+                    x = filt (flt, x);
+                    if (sx != 0.f) sx = filt (flt2, sx);
                 }
-                if (s.drive > 0.f) { const float g = 1.f + s.drive * 20.f; x = std::tanh (x * g) / std::tanh (g); }
+                if (s.drive > 0.f)
+                {
+                    const float g = 1.f + s.drive * 20.f, y = std::tanh (x * g) / std::tanh (g);
+                    sx *= std::abs (x) > 1.0e-6f ? y / x : g / std::tanh (g);
+                    x = y;
+                }
             }
+            sideOut = std::isfinite (sx) ? sx : 0.f;
             return std::isfinite (x) ? x : 0.f;
         }
         // WIDTH: the side signal from two all-pass stages (mono sum unchanged)
@@ -149,9 +165,10 @@ namespace fge::dsp
             const float y2 = -c2 * y1 + ap2x + c2 * ap2; ap2x = y1; ap2 = y2;
             return y2 - x * 0.5f;
         }
-        float ph = 0.f, ap1 = 0.f, ap2 = 0.f, ap1x = 0.f, ap2x = 0.f, relFrom = 0.f;
+        float ph = 0.f, ap1 = 0.f, ap2 = 0.f, ap1x = 0.f, ap2x = 0.f, relFrom = 0.f, sideOut = 0.f, noteHz = 49.f;
         int seg = 0;
-        doomsday::dsp::Svf flt;
+        doomsday::dsp::Svf flt, flt2;
+        SamplePlayer sp;
         NoiseVoice nv;
         ClickVoice cv;
         OscBankVoice ov;
@@ -167,10 +184,10 @@ namespace fge::dsp
             m06st->reset(); toneSt->reset(); dynSt->reset();
             for (int k = 0; k < 2; ++k) if (b.noise[(size_t) k].on) noise[(size_t) k].start (b.noise[(size_t) k], hitCount, clock);
             if (b.click.on) click.start (0x2468aceu + hitCount * 31u, b.click.positionMs + (b.click.sync > 0 ? partStartMs[(size_t) b.click.sync - 1] : 0.f));
-            for (int i = 0; i < numLayers; ++i)
+            for (int i = 0; i < maxLayers; ++i)
             {
                 started[(size_t) i] = b.layer[(size_t) i].on;
-                (*chains)[(size_t) i].reset();
+                if (i < numLayers) (*chains)[(size_t) i].reset();
 
                 fadeG[(size_t) i] = b.layer[(size_t) i].on && b.layer[(size_t) i].audible ? 1.f : 0.f;
                 if (started[(size_t) i]) layer[(size_t) i].start (b.layer[(size_t) i], b, osc, (uint32_t) (i + 1) * 977u, hitCount, clock, partHz);
@@ -199,7 +216,7 @@ namespace fge::dsp
                 busL[b.click.output] += l; busR[b.click.output] += r;
             }
             const float step = inv * 1000.f / 3.f;                                   // ON / OFF / MUTE / SOLO fade in 3 ms (no clicks)
-            for (int i = 0; i < numLayers; ++i)
+            for (int i = 0; i < maxLayers; ++i)
             {
                 const auto& s = b.layer[(size_t) i];
                 auto& g = fadeG[(size_t) i];
@@ -207,7 +224,20 @@ namespace fge::dsp
                 g = target > g ? juce::jmin (target, g + step) : juce::jmax (target, g - step);
                 if (! started[(size_t) i] || g <= 0.f) continue;                     // a layer switched on during a kick waits for the next hit
                 auto& v = layer[(size_t) i];
+                if (s.smp.slot >= 0 && m6c != nullptr && m6c->relMs >= 0.f && s.smp.mode == SmGate) v.sp.release ((double) (m6c->relMs - s.offsetMs));
+                v.noteHz = noteRatio * 49.f;
                 float x = v.tick (s, b, osc, tb, partHz, ms, inv, rate) * g;
+                if (i >= numLayers)                                                   // module 10: a SAMPLE SLOT (its group's processing does the rest)
+                {
+                    const float ss = v.sideOut * g + (s.side > 0.001f ? v.side (x) * s.side : 0.f);
+                    if (x == 0.f && ss == 0.f) continue;
+                    const float l = (x + ss) * s.panL, r = (x - ss) * s.panR;
+                    if (! s.multi) { busL[s.outBus] += l * s.fader; busR[s.outBus] += r * s.fader; continue; }
+                    const float sg = s.preFader ? s.groupGain : s.fader;
+                    for (int bus = 0; bus < NumBus; ++bus)
+                        if (s.send[(size_t) bus] > 0.f) { busL[bus] += l * sg * s.send[(size_t) bus]; busR[bus] += r * sg * s.send[(size_t) bus]; }
+                    continue;
+                }
                 // module 06 (BEFORE) -> module 05: the LAYER distortion -> module 06 (AFTER), all before pan / width / fader
                 const int ml = m06::LLayer1 + i;
                 const bool m6on = m6 != nullptr && m6c != nullptr && m6->atLoc (ml);
@@ -233,11 +263,13 @@ namespace fge::dsp
         }
         // the processed signal of one layer (tests / GUI previews)
         LayerVoice& layerVoice (int i) { return layer[(size_t) i]; }
+        // module 10: where a sample slot plays now (in samples of its data), -1 = not playing
+        double samplePos (int slot) const { const auto& v = layer[(size_t) (numLayers + slot)]; return started[(size_t) (numLayers + slot)] && ! v.sp.finished() ? v.sp.position() : -1.0; }
     private:
         std::array<NoiseVoice, 2> noise;
         ClickVoice click;
-        std::array<LayerVoice, numLayers> layer;
-        std::array<float, numLayers> fadeG {};
+        std::array<LayerVoice, maxLayers> layer;
+        std::array<float, maxLayers> fadeG {};
         std::unique_ptr<std::array<dist::ChainState, numLayers>> chains = std::make_unique<std::array<dist::ChainState, numLayers>>();
         std::unique_ptr<m06::State> m06st = std::make_unique<m06::State>();       // module 06: filters / resonators placed on a layer
         std::unique_ptr<tone::State> toneSt = std::make_unique<tone::State>();    // module 07: EQ / multiband / spectral placed on a layer
@@ -245,6 +277,6 @@ namespace fge::dsp
     public:
         m06::State& m06State() { return *m06st; }
     private:
-        std::array<bool, numLayers> started {};
+        std::array<bool, maxLayers> started {};
     };
 }

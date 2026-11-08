@@ -229,6 +229,25 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
 - **SOURCE MONITOR** pokazuje każde źródło na żywo. Bezpieczeństwo: MASTER i sufit limitera modulacja może tylko obniżyć, LOOKAHEAD
   nie jest celem (latencja), wartości zawsze w zakresie. Eksport = to samo co w FL (ten sam seed, LFO na kicku).
 
+## Strona SMP – sample (moduł 10)
+- Przycisk **SMP** (obok MOD). **8 slotów** – każdy to jeszcze jedna warstwa kicka (warstwy 9–16): ma GROUP (PUNCH / BODY / TAIL / SUB /
+  TEXTURE …), więc działa na nim poziom / mute / solo grupy, moduły 05–08 tej części i cała modulacja (MOD). Łączy się z syntezą.
+- **Ładowanie:** LOAD, przeciągnięcie pliku na waveform albo przeglądarka. WAV / AIFF / FLAC (też OGG / MP3), mono i stereo, dowolne
+  sample rate (przeliczane wysokiej jakości filtrem), do 60 s. Do 20 s plik zapisuje się **w projekcie / presecie** – otworzysz go
+  na innym komputerze. Dłuższe: tylko ścieżka; brak pliku = slot **MISSING** (nic się nie wywala), **RELINK** = wskaż folder, slot sam
+  znajdzie plik po nazwie. **COLLECT** kopiuje użyte pliki do wybranego folderu (tylko gdy klikniesz).
+- **Edytor waveformu:** znaczniki **S / E** (START / END) i **L1 / L2** (pętla w LOOP / PING-PONG) – przeciągasz; z **SHIFT** przyklejają
+  się do transientów (kreski na dole). Kółko = zoom, przeciąganie tła = przewijanie, podwójny klik / FIT = cały sample. Biała kreska =
+  gdzie sample gra teraz. **PREVIEW REGION** = posłuchaj START..END bez kicka. Ruchy znaczników mają UNDO.
+- **Odtwarzanie:** MODE ONE SHOT / GATE (gra póki trzymasz nutę) / LOOP (z crossfade – bez dziury na szwie) / PING-PONG, REVERSE
+  (plik się nie zmienia), RATE (szybkość), PITCH / FINE, ROOT + KEY TRACK (sample idzie za nutą MIDI), FADE IN / OUT (start w środku
+  dźwięku zawsze dostaje min. 1 ms fade – bez klika), OFFSET, PHASE, a do tego filtr, drive, width, obwiednia, routing i LINK jak
+  w warstwach. Podmiana sampla w trakcie grania = 3 ms crossfade.
+- **Narzędzia** (na kopii roboczej, oryginał na dysku nietknięty, z UNDO): NORMALIZE, DC (usuń DC offset), TRIM (utnij ciszę).
+- **Przeglądarka:** FOLDER (3 poziomy podfolderów), szukanie po nazwie, FAVORITES, RECENT, PREVIEW (odsłuch bez ładowania),
+  LOAD TO SLOT / podwójny klik. Ulubione i ostatnie trzymane w ustawieniach 4GE, nie w presecie.
+- Ładowanie idzie w tle – audio nigdy nie czeka. Ten sam preset = ten sam render (FL = eksport).
+
 ## Presety
 INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
@@ -237,5 +256,5 @@ TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – st�
 **RANDOM - Pick 01…11** = Twoje wybrane wyniki z RANDOM (2026-11-08), dokładnie tak, jak je zapisałeś.
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →
+Moduł po module wg `PLAN.md`: 11 stereo → 12 eksport →
 13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.

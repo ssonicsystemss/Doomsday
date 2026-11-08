@@ -67,6 +67,9 @@ namespace fge::dsp
         auto L = [&] (int i, int first) { return first + i * ls; };
         bool layerSolo = false;
         for (int i = 0; i < numLayers; ++i) layerSolo |= f.on (L (i, P::layer1On)) && f.on (L (i, P::layer1Solo));
+        const int ss = P::smp2On - P::smp1On;                                 // module 10: the sample slots share the layer SOLO
+        auto S = [&] (int k, int first) { return first + k * ss; };
+        for (int k = 0; k < numSampleSlots; ++k) layerSolo |= f.on (S (k, P::smp1On)) && f.on (S (k, P::smp1Solo));
         const bool soloSource = f.idx (P::layerSoloMode) == 1;
         // LINK: the root a layer follows (a loop falls back to INDEPENDENT)
         auto linkRoot = [&] (int i) -> int
@@ -124,6 +127,68 @@ namespace fge::dsp
             s.audible = gr.on && ! gr.mute && ! f.on (L (i, P::layer1Mute)) && (! layerSolo || soloed) && (! groupSolo || gr.solo);
             s.sourceOnly = soloSource && layerSolo && soloed;
         }
-        for (int i = numLayers; i < maxLayers; ++i) out.layer[(size_t) i].on = false;
+        // ---- module 10: SAMPLE SLOTS 1..8 = layers 9..16 (the same path; the source is the slot's sample)
+        auto linkRootS = [&] (int i) -> int
+        {
+            int q = i, steps = 0;
+            while (steps < numSampleSlots)
+            {
+                const int src = f.idx (S (q, P::smp1LinkSrc)) - 1;
+                if (src < 0 || src == q) break;
+                q = src; ++steps;
+                if (q == i) return -1;
+            }
+            return q == i ? -1 : q;
+        };
+        for (int k = 0; k < numSampleSlots; ++k)
+        {
+            auto& s = out.layer[(size_t) (numLayers + k)];
+            s.on = f.on (S (k, P::smp1On));
+            s.smp.slot = -1;
+            if (! s.on) continue;
+            out.anyLayer = true;
+            const int root = linkRootS (k);
+            auto val = [&] (int first, bool linked, auto combine) { const float own = f[S (k, first)]; return root >= 0 && linked ? combine (own, f[S (root, first)], def (first).def) : own; };
+            const bool lLvl = f.on (S (k, P::smp1LinkLvl)), lPit = f.on (S (k, P::smp1LinkPit)), lLen = f.on (S (k, P::smp1LinkLen)), lEnv = f.on (S (k, P::smp1LinkEnv));
+            const int envFrom = root >= 0 && lEnv ? root : k;
+            s.source = LsSine;
+            s.group = f.idx (S (k, P::smp1Group));
+            const auto& gr = g[(size_t) s.group];
+            s.track = s.group <= LgSub ? s.group : LgTail;
+            const float lvl = val (P::smp1Level, lLvl, [] (float own, float m, float d) { return own + (m - d); });
+            s.groupGain = gr.gain;
+            s.fader = db (juce::jmin (12.f, lvl)) * gr.gain * (f.on (S (k, P::smp1Inv)) ? -1.f : 1.f);
+            const float pan = juce::jlimit (-1.f, 1.f, f[S (k, P::smp1Pan)] + gr.pan);
+            const float a = (pan + 1.f) * juce::MathConstants<float>::pi * 0.25f;
+            s.panL = std::cos (a) * 1.41421356f; s.panR = std::sin (a) * 1.41421356f;
+            s.side = f[S (k, P::smp1Width)] * gr.width;
+            const float st = val (P::smp1Pitch, lPit, [] (float own, float m, float) { return own + m; });
+            s.pitchMul = std::exp2 (st / 12.f + f[S (k, P::smp1Fine)] / 1200.f);
+            const float ts = f[S (envFrom, P::smp1TScale)];
+            s.lenMs = val (P::smp1Len, lLen, [] (float own, float m, float d) { return own * m / d; }) * ts;
+            s.offsetMs = f[S (k, P::smp1Offset)];
+            s.phase01 = 0.f;
+            s.fltOn = f.on (S (k, P::smp1FltOn)); s.fltType = f.idx (S (k, P::smp1FltType));
+            s.flt = doomsday::dsp::svfCoefs (f[S (k, P::smp1Cutoff)], 1.f / (0.7f + std::pow (f[S (k, P::smp1Reso)], 2.f) * 12.f), rate);
+            s.drive = f[S (k, P::smp1Drive)];
+            s.envMode = f.idx (S (envFrom, P::smp1EnvMode));
+            s.atk = f[S (envFrom, P::smp1Atk)] * ts; s.dec = f[S (envFrom, P::smp1Dec)] * ts; s.sus = f[S (envFrom, P::smp1Sus)];
+            s.rel = f[S (envFrom, P::smp1Rel)] * ts; s.delay = f[S (envFrom, P::smp1Delay)]; s.amount = f[S (envFrom, P::smp1EnvAmt)];
+            s.shape = &eb.s[(size_t) (env::AmpSample1 + envFrom)];
+            s.multi = f.idx (S (k, P::smp1Route)) == 1; s.preFader = f.on (S (k, P::smp1PreFdr));
+            s.outBus = gr.out;
+            const int sends[NumBus] { P::smp1SPunch, P::smp1SBody, P::smp1STail, P::smp1SSub, P::smp1STex, P::smp1SCust, P::smp1SMaster };
+            for (int b = 0; b < NumBus; ++b) s.send[(size_t) b] = db (f[S (k, sends[b])]);
+            const bool soloed = f.on (S (k, P::smp1Solo));
+            s.audible = gr.on && ! gr.mute && ! f.on (S (k, P::smp1Mute)) && (! layerSolo || soloed) && (! groupSolo || gr.solo);
+            s.sourceOnly = soloSource && layerSolo && soloed;
+            auto& sm = s.smp;
+            sm.slot = k;
+            sm.start = f[S (k, P::smp1Start)]; sm.end = f[S (k, P::smp1End)]; sm.fadeInMs = f[S (k, P::smp1FadeIn)]; sm.fadeOutMs = f[S (k, P::smp1FadeOut)];
+            sm.rate = f[S (k, P::smp1Rate)]; sm.reverse = f.on (S (k, P::smp1Rev)); sm.mode = f.idx (S (k, P::smp1Mode));
+            sm.loopStart = f[S (k, P::smp1LStart)]; sm.loopEnd = f[S (k, P::smp1LEnd)]; sm.xfadeMs = f[S (k, P::smp1XFade)];
+            sm.rootHz = 440.f * std::exp2 ((f[S (k, P::smp1Root)] - 69.f) / 12.f); sm.track = f.on (S (k, P::smp1Track));
+            sm.phaseDeg = f[S (k, P::smp1Phase)];
+        }
     }
 }

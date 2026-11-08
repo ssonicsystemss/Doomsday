@@ -204,7 +204,7 @@ INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS 
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
 MODERN / RAW: CLICK na początku (stuknięcie), tok na HOLD z szumem pod spodem (BODY = NOISE, żeby nie brzmiało „plastikowo”),
 TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – stąd power.
-**RANDOM - Pick 01…10** = Twoje wybrane wyniki z RANDOM (2026-11-08), dokładnie tak, jak je zapisałeś.
+**RANDOM - Pick 01…11** = Twoje wybrane wyniki z RANDOM (2026-11-08), dokładnie tak, jak je zapisałeś.
 
 ## Co dalej
 Moduł po module wg `PLAN.md`: 09 modulacja i makra → 10 sample → 11 stereo → 12 eksport →

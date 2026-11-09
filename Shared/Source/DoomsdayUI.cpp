@@ -690,6 +690,7 @@ void PresetBar::step (int d)
 }
 void PresetBar::openBrowser()
 {
+    if (onBrowse) { onBrowse(); return; }
     refreshList();
     auto content = std::make_unique<PresetBrowser> (*this);
     auto* top = getTopLevelComponent();

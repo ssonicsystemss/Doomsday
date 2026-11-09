@@ -179,6 +179,7 @@ namespace doomsday::ui
         bool isFavourite (const juce::String& name) const { return favourites.contains (name); }
         void toggleFavourite (const juce::String& name);
         void openBrowser();                 // what a click on the name does (public for tests)
+        std::function<void()> onBrowse;     // optional: a plugin's own preset browser replaces the built-in one
         PresetHost& presetHost() { return host; }
     private:
         bool keyPressed (const juce::KeyPress&, juce::Component*) override;

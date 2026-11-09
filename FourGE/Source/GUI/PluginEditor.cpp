@@ -131,6 +131,11 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     addChildComponent (*stPg);
     exPg = std::make_unique<fge::gui::ExportPage> (proc, lnf);
     addChildComponent (*exPg);
+    prPg = std::make_unique<fge::gui::PresetPage> (proc, presetBar);                // module 15: a click on the preset name
+    prPg->onClose = [this] { showPage (pageBeforePresets); };
+    prPg->onRelink = [this] { showPage (9); };
+    addChildComponent (*prPg);
+    presetBar.onBrowse = [this] { if (pageIdx != 12) pageBeforePresets = pageIdx; showPage (pageIdx == 12 ? pageBeforePresets : 12); };
     const char* pages[12] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ", "DYN", "MOD", "SMP", "STEREO", "EXPORT" };
     for (int i = 0; i < 12; ++i)
     {
@@ -194,7 +199,7 @@ void GeCanvas::selectPart (int i)
 
 void GeCanvas::showPage (int i)
 {
-    pageIdx = jlimit (0, 11, i);
+    pageIdx = jlimit (0, 12, i);
     const bool main = pageIdx == 0;
     for (int p = 0; p < 4; ++p)
     {
@@ -214,6 +219,7 @@ void GeCanvas::showPage (int i)
     smpPg->setVisible (pageIdx == 9);
     stPg->setVisible (pageIdx == 10);
     exPg->setVisible (pageIdx == 11);
+    prPg->setVisible (pageIdx == 12);
     wave.setVisible (pageIdx < 2);
     for (auto* m : macroRow) m->setVisible (pageIdx < 2);
     const auto& c = palette();
@@ -298,6 +304,7 @@ void GeCanvas::resized()
     if (smpPg != nullptr) smpPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (stPg != nullptr) stPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (exPg != nullptr) exPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
+    if (prPg != nullptr) prPg->setBounds (16, 104, W - 32 - 34, H - 104 - 16);
     if (scrPage != nullptr) scrPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
 }
 

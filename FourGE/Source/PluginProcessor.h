@@ -143,6 +143,13 @@ public:
     uint32_t seedFor (const fge::xp::Settings&, uint32_t preset) const;
     // module 13: the STYLE (state property "style", -1 = none) and the parameters the user moved himself ("touched": a knob gesture
     // or host automation; presets / styles / randomize / macros never mark). Saved with the project, cleared by loading a preset.
+    // module 15: the preset name, the A / B slots (the whole state, switched without losing either), the RECENT hook
+    void setPresetName (const juce::String& n) { presetName = n; }
+    void abSwitch (int slot);                                          // 0 = A, 1 = B (an empty slot starts as a copy)
+    void abCopyToOther();                                             // A -> B (or B -> A)
+    int abActive() const { return abCur; }
+    bool abHas (int slot) const { return ab[(size_t) (slot & 1)].getSize() > 0; }
+    std::function<void (const juce::String& key)> onPresetLoaded;     // (the browser keeps RECENTLY USED)
     double hostBpm() const { const double b = lastHostBpm.load(); return b > 0.0 ? b : 150.0; }   // (the last tempo the host gave, 150 before)
     int currentStyle() const { return (int) apvts.state.getProperty ("style", -1); }
     bool isTouched (int i) const { return juce::isPositiveAndBelow (i, (int) fge::P::count) && touched[(size_t) i].load (std::memory_order_relaxed); }
@@ -177,6 +184,8 @@ private:
     void timerCallback() override { refreshTables(); serviceMidi(); samplePool.collectGarbage(); seedWanted.store (presetSeed()); }
     std::atomic<uint32_t> seedWanted { 0 };
     std::atomic<double> lastHostBpm { 0.0 };
+    std::array<juce::MemoryBlock, 2> ab;
+    int abCur = 0;
     std::array<std::atomic<bool>, fge::P::count> touched {};
     void parameterValueChanged (int, float) override {}
     void parameterGestureChanged (int index, bool starting) override { if (starting) markTouched (index); }

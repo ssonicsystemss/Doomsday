@@ -10,7 +10,7 @@ doomsday_plugin(FourGE FLAT
     CODE Fg5K
     VENDOR "sonicsystems"
     CATEGORIES Instrument Drum
-    SOURCES Source/PluginProcessor.cpp Source/GUI/PluginEditor.cpp Source/GUI/WaveView.cpp Source/GUI/EnvEditor.cpp Source/GUI/EnvPage.cpp Source/GUI/OscPage.cpp Source/GUI/OscScope.cpp Source/GUI/LayerPage.cpp Source/GUI/DistPage.cpp Source/GUI/EqPage.cpp Source/GUI/DynPage.cpp Source/GUI/ModPage.cpp Source/GUI/SamplePage.cpp Source/GUI/StereoPage.cpp Source/GUI/ExportPage.cpp Source/GUI/ScreechPage.cpp Source/Parameters/ParamRegistry.cpp Source/Presets/FactoryPresets.cpp
+    SOURCES Source/PluginProcessor.cpp Source/GUI/PluginEditor.cpp Source/GUI/WaveView.cpp Source/GUI/EnvEditor.cpp Source/GUI/EnvPage.cpp Source/GUI/OscPage.cpp Source/GUI/OscScope.cpp Source/GUI/LayerPage.cpp Source/GUI/DistPage.cpp Source/GUI/EqPage.cpp Source/GUI/DynPage.cpp Source/GUI/ModPage.cpp Source/GUI/SamplePage.cpp Source/GUI/StereoPage.cpp Source/GUI/ExportPage.cpp Source/GUI/PresetPage.cpp Source/GUI/ScreechPage.cpp Source/Parameters/ParamRegistry.cpp Source/Presets/FactoryPresets.cpp
     TEST Tests/RenderTest.cpp)
 # module 10: MP3 import (optional format of the sample engine)
 foreach(t FourGE RenderTest)

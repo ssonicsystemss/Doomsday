@@ -13,7 +13,7 @@ namespace fge::length
     enum Profile { Short = 0, Medium, Long, ExtraLong, NumProfiles };
     inline const juce::StringArray& names() { static const juce::StringArray a { "SHORT", "MEDIUM", "LONG", "EXTRA LONG" }; return a; }
     inline float profileMs (int p) { static const float v[NumProfiles] { 180.f, 400.f, 750.f, 1600.f }; return v[juce::jlimit (0, NumProfiles - 1, p)]; }
-    inline int category (float ms) { return ms < 250.f ? Short : ms < 500.f ? Medium : ms < 1000.f ? Long : ExtraLong; }
+    inline int category (float ms) { return ms < 250.f ? Short : ms <= 500.f ? Medium : ms <= 1000.f ? Long : ExtraLong; }
     inline void applyProfile (GeProcessor& p, int prof)
     {
         p.undo.beginNewTransaction ("Length " + names()[prof]);

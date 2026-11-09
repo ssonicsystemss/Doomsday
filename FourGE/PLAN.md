@@ -192,6 +192,12 @@ NOTE + FX dodatkowo wycisza całe wyjście (`outGate` po dynamice mastera); czę
 AUTO LENGTH skaluje części przez `len_follow_punch / body / tail / sub` (domyślnie 0 / 0.5 / 1 / 1 = dokładnie jak wcześniej), eksport
 i waveform liczą efektywną długość; `Presets/LengthEngine.h` (profile SHORT / MEDIUM / LONG / EXTRA LONG + etykieta), nagłówek: przycisk
 LENGTH → panel (CallOutBox) z profilami, AUTO, SYNC, FOLLOW i długościami części; KICK END (LENGTH / NOTE / +FX). Testy M14 OK.
+**STAN 2026-11-09: MODUŁ 15 GOTOWY** – PRESET & BROWSER: `Presets/PresetLibrary.h` (metadane z wartości: styl, długość, typ ogona, tagi
+charakteru + tagi / notatki użytkownika w atrybutach .4gp, moduły, brakujące sample; filtry, RECENT w `4GE/presets.settings`,
+duplicate / rename / delete do kosza / import (walidacja, wolne nazwy) / export, preset fabryczny zapisywany przez prywatny procesor),
+procesor: `setPresetName`, A / B (`abSwitch` / `abCopyToOther` na pełnym stanie), `onPresetLoaded`, tagi / notatki w stanie;
+`Shared` PresetBar: `onBrowse` (własna przeglądarka zamiast wbudowanej); `GUI/PresetPage.*` = strona 12 (klik na nazwę presetu),
+PREVIEW = render migawki w tle. Testy M15 OK.
 
 **STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
 przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH

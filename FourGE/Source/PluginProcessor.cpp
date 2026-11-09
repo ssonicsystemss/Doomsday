@@ -421,6 +421,8 @@ void GeProcessor::setCurrentProgram (int i)
     if (dd.isValid()) { apvts.state.removeChild (dd, nullptr); rebuildDistData(); }
     apvts.state.removeProperty ("presetSeed", nullptr);                            // module 12: a factory preset plays with seed 0
     forgetTouched();                                                                // module 13: a preset is a fresh start
+    apvts.state.removeProperty ("tags", nullptr); apvts.state.removeProperty ("notes", nullptr);
+    if (onPresetLoaded) onPresetLoaded ("F:" + factoryPresets()[(size_t) jlimit (0, (int) factoryPresets().size() - 1, i)].name);
     {
         const String n = factoryPresets()[(size_t) jlimit (0, (int) factoryPresets().size() - 1, i)].name;
         const int st = n.startsWith ("EARLY") ? 0 : n.startsWith ("MODERN") ? 1 : n.startsWith ("RAW") ? 2 : -1;
@@ -485,8 +487,24 @@ bool GeProcessor::loadUserPresetFile (const File& f)
         seedWanted.store (presetSeed());
     }
     forgetTouched();                                                                // a preset is a fresh start
+    if (auto xml = XmlDocument::parse (f))                                          // module 15: the preset's TAGS / NOTES travel with it
+        for (auto* a : { "tags", "notes" }) { if (xml->hasAttribute (a)) apvts.state.setProperty (a, xml->getStringAttribute (a), nullptr); else apvts.state.removeProperty (a, nullptr); }
     presetName = f.getFileNameWithoutExtension();
+    if (onPresetLoaded) onPresetLoaded ("U:" + f.getFullPathName());
     return true;
+}
+void GeProcessor::abSwitch (int slot)
+{
+    slot &= 1;
+    if (slot == abCur) return;
+    getStateInformation (ab[(size_t) abCur]);
+    if (ab[(size_t) slot].getSize() == 0) ab[(size_t) slot] = ab[(size_t) abCur];
+    setStateInformation (ab[(size_t) slot].getData(), (int) ab[(size_t) slot].getSize());
+    abCur = slot;
+}
+void GeProcessor::abCopyToOther()
+{
+    getStateInformation (ab[(size_t) (1 - abCur)]);
 }
 bool GeProcessor::saveUserPresetAs (const String& name)
 {

@@ -265,6 +265,17 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
   STEREO FIELD. Pod gałkami tabela **ALL UNITS** (klik = otwórz). Wszystko modulowalne z MOD (pan, width, mid, side, crossover, delay…),
   bez klików.
 
+## PRESETY – przeglądarka (moduł 15)
+- **Klik na nazwę presetu** otwiera przeglądarkę (drugi klik / CLOSE wraca). Filtry: szukaj (nazwa, tagi, notatki), STYLE,
+  LENGTH, ALL / FACTORY / USER / FAVORITES / RECENT, TAG (charakter: CLEAN / DIRTY / HEAVY, PUNCHY, SCREECH, LAYERS, SAMPLES,
+  STEREO, MODULATED, SYNCED, NOTE CUT, TAIL …, Twoje tagi). Gwiazdka (+ / *) na końcu wiersza = ulubiony.
+- Po prawej: z czego zrobiony jest wybrany preset (styl, długość, rdzeń, przester, warstwy, sample, screech, stereo, modulacja)
+  i **brakujące sample** (na czerwono + RELINK prowadzi na stronę SMP). Pole na **Twoje tagi i notatki** (zapisywane w pliku
+  presetu użytkownika).
+- LOAD (dwuklik), **PREVIEW** (posłuchaj bez wczytywania), SAVE, SAVE AS, **DUPLICATE** (preset fabryczny staje się Twoim do
+  edycji), RENAME, DELETE (do kosza), IMPORT (pliki .4gp – nic nie jest nadpisywane), EXPORT.
+- **A / B**: dwa pełne brzmienia do porównania (puste B zaczyna jako kopia A), COPY A > B.
+
 ## LENGTH (moduł 14)
 - W nagłówku pod STYLE: przycisk **LENGTH: MEDIUM 450 ms** – otwiera panel długości:
   - **SHORT 180 / MEDIUM 400 / LONG 750 / X-LONG 1600** ms (zakresy ~100–250 / 250–500 / 500–1000 / 1000–2500) – ustawia LENGTH

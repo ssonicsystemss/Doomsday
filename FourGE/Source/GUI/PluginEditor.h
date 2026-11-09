@@ -22,6 +22,7 @@
 #include "SamplePage.h"
 #include "StereoPage.h"
 #include "ExportPage.h"
+#include "PresetPage.h"
 #include "Palette.h"
 
 class GeCanvas : public juce::Component, public juce::DragAndDropContainer, public juce::DragAndDropTarget, private juce::Timer
@@ -48,6 +49,8 @@ public:
     fge::gui::SamplePage& samplePage() { return *smpPg; }
     fge::gui::StereoPage& stereoPage() { return *stPg; }
     fge::gui::ExportPage& exportPage() { return *exPg; }
+    fge::gui::PresetPage& presetPage() { return *prPg; }
+    doomsday::ui::PresetBar& presets() { return presetBar; }
     int page() const { return pageIdx; }
     fge::gui::EnvPage& envelopes() { return *envPage; }
     // module 09: modulation from any knob (right-click menu, drag a source onto it), rings BASE / FINAL on modulated knobs
@@ -114,6 +117,8 @@ private:
     std::unique_ptr<fge::gui::SamplePage> smpPg;
     std::unique_ptr<fge::gui::StereoPage> stPg;
     std::unique_ptr<fge::gui::ExportPage> exPg;
+    std::unique_ptr<fge::gui::PresetPage> prPg;
+    int pageBeforePresets = 0;
     std::array<juce::TextButton, 12> pageBtn;
     juce::ComboBox styleBox;
     juce::TextButton lengthBtn;

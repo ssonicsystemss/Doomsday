@@ -3995,6 +3995,97 @@ int main (int argc, char** argv)
             }
             check (ok, "M14 GUI: LENGTH button + panel (profiles, AUTO, SYNC, FOLLOW, part lengths)");
         }
+        // PRESET BROWSER (module 15): metadata + filters, user preset actions, missing samples, favorites / recent, A / B, preview
+        {
+            auto& pp = ge->canvas.presetPage();
+            ge->canvas.presets().openBrowser();                                         // a click on the preset name
+            const bool opened = ge->canvas.page() == 12 && pp.isVisible();
+            auto& lib = pp.library(); lib.scan();
+            // 1: metadata + filters
+            const fge::lib::Entry* raw = nullptr; for (auto& e : lib.all()) if (e.name == "RAW - Buzz Saw") raw = &e;
+            pp.setFilter ({}, 2, -1, 0, {}); bool styleOk = pp.rows() > 0; for (int r = 0; r < pp.rows(); ++r) styleOk &= pp.entry (r)->style == 2;
+            pp.setFilter ({}, -1, 0, 0, {}); bool lenOk = true; for (int r = 0; r < pp.rows(); ++r) lenOk &= pp.entry (r)->lengthMs < 250.f;
+            pp.setFilter ("buzz", -1, -1, 0, {}); const bool searchOk = pp.rows() >= 1;
+            pp.setFilter ({}, -1, -1, 0, "SCREECH"); bool tagOk = true; for (int r = 0; r < pp.rows(); ++r) tagOk &= pp.entry (r)->tags.contains ("SCREECH");
+            const bool meta = raw != nullptr && raw->style == 2 && raw->tags.contains ("RAW") && raw->modules.size() >= 3 && raw->lengthMs > 900.f;
+            // 2: user preset actions (in the real user folder - names ZZTEST*, removed afterwards)
+            const File uf = p.userPresetFolder();
+            auto cleanup = [&] { for (auto& f : uf.findChildFiles (File::findFiles, false, "ZZTEST*")) f.deleteFile(); };
+            cleanup();
+            fge::style::apply (p, fge::style::Raw, false);
+            p.apvts.state.setProperty ("tags", "festival", nullptr);
+            const bool saved = p.saveUserPresetAs ("ZZTEST A");
+            lib.scan();
+            auto find = [&] (const String& n) -> const fge::lib::Entry* { for (auto& e : lib.all()) if (e.name == n) return &e; return nullptr; };
+            auto* ea = find ("ZZTEST A");
+            const bool userMeta = saved && ea != nullptr && ea->source == fge::lib::SrcUser && ea->style == fge::style::Raw && ea->tags.contains ("FESTIVAL");
+            bool acts = ea != nullptr;
+            if (acts)
+            {
+                acts &= lib.setTags (*ea, { "intro", "hard" }, "my notes"); lib.scan(); ea = find ("ZZTEST A");
+                acts &= ea != nullptr && ea->tags.contains ("INTRO") && ea->notes == "my notes";
+                const File d = lib.duplicate (*ea); lib.scan(); acts &= d.existsAsFile() && find ("ZZTEST A COPY") != nullptr;
+                String err; acts &= lib.rename (*find ("ZZTEST A COPY"), "ZZTEST B", &err); lib.scan(); acts &= find ("ZZTEST B") != nullptr && find ("ZZTEST A COPY") == nullptr;
+                acts &= ! lib.rename (*find ("ZZTEST B"), "ZZTEST A", &err);           // never over an existing one
+                const File ex = File::getSpecialLocation (File::tempDirectory).getChildFile ("ZZTEST EXPORT.4gp");
+                acts &= lib.exportTo (*find ("ZZTEST B"), ex) && ex.existsAsFile();
+                acts &= lib.import ({ ex }) == 1; lib.scan(); acts &= find ("ZZTEST EXPORT") != nullptr;
+                acts &= lib.import ({ ex }) == 1; lib.scan(); acts &= find ("ZZTEST EXPORT 2") != nullptr;   // a free name, nothing overwritten
+                const File junk = File::getSpecialLocation (File::tempDirectory).getChildFile ("ZZTEST junk.4gp"); junk.replaceWithText ("<NOPE/>");
+                StringArray probs; acts &= lib.import ({ junk }, &probs) == 0 && probs.size() == 1;
+                acts &= lib.remove (*find ("ZZTEST B")); lib.scan(); acts &= find ("ZZTEST B") == nullptr;
+                acts &= ! lib.remove (lib.all()[0]);                                    // factory presets stay
+                ex.deleteFile(); junk.deleteFile();
+                // a factory preset duplicated = an editable user preset
+                const File fd = lib.duplicate (find ("RAW - Buzz Saw") != nullptr ? *find ("RAW - Buzz Saw") : lib.all()[0]); acts &= fd.existsAsFile(); fd.deleteFile();
+            }
+            // 3: missing samples are found
+            {
+                auto xml = parseXML (uf.getChildFile ("ZZTEST A.4gp"));
+                auto* sm = xml->getChildByName ("SAMPLES") != nullptr ? xml->getChildByName ("SAMPLES") : xml->createNewChildElement ("SAMPLES"); sm->setAttribute ("s1path", "/nowhere/lost_kick.wav"); sm->setAttribute ("s1name", "lost_kick");
+                xml->writeTo (uf.getChildFile ("ZZTEST MISSING.4gp"));
+            }
+            lib.scan();
+            auto* em = find ("ZZTEST MISSING");
+            const bool missing = em != nullptr && em->missing.contains ("lost_kick.wav") && em->tags.contains ("MISSING SAMPLES");
+            // 4: recent + favorites
+            pp.setFilter ({}, -1, -1, 0, {});
+            int rowRaw = -1; for (int r = 0; r < pp.rows(); ++r) if (pp.entry (r)->name == "RAW - Buzz Saw") rowRaw = r;
+            const bool loaded = rowRaw >= 0 && pp.loadRow (rowRaw) && p.currentPresetName() == "RAW - Buzz Saw";
+            pp.setFilter ({}, -1, -1, 4, {});
+            const bool recent = pp.rows() >= 1 && pp.entry (0)->name == "RAW - Buzz Saw";
+            const bool wasFav = ge->canvas.presets().isFavourite ("RAW - Buzz Saw");
+            if (! wasFav) ge->canvas.presets().toggleFavourite ("RAW - Buzz Saw");
+            pp.setFilter ({}, -1, -1, 3, {}); bool fav = false; for (int r = 0; r < pp.rows(); ++r) fav |= pp.entry (r)->name == "RAW - Buzz Saw";
+            if (! wasFav) ge->canvas.presets().toggleFavourite ("RAW - Buzz Saw");
+            // 5: A / B
+            auto rawv = [&] (const char* id) { return p.apvts.getRawParameterValue (id)->load(); };
+            setP (p, "tail_drive", 0.2f);
+            p.abSwitch (1); setP (p, "tail_drive", 0.8f);
+            p.abSwitch (0); const bool a1 = std::abs (rawv ("tail_drive") - 0.2f) < 1e-4f;
+            p.abSwitch (1); const bool b1 = std::abs (rawv ("tail_drive") - 0.8f) < 1e-4f;
+            p.abCopyToOther(); p.abSwitch (0); const bool c1 = std::abs (rawv ("tail_drive") - 0.8f) < 1e-4f;
+            // 6: PREVIEW does not load
+            const String before = p.currentPresetName();
+            pp.setFilter ("early", -1, -1, 1, {});
+            pp.previewRow (0);
+            for (int i = 0; i < 4000 && pp.previewBusy(); ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (2); }
+            const bool preview = p.currentPresetName() == before && p.samples().previewing();
+            p.samples().stopPreview();
+            check (opened && meta && styleOk && lenOk && searchOk && tagOk && userMeta && acts && missing && loaded && recent && fav && a1 && b1 && c1 && preview,
+                   "M15 PRESET BROWSER: metadata + filters (style / length / tag / search), save / tags / duplicate / rename / delete / import / export, missing samples, recent, favorites, A / B, preview",
+                   String (opened ? "" : "open! ") + (meta ? "" : "meta! ") + (styleOk ? "" : "style! ") + (lenOk ? "" : "len! ") + (searchOk ? "" : "search! ") + (tagOk ? "" : "tag! ")
+                   + (userMeta ? "" : "user! ") + (acts ? "" : "actions! ") + (missing ? "" : "missing! ") + (loaded ? "" : "load! ") + (recent ? "" : "recent! ") + (fav ? "" : "fav! ")
+                   + (a1 && b1 && c1 ? "" : "ab! ") + (preview ? "" : "preview!"));
+            pp.setFilter ({}, -1, -1, 0, {}); pp.selectRow (1);
+            PNGImageFormat png;
+            auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os (outDir.getChildFile ("gui_presets.png"));
+            if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            cleanup();
+            p.setCurrentProgram (0);
+            ge->canvas.showPage (0);
+        }
         auto wav = ge->canvas.waveView().writeWav (outDir);
         check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());
     }

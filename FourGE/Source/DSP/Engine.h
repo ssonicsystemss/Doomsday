@@ -44,7 +44,7 @@ namespace fge
         bool keyTrack = true;
         bool startFixed = false;                  // the TOK (pitch START) at a fixed pitch (owner 2026-11-09)
         bool tokMode = false, tokFixed = true;    // PUNCH / TOK -> TAIL: the punch is the tok (its own note), the tail starts after it
-        float tokHz = 400.f, tailStartMs = 0.f;
+        float tokHz = 400.f, tailStartMs = 0.f, tokOverlapMs = 4.f;
         float startHz = 220.f, endHz0 = 49.f, startAmountSt = 0.f, tailPAmt = 1.f;
         bool wide = false;                        // TAIL UNISON + WIDTH: the left / right tail chains run too
         float width = 0.f;
@@ -107,9 +107,10 @@ namespace fge
             const uint32_t seed = 0x9e3779b9u * (uint32_t) (note + 1) + cfg.seedSalt * 0x632BE5ABu;   // module 12: SEED (0 = as always)
             punch.start (cfg.ks.part[PPunch], phases01[PPunch], seed ^ 0x1234u);
             body.start  (cfg.ks.part[PBody],  phases01[PBody],  seed ^ 0x5678u);
-            tail.start  (cfg.ks.part[PTail],  phases01[PTail],  seed ^ 0x9abcu, 0);
-            tailL.start (cfg.ks.part[PTail],  phases01[PTail],  seed ^ 0x9abcu, 1);
-            tailR.start (cfg.ks.part[PTail],  phases01[PTail],  seed ^ 0x9abcu, 2);
+            const float tph = cfg.tokMode ? phases01[PPunch] : phases01[PTail];   // TOK: the tail runs in phase with the tok (no cancellation in the crossfade)
+            tail.start  (cfg.ks.part[PTail],  tph,  seed ^ 0x9abcu, 0);
+            tailL.start (cfg.ks.part[PTail],  tph,  seed ^ 0x9abcu, 1);
+            tailR.start (cfg.ks.part[PTail],  tph,  seed ^ 0x9abcu, 2);
             sub.start   (cfg.ks.part[PSub],   phases01[PSub],   seed);
             for (auto* set : { &stAmp, &stFlt, &stDrv, &stRes })
                 for (auto& s : *set) s = {};
@@ -247,19 +248,26 @@ namespace fge
                               ext, extL, extR, bl, br, &cfg.dist, &mc, cfg.m06.any ? &cfg.m06 : nullptr, &m6c, cfg.tone.any ? &cfg.tone : nullptr, cfg.dyn.any ? &cfg.dyn : nullptr);
                     for (int k = 0; k < dsp::NumBus; ++k) { bus[6 + 2 * k][i] += bl[k] * gate; bus[7 + 2 * k][i] += br[k] * gate; }
                 }
+                // PUNCH / TOK -> BODY + TAIL: an equal-power crossfade over OVERLAP (cos out / sin in)
+                float gTok = 1.f, gIn = 1.f;
+                if (cfg.tokMode)
+                {
+                    const float x = cfg.tokOverlapMs > 0.01f ? juce::jlimit (0.f, 1.f, (ms - cfg.tailStartMs) / cfg.tokOverlapMs) : (ms >= cfg.tailStartMs ? 1.f : 0.f);
+                    gTok = std::cos (x * 1.5707963f); gIn = std::sin (x * 1.5707963f);
+                }
                 if (ms < cfg.partEnd[PPunch])
                 {
                     const float f = juce::jlimit (5.f, nyq, cfg.tokMode ? tokHz : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f));
-                    bus[PPunch][i] += punch.tick (ks.part[PPunch], ks, ms, f, amp[PPunch], mod[PPunch], ext[PPunch]) * gate;
+                    bus[PPunch][i] += punch.tick (ks.part[PPunch], ks, ms, f, amp[PPunch], mod[PPunch], ext[PPunch]) * gate * gTok;
                 }
                 if (ms < cfg.partEnd[PBody])
                 {
                     const float f = juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f));
-                    bus[PBody][i] += body.tick (ks.part[PBody], ks, f, amp[PBody], mod[PBody], ext[PBody]) * gate;
+                    bus[PBody][i] += body.tick (ks.part[PBody], ks, f, amp[PBody], mod[PBody], ext[PBody]) * gate * gIn;
                 }
                 if (ms < cfg.partEnd[PTail])
                 {
-                    float a = amp[PTail] * gate;
+                    float a = amp[PTail] * gate * gIn;
                     if (cfg.holdMs > 0.f && cfg.holdGain != 1.f)                       // TOK LEVEL, 3 ms into the drop
                         a *= cfg.holdGain + (1.f - cfg.holdGain) * juce::jlimit (0.f, 1.f, (ms - cfg.holdMs) / 3.f);
                     bus[PTail][i] += tail.tick (ks.part[PTail], ks, fTail, 1.f, mod[PTail], ext[PTail]) * a;
@@ -639,8 +647,10 @@ namespace fge
             ks.phaseReset = f.on (P::corePhaseRst);
             ks.velSens = f[P::coreVelocity];
             cfg.keyTrack = f.on (P::coreKeyTrack);
-            cfg.startFixed = f.idx (P::peStartMode) == 1;
-            cfg.startHz = f[P::peStart]; cfg.startAmountSt = f[P::peAmount]; cfg.tailPAmt = f[P::tailPAmount];
+            // PUNCH / TOK: the tail starts its drop FROM THE TOK NOTE (no pitch jump at the hand-over, owner 2026-11-10 "słychać przejście")
+            const bool tokM = f.idx (P::punchMode) == 1;
+            cfg.startFixed = tokM ? f.idx (P::punchNoteMode) == 0 : f.idx (P::peStartMode) == 1;
+            cfg.startHz = tokM ? f[P::punchPitch] : f[P::peStart]; cfg.startAmountSt = f[P::peAmount]; cfg.tailPAmt = f[P::tailPAmount];
             cfg.endHz = f[P::peEnd]; cfg.fineMul = std::exp2 (f[P::peFine] / 1200.f); cfg.subHz = f[P::subPitch];
             // global time (module 02, 9): TIME SCALE, OFFSET; SYNC = times designed at 150 BPM follow the host tempo
             const float gScale = f[P::envTimeScale], gOffset = f[P::envTimeOffset];
@@ -789,7 +799,7 @@ namespace fge
                 if (loop || steps >= 5) cfg.pitch[(size_t) p].link = Independent;
             }
             // depths: tail from START / END (+ AMOUNT), punch / body from their PITCH vs the tail at the hit, sub its own
-            cfg.pitch[PTail].depthSt = (12.f * std::log2 (juce::jmax (1.f, f[P::peStart]) / juce::jmax (1.f, f[P::peEnd])) + f[P::peAmount]) * f[P::tailPAmount];
+            cfg.pitch[PTail].depthSt = (12.f * std::log2 (juce::jmax (1.f, cfg.startHz) / juce::jmax (1.f, f[P::peEnd])) + f[P::peAmount]) * f[P::tailPAmount];
             {
                 PitchEval tmp; tmp.c = &cfg;
                 const float tail0 = f[P::peEnd] * std::exp2 (tmp.semis (PTail, 0.f) / 12.f);
@@ -804,11 +814,11 @@ namespace fge
             {
                 const float ov = f[P::punchOverlap];
                 const float t0 = juce::jmax (0.f, cfg.partEnd[PPunch] - ov);
-                cfg.tailStartMs = t0;
+                cfg.tailStartMs = t0; cfg.tokOverlapMs = ov;
                 for (int p : { (int) PBody, (int) PTail })                       // BODY and TAIL: two parts, each its own envelopes / character
                 {
                     auto& a = cfg.amp[(size_t) p];
-                    a.delayMs += t0; a.adsr.attackMs = juce::jmax (a.adsr.attackMs, ov);
+                    a.delayMs += t0;                                                 // (the hand-over itself = the equal-power crossfade in render)
                     cfg.partEnd[(size_t) p] += t0;
                     for (auto* e : { &cfg.filter[(size_t) p], &cfg.drive[(size_t) p], &cfg.reso[(size_t) p] }) e->delayMs += t0;
                     cfg.pitch[(size_t) p].offsetMs += t0;

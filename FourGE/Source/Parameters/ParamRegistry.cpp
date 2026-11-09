@@ -233,7 +233,7 @@ namespace fge
             case peStart:      return "Where the tail pitch starts (held for HOLD, then the drop to the note). Type a note (\"G4\"). The tok = PUNCH in TOK mode.";
             case punchMode:    return "TOK: the PUNCH is the tok - TRANSIENT + TOK CORE on one note for its LENGTH, then the TAIL starts (PUNCH / TOK -> TAIL). PUNCH: the classic short punch that glides into the kick, the tail from the hit.";
             case punchNoteMode:return "TOK note: FIXED = the tok plays PITCH on every MIDI note (e.g. always G); FOLLOW MIDI = it moves with the played note.";
-            case punchOverlap: return "How long the tok and the tail overlap (a short crossfade where the tail takes over).";
+            case punchOverlap: return "The hand-over TOK -> BODY + TAIL: an equal-power crossfade this long (the tail starts from the tok note, in phase). ~20 ms = no audible seam, shorter = a harder cut.";
             case punchTrLevel: return "TRANSIENT: a very short attack / click at the start of the tok (inside the PUNCH - not a separate part).";
             case punchTrLength:return "How long the transient click lasts.";
             case punchTrTone:  return "The colour of the transient click (low = thump, high = tick).";

@@ -3188,13 +3188,22 @@ int main (int argc, char** argv)
                 {
                     const String pre = "dist" + String (k + 1) + "_";
                     const bool on = raw (p, (pre + "on").toRawUTF8()) > 0.5f;
-                    if (want[st][k] < 0) { ok &= ! on; continue; }
+                    if (want[st][k] < 0) { ok &= ! on || (int) raw (p, (pre + "location").toRawUTF8()) == fge::dsp::dist::LocPunch; continue; }
                     ok &= on && (int) raw (p, (pre + "type").toRawUTF8()) == want[st][k] && (int) raw (p, (pre + "location").toRawUTF8()) == fge::dsp::dist::LocTail
                           && (int) raw (p, (pre + "order").toRawUTF8()) == k + 1;
                 }
+                // the same chain again on the PUNCH (the tok gets the tail's distortion: no timbre break at the hand-over, owner 2026-11-10)
+                int nT = 0, nP = 0; for (int k = 0; k < 3; ++k) nT += want[st][k] >= 0 ? 1 : 0;
+                for (int k = 0; k < 16; ++k)
+                {
+                    const String pre = "dist" + String (k + 1) + "_";
+                    if (raw (p, (pre + "on").toRawUTF8()) > 0.5f && (int) raw (p, (pre + "location").toRawUTF8()) == fge::dsp::dist::LocPunch
+                        && (int) raw (p, (pre + "type").toRawUTF8()) == want[st][nP % 3]) ++nP;
+                }
+                ok &= nP == nT;
                 if (! ok && bad.isEmpty()) bad << fs::names()[st] << " chain ";
             }
-            check (ok, "M13 style templates valid; distortion chains = the owner's (EARLY SOFT>TUBE, MODERN HARD>SOFT>DIGITAL, RAW ASYM>HARD>FOLD, EXP FOLD>RECT>CUSTOM)", bad);
+            check (ok, "M13 style templates valid; distortion chains = the owner's (EARLY SOFT>TUBE, MODERN HARD>SOFT>DIGITAL, RAW ASYM>HARD>FOLD, EXP FOLD>RECT>CUSTOM) on the TAIL and the TOK", bad);
         }
         // 2 + 3: a style never touches LENGTH (EARLY EXTRA LONG / MODERN SHORT), nothing outside its scope, nothing gets locked
         {

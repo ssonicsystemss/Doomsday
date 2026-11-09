@@ -61,7 +61,9 @@ Najkrótsze możliwe wejście to 0,15 ms, a wyjście 3 ms, więc nie ma klików 
   (głośność ogona w czasie HOLD – ciszej = wejście basu po toku mocniej uderza).
 - **PUNCH / TOK → BODY + TAIL** (dwa etapy kicka): w trybie **TOK** część PUNCH to tok („pup pup”) = **TRANSIENT** (bardzo krótki
   klik: TRANSIENT, TR LENGTH, TR TONE) + **TOK CORE** (źródło, nuta, długość, przester). Tok trzyma jedną nutę przez swoją LENGTH
-  (bez zjazdu), a **BODY i TAIL fizycznie zaczynają się, gdy tok się kończy** (OVERLAP = krótkie przejście) – to nie jest HOLD ogona.
+  (bez zjazdu), a **BODY i TAIL fizycznie zaczynają się, gdy tok się kończy** – to nie jest HOLD ogona. Ogon zaczyna zjazd **z nuty
+  toku**, w tej samej fazie, a **OVERLAP** (domyślnie 20 ms) to płynne przejście równej mocy – bez słyszalnego szwu; krócej = twardsze cięcie.
+  W stylach tok dostaje też ten sam łańcuch przesteru co ogon (barwa się nie łamie).
   **FIXED** = tok gra zawsze nutę z **TOK NOTE** (np. G „choćby ogon chodził w MIDI po różnych nutach”), **FOLLOW MIDI** = idzie za nutą.
   BODY i TAIL mają dalej własne obwiednie i charakter. Tryb **PUNCH** = dawny krótki punch (zjeżdża w pitch kicka, ogon od uderzenia).
 - **BODY bez „łup”**: BODY nie ma już własnego zjazdu pitchu – idzie za ogonem w stałym interwale (FOLLOW → TAIL, 0 / +7 / +12 st),

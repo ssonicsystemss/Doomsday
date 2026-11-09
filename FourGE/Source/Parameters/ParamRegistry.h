@@ -350,7 +350,7 @@ namespace fge
     /* ================= owner 2026-11-09: PUNCH / TOK -> TAIL (two parts): PUNCH = TRANSIENT + TOK CORE before the tail ================= */ \
     C (punchMode,      "punch_mode",           "Punch Mode",           punchModes, 0, FNone) \
     C (punchNoteMode,  "punch_note_mode",      "Tok Note Mode",        tokNoteModes, 0, FNone) \
-    F (punchOverlap,   "punch_overlap",        "Tok To Tail Overlap",  Unit::Ms,  0.f,  40.f,   4.f,   8.f, FNone) \
+    F (punchOverlap,   "punch_overlap",        "Tok To Tail Overlap",  Unit::Ms,  0.f,  60.f,  20.f,  15.f, FNone) \
     F (punchTrLevel,   "punch_transient",      "Tok Transient",        Unit::Pct, 0.f,   1.f,   0.f,   0.f, FMod) \
     F (punchTrLength,  "punch_transient_len",  "Tok Transient Length", Unit::Ms,  0.2f, 10.f,   1.5f,  2.f, FNone) \
     F (punchTrTone,    "punch_transient_tone", "Tok Transient Tone",   Unit::Hz,  500.f, 16000.f, 5000.f, 4000.f, FMod)

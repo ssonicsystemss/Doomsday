@@ -364,3 +364,7 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   miało własny pitch 150–190 Hz zjeżdżający na nutę (808-owy „boing”). BODY idzie teraz za ogonem w stałym interwale (FOLLOW, depth 0,
   offset 0 / 7 / 12 st), w MODERN / RAW = szum (gęstość ogona; tonalne BODY w tym miejscu dało czyste prążki = pisk). Randomizer losuje
   interwał / źródło / drive / barwę / poziom BODY z szerokimi zakresami w RAW.
+- **4GE – „słychać mocno moment przejścia z toka na tail” (owner, 2026-11-10)** – osobny PUNCH/TOK + osobny TAIL = szew: skok
+  wysokości (tok 494 Hz → ogon od 110 Hz), dwa niezależne oscylatory (faza), inna barwa (tok bez przesteru ogona), 4 ms przejścia.
+  Fix: w trybie TOK ogon zaczyna zjazd Z NUTY TOKU (`cfg.startHz = punch_pitch`), startuje w fazie z tokiem, przejście = crossfade
+  równej mocy (cos / sin) przez OVERLAP 20 ms (domyślnie), łańcuch distortion stylu także na PUNCH. Miernik `FourGE/Tools/seam.py`.

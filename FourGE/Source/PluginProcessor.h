@@ -8,6 +8,8 @@
 #include "DSP/Engine.h"
 #include "Presets/ModState.h"
 #include "Presets/SamplePool.h"
+#include "Presets/Export.h"
+#include "DSP/Meter/MasterMeter.h"
 
 namespace fge { inline constexpr const char* versionText = "0.5"; }      // keep in step with CMakeLists.txt
 
@@ -127,7 +129,19 @@ public:
     int relinkSamples (const juce::File& folder);
     // module 11: the output's stereo analyzer (GUI reads it) and MONO AUDITION (a listening switch - not saved, not a parameter)
     fge::dsp::spatial::Analyzer analyzer;
-    std::atomic<bool> monoAudition { false };                       // RELINK: find the MISSING slots' files (by name) in a folder
+    std::atomic<bool> monoAudition { false };
+    // module 12: MASTER METERS (peak / true peak / RMS / LUFS / DC), the render SEED, EXPORT (settings in the state child EXPORT)
+    fge::dsp::meter::LiveMeter meter;
+    uint32_t presetSeed() const { return (uint32_t) (juce::int64) apvts.state.getProperty ("presetSeed", 0); }
+    void setPresetSeed (uint32_t s);                                     // (undoable; the live engine plays with it)
+    fge::xp::Settings exportSettings() const { return fge::xp::Settings::fromTree (apvts.state.getChildWithName ("EXPORT")); }
+    void setExportSettings (const fge::xp::Settings&);
+    fge::dsp::xport::Snapshot exportSnapshot() const;                    // the current sound (message thread)
+    fge::dsp::xport::Snapshot exportSnapshotOfProgram (int program) const; // a factory preset, without touching the plugin
+    std::vector<fge::xp::Job> makeExportJobs (const fge::xp::Settings&, bool batch, juce::String* error = nullptr) const;
+    uint32_t seedFor (const fge::xp::Settings&, uint32_t preset) const;
+    fge::xp::History exportHistory;
+    fge::xp::Exporter exporter { exportHistory };                       // RELINK: find the MISSING slots' files (by name) in a folder
     float samplePlayPos (int slot) const { return engine.smpPosMon[(size_t) juce::jlimit (0, fge::dsp::numSampleSlots - 1, slot)].load (std::memory_order_relaxed); }
     std::function<void (int slot, const juce::String& error)> onSampleImported;   // (GUI)
     static float slotMin (int slot) { return fge::env::isBipolar (slot) ? -1.f : 0.f; }
@@ -151,7 +165,9 @@ private:
         else if (t.getType() == juce::Identifier (sampleTag)) samplePool.syncFromState (t);
         else rebuildShapes();
     }
-    void timerCallback() override { refreshTables(); serviceMidi(); samplePool.collectGarbage(); }
+    void timerCallback() override { refreshTables(); serviceMidi(); samplePool.collectGarbage(); seedWanted.store (presetSeed()); }
+    std::atomic<uint32_t> seedWanted { 0 };
+    std::atomic<double> lastHostBpm { 0.0 };
     void rebuildOscData();
     void rebuildDistData();
     void rebuildModData();

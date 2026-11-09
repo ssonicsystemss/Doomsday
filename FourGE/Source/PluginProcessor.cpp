@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include <set>
 #include "Presets/VariantRandomizer.h"
 #include "GUI/PluginEditor.h"
 #include "Presets/FactoryPresets.h"
@@ -56,6 +57,8 @@ void GeProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     refreshTables();
     engine.prepare (sampleRate, samplesPerBlock);
     samplePool.setTargetRate (sampleRate * Engine::osFactor);
+    meter.prepare (sampleRate);
+    seedWanted.store (presetSeed());
     engine.cookOnly (frame());
     setLatencySamples (engine.latencySamples());
 }
@@ -71,6 +74,7 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     double bpm = 0.0;                                      // no tempo from the host = LOCAL BPM (MODULE02 GLOBAL SYNC)
     if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) if (auto hb = pos->getBpm()) bpm = *hb;
     engine.setHostBpm (bpm);
+    lastHostBpm.store (bpm);
     engine.setBank (&bankX.front());
     engine.setTables (&tablesX.front());
     engine.setDistData (&distX.front());
@@ -94,7 +98,9 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
         if (learnTarget.load() >= 0) learnedCc.store (m.getControllerNumber());
         for (int i = 0; i < 12; ++i) if (macroCc[(size_t) i].load() == m.getControllerNumber()) macroPending[(size_t) i].store ((float) m.getControllerValue() / 127.f);
     }
+    if (const auto sd = seedWanted.load (std::memory_order_relaxed); sd != engine.seed()) engine.setSeed (sd);   // module 12: the preset SEED
     engine.process (buffer, midi, f);
+    meter.push (buffer.getReadPointer (0), buffer.getNumChannels() > 1 ? buffer.getReadPointer (1) : nullptr, buffer.getNumSamples());   // module 12: MASTER METERS
     samplePool.audioClock.fetch_add (buffer.getNumSamples());
     samplePool.mixPreview (buffer);                                     // the browser's PREVIEW (not a slot)
     // module 11: the stereo analyzer sees the real output; MONO AUDITION only changes what you hear (never the preset)
@@ -412,6 +418,8 @@ void GeProcessor::setCurrentProgram (int i)
     if (oscs.isValid()) { apvts.state.removeChild (oscs, nullptr); rebuildOscData(); }
     auto dd = apvts.state.getChildWithName (distTag);
     if (dd.isValid()) { apvts.state.removeChild (dd, nullptr); rebuildDistData(); }
+    apvts.state.removeProperty ("presetSeed", nullptr);                            // module 12: a factory preset plays with seed 0
+    seedWanted.store (0);
     auto sm = apvts.state.getChildWithName (sampleTag);                           // module 10: a factory preset has no samples
     if (sm.isValid()) apvts.state.removeChild (sm, nullptr);
     auto mm = apvts.state.getChildWithName (modTag);                              // module 09: the default macro mapping
@@ -480,3 +488,99 @@ void GeProcessor::randomizeSound() { fge::variant::randomize (*this); }      // 
 
 AudioProcessorEditor* GeProcessor::createEditor() { return new GeEditor (*this); }
 AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new GeProcessor(); }
+
+// ------------------------------------------------------------ module 12: SEED + EXPORT (message thread; the renders run on the exporter thread)
+void GeProcessor::setPresetSeed (uint32_t sd)
+{
+    undo.beginNewTransaction ("Seed");
+    apvts.state.setProperty ("presetSeed", (juce::int64) sd, &undo);
+    seedWanted.store (sd);
+}
+void GeProcessor::setExportSettings (const fge::xp::Settings& s)
+{
+    auto t = apvts.state.getChildWithName ("EXPORT");
+    if (! t.isValid()) { t = ValueTree ("EXPORT"); apvts.state.appendChild (t, nullptr); }
+    s.toTree (t);                                                       // (export settings are not part of UNDO)
+}
+fge::dsp::xport::Snapshot GeProcessor::exportSnapshot() const
+{
+    fge::dsp::xport::Snapshot s;
+    s.f = frame();
+    *s.shapes = shapes();
+    *s.dist = distData();
+    *s.osc = oscData();
+    if (modResolved.active > 0) s.mod = std::make_shared<fge::dsp::mod::Data> (modResolved);
+    for (int k = 0; k < fge::dsp::numSampleSlots; ++k) s.samples[(size_t) k] = samplePool.data (k);
+    s.presetName = presetName;
+    s.presetSeed = presetSeed();
+    return s;
+}
+fge::dsp::xport::Snapshot GeProcessor::exportSnapshotOfProgram (int program) const
+{
+    auto tmp = std::make_unique<GeProcessor>();
+    tmp->setCurrentProgram (program);
+    auto s = tmp->exportSnapshot();
+    s.mod = tmp->modResolved.active > 0 ? std::make_shared<fge::dsp::mod::Data> (tmp->modResolved) : nullptr;
+    return s;
+}
+uint32_t GeProcessor::seedFor (const fge::xp::Settings& s, uint32_t preset) const
+{
+    switch (s.seedMode)
+    {
+        case fge::xp::SeedFixed: return 0u;
+        case fge::xp::SeedNew: return (uint32_t) Random::getSystemRandom().nextInt (0x7fffffff) | 1u;
+        case fge::xp::SeedCustom: return s.customSeed;
+        default: return preset;
+    }
+}
+std::vector<fge::xp::Job> GeProcessor::makeExportJobs (const fge::xp::Settings& s, bool batch, String* error) const
+{
+    using namespace fge::xp;
+    std::vector<Job> jobs;
+    const double rate = rateOf (s.rate, getSampleRate());
+    const File root = s.folderFile();
+    std::vector<Snapshot> snaps;
+    if (batch && s.batchPresets == 1) for (int p = 0; p < (int) factoryPresets().size(); ++p) { snaps.push_back (exportSnapshotOfProgram (p)); }
+    else snaps.push_back (exportSnapshot());
+    std::vector<int> sources;
+    if (batch) { for (int i = 0; i < 7; ++i) if (s.batchSources >> i & 1u) sources.push_back (i); }
+    else sources.push_back (s.source);
+    if (sources.empty()) { if (error) *error = "choose at least one source"; return jobs; }
+    std::set<String> used;
+    int kickNo = 0;
+    for (auto& snap : snaps)
+    {
+        ++kickNo;
+        for (int v = 1; v <= (batch ? s.batchVariants : 1); ++v)
+        {
+            const uint32_t seed = batch && v > 1 ? seedFor (s, snap.presetSeed) + (uint32_t) (v - 1) * 7919u : seedFor (s, snap.presetSeed);
+            for (int src : sources)
+            {
+                Job j; j.snap = snap; j.set = s; j.presetName = snap.presetName;
+                const auto [source, index] = sourceOf (src);
+                j.spec.source = source; j.spec.index = index; j.spec.note = auditionNote; j.spec.rate = rate;
+                j.spec.bpm = lastHostBpm.load() > 0.0 ? lastHostBpm.load() : (double) snap.f[P::envLocalBpm];
+                j.spec.lengthMode = s.lengthMode; j.spec.fixedMs = s.fixedMs; j.spec.preRollMs = s.preRollMs; j.spec.postRollMs = s.postRollMs;
+                j.spec.silenceDb = s.silenceDb; j.spec.minSilenceMs = s.minSilenceMs; j.spec.maxMs = s.maxMs; j.spec.trim = s.trim; j.spec.seed = seed;
+                j.sourceLabel = sourceNames()[src];
+                NameParts np; np.preset = snap.presetName; np.group = src == 0 ? String ("FULL") : sourceNames()[src].upToFirstOccurrenceOf (" GROUP", false, false);
+                np.note = auditionNote; np.bpm = j.spec.bpm; np.variant = v; np.seed = seed;
+                File dir = root;
+                if (batch)   // 4GE_EXPORT / <STYLE> / KICK_nn (_Vv) / KICK_<GROUP>.wav
+                    dir = root.getChildFile (File::createLegalFileName (styleOf (snap.presetName)))
+                              .getChildFile ("KICK_" + String (kickNo).paddedLeft ('0', 2) + (s.batchVariants > 1 ? "_V" + String (v).paddedLeft ('0', 2) : String()));
+                for (int ver = 1; ver < 1000; ++ver)                         // a free VERSION (no silent overwrite)
+                {
+                    np.version = ver;
+                    const String name = batch ? "KICK_" + np.group.replaceCharacter (' ', '_') : makeName (s.nameTemplate, np, s.replaceSharp);
+                    const File f = dir.getChildFile (name + extOf (s.format));
+                    if (s.overwrite || (! f.exists() && ! used.count (f.getFullPathName()))) { j.target = f; break; }
+                    if (batch) { j.target = f; break; }                      // (batch: an existing file is reported, never replaced without OVERWRITE)
+                }
+                used.insert (j.target.getFullPathName());
+                jobs.push_back (std::move (j));
+            }
+        }
+    }
+    return jobs;
+}

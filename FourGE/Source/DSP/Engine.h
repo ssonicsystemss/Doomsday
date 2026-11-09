@@ -54,6 +54,8 @@ namespace fge
         dsp::tone::Bank tone;                     // module 07: EQ / dynamic EQ / multiband / spectral / stereo per place
         dsp::dyn::Bank dyn;                       // module 08: compressors / transient shapers / clippers / limiters / crest per place
         dsp::spatial::Bank spc;                   // module 11: the stereo unit of each group + the master
+        uint32_t seedSalt = 0;                    // module 12: the render seed (0 = the preset's own randomness)
+        bool masterMute = false, masterBypass = false, outMono = false, safetyClip = false, safetyLim = false;   // module 12: MASTER OUTPUT
         dsp::scr::Settings scr;                   // module 06: the screech
         bool lbAny = false;
         float lbEndMs = 0.f;                      // when the last layer / noise / click ends       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
@@ -95,7 +97,7 @@ namespace fge
             srcAmp = {}; srcPitch = 1.f; srcFilt = 0.f;
             active = true; t = 0.0; age = order; vel = velocityGain; fade = 1.f; fadeStep = 0.f; held = true; ctl = 0; relAtMs = -1.f;
             noteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f);
-            const uint32_t seed = 0x9e3779b9u * (uint32_t) (note + 1);
+            const uint32_t seed = 0x9e3779b9u * (uint32_t) (note + 1) + cfg.seedSalt * 0x632BE5ABu;   // module 12: SEED (0 = as always)
             punch.start (cfg.ks.part[PPunch], phases01[PPunch], seed ^ 0x1234u);
             body.start  (cfg.ks.part[PBody],  phases01[PBody],  seed ^ 0x5678u);
             tail.start  (cfg.ks.part[PTail],  phases01[PTail],  seed ^ 0x9abcu, 0);
@@ -332,6 +334,8 @@ namespace fge
             distTables.allocate();
             for (auto& ch : distChain) ch.reset();
             m06St->reset(); scrEng.reset(); toneSt->reset(); dynSt->reset();
+            limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
+            muteG = 1.f;
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -361,6 +365,11 @@ namespace fge
         {
             if (d != modData || (d != nullptr && d->version != modVersion)) { modData = d; modVersion = d != nullptr ? d->version : 0; if (d != nullptr) modEng.scan (*d); }
         }
+        // module 12: the render SEED (0 = the preset's own randomness; the same seed = the same kick) and the export source
+        void setSeed (uint32_t s) { cfg.seedSalt = s; modEng.salt = s; }
+        uint32_t seed() const { return cfg.seedSalt; }
+        void setExportKeep (uint32_t core, uint32_t buses) { keepCore = core; keepBus = buses; }
+        std::atomic<bool> safetyActive { false };                            // (GUI: the safety limiter is reducing)
         using SamplePtrs = std::array<std::atomic<const dsp::SampleData*>, dsp::numSampleSlots>;
         void setSamples (const SamplePtrs* p) { samplePtrs = p; }           // module 10 (the owner keeps every published sample alive)
         void setHostPos (double ppq, bool playing, int barBeats = 4) { hostPpq = ppq; hostPlaying = playing; hostBar = juce::jmax (1, barBeats); }
@@ -423,7 +432,7 @@ namespace fge
             for (auto& v : voices) if (! v.isActive()) { slot = &v; break; }
             if (slot == nullptr) { slot = &voices[0]; for (auto& v : voices) if (v.order() < slot->order()) slot = &v; }
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
-            slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter);
+            slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
             sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
@@ -432,7 +441,7 @@ namespace fge
                 const auto& ks = cfg.ks;
                 const auto t = dsp::scr::resolve (cfg.scr, cfg.partEnd[dsp::PBody], ks.part[dsp::PBody].env.lengthMs, cfg.amp[dsp::PTail].delayMs,
                                                   ks.part[dsp::PTail].env.lengthMs, ks.lengthMs, tempo());
-                scrEng.trigger (cfg.scr, t, 0x51f15eedu ^ (uint32_t) counter, cfg.ks.rate);
+                scrEng.trigger (cfg.scr, t, (0x51f15eedu ^ (uint32_t) counter) + cfg.seedSalt * 0x632BE5ABu, cfg.ks.rate);
                 scrTiming = t;
             }
             hits.fetch_add (1);
@@ -759,7 +768,9 @@ namespace fge
                 gainTarget[(size_t) i] = { g * std::cos (a) * 1.41421356f, g * std::sin (a) * 1.41421356f };   // centre = unity
             }
             masterTarget = f[P::coreMaster] <= -59.9f ? 0.f : db (f[P::coreMaster]);
-            if (first) { gainNow = gainTarget; masterNow = masterTarget; first = false; }
+            cfg.masterMute = f.on (P::masterMute); cfg.masterBypass = f.on (P::masterBypass); cfg.outMono = f.idx (P::masterOutMode) == 1;   // module 12
+            cfg.safetyClip = f.on (P::masterSafeClip); cfg.safetyLim = f.on (P::masterSafeLim);
+            if (first) { gainNow = gainTarget; masterNow = masterTarget; muteG = cfg.masterMute ? 0.f : 1.f; first = false; }
         }
 
         // module 03: oscillator parameters -> cooked settings (shared with the GUI previews)
@@ -832,6 +843,12 @@ namespace fge
             for (int l = 0; l < 6; ++l) distOn[(size_t) l] = cfg.dist.count[(size_t) l] > 0;
             if (modData != nullptr && modEng.uses (dsp::mod::SFollower)) follow (b, on);   // module 09: the AUDIO FOLLOWER (the raw part buses)
             if (! inside) scrAny = renderScreech (b, on);
+            if (keepCore != 0xF || keepBus != 0x7F)                           // module 12: export of one group / layer
+            {
+                for (int c = 0; c < 4; ++c) if (! (keepCore >> c & 1u)) juce::FloatVectorOperations::clear (b[c], on);
+                if (! (keepCore >> 2 & 1u)) { juce::FloatVectorOperations::clear (b[4], on); juce::FloatVectorOperations::clear (b[5], on); }
+                for (int k = 0; k < 7; ++k) if (! (keepBus >> k & 1u)) { juce::FloatVectorOperations::clear (b[6 + 2 * k], on); juce::FloatVectorOperations::clear (b[7 + 2 * k], on); }
+            }
             const bool busAny = cfg.lbAny || scrAny;
             const bool m6 = cfg.m06.any, m7 = cfg.tone.any, m8 = cfg.dyn.any;
             clockSec += (double) n / sr;
@@ -875,7 +892,7 @@ namespace fge
                     if (cfg.dist.globalPos == 0) globalChain (L, R, on);                                  // GLOBAL, before the clip (sub clean)
                     shaper.process (cfg.lb.shaper, L, R, on);
                 }
-                if (c == 3 && cfg.clipG > 1.0001f)
+                if (c == 3 && cfg.clipG > 1.0001f && ! cfg.masterBypass)
                 {
                     for (int i = 0; i < on; ++i) { L[i] = doomsday::kick::masterClip (L[i], cfg.clipG, cfg.clipSoft); R[i] = doomsday::kick::masterClip (R[i], cfg.clipG, cfg.clipSoft); }
                 }
@@ -922,7 +939,7 @@ namespace fge
             if (cfg.dist.globalPos == 1) globalChain (L, R, on);                                       // GLOBAL, after the clip (with the sub)
             if (busAny)                                                      // the MASTER bus: after the clip
                 for (int i = 0; i < on; ++i) { L[i] += b[6 + 2 * dsp::BusMaster][i]; R[i] += b[7 + 2 * dsp::BusMaster][i]; }
-            if (cfg.spc.t[dsp::spatial::TMaster].on)                          // module 11: MASTER STEREO (before the output dynamics)
+            if (cfg.spc.t[dsp::spatial::TMaster].on && ! cfg.masterBypass)    // module 11: MASTER STEREO (before the output dynamics)
                 for (int i = 0; i < on; ++i) (*spcUnits)[dsp::spatial::TMaster].process (cfg.spc.t[dsp::spatial::TMaster], L[i], R[i]);
             sinceHitOs += on; sinceHitMs = msAt (0);          // (a sample counter: the same at any block size)
             os->processSamplesDown (blk);
@@ -935,11 +952,29 @@ namespace fge
             {
                 const float m = m0 + (m1 - m0) * (float) (i + 1) * invN;
                 float yl = dcL.tick (sl[i], r) * m, yr = dcR.tick (sr2[i], r) * m;
-                if (cfg.dyn.any && cfg.dyn.at (dsp::dyn::LMaster, 1))           // module 08 at MASTER OUTPUT (host rate, lookahead)
+                if (cfg.dyn.any && cfg.dyn.at (dsp::dyn::LMaster, 1) && ! cfg.masterBypass)   // module 08 at MASTER OUTPUT (host rate, lookahead)
                 {
                     dsp::m06::Ctx cx = m6Ctx (0); cx.ms = msAt (i * osFactor);
                     dynSt->process (cfg.dyn, dsp::dyn::LMaster, 1, yl, yr, cx, nullptr, sr);
                 }
+                // module 12: OUTPUT MODE, the optional SAFETY CLIP / LIMITER (off by default, never switched on by themselves), MUTE
+                if (cfg.outMono) yl = yr = 0.5f * (yl + yr);
+                if (! cfg.masterBypass)
+                {
+                    if (cfg.safetyClip) { yl = safeClip (yl); yr = safeClip (yr); }
+                    if (cfg.safetyLim)
+                    {
+                        const float pk = juce::jmax (std::abs (yl), std::abs (yr));
+                        const float want = pk > 0.977f ? 0.977f / pk : 1.f;             // -0.2 dBFS, instant attack (no lookahead), 80 ms release
+                        limG = want < limG ? want : limG + limRel * (1.f - limG);
+                        yl *= limG; yr *= limG;
+                        if (limG < 0.999f) safetyActive.store (true, std::memory_order_relaxed);
+                    }
+                    else limG = 1.f;
+                }
+                const float muteT = cfg.masterMute ? 0.f : 1.f;
+                muteG = muteG < muteT ? juce::jmin (muteT, muteG + muteStep) : juce::jmax (muteT, muteG - muteStep);
+                if (muteG < 1.f) { yl *= muteG; yr *= muteG; }
                 out.setSample (0, start + i, yl);
                 if (out.getNumChannels() > 1) out.setSample (1, start + i, yr);
                 opk = juce::jmax (opk, std::abs (yl), std::abs (yr));
@@ -1102,6 +1137,10 @@ namespace fge
         std::array<std::pair<float, float>, dsp::NumParts> gainNow {}, gainTarget {};
         std::array<float, dsp::NumParts> freePhase {};
         float masterNow = 0.f, masterTarget = 1.f;
+        float limG = 1.f, limRel = 0.001f, muteG = 1.f, muteStep = 0.01f;   // module 12
+        static float safeClip (float x) { const float a = std::abs (x); if (a <= 0.9f) return x; return std::copysign (0.9f + 0.1f * std::tanh ((a - 0.9f) / 0.1f), x); }
+        // module 12: what an export of one group / layer keeps (the engine renders everything, the rest is silenced at the buses)
+        uint32_t keepCore = 0xF, keepBus = 0x7F;
         bool first = true;
         dsp::DcBlock dcL, dcR;
         doomsday::dsp::Svf wl1, wl2, wh1, wh2, wr1, wr2;

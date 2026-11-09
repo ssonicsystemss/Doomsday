@@ -180,6 +180,8 @@ namespace fge::dsp::mod
     class Engine
     {
     public:
+        uint32_t salt = 0;                                 // module 12: the render SEED (0 = the preset as it always was)
+    
         void reset (double hostRate)
         {
             rate = hostRate;
@@ -239,7 +241,7 @@ namespace fge::dsp::mod
                 else ph = L.phase;
                 const double p = std::fmod (ph + m[P::lfo1Phase + o] / 360.0, 1.0);
                 const float pw = m[P::lfo1Pw + o];
-                const uint32_t seed = 0xA5u + (uint32_t) i * 977u;
+                const uint32_t seed = 0xA5u + (uint32_t) i * 977u + salt * 0x632BE5ABu;
                 float v;
                 switch (wave)
                 {
@@ -275,7 +277,7 @@ namespace fge::dsp::mod
                 const int o = i * (P::rnd2Mode - P::rnd1Mode);
                 if (! used[(size_t) (SRnd1 + i)]) { srcVal[(size_t) (SRnd1 + i)] = 0.f; continue; }
                 auto& R = rnd[(size_t) i];
-                const uint32_t seed = (uint32_t) std::lround (m[P::rnd1Seed + o]) * 2654435761u + (uint32_t) i;
+                const uint32_t seed = (uint32_t) std::lround (m[P::rnd1Seed + o]) * 2654435761u + (uint32_t) i + salt * 0x632BE5ABu;
                 float target = R.target;
                 switch (m.idx (P::rnd1Mode + o))
                 {
@@ -423,7 +425,7 @@ namespace fge::dsp::mod
             // swing: every second step starts later; humanize: a small fixed (seeded) shift per step
             int64_t k = (int64_t) std::floor (steps);
             double u = steps - (double) k;
-            const double sw = m[P::seqSwing] * 0.5, hu = m[P::seqHuman] * 0.15 * hashNoise ((uint32_t) m[P::seqSeed] + 77u, (uint32_t) k);
+            const double sw = m[P::seqSwing] * 0.5, hu = m[P::seqHuman] * 0.15 * hashNoise (((uint32_t) m[P::seqSeed] + salt * 0x632BE5ABu) + 77u, (uint32_t) k);
             const double startAt = ((k & 1) ? sw : 0.0) + hu;
             if (u < startAt) { --k; u = u + 1.0 - (((k & 1) ? sw : 0.0)); }
             else u = (u - startAt) / juce::jmax (0.05, 1.0 - startAt);
@@ -435,12 +437,12 @@ namespace fge::dsp::mod
                 {
                     case 1:  return (int) (L - 1 - ((c % L) + L) % L);
                     case 2:  { if (L == 1) return 0; const int64_t per = 2 * L - 2, q = ((c % per) + per) % per; return (int) (q < L ? q : per - q); }
-                    case 3:  return (int) ((uint32_t) (0.5f * (hashNoise ((uint32_t) m[P::seqSeed], (uint32_t) c) + 1.f) * (float) L) % (uint32_t) L);
+                    case 3:  return (int) ((uint32_t) (0.5f * (hashNoise (((uint32_t) m[P::seqSeed] + salt * 0x632BE5ABu), (uint32_t) c) + 1.f) * (float) L) % (uint32_t) L);
                     case 4:  { const int64_t q = ((c % L) + L) % L, half = (L + 1) / 2; return (int) (q < half ? 2 * q : 2 * (q - half) + 1); }
                     default: return (int) (((c % L) + L) % L);
                 }
             };
-            auto plays = [&] (int64_t c, int idx) { const auto& st = d.step[(size_t) idx]; return st.prob >= 0.999f || 0.5f * (hashNoise ((uint32_t) m[P::seqSeed] + 31u, (uint32_t) c) + 1.f) < st.prob; };
+            auto plays = [&] (int64_t c, int idx) { const auto& st = d.step[(size_t) idx]; return st.prob >= 0.999f || 0.5f * (hashNoise (((uint32_t) m[P::seqSeed] + salt * 0x632BE5ABu) + 31u, (uint32_t) c) + 1.f) < st.prob; };
             auto valueOf = [&] (int idx) { const auto& st = d.step[(size_t) idx]; if (st.mute) return 0.f;
                                            float v = st.value; if (st.accent) v += (v < 0.f ? -1.f : 1.f) * m[P::seqAccent]; return juce::jlimit (-1.f, 1.f, v); };
             const int idx = stepAt (k);

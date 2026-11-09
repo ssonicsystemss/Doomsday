@@ -21,6 +21,7 @@
 #include "ModPage.h"
 #include "SamplePage.h"
 #include "StereoPage.h"
+#include "ExportPage.h"
 #include "Palette.h"
 
 class GeCanvas : public juce::Component, public juce::DragAndDropContainer, public juce::DragAndDropTarget, private juce::Timer
@@ -46,6 +47,7 @@ public:
     fge::gui::ModPage& modPage() { return *modPg; }
     fge::gui::SamplePage& samplePage() { return *smpPg; }
     fge::gui::StereoPage& stereoPage() { return *stPg; }
+    fge::gui::ExportPage& exportPage() { return *exPg; }
     int page() const { return pageIdx; }
     fge::gui::EnvPage& envelopes() { return *envPage; }
     // module 09: modulation from any knob (right-click menu, drag a source onto it), rings BASE / FINAL on modulated knobs
@@ -103,7 +105,8 @@ private:
     std::unique_ptr<fge::gui::ModPage> modPg;
     std::unique_ptr<fge::gui::SamplePage> smpPg;
     std::unique_ptr<fge::gui::StereoPage> stPg;
-    std::array<juce::TextButton, 11> pageBtn;
+    std::unique_ptr<fge::gui::ExportPage> exPg;
+    std::array<juce::TextButton, 12> pageBtn;
     std::array<float, 4> meter {};
     float outMeter = 0.f;
 };

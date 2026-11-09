@@ -114,8 +114,10 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     addChildComponent (*smpPg);
     stPg = std::make_unique<fge::gui::StereoPage> (proc, lnf);
     addChildComponent (*stPg);
-    const char* pages[11] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ", "DYN", "MOD", "SMP", "STEREO" };
-    for (int i = 0; i < 11; ++i)
+    exPg = std::make_unique<fge::gui::ExportPage> (proc, lnf);
+    addChildComponent (*exPg);
+    const char* pages[12] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ", "DYN", "MOD", "SMP", "STEREO", "EXPORT" };
+    for (int i = 0; i < 12; ++i)
     {
         pageBtn[(size_t) i].setButtonText (pages[i]);
         pageBtn[(size_t) i].onClick = [this, i] { showPage (i); };
@@ -130,6 +132,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     pageBtn[5].setTooltip ("Filters (8), resonators (2) and the SCREECH engine: synthesised screeches with their own envelopes and timing.");
     pageBtn[6].setTooltip ("EQ (16 bands), dynamic EQ, multiband, spectral shaper and stereo engine - on the whole kick, a part, the texture, a layer or the screech.");
     pageBtn[8].setTooltip ("Modulation: the matrix (64 slots), LFO 1-8, the step sequencer, random sources and the MACRO MAPPING of the 8 MASTER MACROS.");
+    pageBtn[11].setTooltip ("Master output (level, mute, mono, safety), master meters (peak, true peak, RMS, LUFS, DC) and EXPORT: WAV / AIFF / FLAC, groups / layers, length, normalization, seeds, batch, history.");
     pageBtn[10].setTooltip ("Stereo & space: PAN / BALANCE / WIDTH (M/S, decorrelation, Haas), low mono, M/S, polarity, channel delay per group and on the master; SUB MONO LOCK, MONO AUDITION, vector scope and correlation.");
     pageBtn[9].setTooltip ("Samples: 8 slots (WAV / AIFF / FLAC), the waveform editor (start / end / loop / fades / reverse), the browser - each slot is one more layer of the kick.");
     pageBtn[7].setTooltip ("Dynamics: 4 compressors, 5 transient shapers, 2 clippers, 2 limiters, crest factor control, auto gain - where the punch and the loudness are made.");
@@ -176,7 +179,7 @@ void GeCanvas::selectPart (int i)
 
 void GeCanvas::showPage (int i)
 {
-    pageIdx = jlimit (0, 10, i);
+    pageIdx = jlimit (0, 11, i);
     const bool main = pageIdx == 0;
     for (int p = 0; p < 4; ++p)
     {
@@ -195,10 +198,11 @@ void GeCanvas::showPage (int i)
     modPg->setVisible (pageIdx == 8);
     smpPg->setVisible (pageIdx == 9);
     stPg->setVisible (pageIdx == 10);
+    exPg->setVisible (pageIdx == 11);
     wave.setVisible (pageIdx < 2);
     for (auto* m : macroRow) m->setVisible (pageIdx < 2);
     const auto& c = palette();
-    for (int k = 0; k < 11; ++k)
+    for (int k = 0; k < 12; ++k)
     {
         pageBtn[(size_t) k].setColour (TextButton::buttonColourId, k == pageIdx ? c.red : c.control);
         pageBtn[(size_t) k].setColour (TextButton::textColourOffId, k == pageIdx ? c.ground : c.silver);
@@ -227,6 +231,7 @@ void GeCanvas::resized()
     const int order[10] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     for (int k = 0; k < 10; ++k) pageBtn[(size_t) order[k]].setBounds (gx + (k % 5) * gs, 40 + (k / 5) * 30, gw, 26);
     pageBtn[10].setBounds (gx + 2 * gs, 8, gw + gs, 26);
+    pageBtn[11].setBounds (gx + 4 * gs, 8, gw, 26);
     // pitch engine
     pitchArea = { 16, 104, W - 32, 84 };
     pitchRow[0]->setBounds (pitchArea.getX() + 14, pitchArea.getY() + 40, 520, 28);
@@ -273,6 +278,7 @@ void GeCanvas::resized()
     if (modPg != nullptr) modPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (smpPg != nullptr) smpPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (stPg != nullptr) stPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
+    if (exPg != nullptr) exPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (scrPage != nullptr) scrPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
 }
 

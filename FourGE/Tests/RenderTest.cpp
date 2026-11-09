@@ -911,6 +911,8 @@ int main (int argc, char** argv)
                     if (k == "deviation") set2 (o + "mode", 4.f);
                 }
                 if (sid == "mod_movement") route (mo::SLfo1);
+                if (sid == "master_bypass") set2 ("master_clip_drive", 9.f);                       // module 12: something on the master to bypass
+                if (sid == "master_safety_clip" || sid == "master_safety_limiter") set2 ("core_master", 6.f);
                 if (sid == "group_sub_pan" || sid == "group_sub_width") set2 ("spc_sub_mono_lock", 0.f);   // (SUB MONO LOCK keeps the SUB group centred on purpose)
                 if (sid.startsWith ("spc_"))                                                        // module 11: a stereo source in that group, the unit ON
                 {
@@ -2829,6 +2831,184 @@ int main (int argc, char** argv)
             check (c1 < c0 + 0.08, "M11 CPU with all 7 stereo units", String (100.0 * c0, 1) + " % -> " + String (100.0 * c1, 1) + " %");
         }
     }
+    // ---------------------------------------------------------------- module 12: master output & export (MODULE12.md 17)
+    {
+        using namespace fge::xp;
+        const File dir = File::getSpecialLocation (File::tempDirectory).getChildFile ("fge_m12_" + String (Time::currentTimeMillis())); dir.deleteRecursively(); dir.createDirectory();
+        fge::xp::History hist (dir.getChildFile ("history.json"));
+        auto settings = [&] { Settings s; s.folder = dir.getFullPathName(); s.lengthMode = LenFixed; s.fixedMs = 500.f; return s; };
+        auto one = [&] (GeProcessor& p, const Settings& s, juce::AudioBuffer<float>* audio = nullptr)
+        {
+            auto jobs = p.makeExportJobs (s, false);
+            return jobs.empty() ? JobResult() : fge::xp::process (jobs[0], nullptr, nullptr, true, audio);
+        };
+        auto reader = [] (const File& f) { AudioFormatManager fm; fm.registerBasicFormats(); return std::unique_ptr<AudioFormatReader> (fm.createReaderFor (f)); };
+        // 1 + 2 + 3: header, bit depth, rate (WAV 16 / 24 / 32 float, 44.1 / 48 / 96 kHz; AIFF and FLAC too), the pitch survives the rate
+        {
+            GeProcessor p; bool ok = true; String info;
+            const int bitsIdx[3] { 0, 1, 2 }; const int rates[3] { 1, 2, 4 };
+            for (int k = 0; k < 3; ++k)
+            {
+                Settings s = settings(); s.bits = bitsIdx[k]; s.rate = rates[k];
+                const auto r = one (p, s);
+                auto rd = r.ok ? reader (r.file) : nullptr;
+                const double want = rateOf (rates[k], 44100.0);
+                const bool good = rd != nullptr && (int) rd->bitsPerSample == bitsOf (bitsIdx[k]) && std::abs (rd->sampleRate - want) < 0.5 && rd->numChannels == 2
+                                  && rd->lengthInSamples == (int64) (0.5 * want) && rd->usesFloatingPointData == (k == 2) && r.file.hasFileExtension ("wav");
+                double hz = 0;
+                if (rd != nullptr) { AudioBuffer<float> b ((int) rd->numChannels, (int) rd->lengthInSamples); rd->read (&b, 0, b.getNumSamples(), 0, true, true); hz = pitchAt (b, want, 0.25, 0.15); if (hz <= 0) info << "[rms " << rms (b, (int) (0.25 * want), (int) (0.15 * want)) << "] "; }
+                ok &= good && std::abs (hz - 49.0) < 1.5;
+                info << bitsOf (bitsIdx[k]) << "bit/" << String (want / 1000.0, 1) << "k " << String (hz, 1) << " Hz  ";
+                if (! good) info << "(" << r.error << ") ";
+            }
+            for (int fmt : { FmtAiff, FmtFlac })
+            {
+                Settings s = settings(); s.format = fmt; const auto r = one (p, s); auto rd = r.ok ? reader (r.file) : nullptr;
+                const bool g2 = rd != nullptr && (int) rd->bitsPerSample == 24 && rd->numChannels == 2 && r.file.hasFileExtension (fmt == FmtAiff ? "aif" : "flac");
+                if (! g2) info << "[fmt " << fmt << " " << r.error << " " << (rd != nullptr ? (int) rd->bitsPerSample : -1) << "] ";
+                ok &= g2;
+            }
+            check (ok, "M12 WAV / AIFF / FLAC: header, bit depth (16 / 24 / 32 float) and sample rate as set, pitch kept", info);
+        }
+        // 4: stereo and mono export
+        {
+            GeProcessor p; setP (p, "layer1_on", 1); setP (p, "layer1_group", 2); setP (p, "layer1_pan", -0.8f); setP (p, "layer1_source", 2);
+            AudioBuffer<float> st, mo;
+            const auto a = one (p, settings(), &st);
+            setP (p, "master_output_mode", 1); const auto b = one (p, settings(), &mo);
+            auto ra = reader (a.file), rb = reader (b.file);
+            double side = 0; for (int i = 0; i < st.getNumSamples(); ++i) side += std::abs (st.getSample (0, i) - st.getSample (1, i));
+            check (ra != nullptr && rb != nullptr && ra->numChannels == 2 && rb->numChannels == 1 && side > 1.0, "M12 stereo export = 2 channels (L != R), OUTPUT MODE MONO = 1 channel");
+        }
+        // 5: dither only when wanted and when it makes sense (16 / 24-bit integer), never on 32-bit float
+        {
+            GeProcessor p; Settings s = settings(); s.preRollMs = 50.f; s.bits = 0;
+            AudioBuffer<float> a, b, c, d;
+            one (p, s, &a); s.dither = DitherTpdf; one (p, s, &b); s.dither = DitherShaped; one (p, s, &c);
+            s.bits = 2; s.dither = DitherTpdf; one (p, s, &d);
+            const int pre = (int) (0.05 * 44100) - 10;
+            float silA = 0, silB = 0, silC = 0; for (int i = 0; i < pre; ++i) { silA = jmax (silA, std::abs (a.getSample (0, i))); silB = jmax (silB, std::abs (b.getSample (0, i))); silC = jmax (silC, std::abs (c.getSample (0, i))); }
+            AudioBuffer<float> e; s.dither = DitherOff; one (p, s, &e);
+            check (silA == 0.f && silB > 0.f && silB < 1.0e-4f && silC > 0.f && diff (d, e) == 0.0, "M12 DITHER: OFF = no noise, TPDF / NOISE SHAPING only on integer files, 32-bit float untouched",
+                   "silence peak off " + String (silA, 8) + " / tpdf " + String (silB, 8) + " / shaped " + String (silC, 8));
+        }
+        // 6: normalization = a plain gain; an unreachable target is reported, never limited
+        {
+            GeProcessor p; Settings s = settings(); AudioBuffer<float> raw, pk, lu;
+            one (p, s, &raw);
+            s.norm = NormPeak; s.peakTarget = -6.f; const auto rp = one (p, s, &pk);
+            s.norm = NormLufs; s.lufsTarget = 0.f; s.tpCeiling = -1.f; const auto rl = one (p, s, &lu);
+            double maxDev = 0; const float g = Decibels::decibelsToGain (rl.norm.gainDb);
+            for (int i = 0; i < raw.getNumSamples(); ++i) maxDev = jmax (maxDev, (double) std::abs (lu.getSample (0, i) - raw.getSample (0, i) * g));
+            check (std::abs (rp.m.samplePeakDb + 6.f) < 0.05f && rl.norm.limitedByCeiling && rl.note.contains ("limiter") && rl.m.truePeakDb <= -0.99f && maxDev < 1.0e-5,
+                   "M12 NORMALIZATION: PEAK reaches the target, LUFS stops at the TRUE PEAK CEILING and says a limiter would be needed (none added)",
+                   "peak " + String (rp.m.samplePeakDb, 2) + " dBFS, LUFS gain " + String (rl.norm.gainDb, 2) + " dB (wanted " + String (rl.norm.wantedDb, 1) + "), TP " + String (rl.m.truePeakDb, 2) + ", shape dev " + String (maxDev, 8));
+        }
+        // 7: TRUE PEAK and SAMPLE PEAK are separate measurements (a sine at fs / 4, 45 degrees: samples 0.707, real peak 1.0)
+        {
+            AudioBuffer<float> b (2, 44100);
+            for (int i = 0; i < 44100; ++i) for (int c = 0; c < 2; ++c) b.setSample (c, i, (float) std::sin (MathConstants<double>::halfPi * i + MathConstants<double>::pi / 4.0));
+            const auto m = fge::dsp::meter::measure (b, 44100.0);
+            fge::dsp::meter::LiveMeter lm; lm.prepare (44100.0); lm.push (b.getReadPointer (0), b.getReadPointer (1), b.getNumSamples());
+            check (std::abs (m.samplePeakDb + 3.01f) < 0.05f && std::abs (m.truePeakDb) < 0.3f && std::abs (Decibels::gainToDecibels (lm.truePeak.load()) - m.truePeakDb) < 0.3f,
+                   "M12 TRUE PEAK measured apart from SAMPLE PEAK (export and live meter)", "sample " + String (m.samplePeakDb, 2) + " dBFS, true " + String (m.truePeakDb, 2) + " dBTP");
+        }
+        // 8: the lookahead latency is taken out: the hit starts at sample 0 with the MASTER OUTPUT limiter on
+        {
+            GeProcessor p; AudioBuffer<float> a, b;
+            one (p, settings(), &a);
+            setP (p, "lim1_on", 1); setP (p, "lim1_location", 15); setP (p, "lim1_lookahead", 5.f);
+            one (p, settings(), &b);
+            auto first = [] (const AudioBuffer<float>& x) { for (int i = 0; i < x.getNumSamples(); ++i) if (std::abs (x.getSample (0, i)) > 1.0e-3f) return i; return -1; };
+            check (first (a) >= 0 && std::abs (first (a) - first (b)) <= 2, "M12 export takes the lookahead (latency) out: the hit starts at the same sample",
+                   "first sample " + String (first (a)) + " / with lookahead " + String (first (b)));
+        }
+        // 9: AUTO / UNTIL SILENCE wait for the tail (longer than the kick LENGTH), POST-ROLL added, the end is silent
+        {
+            GeProcessor p; setP (p, "core_length", 300.f); setP (p, "core_auto_length", 0.f); setP (p, "tail_length", 900.f); setP (p, "tail_release", 400.f);
+            Settings s = settings(); s.lengthMode = LenAuto; s.postRollMs = 50.f; s.silenceDb = -70.f;
+            AudioBuffer<float> a; const auto r = one (p, s, &a);
+            s.lengthMode = LenSilence; AudioBuffer<float> b; one (p, s, &b);
+            const float thr = Decibels::decibelsToGain (-70.f);
+            float endPk = 0; for (int i = jmax (0, a.getNumSamples() - 2205); i < a.getNumSamples(); ++i) endPk = jmax (endPk, std::abs (a.getSample (0, i)), std::abs (a.getSample (1, i)));
+            float lastLoud = 0; for (int i = 0; i < a.getNumSamples(); ++i) if (jmax (std::abs (a.getSample (0, i)), std::abs (a.getSample (1, i))) > thr * 2.f) lastLoud = (float) i;
+            const double secs = a.getNumSamples() / 44100.0, tailEnd = lastLoud / 44100.0;
+            check (r.ok && secs > 0.45 && endPk < thr * 2.f && secs - tailEnd > 0.045 && std::abs (b.getNumSamples() - a.getNumSamples()) < 4410,
+                   "M12 AUTO / UNTIL SILENCE keep the whole tail (longer than LENGTH), POST-ROLL after it",
+                   String (secs, 3) + " s (LENGTH 0.3 s), sound until " + String (tailEnd, 3) + " s, until-silence " + String (b.getNumSamples() / 44100.0, 3) + " s");
+        }
+        // 10: seeds: the same seed = the same file, another seed = another (noise / random sources)
+        {
+            GeProcessor p; p.setCurrentProgram (1);
+            Settings s = settings(); s.seedMode = SeedCustom; s.customSeed = 77;
+            AudioBuffer<float> a, b, c, d; one (p, s, &a); one (p, s, &b); s.customSeed = 78; one (p, s, &c);
+            s.seedMode = SeedPreset; one (p, s, &d);
+            const auto live = renderKick (p.frame(), G1, sr, 0.5, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy());
+            check (diff (a, b) == 0.0 && diff (a, c) > 1.0e-5 && diff (d, live) < 1.0e-6, "M12 SEED: the same seed = the same file, another seed = another, PRESET SEED = what the plugin plays",
+                   "77 vs 78 " + String (diff (a, c), 6) + ", preset vs live " + String (diff (d, live), 8));
+        }
+        // 11: BATCH creates every chosen file (sources x variants), in STYLE / KICK_nn folders
+        {
+            GeProcessor p; p.setCurrentProgram (1);
+            Settings s = settings(); s.batchSources = 0b1011; s.batchVariants = 2; s.seedMode = SeedCustom;
+            auto jobs = p.makeExportJobs (s, true);
+            fge::xp::Exporter ex (hist); std::vector<JobResult> got; bool fin = false;
+            ex.start (jobs, [&] (const std::vector<JobResult>& r) { got = r; fin = true; });
+            for (int i = 0; i < 6000 && ! fin; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+            int okN = 0; for (auto& r : got) okN += r.ok && r.file.existsAsFile();
+            const bool tree = dir.getChildFile ("MODERN").getChildFile ("KICK_01_V02").getChildFile ("KICK_TAIL.wav").existsAsFile();
+            check (jobs.size() == 6 && okN == 6 && tree && hist.list().size() >= 6, "M12 BATCH EXPORT: every source x variant written (STYLE / KICK_nn / KICK_<GROUP>.wav), history kept",
+                   String ((int) jobs.size()) + " jobs, " + String (okN) + " files");
+        }
+        // 12 + 13: CANCEL leaves no file; changing the plugin during an export does not change the started render
+        {
+            GeProcessor p;
+            Settings s = settings(); s.fixedMs = 20000.f; s.rate = 6;                       // a long one (20 s at 192 kHz)
+            auto jobs = p.makeExportJobs (s, false);
+            fge::xp::Exporter ex (hist); bool fin = false; std::vector<JobResult> got;
+            ex.start (jobs, [&] (const std::vector<JobResult>& r) { got = r; fin = true; });
+            Thread::sleep (300); ex.cancel();
+            for (int i = 0; i < 6000 && ! fin; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+            const File t = jobs[0].target;
+            const bool noFile = ! t.exists() && ! t.getSiblingFile (t.getFileName() + ".part").exists() && ! got.empty() && got.back().cancelled;
+            // 13
+            Settings s2 = settings(); s2.bits = 2; auto j2 = p.makeExportJobs (s2, false);           // (32-bit float: the INIT kick peaks above 0 dBFS)
+            fge::xp::Exporter ex2 (hist); bool fin2 = false; std::vector<JobResult> got2;
+            ex2.start (j2, [&] (const std::vector<JobResult>& r) { got2 = r; fin2 = true; });
+            setP (p, "tail_drive", 0.f); setP (p, "core_master", -20.f);                   // (changes while it renders)
+            for (int i = 0; i < 6000 && ! fin2; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+            AudioBuffer<float> want; fge::xp::process (j2[0], nullptr, nullptr, false, &want);
+
+            bool same = false;
+            if (! got2.empty() && got2[0].ok) { auto rd = reader (got2[0].file); AudioBuffer<float> b (2, (int) rd->lengthInSamples); rd->read (&b, 0, b.getNumSamples(), 0, true, true); same = diff (b, want) == 0.0; }
+            check (noFile && same, "M12 CANCEL leaves no (broken) file; changes during an export do not touch the started render",
+                   String (noFile ? "" : "cancel left a file! ") + (same ? "" : "snapshot! " + (got2.empty() ? String ("no result") : got2[0].error + " ok=" + String ((int) got2[0].ok))));
+        }
+        // 14: no disk space / a bad folder = a clear error, no crash, no file
+        {
+            GeProcessor p; Settings s = settings(); s.folder = dir.getChildFile ("full").getFullPathName();
+            fge::xp::testFreeBytes = 1000;
+            const auto r = one (p, s);
+            fge::xp::testFreeBytes = -1;
+            const File asFile = dir.getChildFile ("a_file"); asFile.replaceWithText ("x");
+            Settings s2 = settings(); s2.folder = asFile.getChildFile ("sub").getFullPathName();
+            const auto r2 = one (p, s2);
+            check (! r.ok && r.error.contains ("disk space") && ! r.file.exists() && ! r2.ok && r2.error.isNotEmpty(), "M12 no disk space / a wrong folder: a clear message, no crash, no file",
+                   r.error + " | " + r2.error);
+        }
+        // the name template + MASTER OUTPUT (mute / bypass / safety off by default)
+        {
+            NameParts np; np.preset = "MODERN - Festival Drive"; np.group = "TAIL"; np.note = 30; np.bpm = 150; np.version = 2;
+            const auto n = makeName ("4GE_{STYLE}_{PRESET}_{NOTE}_{BPM}BPM_{GROUP}_V{VERSION}", np, true);
+            GeProcessor p; const auto plain = renderKick (p.frame(), G1, sr, 0.4, -1, 1.f);
+            ParamFrame f = p.frame(); f[P::masterMute] = 1; const auto muted = renderKick (f, G1, sr, 0.4, -1, 1.f);
+            ParamFrame g = p.frame(); g[P::coreMaster] = 6.f; g[P::clipDrive] = 0.f; g[P::masterSafeClip] = 1; const auto clipped = renderKick (g, G1, sr, 0.4, -1, 1.f);
+            const bool defaultsOff = def (P::masterSafeClip).def == 0.f && def (P::masterSafeLim).def == 0.f;
+            check (n == "4GE_MODERN_Festival_Drive_Fs1_150BPM_TAIL_V02" && peak (muted) == 0.f && peak (plain) > 0.3f && peak (clipped) <= 1.0f && defaultsOff,
+                   "M12 file names from the template (F# -> Fs), MASTER MUTE silent, SAFETY CLIP < 0 dBFS, safety off by default", n);
+        }
+        dir.deleteRecursively();
+    }
     // ---------------------------------------------------------------- module 08: dynamics, compressor, transient & limiter (MODULE08.md 14)
     {
         namespace dy = fge::dsp::dyn;
@@ -3570,6 +3750,34 @@ int main (int argc, char** argv)
             for (auto* id : { "spc_tail_on", "spc_tail_mode", "layer1_on", "layer1_group", "layer1_pan", "layer1_source" }) if (auto* a = p.apvts.getParameter (id)) a->setValueNotifyingHost (a->getDefaultValue());
             setP (p, "spc_tail_width", 1.2f);
             ge->canvas.showPage (0);
+        }
+        // EXPORT page (module 12): EXPORT writes + shows the numbers, PREVIEW measures without writing, history, master output controls
+        {
+            const File dir = File::getSpecialLocation (File::tempDirectory).getChildFile ("fge_m12gui_" + String (Time::currentTimeMillis())); dir.deleteRecursively();
+            ge->canvas.showPage (11);
+            auto& xp = ge->canvas.exportPage();
+            auto st = p.exportSettings(); const auto keepSet = st; st.folder = dir.getFullPathName(); st.lengthMode = 1; st.fixedMs = 400.f; st.bits = 2; p.setExportSettings (st); xp.loadSettings();
+            auto pump = [&] (std::function<bool()> done) { for (int i = 0; i < 4000 && ! done(); ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); } };
+            const int h0 = p.exportHistory.list().size();
+            xp.exportNow (false);
+            pump ([&] { return ! xp.busy() && xp.lastFile().existsAsFile(); });
+            pump ([&] { return xp.resultText().contains ("TRUE PEAK"); });
+            const bool wrote = xp.lastFile().existsAsFile() && xp.resultText().contains ("TRUE PEAK") && (int) p.exportHistory.list().size() == h0 + 1;
+            xp.previewNow();
+            pump ([&] { return ! xp.busy(); });
+            const bool prev = xp.resultText().startsWith ("PREVIEW") && dir.findChildFiles (File::findFiles, false).size() == 1;
+            const bool master = xp.findControl ("master_mute") != nullptr && xp.findControl ("master_safety_limiter") != nullptr && xp.findControl ("core_master") != nullptr;
+            check (wrote && prev && master, "M12 GUI: EXPORT writes the file + shows peak / true peak / LUFS, PREVIEW writes nothing, history, MASTER OUTPUT controls",
+                   String (wrote ? "" : "export! ") + (prev ? "" : "preview! ") + (master ? "" : "master!") + " " + xp.resultText().upToFirstOccurrenceOf ("\n", false, false));
+            p.samples().stopPreview();
+            hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) } }, 0.5);
+            PNGImageFormat png;
+            auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os (outDir.getChildFile ("gui_export.png"));
+            if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            p.setExportSettings (keepSet);
+            ge->canvas.showPage (0);
+            dir.deleteRecursively();
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);
         check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());

@@ -3540,3 +3540,8 @@ spc_master_delay
 spc_master_haas_time
 spc_master_haas_channel
 spc_sub_mono_lock
+master_mute
+master_bypass
+master_output_mode
+master_safety_clip
+master_safety_limiter

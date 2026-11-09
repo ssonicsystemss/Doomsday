@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -330,7 +330,13 @@ namespace fge
     FGE_SPC (F, B, C, Punch, "punch", "Punch", 1.f, true) FGE_SPC (F, B, C, Body, "body", "Body", 1.f, false) FGE_SPC (F, B, C, Tail, "tail", "Tail", 1.2f, false) \
     FGE_SPC (F, B, C, Sub, "sub", "Sub", 0.f, true) FGE_SPC (F, B, C, Tex, "texture", "Texture", 1.3f, false) FGE_SPC (F, B, C, Cust, "custom", "Custom", 1.f, false) \
     FGE_SPC (F, B, C, Master, "master", "Master", 1.f, false) \
-    B (spcSubLock,   "spc_sub_mono_lock", "Sub Mono Lock",         true, FNone)
+    B (spcSubLock,   "spc_sub_mono_lock", "Sub Mono Lock",         true, FNone) \
+    /* ================= MODULE 12 - MASTER OUTPUT (the level = core_master) ================= */ \
+    B (masterMute,     "master_mute",          "Master Mute",          false, FGlobal) \
+    B (masterBypass,   "master_bypass",        "Master Bypass",        false, FGlobal) \
+    C (masterOutMode,  "master_output_mode",   "Output Mode",          outModes, 0, FGlobal) \
+    B (masterSafeClip, "master_safety_clip",   "Safety Clip",          false, FGlobal) \
+    B (masterSafeLim,  "master_safety_limiter","Safety Limiter",       false, FGlobal)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

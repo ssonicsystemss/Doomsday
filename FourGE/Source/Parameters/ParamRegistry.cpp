@@ -92,6 +92,7 @@ namespace fge
         const juce::StringArray& smpModes()       { static const juce::StringArray a { "ONE SHOT", "GATE", "LOOP", "PING-PONG" }; return a; }
         const juce::StringArray& spcModes()       { static const juce::StringArray a { "M/S WIDTH", "DECORRELATION", "HAAS (CREATIVE)", "DISABLED" }; return a; }
         const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
+        const juce::StringArray& outModes()       { static const juce::StringArray a { "STEREO", "MONO" }; return a; }
         const juce::StringArray& spcHaasCh()      { static const juce::StringArray a { "DELAY LEFT", "DELAY RIGHT" }; return a; }
         const juce::StringArray& smpLinks()       { static const juce::StringArray a { "INDEPENDENT", "SAMPLE 1", "SAMPLE 2", "SAMPLE 3", "SAMPLE 4", "SAMPLE 5", "SAMPLE 6", "SAMPLE 7", "SAMPLE 8" }; return a; }
         const juce::StringArray& folSources()     { static const juce::StringArray a { "KICK", "PUNCH", "BODY", "TAIL", "SUB", "TEXTURE" }; return a; }
@@ -341,6 +342,15 @@ namespace fge
             if (num ("deq")) if (auto it = deq.find (k); it != deq.end()) return it->second;
             if (num ("mb")) if (auto it = mb.find (k); it != mb.end()) return it->second;
             if (auto it = other.find (pid); it != other.end()) return it->second;
+        }
+        // module 12: master output
+        {
+            const juce::String pid (d.id);
+            if (pid == "master_mute") return "MASTER MUTE: silence the output (5 ms fade - no click).";
+            if (pid == "master_bypass") return "MASTER BYPASS: skip the master processing (MASTER CLIP, MASTER STEREO, MASTER OUTPUT dynamics, SAFETY) - to compare.";
+            if (pid == "master_output_mode") return "OUTPUT MODE: STEREO, or MONO (L + R on both channels; a mono export writes a 1-channel file).";
+            if (pid == "master_safety_clip") return "SAFETY CLIP (off by default): a soft clip that keeps the output under 0 dBFS. It changes the sound when it works - the page shows it.";
+            if (pid == "master_safety_limiter") return "SAFETY LIMITER (off by default): a fast limiter at -0.2 dBFS without lookahead. The page lights up while it reduces.";
         }
         // module 11: the stereo units (one text per setting, the same for every group and the master)
         if (const juce::String pid (d.id); pid.startsWith ("spc_"))

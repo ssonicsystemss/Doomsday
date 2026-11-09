@@ -222,6 +222,15 @@ namespace fge::smp
             std::lock_guard<std::mutex> l (lock);
             previewSlot = k; previewA = juce::jmin (start, end); previewB = juce::jmax (start, end); previewRev = reverse; previewRate = hostRate; previewJob = true; wake.signal();
         }
+        // module 12: listen to a rendered buffer (export PREVIEW) - any thread except the audio thread
+        void previewAudio (const juce::AudioBuffer<float>& b, double fromRate, double hostRate)
+        {
+            auto d = prepare (b, fromRate, hostRate, 0u);
+            std::lock_guard<std::mutex> l (lock);
+            previewPos.store (-1);
+            if (previewLive != nullptr) graveyard.push_back ({ previewLive, audioClock.load() });
+            previewLive = d; previewPtr.store (d.get()); previewPos.store (0);
+        }
         void stopPreview() { previewPos.store (-1); }
         void mixPreview (juce::AudioBuffer<float>& out)                  // audio thread: lock-free
         {

@@ -172,6 +172,14 @@ stała moc) → BALANCE → OUTPUT; wygładzanie 5 / 30 ms; `Analyzer` korelacja
 TEXTURE / CUSTOM w pętli szyn, MASTER przed downsamplingiem; SUB MONO LOCK = SUB zawsze mono + MASTER low mono ≥ 120 Hz (gdy master ON);
 procesor: `analyzer` + `monoAudition` (poza stanem); `GUI/StereoPage.*` (zakładki, ALL UNITS, scope); nagłówek: siatka 5 x 3 przycisków.
 Testy M11 (tabela 13 + CPU) i 14.11 dla `spc*` OK. Następny: moduł 12.
+**STAN 2026-11-09: MODUŁ 12 GOTOWY** – MASTER OUTPUT & EXPORT: parametry `master_mute / bypass / output_mode / safety_clip / safety_limiter`
+(poziom = `core_master`), etap wyjścia w `Engine::renderChunk` (mono, safety clip 0 dBFS, limiter -0.2 dBFS bez lookahead, mute 5 ms);
+SEED: `Engine::setSeed` (salt w głosach, warstwach, screechu, LFO S&H / RND / SEQ; 0 = jak dotąd), seed presetu = właściwość `presetSeed`;
+`DSP/Meter/MasterMeter.h` (LiveMeter peak / hold / clip / true peak 8x / RMS / LUFS M S I / DC + `measure()`), `DSP/Export/Render.h`
+(migawka `Snapshot`, źródła przez `Engine::setExportKeep` + solo, długości AUTO / FIXED / UNTIL SILENCE z histerezą, latency out,
+ScopedNoDenormals), `DSP/Export/Finish.h` (normalizacja bez limitera, mono, dither TPDF / shaped), `Presets/Export.h` (ustawienia w dziecku
+EXPORT, nazwy, zapis `.part` + weryfikacja + rename, kontrola miejsca / folderu, historia JSON, `Exporter` wątek + batch), procesor
+`makeExportJobs` / snapshoty presetów fabrycznych, `GUI/ExportPage.*` (strona 11). Testy M12 (tabela 17) OK. Następne: moduły 13–17.
 
 **STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
 przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH

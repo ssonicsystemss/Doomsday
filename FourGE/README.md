@@ -265,6 +265,28 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
   STEREO FIELD. Pod gałkami tabela **ALL UNITS** (klik = otwórz). Wszystko modulowalne z MOD (pan, width, mid, side, crossover, delay…),
   bez klików.
 
+## Strona EXPORT (moduł 12)
+- Przycisk **EXPORT** (górny rząd, po prawej). **MASTER OUTPUT**: poziom MASTER, MUTE (bez klika), BYPASS (pomija master clip /
+  master stereo / dynamikę wyjścia / safety – do porównania), STEREO / MONO, **SAFETY CLIP** i **SAFETY LIMITER** – domyślnie
+  WYŁĄCZONE, a gdy działają, strona to wyraźnie pokazuje. Wtyczka sama niczego nie ścisza ani nie limituje.
+- **MASTER METERS**: peak L / R z hold i CLIP, MAX PEAK, **TRUE PEAK** (osobno od sample peak), RMS, **LUFS** M / S / I, DC OFFSET,
+  RESET.
+- **Eksport**: SOURCE = cały kick, grupa (PUNCH / BODY / TAIL / SUB / TEXTURE / CUSTOM – z całą obróbką grupy i mastera) albo jedna
+  warstwa / sample. LENGTH: AUTO (min. LENGTH kicka, potem aż ogon ucichnie), FIXED, UNTIL SILENCE + PRE-ROLL, POST-ROLL, próg ciszy
+  (z histerezą), MIN SILENCE, MAX LENGTH, TRIM. Format WAV / AIFF / FLAC, 16 / 24-bit lub 32-bit float, 44.1–192 kHz albo HOST RATE
+  (kick liczony od razu w tej częstotliwości), DITHER (OFF / TPDF / NOISE SHAPING – tylko 16 / 24-bit).
+- **NORMALIZE**: OFF / PEAK / LUFS – zwykłe wzmocnienie; jeśli cel wymagałby przekroczenia TRUE PEAK CEILING, gain staje na suficie
+  i dostajesz komunikat, że potrzebny byłby limiter (nic nie jest dodawane po cichu). Plik 16 / 24-bit powyżej 0 dBFS = ostrzeżenie.
+- **SEED**: PRESET SEED (dokładnie to, co gra wtyczka), FIXED (0), NEW (nowa wariacja szumu / random / sekwencera przy każdym
+  eksporcie), CUSTOM. NEW PRESET SEED daje presetowi nowy seed – słychać od razu, UNDO cofa.
+- **Nazwy plików** z szablonu: {PRESET} {STYLE} {NOTE} {BPM} {GROUP} {VARIANT} {VERSION} {SEED} {DATE}, F# → Fs. Bez OVERWRITE nic
+  nie jest nadpisywane (nowy numer wersji). **BATCH EXPORT**: wybrane źródła × obecny dźwięk lub wszystkie presety fabryczne ×
+  warianty seedów → `4GE_EXPORT / STYLE / KICK_nn / KICK_<GRUPA>.wav`.
+- **PREVIEW** = render + pomiar + odsłuch, nic nie zapisuje (pokazuje przewidywany gain). **EXPORT** pisze najpierw plik tymczasowy –
+  CANCEL / błąd / brak miejsca nigdy nie zostawia uszkodzonego pliku. Render to migawka ustawień: kręcenie gałkami w trakcie nie
+  zmienia rozpoczętego eksportu. Wynik (ścieżka, format, długość, peak, true peak, LUFS) – **przeciągnij go do FL**.
+- **EXPORT HISTORY**: ostatnie 50 eksportów, RE-EXPORT z tymi samymi ustawieniami i seedem.
+
 ## Presety
 INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
 **EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
@@ -273,5 +295,5 @@ TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – st�
 **RANDOM - Pick 01…11** = Twoje wybrane wyniki z RANDOM (2026-11-08), dokładnie tak, jak je zapisałeś.
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 12 eksport → 12 eksport →
+Moduł po module wg `PLAN.md`: 12 eksport →
 13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.

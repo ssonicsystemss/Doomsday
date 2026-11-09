@@ -203,6 +203,21 @@ int main (int argc, char** argv)
         printf ("%s\n", outDir.getChildFile ("m10_listen.wav").getFullPathName().toRawUTF8());
         return 0;
     }
+    if (argc > 2 && String (argv[2]) == "--guisnap")                          // module 17: a PNG of every page (look at them)
+    {
+        GeProcessor p; std::unique_ptr<AudioProcessorEditor> ed (p.createEditor()); auto* ge = dynamic_cast<GeEditor*> (ed.get());
+        ed->setSize (GeCanvas::W, GeCanvas::H);
+        ge->canvas.waveView().update (p.frame(), p.auditionNote);
+        for (int i = 0; i < 300 && ! ge->canvas.waveView().hasRender(); ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (10); }
+        for (int pg = 0; pg <= 14; ++pg)
+        {
+            ge->canvas.showPage (pg);
+            for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+            PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os (File (argv[1]).getChildFile ("page" + String (pg).paddedLeft ('0', 2) + ".png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+        }
+        return 0;
+    }
     if (argc > 3 && String (argv[2]) == "--analyse")                           // module 16: report of a WAV (+ suggestions vs a 4GE style: --analyse <wav> [style])
     {
         namespace ka = fge::dsp::analysis;
@@ -4187,7 +4202,7 @@ int main (int argc, char** argv)
             writeWav (refFile, fge::analysis::renderMine (refP.exportSnapshot(), 33, 150.0));
             ge->canvas.showPage (13);
             auto& ap = ge->canvas.analysisPage();
-            const bool shown = ap.isVisible() && ge->canvas.analysisButton().isVisible();
+            const bool shown = ap.isVisible() && ge->canvas.navigation().getCurrent() == 13;
             auto wait = [&] { for (int i = 0; i < 6000 && (ap.busy() || ! ap.mineReport().valid); ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (2); } };
             ap.loadReference (refFile);
             for (int i = 0; i < 200; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (2); }
@@ -4224,6 +4239,113 @@ int main (int argc, char** argv)
                    + String (lenBefore, 0) + " -> " + String (lenAfter, 0) + (undone ? "" : " undo! (" + undoName + ", now " + String (p.apvts.getRawParameterValue ("core_length")->load(), 0) + ")"));
             ap.clearReference(); refFile.deleteFile();
             ge->canvas.showPage (0);
+        }
+        // module 17: GUI & UX - navigation, top bar, bottom bar on every page, info line, drops, shortcuts, settings, size
+        {
+            auto& cv = ge->canvas;
+            // the navigation: 15 pages, each once, every module number 01..17 has a place, a click shows that page
+            const auto order = fge::gui::NavBar::order();
+            std::set<int> pages (order.begin(), order.end());
+            String mods; for (auto& b : fge::gui::NavBar::blocks()) for (auto& it : b.items) mods << it.modules << " ";
+            bool allMods = true; for (int m = 1; m <= 17; ++m) allMods &= mods.contains (String (m).paddedLeft ('0', 2));
+            bool clicks = true;
+            for (int pg : order)
+            {
+                const auto r = cv.navigation().itemBounds (pg);
+                cv.navigation().onSelect (cv.navigation().pageAt (r.getCentre()));
+                clicks &= cv.page() == pg && cv.navigation().getCurrent() == pg;
+            }
+            // the bottom bar (8 MASTER MACROS + GLOBAL) on every page
+            bool bottom = true;
+            for (int pg : { 0, 4, 8, 13, 14 })
+            {
+                cv.showPage (pg);
+                for (auto* id : { "macro_impact", "macro_chaos", "core_master", "core_velocity", "core_voice_mode", "core_note_cut" })
+                    if (auto* c = cv.findControl (id)) bottom &= c->isShowing() || c->isVisible(); else bottom = false;
+            }
+            check (order.size() == 15 && pages.size() == 15 && allMods && clicks && bottom,
+                   "M17 NAVIGATION: 5 blocks / 15 pages / all 17 modules placed, a click opens the page, MACROS + GLOBAL on every page",
+                   String ((int) order.size()) + " pages" + (allMods ? "" : " modules!") + (clicks ? "" : " clicks!") + (bottom ? "" : " bottom!"));
+            // top bar: STYLE strip and LENGTH strip (one click = one undo)
+            cv.showPage (0);
+            const float len0 = p.apvts.getRawParameterValue ("core_length")->load();
+            cv.lengthProfiles().onPick (fge::length::Long);
+            const float len1 = p.apvts.getRawParameterValue ("core_length")->load();
+            p.undo.undo();
+            const float len2 = p.apvts.getRawParameterValue ("core_length")->load();
+            auto& ss = dynamic_cast<fge::gui::ChoiceStrip&> (cv.styleSelector());
+            ss.onPick (fge::style::Raw);
+            const bool styled = p.currentStyle() == fge::style::Raw;
+            p.undo.undo(); p.forgetTouched();
+            check (std::abs (len1 - 750.f) < 1.f && std::abs (len2 - len0) < 1.f && styled && ss.count() == 4,
+                   "M17 TOP BAR: STYLE (4) and LENGTH profiles apply with one click (one undo each)", String (len0, 0) + " -> " + String (len1, 0) + " -> " + String (len2, 0));
+            // the INFO LINE: name, value, range, default, what it does; a page line when nothing is under the mouse
+            const String inf = cv.infoFor (cv.findControl ("pe_time")), infT = cv.infoFor (cv.findControl ("core_phase_reset"));
+            check (inf.contains ("=") && inf.contains ("default") && inf.contains ("..") && inf.contains (fge::tooltip (P::peTime).substring (0, 20))
+                   && infT.containsIgnoreCase ("PHASE RESET") && infT.contains ("default"),
+                   "M17 INFO LINE: what is under the mouse (name = value | range, default | modulation / yours - what it does)", inf + "  //  " + infT);
+            // navigation dots: an oscillator switched on lights OSCILLATORS
+            const bool dot0 = cv.pageActive (2);
+            setP (p, "osc1_on", 1.f); const bool dot1 = cv.pageActive (2); setP (p, "osc1_on", 0.f);
+            // shortcuts: Ctrl + right = the next page of the navigation, Ctrl + Z = undo
+            cv.showPage (0);
+            cv.keyPressed (KeyPress (KeyPress::rightKey, ModifierKeys::commandModifier, 0));
+            const bool next = cv.page() == order[1];
+            cv.keyPressed (KeyPress (KeyPress::leftKey, ModifierKeys::commandModifier, 0));
+            const bool back = cv.page() == order[0];
+            p.undo.beginNewTransaction ("t"); p.setParamInUndoStep ("core_master", -6.f);
+            cv.keyPressed (KeyPress ('Z', ModifierKeys::commandModifier, 0));
+            const bool undone = std::abs (p.apvts.getRawParameterValue ("core_master")->load() - 0.f) < 0.01f;
+            check (! dot0 && dot1 && next && back && undone, "M17 navigation dots (a module that changes the sound) + Ctrl+left / right + Ctrl+Z",
+                   String (dot0 ? "dot0! " : "") + (dot1 ? "" : "dot1! ") + (next ? "" : "next! ") + (back ? "" : "back! ") + (undone ? "" : "undo!"));
+            // a file dropped anywhere: WAV -> the next free SAMPLES slot / the ANALYZE reference, .4gp -> load the preset
+            {
+                const File wavF = outDir.getChildFile ("m17_drop.wav"), preF = outDir.getChildFile ("m17_drop.4gp");
+                writeWav (wavF, fge::analysis::renderMine (p.exportSnapshot(), 31, 150.0));
+                cv.dropFile (wavF, 1);
+                for (int i = 0; i < 2000 && p.sampleInfo (0).status != fge::smp::SReady; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (2); }
+                const bool smp = p.sampleInfo (0).status == fge::smp::SReady && cv.page() == 9;
+                p.clearSample (0);
+                cv.dropFile (wavF, 2);
+                for (int i = 0; i < 3000 && (cv.analysisPage().busy() || ! cv.analysisPage().refReport().valid); ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (2); }
+                const bool ref = cv.page() == 13 && cv.analysisPage().refReport().valid;
+                cv.analysisPage().clearReference();
+                setP (p, "core_master", -4.5f);
+                { std::unique_ptr<XmlElement> x (p.apvts.copyState().createXml()); x->writeTo (preF); }
+                setP (p, "core_master", 0.f);
+                cv.dropFile (preF, 3);
+                const bool pre = std::abs (p.apvts.getRawParameterValue ("core_master")->load() + 4.5f) < 0.01f;
+                setP (p, "core_master", 0.f);
+                wavF.deleteFile(); preF.deleteFile();
+                check (smp && ref && pre && cv.isInterestedInFileDrag ({ wavF.getFullPathName() }) && ! cv.isInterestedInFileDrag ({ "x.txt" }),
+                       "M17 DROP a file anywhere: WAV -> next free SAMPLES slot or the ANALYZE reference, .4gp -> the preset",
+                       String (smp ? "" : "sample! ") + (ref ? "" : "reference! ") + (pre ? "" : "preset!"));
+            }
+            // SETTINGS: saved to its own file (not the project), FIT picks a size for the screen, the editor follows
+            {
+                const File sf = fge::ui::Settings::defaultFile(); const String keep = sf.existsAsFile() ? sf.loadFileAsString() : String();
+                fge::ui::Settings a; a.scale = 1.25f; a.tooltips = false; a.infoLine = false; a.startPage = 6; a.lastPage = 9;
+                const File tmp = outDir.getChildFile ("m17.settings"); a.save (tmp);
+                const auto b = fge::ui::Settings::load (tmp); tmp.deleteFile();
+                const bool io = std::abs (b.scale - 1.25f) < 1e-4f && ! b.tooltips && ! b.infoLine && b.startPage == 6 && b.lastPage == 9;
+                fge::ui::Settings fit;
+                const float big = fit.resolve ({ 0, 0, 2560, 1400 }, GeCanvas::W, GeCanvas::H), hd = fit.resolve ({ 0, 0, 1920, 1040 }, GeCanvas::W, GeCanvas::H),
+                            small = fit.resolve ({ 0, 0, 1366, 728 }, GeCanvas::W, GeCanvas::H);
+                cv.showPage (14);
+                cv.settingsPage().sizeStrip().onPick (4);                      // 100 %
+                const bool sized = ed->getWidth() == GeCanvas::W && ed->getHeight() == GeCanvas::H;
+                cv.settingsPage().sizeStrip().onPick (2);                      // 80 %
+                const bool sized80 = std::abs (ed->getWidth() - GeCanvas::W * 0.8f) < 2.f;
+                PNGImageFormat png; auto img = cv.createComponentSnapshot (cv.getLocalBounds());
+                FileOutputStream os (outDir.getChildFile ("gui_settings.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+                if (keep.isNotEmpty()) sf.replaceWithText (keep); else sf.deleteFile();
+                cv.uiSettings() = fge::ui::Settings::load();
+                ed->setSize (GeCanvas::W, GeCanvas::H);
+                check (io && big == 1.f && hd == 0.9f && small >= 0.6f && small <= 0.7f && sized && sized80,
+                       "M17 SETTINGS: interface file round trip, FIT per screen (2560 / 1920 / 1366), SIZE resizes the window",
+                       "fit " + String (big, 2) + " / " + String (hd, 2) + " / " + String (small, 2) + (sized ? "" : " size100!") + (sized80 ? "" : " size80!"));
+            }
+            cv.showPage (0);
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);
         check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());

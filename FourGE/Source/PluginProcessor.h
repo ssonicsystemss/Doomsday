@@ -11,7 +11,7 @@
 #include "Presets/Export.h"
 #include "DSP/Meter/MasterMeter.h"
 
-namespace fge { inline constexpr const char* versionText = "0.5"; }      // keep in step with CMakeLists.txt
+namespace fge { inline constexpr const char* versionText = "0.6"; }      // keep in step with CMakeLists.txt
 
 class GeProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener, private juce::Timer,
                     private juce::AudioProcessorParameter::Listener

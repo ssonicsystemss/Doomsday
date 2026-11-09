@@ -192,6 +192,12 @@ NOTE + FX dodatkowo wycisza całe wyjście (`outGate` po dynamice mastera); czę
 AUTO LENGTH skaluje części przez `len_follow_punch / body / tail / sub` (domyślnie 0 / 0.5 / 1 / 1 = dokładnie jak wcześniej), eksport
 i waveform liczą efektywną długość; `Presets/LengthEngine.h` (profile SHORT / MEDIUM / LONG / EXTRA LONG + etykieta), nagłówek: przycisk
 LENGTH → panel (CallOutBox) z profilami, AUTO, SYNC, FOLLOW i długościami części; KICK END (LENGTH / NOTE / +FX). Testy M14 OK.
+**STAN 2026-11-09: MODUŁ 17 GOTOWY = WSZYSTKIE 17 MODUŁÓW (v0.6)** – GUI & UX: płótno 1456 x 942 skalowane (SETTINGS: FIT / 70–150 %,
+róg okna zapamiętywany, `Presets/UiSettings.h` = plik użytkownika, nie projektu); `GUI/NavBar.h` (5 bloków / 15 stron / numery 17 modułów /
+kropki aktywności z przełączników `*_on` + sampli + modulacji) + `ChoiceStrip` (STYLE / LENGTH w górnym pasku); linia INFO (`GeCanvas::infoFor`:
+nazwa = wartość | zakres, domyślna | MODULATED / YOURS – opis); dolny pasek na każdej stronie (8 MASTER MACROS + GLOBAL); prawy klik na gałce =
+RESET / TYPE / COPY / PASTE + modulacja; upuszczanie plików (`dropFile`: SAMPLES / ANALYZE / .4gp); skróty Ctrl+Z / Y, Ctrl+← / →;
+`GUI/SettingsPage.h` = strona 14. `RenderTest <out> --guisnap` = PNG każdej strony. Testy M17 OK.
 **STAN 2026-11-09: MODUŁ 16 GOTOWY** – KICK ANALYSIS: `DSP/Analysis/KickAnalysis.h` (czysta analiza bufora: waveform, obwiednia 5 ms,
 długość -40 dB, attack / transient / click, pitch NSDF na dwóch kopiach (2 kHz dla spadku, 250 Hz dla niskiego ogona pod skrzeczącym
 środkiem) + nuta ogona = mediana ważona głośnością, czas spadku i TOK, spektrum FFT 8192 + 6 pasm + % suba + harmoniczne, stereo /

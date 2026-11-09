@@ -1,10 +1,13 @@
 #pragma once
 // =====================================================================
-//  4GE editor - FIRST VERSION for module 01 (the full interface is module 17, designed from the real parameters).
-//  Header (LENGTH / MASTER / AUTO LENGTH / PHASE RESET / PITCH TRACKING / VOICE, presets + PLAY), PITCH ENGINE row,
-//  the central REAL waveform (drag = WAV), four part cards (LEVEL / PITCH / LENGTH / DRIVE / MUTE / SOLO),
-//  the selected part's detail and the CORE MIXER (fader / pan / phase invert / peak meter per part).
-//  GUI only: reads parameters through the APVTS, the waveform renders on its own thread.
+//  4GE editor - module 17 GUI & UX (the complete interface, built from the real parameters of modules 01-16):
+//   TOP BAR: logo, STYLE (EARLY / MODERN / RAW / EXP), LENGTH (SHORT / MEDIUM / LONG / XL + the ms panel), the INFO LINE
+//   (what is under the mouse: name, value, range, default, modulation, what it does), presets + RANDOMIZE / SAVE / PLAY / UNDO / REDO.
+//   LEFT: the NAVIGATION - 5 blocks (KICK / SYNTHESIS / PROCESSING / MODULATION / SYSTEM), every page, the 17 module numbers, activity dots.
+//   CENTRE: the page. MAIN = PITCH ENGINE, the central REAL waveform (drag = WAV), four part cards, the selected part, the CORE MIXER.
+//   BOTTOM (always): the 8 MASTER MACROS (drag > onto any knob) + GLOBAL (LENGTH / MASTER / VELOCITY, VOICE, KICK END, PHASE RESET,
+//   AUTO LENGTH, OUT meter). Drop a WAV / .4gp anywhere, right-click any knob, Ctrl+Z / Y, Ctrl+left / right, GUI scale (SETTINGS).
+//  GUI only: reads parameters through the APVTS, renders on its own threads, the settings file = Presets/UiSettings.h.
 // =====================================================================
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "DoomsdayFlat.h"
@@ -24,12 +27,15 @@
 #include "ExportPage.h"
 #include "PresetPage.h"
 #include "AnalysisPage.h"
+#include "NavBar.h"
+#include "SettingsPage.h"
 #include "Palette.h"
 
-class GeCanvas : public juce::Component, public juce::DragAndDropContainer, public juce::DragAndDropTarget, private juce::Timer
+class GeCanvas : public juce::Component, public juce::DragAndDropContainer, public juce::DragAndDropTarget, public juce::FileDragAndDropTarget, private juce::Timer
 {
 public:
-    static constexpr int W = 1280, H = 930;
+    static constexpr int W = 1456, H = 942;
+    static constexpr int navW = 176, X0 = 192, Y0 = 104, CW = 1248, CH = 718;       // the navigation, the page area
     explicit GeCanvas (GeProcessor&);
     ~GeCanvas() override;
     void paint (juce::Graphics&) override;
@@ -39,7 +45,7 @@ public:
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
-    void showPage (int);                                             // 0 = MAIN, 1 = ENVELOPES (module 02), 2 = OSCILLATORS (module 03)
+    void showPage (int);                                             // 0 MAIN 1 ENV 2 OSC 3 LAYERS 4 DIST 5 SCREECH 6 EQ 7 DYN 8 MOD 9 SMP 10 STEREO 11 EXPORT 12 PRESETS 13 ANALYZE 14 SETTINGS
     fge::gui::OscPage& oscillators() { return *oscPage; }
     fge::gui::LayerPage& layersPage() { return *layerPage; }
     fge::gui::DistPage& distPage() { return *distortionPage; }
@@ -52,7 +58,20 @@ public:
     fge::gui::ExportPage& exportPage() { return *exPg; }
     fge::gui::PresetPage& presetPage() { return *prPg; }
     fge::gui::AnalysisPage& analysisPage() { return *anPg; }
-    juce::TextButton& analysisButton() { return anaBtn; }
+    fge::gui::NavBar& navigation() { return nav; }
+    fge::gui::SettingsPage& settingsPage() { return *setPg; }
+    // module 17: the INFO LINE (what is under the mouse / the page), files dropped anywhere, the knob menu, shortcuts, the size
+    juce::String infoFor (juce::Component*);                        // (tests) the info text of a control
+    juce::String infoLine() const { return infoText; }
+    bool isInterestedInFileDrag (const juce::StringArray&) override;
+    void filesDropped (const juce::StringArray&, int, int) override;
+    void dropFile (const juce::File&, int choice);                   // 1 = first free SAMPLES slot, 2 = ANALYZE reference, 3 = preset (tests)
+    bool keyPressed (const juce::KeyPress&) override;
+    void stepPage (int dir);
+    fge::ui::Settings& uiSettings() { return uiSet; }
+    const fge::ui::Settings& uiSettings() const { return uiSet; }
+    std::function<void()> onSettingsChanged;                         // (the editor: size / tooltips)
+    bool pageActive (int page);                                      // the navigation dots
     doomsday::ui::PresetBar& presets() { return presetBar; }
     int page() const { return pageIdx; }
     fge::gui::EnvPage& envelopes() { return *envPage; }
@@ -68,9 +87,10 @@ public:
     void chooseStyle (int style, bool keepMine = true);
     void previewStyle (int style);
     juce::String styleStatus() const { return styleMsg; }
-    juce::ComboBox& styleSelector() { return styleBox; }
+    juce::Component& styleSelector() { return styleStrip; }
     // module 14: LENGTH in the header (always visible) - a panel with the profiles, SYNC, AUTO LENGTH and how each part follows
     juce::TextButton& lengthButton() { return lengthBtn; }
+    fge::gui::ChoiceStrip& lengthProfiles() { return lengthStrip; }
     juce::Component* openLengthPanel();                              // (tests: the panel's content)
 private:
     void timerCallback() override;
@@ -92,7 +112,7 @@ private:
 
     GeProcessor& proc;
     doomsday::flat::FlatLookAndFeel lnf;
-    juce::TooltipWindow tips { this, 600 };
+    std::unique_ptr<juce::TooltipWindow> tips;
     doomsday::ui::StageLookAndFeel stageLnf { makeTheme() };      // the shared preset bar draws with the stage look
     static doomsday::ui::Theme makeTheme();
     doomsday::ui::PresetBar presetBar;
@@ -122,10 +142,17 @@ private:
     std::unique_ptr<fge::gui::ExportPage> exPg;
     std::unique_ptr<fge::gui::PresetPage> prPg;
     std::unique_ptr<fge::gui::AnalysisPage> anPg;                     // module 16 (page 13)
-    juce::TextButton anaBtn { "ANALYZE" };
+    std::unique_ptr<fge::gui::SettingsPage> setPg;                    // module 17 (page 14)
+    fge::ui::Settings uiSet;
+    fge::gui::NavBar nav;
+    fge::gui::ChoiceStrip styleStrip { { "EARLY", "MODERN", "RAW", "EXP" } }, lengthStrip { { "SHORT", "MEDIUM", "LONG", "XL" } };
+    juce::String infoText;
+    juce::Rectangle<int> infoArea, globalArea;
+    std::vector<std::pair<int, int>> activeParams;                    // (page, parameter) the "on" switches behind the navigation dots
+    void knobValueMenu (doomsday::flat::Knob&, juce::PopupMenu&);
+    void applyTooltips();
+    void typeValue (doomsday::flat::Knob&);
     int pageBeforePresets = 0;
-    std::array<juce::TextButton, 12> pageBtn;
-    juce::ComboBox styleBox;
     juce::TextButton lengthBtn;
     juce::Component::SafePointer<juce::CallOutBox> lengthBox;
     juce::String styleMsg;
@@ -137,10 +164,16 @@ private:
     float outMeter = 0.f;
 };
 
-class GeEditor : public juce::AudioProcessorEditor
+class GeEditor : public juce::AudioProcessorEditor, private juce::Timer
 {
 public:
     explicit GeEditor (GeProcessor&);
     void resized() override;
+    void applyScale();                      // module 17: the size from the SETTINGS
+    float wantedScale() const;
     GeCanvas canvas;
+private:
+    void timerCallback() override;
+    bool ownResize = false;
+    int saveIn = 0;
 };

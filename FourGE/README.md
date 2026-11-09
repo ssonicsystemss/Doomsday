@@ -1,15 +1,31 @@
-# 4GE v0.5 – Hardstyle Kick Designer (przebudowa od zera)
+# 4GE v0.6 – Hardstyle Kick Designer (przebudowa od zera)
 
-Syntezator kicków hardstyle (instrument VST3, FL Studio). **v0.5 to nowy 4GE budowany od zera** według Twojej specyfikacji
+Syntezator kicków hardstyle (instrument VST3, FL Studio). **Nowy 4GE zbudowany od zera** według Twojej specyfikacji
 17 modułów (`SPEC.md`, `MODULE01.md`…`MODULE12.md`, `MODULES13-17_overview.md`, zasady nadrzędne w `RULES.md`, plan w `PLAN.md`).
-Ta wersja to **moduł 01 – CORE KICK ENGINE** (cztery niezależne części kicka i ich mikser) + **moduł 02 – obwiednie** (strona ENVELOPES)
-+ **moduł 03 – oscylatory** (strona OSCILLATORS) + **moduł 04 – szum, transient, warstwy** (strona LAYERS).
-Kolejne moduły dokładają resztę.
+**v0.6 = wszystkie 17 modułów** – od CORE KICK ENGINE (moduł 01) po docelowy interfejs (moduł 17).
+
+## INTERFEJS (moduł 17)
+- **Lewa strona = nawigacja w 5 blokach**: 01 KICK (MAIN, ENVELOPES) · 02 SYNTHESIS (OSCILLATORS, LAYERS, SAMPLES) ·
+  03 PROCESSING (DISTORTION, SCREECH, EQ, DYNAMICS, STEREO) · 04 MODULATION (MOD MATRIX) · 05 SYSTEM (PRESETS, ANALYZE, EXPORT, SETTINGS).
+  Szare numerki = numery modułów (wszystkie 17 mają swoje miejsce). **Czerwona kropka** = ta część coś teraz robi z dźwiękiem
+  (np. włączony oscylator, stopień distortion, sampel w slocie, modulacja).
+- **Góra**: STYLE (EARLY / MODERN / RAW / EXP – klik = zastosuj z zachowaniem Twoich zmian, prawy klik = APPLY ALL / PREVIEW / FORGET),
+  LENGTH (SHORT / MEDIUM / LONG / XL – jeden klik = jeden UNDO; przycisk z ms = panel długości), presety, RANDOMIZE / SAVE / PLAY / UNDO / REDO.
+- **Linia INFO** pod nimi: najedź na cokolwiek, a zobaczysz nazwę, wartość, zakres, wartość domyślną, czy jest modulowane, czy to
+  „Twoja” zmiana (STYLE jej nie ruszy) i co robi z dźwiękiem. Bez myszki nad kontrolką = gdzie jesteś i co jest na tej stronie.
+- **Dół – zawsze widoczny**: 8 MASTER MACROS (strzałkę **>** przeciągnij na dowolną gałkę = modulacja) i GLOBAL: LENGTH, MASTER, VELOCITY,
+  CHOKE / POLY, KICK END (LENGTH / NOTE / +FX), PHASE RESET, AUTO LENGTH, miernik OUT. PITCH TRACKING jest teraz w PITCH ENGINE.
+- **Prawy klik na każdej gałce** (każda strona): RESET TO DEFAULT, TYPE A VALUE, COPY / PASTE VALUE, MODULATE WITH…, usuwanie modulacji.
+- **Upuść plik gdziekolwiek**: WAV / AIFF / FLAC → menu: do następnego wolnego slotu SAMPLES albo jako referencja ANALYZE; `.4gp` → wczytuje preset.
+- **Skróty**: Ctrl+Z / Ctrl+Y = cofnij / ponów, Ctrl+← / → = poprzednia / następna strona (gdy okno 4GE ma fokus – FL czasem zabiera skróty).
+- **SETTINGS**: rozmiar okna (FIT = największy, który mieści się na ekranie, albo 70–150 %), dymki z podpowiedziami ON / OFF, linia INFO ON / OFF,
+  od której strony 4GE się otwiera (np. ostatnio używana), lista wszystkich skrótów myszki / klawiatury. Rozmiar możesz też zmienić,
+  ciągnąc róg okna – zapamięta się. Te ustawienia są Twoje (plik w `AppData\Roaming\4GE`), a nie projektu.
 
 > **Ważne przy instalacji:** nowy 4GE ma wszystkie parametry nowe, więc ma też **nowy identyfikator wtyczki**.
 > Jeśli masz projekty FL ze starym 4GE v0.4, **nie kasuj starego pliku**: zmień jego nazwę na `4GE v0.4.vst3`
 > i zostaw obok nowego `4GE.vst3`. Stare projekty otworzą się ze starą wtyczką i będą brzmieć jak dawniej, a nowe kicki robisz w nowej.
-> (Na liście wtyczek FL zobaczysz dwa „4GE” – nowy ma w okienku napis v0.5.)
+> (Na liście wtyczek FL zobaczysz dwa „4GE” – nowy ma w okienku napis v0.5 lub nowszy.)
 > Stare presety `.4ge` nie wczytują się do nowego 4GE (świadomie – nowy silnik). Nowe presety zapisujesz w `Dokumenty\4GE\Presets` (`.4gp`).
 
 ## Instalacja (Windows)

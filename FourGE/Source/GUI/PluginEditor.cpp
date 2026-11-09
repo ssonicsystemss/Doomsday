@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include <regex>
 #include "../Presets/StyleEngine.h"
 #include "../Presets/LengthEngine.h"
 #include "DoomsdayBrand.h"
@@ -28,18 +29,37 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     presetBar.setLookAndFeel (&stageLnf);
     const auto& c = palette();
     addAndMakeVisible (presetBar);
-    // module 13: STYLE (always visible)
-    for (int st = 0; st < fge::style::NumStyles; ++st) styleBox.addItem (fge::style::names()[st], st + 1);
-    styleBox.setTextWhenNothingSelected ("STYLE ...");
-    styleBox.setTooltip ("STYLE: EARLY / MODERN / RAW / EXPERIMENTAL - a starting point for the character (generators, pitch drop, distortion chain, screech). "
-                         "It never changes the LENGTH and never locks a knob; your own changes are kept. Right-click: APPLY ALL / PREVIEW / FORGET MY CHANGES.");
-    styleBox.onChange = [this] { const int id = styleBox.getSelectedId(); if (id > 0 && id - 1 != proc.currentStyle()) chooseStyle (id - 1, true); };
-    styleBox.addMouseListener (this, false);
-    addAndMakeVisible (styleBox);
-    lengthBtn.setTooltip ("LENGTH: SHORT / MEDIUM / LONG / EXTRA LONG, LENGTH SYNC to the tempo, AUTO LENGTH and how much PUNCH / BODY / TAIL / SUB follow - "
+    // module 13: STYLE (always visible) - a click applies (KEEP MY CHANGES), a right-click = APPLY ALL / PREVIEW / FORGET
+    styleStrip.setTooltip ("STYLE: EARLY / MODERN / RAW / EXPERIMENTAL - a starting point for the character (generators, pitch drop, distortion chain, screech). "
+                           "It never changes the LENGTH and never locks a knob; your own changes are kept. Right-click: APPLY ALL / PREVIEW / FORGET MY CHANGES.");
+    styleStrip.tipFor = [] (int i) { return fge::style::names()[i] + ": " + fge::style::description (i) + "  (right-click: APPLY ALL / PREVIEW / FORGET MY CHANGES)"; };
+    styleStrip.onPick = [this] (int st) { chooseStyle (st, true); };
+    styleStrip.onMenu = [this] (int) { styleMenu(); };
+    addAndMakeVisible (styleStrip);
+    // module 14: LENGTH profiles (one click = one undo) + the ms button = the LENGTH panel
+    lengthStrip.tipFor = [] (int i) { return "LENGTH " + fge::length::names()[i] + ": " + String (roundToInt (fge::length::profileMs (i))) + " ms with AUTO LENGTH (the parts scale with it) - independent of the STYLE"; };
+    lengthStrip.onPick = [this] (int i) { fge::length::applyProfile (proc, i); };
+    lengthStrip.onMenu = [this] (int) { openLengthPanel(); };
+    addAndMakeVisible (lengthStrip);
+    lengthBtn.setTooltip ("LENGTH: the exact length, LENGTH SYNC to the tempo, AUTO LENGTH and how much PUNCH / BODY / TAIL / SUB follow - "
                           "independent of the STYLE.");
     lengthBtn.onClick = [this] { openLengthPanel(); };
     addAndMakeVisible (lengthBtn);
+    // module 17: the navigation + the interface settings
+    uiSet = fge::ui::Settings::load();
+    nav.onSelect = [this] (int pg) { showPage (pg); };
+    nav.isActive = [this] (int pg) { return pageActive (pg); };
+    addAndMakeVisible (nav);
+    {
+        const std::pair<const char*, int> rules[] { { "^osc[0-9]+_on$", 2 }, { "^layer[0-9]+_on$", 3 }, { "^noise[A-Z]_on$", 3 }, { "^tr_on$", 3 },
+            { "^dist[0-9]+_on$", 4 }, { "^flt[0-9]+_on$", 5 }, { "^res[0-9]+_on$", 5 }, { "^scr_on$", 5 },
+            { "^eq[0-9]+_on$", 6 }, { "^deq[0-9]+_on$", 6 }, { "^mb_on$", 6 }, { "^sp_on$", 6 }, { "^stw_on$", 6 },
+            { "^cmp[0-9]+_on$", 7 }, { "^ts[0-9]+_on$", 7 }, { "^clp[0-9]+_on$", 7 }, { "^lim[0-9]+_on$", 7 }, { "^crest_on$", 7 },
+            { "^spc_(punch|body|tail|sub|texture|custom|master)_on$", 10 } };
+        for (int i = 0; i < P::count; ++i)
+            for (auto& [re, pg] : rules)
+                if (std::regex_match (def (i).id, std::regex (re))) { activeParams.push_back ({ pg, i }); break; }
+    }
     addAndMakeVisible (wave);
 
     // ---- header: global
@@ -137,32 +157,16 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     addChildComponent (*prPg);
     anPg = std::make_unique<fge::gui::AnalysisPage> (proc, lnf);                       // module 16
     addChildComponent (*anPg);
-    anaBtn.onClick = [this] { showPage (13); };
-    anaBtn.setTooltip ("Kick analysis: load a reference kick, compare it with 4GE (waveform, pitch, spectrum, bands, transient, length, stereo, loudness) and apply the suggested settings (one undo step).");
-    addAndMakeVisible (anaBtn);
+    setPg = std::make_unique<fge::gui::SettingsPage> (uiSet);                        // module 17
+    setPg->version = fge::versionText;
+    setPg->onChanged = [this] { uiSet.save(); applyTooltips(); if (onSettingsChanged) onSettingsChanged(); };
+    addChildComponent (*setPg);
     presetBar.onBrowse = [this] { if (pageIdx != 12) pageBeforePresets = pageIdx; showPage (pageIdx == 12 ? pageBeforePresets : 12); };
-    const char* pages[12] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ", "DYN", "MOD", "SMP", "STEREO", "EXPORT" };
-    for (int i = 0; i < 12; ++i)
-    {
-        pageBtn[(size_t) i].setButtonText (pages[i]);
-        pageBtn[(size_t) i].onClick = [this, i] { showPage (i); };
-        addAndMakeVisible (pageBtn[(size_t) i]);
-    }
-    pageBtn[0].setTooltip ("The kick: parts, sources, mixer.");
-    pageBtn[1].setTooltip ("Draw the pitch / amplitude / filter / distortion / resonance envelope of every part.");
-    pageBtn[2].setTooltip ("Four extra oscillators (waveforms, wavetables, harmonics, unison, FM, ring, sync) routed into the parts.");
-    pageBtn[3].setTooltip ("Noise generators, the transient engine and 8 layers with groups and routing.");
-    pageBtn[4].setTooltip ("16 distortion stages: 11 types, serial / parallel / multiband chains on the whole kick, a part, the texture or a layer; pre / post filters, dynamic modulation, visualizer.");
     wave.onScreechStart = [this] (float ms, bool first) { if (first) proc.undo.beginNewTransaction ("Screech start"); proc.setParamInUndoStep ("scr_start", ms); };
-    pageBtn[5].setTooltip ("Filters (8), resonators (2) and the SCREECH engine: synthesised screeches with their own envelopes and timing.");
-    pageBtn[6].setTooltip ("EQ (16 bands), dynamic EQ, multiband, spectral shaper and stereo engine - on the whole kick, a part, the texture, a layer or the screech.");
-    pageBtn[8].setTooltip ("Modulation: the matrix (64 slots), LFO 1-8, the step sequencer, random sources and the MACRO MAPPING of the 8 MASTER MACROS.");
-    pageBtn[11].setTooltip ("Master output (level, mute, mono, safety), master meters (peak, true peak, RMS, LUFS, DC) and EXPORT: WAV / AIFF / FLAC, groups / layers, length, normalization, seeds, batch, history.");
-    pageBtn[10].setTooltip ("Stereo & space: PAN / BALANCE / WIDTH (M/S, decorrelation, Haas), low mono, M/S, polarity, channel delay per group and on the master; SUB MONO LOCK, MONO AUDITION, vector scope and correlation.");
-    pageBtn[9].setTooltip ("Samples: 8 slots (WAV / AIFF / FLAC), the waveform editor (start / end / loop / fades / reverse), the browser - each slot is one more layer of the kick.");
-    pageBtn[7].setTooltip ("Dynamics: 4 compressors, 5 transient shapers, 2 clippers, 2 limiters, crest factor control, auto gain - where the punch and the loudness are made.");
+    applyTooltips();
+    setWantsKeyboardFocus (true);
     selectPart (2);
-    showPage (0);
+    showPage (uiSet.startPage < 0 ? uiSet.lastPage : uiSet.startPage);
     updateEnabled();
     startTimerHz (30);
 }
@@ -204,8 +208,8 @@ void GeCanvas::selectPart (int i)
 
 void GeCanvas::showPage (int i)
 {
-    pageIdx = jlimit (0, 13, i);
-    const bool main = pageIdx == 0;
+    pageIdx = jlimit (0, 14, i);
+    const bool main = pageIdx == 0, kick = pageIdx < 2;
     for (int p = 0; p < 4; ++p)
     {
         for (auto* c : card[(size_t) p]) c->setVisible (main);
@@ -213,6 +217,8 @@ void GeCanvas::showPage (int i)
         for (auto* c : detail[(size_t) p]) if (c != nullptr) c->setVisible (main && p == selected);
     }
     for (auto* c : masterRow) c->setVisible (main);
+    for (auto* c : pitchRow) c->setVisible (kick);
+    header[5]->setVisible (kick);                                                    // PITCH TRACKING sits in the pitch engine
     envPage->setVisible (pageIdx == 1);
     oscPage->setVisible (pageIdx == 2);
     layerPage->setVisible (pageIdx == 3);
@@ -226,22 +232,16 @@ void GeCanvas::showPage (int i)
     exPg->setVisible (pageIdx == 11);
     prPg->setVisible (pageIdx == 12);
     anPg->setVisible (pageIdx == 13);
-    wave.setVisible (pageIdx < 2);
-    for (auto* m : macroRow) m->setVisible (pageIdx < 2);
-    const auto& c = palette();
-    for (int k = 0; k < 12; ++k)
-    {
-        pageBtn[(size_t) k].setColour (TextButton::buttonColourId, k == pageIdx ? c.red : c.control);
-        pageBtn[(size_t) k].setColour (TextButton::textColourOffId, k == pageIdx ? c.ground : c.silver);
-    }
-    anaBtn.setColour (TextButton::buttonColourId, pageIdx == 13 ? c.red : c.control);
-    anaBtn.setColour (TextButton::textColourOffId, pageIdx == 13 ? c.ground : c.silver);
+    setPg->setVisible (pageIdx == 14);
+    if (pageIdx == 14) setPg->sync();
+    wave.setVisible (kick);
+    nav.setCurrent (pageIdx);
+    if (pageIdx != uiSet.lastPage && pageIdx != 12) { uiSet.lastPage = pageIdx; if (isShowing()) uiSet.save(); }
     repaint();
 }
 
 void GeCanvas::mouseDown (const MouseEvent& e)
 {
-    if (e.eventComponent == &styleBox) { if (e.mods.isPopupMenu()) styleMenu(); return; }
     if (pageIdx != 0) return;
     for (int i = 0; i < 4; ++i)
         if (cardArea[(size_t) i].contains (e.getPosition())) { selectPart (i); return; }
@@ -249,45 +249,49 @@ void GeCanvas::mouseDown (const MouseEvent& e)
 
 void GeCanvas::resized()
 {
-    headerArea = { 0, 0, W, 100 };
+    headerArea = { 0, 0, W, 96 };
     presetBar.setBounds (W - 16 - 300, 5, 300, 90);
-    styleBox.setBounds ((int) doomsday::brand::headerTextX (1.f) + 40, 61, 150, 19);
-    lengthBtn.setBounds ((int) doomsday::brand::headerTextX (1.f) + 40, 82, 150, 19);
-    // header: LENGTH / MASTER / VELOCITY, the three switches, VOICE
-    int x = 316;
-    for (int i = 0; i < 3; ++i) { header[(size_t) i]->setBounds (x, 10, 68, Knob::heightFor (44)); x += 70; }
-    for (int i = 0; i < 3; ++i) header[(size_t) 3 + (size_t) i]->setBounds (x + 10, 8 + i * 23, 146, 20);
-    header[7]->setBounds (x + 10, 8 + 3 * 23, 146, 20);
-    // the page buttons: a 5 x 3 grid (row 1: VOICE + STEREO, rows 2 - 3: the pages in module order)
-    const int gx = 692, gw = 52, gs = 54;
-    header[6]->setBounds (gx, 8, gw + gs, 26);
-    const int order[10] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-    for (int k = 0; k < 10; ++k) pageBtn[(size_t) order[k]].setBounds (gx + (k % 5) * gs, 40 + (k / 5) * 30, gw, 26);
-    pageBtn[10].setBounds (gx + 2 * gs, 8, gw, 26);
-    anaBtn.setBounds (gx + 3 * gs, 8, gw, 26);
-    pageBtn[11].setBounds (gx + 4 * gs, 8, gw, 26);
-    // pitch engine
-    pitchArea = { 16, 104, W - 32, 84 };
+    // top bar: STYLE, LENGTH (+ the ms panel), the INFO LINE under them
+    styleStrip.setBounds (300, 28, 300, 30);
+    lengthStrip.setBounds (624, 28, 280, 30);
+    lengthBtn.setBounds (910, 28, 210, 30);
+    infoArea = { 300, 66, W - 16 - 300 - 300 - 14, 26 };
+    // the navigation (left)
+    nav.setBounds (16, Y0, navW - 16, CH);
+    // bottom: MASTER MACROS + GLOBAL (always visible)
+    macroArea = { 16, Y0 + CH + 8, 924, 104 };
+    for (size_t i = 0; i < macroRow.size(); ++i) macroRow[i]->setBounds (macroArea.getX() + 170 + (int) i * 94, macroArea.getY() + 8, 84, Knob::heightFor (40));
+    globalArea = { macroArea.getRight() + 12, macroArea.getY(), W - 16 - macroArea.getRight() - 12, 104 };
+    {
+        int x = globalArea.getX() + 8;
+        for (int k : { 0, 1, 2 }) { header[(size_t) k]->setBounds (x, globalArea.getY() + 22, 68, Knob::heightFor (40)); x += 70; }
+        x += 6;
+        header[6]->setBounds (x, globalArea.getY() + 8, 146, 20);           // VOICE
+        header[7]->setBounds (x, globalArea.getY() + 31, 146, 20);          // KICK END
+        header[4]->setBounds (x, globalArea.getY() + 54, 146, 20);          // PHASE RESET
+        header[3]->setBounds (x, globalArea.getY() + 77, 146, 20);          // AUTO LENGTH
+        meterArea = { globalArea.getRight() - 34, globalArea.getY() + 8, 24, globalArea.getHeight() - 26 };
+    }
+    // MAIN: pitch engine
+    pitchArea = { X0, Y0, CW, 84 };
     pitchRow[0]->setBounds (pitchArea.getX() + 14, pitchArea.getY() + 40, 520, 28);
+    header[5]->setBounds (pitchArea.getX() + 140, pitchArea.getY() + 7, 146, 20);  // PITCH TRACKING
     for (int i = 1; i < 9; ++i) pitchRow[(size_t) i]->setBounds (pitchArea.getX() + 570 + (i - 1) * 80, pitchArea.getY() + 4, 76, Knob::heightFor (38));
-    // waveform + output meter
-    waveArea = { 16, 196, W - 32 - 34, 152 };
-    macroArea = { 16, 354, W - 32, 70 };
-    for (size_t i = 0; i < macroRow.size(); ++i) macroRow[i]->setBounds (macroArea.getX() + 160 + (int) i * 130, macroArea.getY() + 2, 100, Knob::heightFor (30));
+    // the central waveform
+    waveArea = { X0, Y0 + 92, CW, 134 };
     wave.setBounds (waveArea);
-    meterArea = { waveArea.getRight() + 10, waveArea.getY(), 24, waveArea.getHeight() };
     // part cards
-    const int cw = (W - 32 - 3 * 12) / 4;
+    const int cw = (CW - 3 * 12) / 4;
     for (int i = 0; i < 4; ++i)
     {
-        cardArea[(size_t) i] = { 16 + i * (cw + 12), 430, cw, 160 };
+        cardArea[(size_t) i] = { X0 + i * (cw + 12), Y0 + 234, cw, 160 };
         const auto a = cardArea[(size_t) i];
         for (int k = 0; k < 4; ++k) card[(size_t) i][(size_t) k]->setBounds (a.getX() + 8 + k * 72, a.getY() + 28, 70, Knob::heightFor (40));
         card[(size_t) i][4]->setBounds (a.getRight() - 136, a.getY() + 4, 60, 20);
         card[(size_t) i][5]->setBounds (a.getRight() - 70, a.getY() + 4, 60, 20);
     }
-    detailArea = { 16, 600, 860, 314 };
-    mixerArea = { detailArea.getRight() + 12, 600, W - 16 - detailArea.getRight() - 12, 314 };
+    detailArea = { X0, Y0 + 404, 860, 314 };
+    mixerArea = { detailArea.getRight() + 12, detailArea.getY(), X0 + CW - detailArea.getRight() - 12, 314 };
     if (masterRow.size() == 2)
     {
         masterRow[0]->setBounds (mixerArea.getX() + 90, mixerArea.getBottom() - 86, 80, Knob::heightFor (34));
@@ -303,19 +307,12 @@ void GeCanvas::resized()
         mixMeterArea[(size_t) i] = { mx + mw - 16, mixerArea.getY() + 44, 6, 132 };
     }
     layoutDetail();
-    if (envPage != nullptr) envPage->setBounds (16, 430, W - 32, H - 430 - 16);
-    if (oscPage != nullptr) oscPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
-    if (layerPage != nullptr) layerPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
-    if (distortionPage != nullptr) distortionPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
-    if (eqPg != nullptr) eqPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
-    if (dynPg != nullptr) dynPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
-    if (modPg != nullptr) modPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
-    if (smpPg != nullptr) smpPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
-    if (stPg != nullptr) stPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
-    if (exPg != nullptr) exPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
-    if (prPg != nullptr) prPg->setBounds (16, 104, W - 32 - 34, H - 104 - 16);
-    if (anPg != nullptr) anPg->setBounds (16, 104, W - 32 - 34, H - 104 - 16);
-    if (scrPage != nullptr) scrPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
+    const Rectangle<int> pageArea (X0, Y0, CW, CH);
+    if (envPage != nullptr) envPage->setBounds (pageArea.withTrimmedTop (234));
+    for (Component* pg : { (Component*) oscPage.get(), (Component*) layerPage.get(), (Component*) distortionPage.get(), (Component*) eqPg.get(), (Component*) dynPg.get(),
+                           (Component*) modPg.get(), (Component*) smpPg.get(), (Component*) stPg.get(), (Component*) exPg.get(), (Component*) prPg.get(),
+                           (Component*) anPg.get(), (Component*) scrPage.get(), (Component*) setPg.get() })
+        if (pg != nullptr) pg->setBounds (pageArea);
 }
 
 void GeCanvas::layoutDetail()
@@ -345,15 +342,28 @@ void GeCanvas::paint (Graphics& g)
 {
     const auto& c = palette();
     g.fillAll (c.ground);
-    // header
+    // top bar
+    g.setColour (c.panel.darker (0.25f)); g.fillRect (0, 0, W, 96);
+    g.setColour (c.grid); g.drawHorizontalLine (96, 0.f, (float) W);
     doomsday::brand::drawHeaderBadge (g, 1.f, 0.55f);
     const float tx = doomsday::brand::headerTextX (1.f);
     g.setColour (c.silver); g.setFont (lnf.font (30.f, doomsday::flat::Bold, 0.12f));
     g.drawText ("4GE", (int) tx, 14, 200, 34, Justification::left);
     g.setColour (c.red); g.setFont (lnf.font (11.f, doomsday::flat::Bold, 0.18f));
-    g.drawText ("HARDSTYLE KICK DESIGNER", (int) tx, 50, 260, 16, Justification::left);
+    g.drawText ("HARDSTYLE KICK DESIGNER", (int) tx, 50, 180, 16, Justification::left);
     g.setColour (c.textDim); g.setFont (lnf.font (11.f, doomsday::flat::Medium));
     g.drawText ("v" + String (versionText), (int) tx, 68, 40, 16, Justification::left);
+    g.setFont (lnf.font (10.f, doomsday::flat::Bold, 0.14f));
+    g.drawText ("STYLE", styleStrip.getX(), 10, 100, 14, Justification::left);
+    g.drawText ("LENGTH", lengthStrip.getX(), 10, 100, 14, Justification::left);
+    // the INFO LINE
+    if (uiSet.infoLine)
+    {
+        g.setColour (c.ground); g.fillRoundedRectangle (infoArea.toFloat(), 4.f);
+        g.setColour (c.red); g.fillEllipse ((float) infoArea.getX() + 8.f, (float) infoArea.getCentreY() - 2.5f, 5.f, 5.f);
+        g.setColour (c.silver.withAlpha (0.85f)); g.setFont (lnf.font (11.f, doomsday::flat::Medium));
+        g.drawFittedText (infoText, infoArea.withTrimmedLeft (20).withTrimmedRight (8), Justification::centredLeft, 1, 0.85f);
+    }
 
     // panels
     auto panel = [&] (Rectangle<int> r, const String& title, Colour dot)
@@ -366,29 +376,30 @@ void GeCanvas::paint (Graphics& g)
             g.drawText (title, r.getX() + 20, r.getY() + 8, 300, 20, Justification::left);
         }
     };
-    panel (pitchArea, "PITCH ENGINE", c.part[2]);
-    g.setColour (c.textDim); g.setFont (lnf.font (10.5f, doomsday::flat::Medium));
-    const bool track = raw (proc, P::coreKeyTrack) > 0.5f;
-    g.drawText (track ? "TRACKING: END = the played note, START moves with it" : "FIXED: START -> END in Hz",
-                pitchArea.getX() + 140, pitchArea.getY() + 8, 400, 20, Justification::left);
     if (pageIdx < 2)
     {
-        panel (macroArea, "MASTER MACROS", c.red);
-        g.setColour (c.textDim); g.setFont (lnf.font (9.5f, doomsday::flat::Medium));
-        g.drawFittedText ("drag  >  onto any knob\nright-click a knob = modulate", macroArea.getX() + 14, macroArea.getY() + 30, 140, 30, Justification::topLeft, 2);
-        for (auto* m : macroRow)
-        {
-            const auto h = Rectangle<float> ((float) m->getRight() + 4.f, (float) m->getY() + 8.f, 14.f, 14.f);
-            g.setColour (c.control); g.fillRoundedRectangle (h, 3.f);
-            g.setColour (c.red); g.drawText (">", h, Justification::centred);
-        }
+        panel (pitchArea, "PITCH ENGINE", c.part[2]);
+        g.setColour (c.textDim); g.setFont (lnf.font (10.5f, doomsday::flat::Medium));
+        const bool track = raw (proc, P::coreKeyTrack) > 0.5f;
+        g.drawText (track ? "END = the played note, START moves with it" : "FIXED: START -> END in Hz",
+                    pitchArea.getX() + 296, pitchArea.getY() + 8, 260, 20, Justification::left);
     }
+    // MASTER MACROS + GLOBAL (every page)
+    panel (macroArea, "MASTER MACROS", c.red);
+    g.setColour (c.textDim); g.setFont (lnf.font (9.5f, doomsday::flat::Medium));
+    g.drawFittedText ("drag  >  onto any knob\nright-click a knob = modulate\nMOD MATRIX = what they move", macroArea.getX() + 14, macroArea.getY() + 34, 150, 44, Justification::topLeft, 3);
+    for (auto* m : macroRow)
+    {
+        const auto h = Rectangle<float> ((float) m->getRight() + 2.f, (float) m->getY() + 12.f, 14.f, 14.f);
+        g.setColour (c.control); g.fillRoundedRectangle (h, 3.f);
+        g.setColour (c.red); g.drawText (">", h, Justification::centred);
+    }
+    panel (globalArea, "", c.red);
     if (pageIdx == 0) paintMain (g, panel);
     // output meter
     {
         const float m = jlimit (0.f, 1.f, (Decibels::gainToDecibels (outMeter, -60.f) + 60.f) / 66.f);
-        g.setColour (c.panel); g.fillRoundedRectangle (meterArea.toFloat(), 4.f);
-        auto r = meterArea.reduced (6, 8);
+        auto r = meterArea.reduced (6, 2);
         g.setColour (c.control); g.fillRect (r);
         g.setColour (outMeter > 1.f ? c.hot : c.silver.withAlpha (0.85f));
         g.fillRect (r.withTop (r.getBottom() - roundToInt ((float) r.getHeight() * m)));
@@ -461,12 +472,26 @@ void GeCanvas::updateEnabled()
 void GeCanvas::timerCallback()
 {
     presetBar.refresh();
-    if (const int st = proc.currentStyle(); st != styleShown)                      // module 13: the STYLE shown (undo / presets change it too)
+    styleStrip.setLit (proc.currentStyle());                                       // module 13: the STYLE shown (undo / presets change it too)
     {
-        styleShown = st;
-        if (st >= 0) styleBox.setSelectedId (st + 1, dontSendNotification); else styleBox.setText ("STYLE ...", dontSendNotification);
+        const auto f = proc.frame();                                               // module 14: the length category (none while SYNC decides)
+        const float ms = kickLengthMs (f, proc.hostBpm());
+        lengthStrip.setLit (f.idx (P::lenSync) > 0 ? -1 : fge::length::category (ms));
+        lengthBtn.setButtonText (fge::length::label (proc, proc.hostBpm()) + "  ...");
     }
-    lengthBtn.setButtonText ("LENGTH: " + fge::length::label (proc, proc.hostBpm()));
+    // module 17: the INFO LINE + the navigation dots
+    {
+        String t;
+        if (Time::getMillisecondCounter() - styleMsgTime < 4000 && styleMsg.isNotEmpty()) t = styleMsg;
+        else
+        {
+            auto* under = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
+            if (under != nullptr && (under == this || isParentOf (under))) t = infoFor (under);
+            if (t.isEmpty()) t = fge::gui::NavBar::blockOf (pageIdx) + "  >  " + fge::gui::NavBar::pageName (pageIdx) + "   -   " + fge::gui::NavBar::pageTip (pageIdx);
+        }
+        if (t != infoText) { infoText = t; repaint (infoArea); }
+        nav.refresh();
+    }
     const auto tb = proc.currentTables();
     {
         fge::gui::WaveView::Samples ss;
@@ -480,8 +505,8 @@ void GeCanvas::timerCallback()
     outMeter = jmax (e.outPeak.exchange (0.f), outMeter * 0.85f);
     updateEnabled();
     repaint (meterArea.expanded (4));
-    repaint (mixerArea);
-    for (auto& a : cardArea) repaint (a.withTop (a.getBottom() - 14));
+    if (pageIdx == 0) repaint (mixerArea);
+    if (pageIdx == 0) for (auto& a : cardArea) repaint (a.withTop (a.getBottom() - 14));
 }
 
 // ======================================================================= editor
@@ -510,6 +535,8 @@ void GeCanvas::knobMenu (doomsday::flat::Knob& k)
     const String pid = k.parameterId();
     const int id = fge::modstate::indexOf (pid);
     PopupMenu m;
+    knobValueMenu (k, m);                                                            // module 17: reset / copy / paste / type
+    m.addSeparator();
     if (! mo::modulatable (id)) { m.addItem (-1, "(this control is not a modulation target)", false); m.showMenuAsync (PopupMenu::Options().withTargetComponent (&k)); return; }
     PopupMenu with;
     for (int s = 1; s < mo::NumSrc; ++s) with.addItem (s, mo::sourceNames()[s]);
@@ -532,6 +559,7 @@ void GeCanvas::knobMenu (doomsday::flat::Knob& k)
         if (self == nullptr || r <= 0) return;
         if (r < 1000 && r != 999) { self->addModulation (pid, r); return; }
         if (r == 999) { self->showPage (8); self->modPg->setView ((mine.front() / 16) * 16); self->modPg->selectSlot (mine.front()); return; }
+        if (r >= 2000) return;
         self->proc.setModSlot (r - 1000, {});
     });
 }
@@ -571,8 +599,8 @@ int GeCanvas::dropOnto (Point<int> pos, int source)
 void GeCanvas::itemDropped (const SourceDetails& d) { dropOnto (d.localPosition, d.description.toString().fromFirstOccurrenceOf ("modsrc:", false, false).getIntValue()); }
 void GeCanvas::mouseDrag (const MouseEvent& e)
 {
-    // the small handles next to the macro knobs on MAIN: drag a macro onto any knob
-    if (pageIdx >= 2 || isDragAndDropActive() || ! macroArea.contains (e.getMouseDownPosition())) return;
+    // the small handles next to the macro knobs (bottom bar, every page): drag a macro onto any knob
+    if (isDragAndDropActive() || ! macroArea.contains (e.getMouseDownPosition())) return;
     for (size_t i = 0; i < macroRow.size(); ++i)
         if (macroRow[i]->getBounds().withX (macroRow[i]->getRight()).withWidth (22).contains (e.getMouseDownPosition()))
             startDragging ("modsrc:" + String (fge::dsp::mod::SMacro1 + (int) i), this);
@@ -586,12 +614,36 @@ GeEditor::GeEditor (GeProcessor& p) : AudioProcessorEditor (p), canvas (p)
     setResizable (true, true);
     setResizeLimits (GeCanvas::W * 6 / 10, GeCanvas::H * 6 / 10, GeCanvas::W * 16 / 10, GeCanvas::H * 16 / 10);
     getConstrainer()->setFixedAspectRatio ((double) GeCanvas::W / (double) GeCanvas::H);
-    setSize (GeCanvas::W * 9 / 10, GeCanvas::H * 9 / 10);
+    canvas.onSettingsChanged = [this] { applyScale(); };
+    applyScale();
+}
+// module 17: the size = SETTINGS (FIT = the largest step that fits the screen); dragging the corner remembers the new size
+float GeEditor::wantedScale() const
+{
+    Rectangle<int> area;
+    if (auto* d = Desktop::getInstance().getDisplays().getPrimaryDisplay()) area = d->userArea;
+    return canvas.uiSettings().resolve (area, GeCanvas::W, GeCanvas::H);
+}
+void GeEditor::applyScale()
+{
+    const float s = wantedScale();
+    ownResize = true;
+    setSize (roundToInt (GeCanvas::W * s), roundToInt (GeCanvas::H * s));
+    ownResize = false;
 }
 void GeEditor::resized()
 {
     canvas.setBounds (0, 0, GeCanvas::W, GeCanvas::H);
     canvas.setTransform (AffineTransform::scale ((float) getWidth() / (float) GeCanvas::W));
+    if (! ownResize && isShowing())                                           // the user dragged the corner
+    {
+        const float s = jlimit (0.6f, 1.6f, (float) getWidth() / (float) GeCanvas::W);
+        if (std::abs (s - wantedScale()) > 0.005f) { canvas.uiSettings().scale = s; saveIn = 15; startTimer (40); }
+    }
+}
+void GeEditor::timerCallback()
+{
+    if (--saveIn <= 0) { stopTimer(); canvas.uiSettings().save(); }
 }
 
 // ------------------------------------------------------------ module 13: STYLE ENGINE in the header
@@ -607,7 +659,7 @@ void GeCanvas::chooseStyle (int st, bool keepMine)
         auto* bubble = new BubbleMessageComponent (300);
         addChildComponent (bubble);
         AttributedString t; t.append (styleMsg, FontOptions (13.f), palette().silver);
-        bubble->showAt (&styleBox, t, 3500, true, true);
+        bubble->showAt (&styleStrip, t, 3500, true, true);
     }
     styleShown = -2;
     repaint();
@@ -645,7 +697,7 @@ void GeCanvas::styleMenu()
     menu.addSeparator();
     menu.addItem (500, "FORGET MY CHANGES (" + String (proc.touchedCount()) + " remembered)", proc.touchedCount() > 0);
     SafePointer<GeCanvas> self (this);
-    menu.showMenuAsync (PopupMenu::Options().withTargetComponent (&styleBox), [self] (int r)
+    menu.showMenuAsync (PopupMenu::Options().withTargetComponent (&styleStrip), [self] (int r)
     {
         if (self == nullptr || r <= 0) return;
         if (r == 500) { self->proc.forgetTouched(); self->styleMsg = "your changes are forgotten - the next style sets everything"; self->styleMsgTime = Time::getMillisecondCounter(); self->repaint(); return; }
@@ -733,4 +785,134 @@ Component* GeCanvas::openLengthPanel()
     if (isShowing()) lengthBox = &CallOutBox::launchAsynchronously (std::move (panel), lengthBtn.getScreenBounds(), nullptr);
     else { owned.push_back (std::move (panel)); raw->setBounds (0, 0, 520, 330); }
     return raw;
+}
+
+// ======================================================================= module 17: GUI & UX
+void GeCanvas::applyTooltips()
+{
+    if (uiSet.tooltips && tips == nullptr) tips = std::make_unique<TooltipWindow> (this, 600);
+    if (! uiSet.tooltips) tips.reset();
+    repaint();
+}
+
+// the INFO LINE: what is under the mouse - a parameter (name, value, range, default, modulation, "yours") or the control's tooltip
+String GeCanvas::infoFor (Component* comp)
+{
+    namespace mo = fge::dsp::mod;
+    auto paramInfo = [this] (const String& pid) -> String
+    {
+        const int idx = fge::modstate::indexOf (pid);
+        if (idx < 0) return {};
+        const auto& d = def (idx);
+        const float v = raw (proc, idx);
+        String t = String (d.name).toUpperCase() + " = " + formatValue (d, v);
+        if (d.kind == Kind::Float) t << "   |   " << formatValue (d, d.min) << " .. " << formatValue (d, d.max) << ",  default " << formatValue (d, d.def);
+        else if (d.kind == Kind::Choice && d.choices != nullptr) t << "   |   " << d.choices().joinIntoString (" / ");
+        else t << "   |   default " << (d.def > 0.5f ? "ON" : "OFF");
+        int mods = 0; for (auto& sl : proc.modDesc().slot) mods += (! sl.empty() && sl.on && sl.dst == pid) ? 1 : 0;
+        if (mods > 0) t << "   |   MODULATED (" << mods << ")";
+        if (proc.isTouched (idx)) t << "   |   YOURS (a STYLE keeps it)";
+        const String tip = fge::tooltip (idx);
+        if (tip.isNotEmpty()) t << "   -   " << tip;
+        return t;
+    };
+    for (auto* c = comp; c != nullptr && c != this; c = c->getParentComponent())
+    {
+        if (auto* k = dynamic_cast<Knob*> (c)) return paramInfo (k->parameterId());
+        for (auto& [id, cc] : byId) if (cc == c) return paramInfo (id);
+        if (auto* tc = dynamic_cast<TooltipClient*> (c)) { const String t = tc->getTooltip(); if (t.isNotEmpty()) return t; }
+    }
+    return {};
+}
+
+// the navigation dots: this page changes the sound now
+bool GeCanvas::pageActive (int page)
+{
+    namespace mo = fge::dsp::mod;
+    if (page == 9) { for (int k = 0; k < fge::dsp::numSampleSlots; ++k) if (proc.sampleInfo (k).status != fge::smp::SEmpty) return true; return false; }
+    if (page == 8)
+    {
+        for (auto& sl : proc.modDesc().slot)
+        {
+            if (sl.empty() || ! sl.on || sl.mute || sl.dst.isEmpty()) continue;
+            if (! mo::isMacro (sl.src)) return true;
+            for (auto* m : macroRow) if (auto* k = dynamic_cast<Knob*> (m)) if (proc.apvts.getRawParameterValue (k->parameterId())->load() > 0.001f) return true;
+        }
+        return false;
+    }
+    for (auto& [pg, idx] : activeParams) if (pg == page && raw (proc, idx) > 0.5f) return true;
+    return false;
+}
+
+// right-click on any knob (all pages): the value
+void GeCanvas::knobValueMenu (Knob& k, PopupMenu& m)
+{
+    const String pid = k.parameterId();
+    auto* prm = proc.apvts.getParameter (pid);
+    if (prm == nullptr) return;
+    auto set = [prm] (float plain) { prm->beginChangeGesture(); prm->setValueNotifyingHost (prm->convertTo0to1 (plain)); prm->endChangeGesture(); };
+    const float now = prm->convertFrom0to1 (prm->getValue()), defv = prm->convertFrom0to1 (prm->getDefaultValue());
+    const int idx = fge::modstate::indexOf (pid);
+    const String txt = idx >= 0 ? formatValue (def (idx), defv) : String (defv);
+    m.addSectionHeader (idx >= 0 ? String (def (idx).name).toUpperCase() : pid);
+    m.addItem ("RESET TO DEFAULT (" + txt + ")", std::abs (now - defv) > 1.0e-6f, false, [set, defv] { set (defv); });
+    m.addItem ("TYPE A VALUE...", [sp = Component::SafePointer<Slider> (&k.slider)] { if (sp != nullptr) sp->showTextBox(); });
+    m.addItem ("COPY VALUE", [now, pid] { SystemClipboard::copyTextToClipboard ("4GE:" + pid + "=" + String (now, 6)); });
+    const String clip = SystemClipboard::getTextFromClipboard();
+    const bool canPaste = clip.startsWith ("4GE:") && clip.contains ("=");
+    const float pv = clip.fromFirstOccurrenceOf ("=", false, false).getFloatValue();
+    m.addItem ("PASTE VALUE" + (canPaste ? " (" + (idx >= 0 ? formatValue (def (idx), pv) : String (pv, 2)) + ")" : String()),
+               canPaste, false, [set, clip, prm]
+               {
+                   const auto& r = prm->getNormalisableRange();
+                   set (jlimit (r.start, r.end, clip.fromFirstOccurrenceOf ("=", false, false).getFloatValue()));
+               });
+}
+
+// a file dropped anywhere (pages with their own drop - SAMPLES slots, ANALYZE - take it first)
+bool GeCanvas::isInterestedInFileDrag (const StringArray& files)
+{
+    for (auto& f : files) if (File (f).hasFileExtension ("wav;aif;aiff;flac;mp3;4gp")) return true;
+    return false;
+}
+void GeCanvas::filesDropped (const StringArray& files, int, int)
+{
+    File f; for (auto& x : files) if (File (x).hasFileExtension ("wav;aif;aiff;flac;mp3;4gp")) { f = File (x); break; }
+    if (! f.existsAsFile()) return;
+    if (f.hasFileExtension ("4gp")) { dropFile (f, 3); return; }
+    PopupMenu m;
+    m.addSectionHeader (f.getFileName());
+    m.addItem (1, "LOAD INTO THE NEXT FREE SAMPLE SLOT (a layer of the kick)");
+    m.addItem (2, "USE AS THE ANALYZE REFERENCE (compare, get suggestions)");
+    SafePointer<GeCanvas> self (this);
+    m.showMenuAsync (PopupMenu::Options().withMousePosition(), [self, f] (int r) { if (self != nullptr && r > 0) self->dropFile (f, r); });
+}
+void GeCanvas::dropFile (const File& f, int choice)
+{
+    if (choice == 3) { if (proc.loadUserPresetFile (f)) { proc.setPresetName (f.getFileNameWithoutExtension()); styleMsg = "preset loaded: " + f.getFileNameWithoutExtension(); styleMsgTime = Time::getMillisecondCounter(); } return; }
+    if (choice == 2) { showPage (13); anPg->loadReference (f); return; }
+    int slot = -1;
+    for (int k = 0; k < fge::dsp::numSampleSlots && slot < 0; ++k) if (proc.sampleInfo (k).status == fge::smp::SEmpty) slot = k;
+    if (slot < 0) { styleMsg = "all 8 sample slots are used - clear one on the SAMPLES page"; styleMsgTime = Time::getMillisecondCounter(); showPage (9); return; }
+    proc.importSample (slot, f);
+    showPage (9);
+    smpPg->selectSlot (slot);
+    styleMsg = f.getFileName() + " -> SAMPLE SLOT " + String (slot + 1) + " (layer " + String (9 + slot) + ")"; styleMsgTime = Time::getMillisecondCounter();
+}
+
+// shortcuts: Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z), Ctrl+left / right = the page before / after
+bool GeCanvas::keyPressed (const KeyPress& k)
+{
+    const bool cmd = k.getModifiers().isCommandDown();
+    if (cmd && k.getKeyCode() == 'Z' && ! k.getModifiers().isShiftDown()) { proc.undo.undo(); return true; }
+    if (cmd && (k.getKeyCode() == 'Y' || (k.getKeyCode() == 'Z' && k.getModifiers().isShiftDown()))) { proc.undo.redo(); return true; }
+    if (cmd && k.getKeyCode() == KeyPress::leftKey) { stepPage (-1); return true; }
+    if (cmd && k.getKeyCode() == KeyPress::rightKey) { stepPage (1); return true; }
+    return false;
+}
+void GeCanvas::stepPage (int dir)
+{
+    const auto o = fge::gui::NavBar::order();
+    int at = 0; for (int i = 0; i < (int) o.size(); ++i) if (o[(size_t) i] == pageIdx) at = i;
+    showPage (o[(size_t) ((at + dir + (int) o.size()) % (int) o.size())]);
 }

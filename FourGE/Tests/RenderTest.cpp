@@ -217,6 +217,9 @@ int main (int argc, char** argv)
             PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
             FileOutputStream os (File (argv[1]).getChildFile ("page" + String (pg).paddedLeft ('0', 2) + ".png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
         }
+        ge->canvas.showPage (0); ge->canvas.selectPart (0);
+        { PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+          FileOutputStream os (File (argv[1]).getChildFile ("page00_punch.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); } }
         return 0;
     }
     if (argc > 3 && String (argv[2]) == "--presetlab")                        // factory preset work: render + analyse + compare + C++ line
@@ -1056,7 +1059,10 @@ int main (int argc, char** argv)
                     if (k == "deviation") set2 (o + "mode", 4.f);
                 }
                 if (sid == "mod_movement") route (mo::SLfo1);
-                if (sid.startsWith ("len_follow_")) set2 ("core_length", 1200.f);                  // module 14: the parts only follow a changed LENGTH
+                if (sid.startsWith ("len_follow_")) set2 ("core_length", 1200.f);
+                if (sid == "pe_start_mode") set2 ("pe_end", 30.f);
+                if (sid == "punch_note_mode" || sid == "punch_overlap") { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); }
+                if (sid == "punch_transient_len" || sid == "punch_transient_tone") set2 ("punch_transient", 1.f);                                  // (FIXED = FOLLOW when the note is END)                  // module 14: the parts only follow a changed LENGTH
                 if (sid == "core_note_cut") { offAt = 0.1; set2 ("spc_master_on", 1.f); set2 ("spc_master_delay", 10.f); set2 ("spc_master_mode", 3.f); }
                 if (sid == "master_bypass") set2 ("master_clip_drive", 9.f);                       // module 12: something on the master to bypass
                 if (sid == "master_safety_clip" || sid == "master_safety_limiter") set2 ("core_master", 6.f);
@@ -3383,6 +3389,60 @@ int main (int argc, char** argv)
             check (back, "M16 APPLY = ONE undo step (one Ctrl+Z takes every change back)");
         }
     }
+    // ---------------------------------------------------------------- TOK PITCH MODE (owner 2026-11-09): FIXED = the tok on one pitch for every MIDI note
+    {
+        namespace ka = fge::dsp::analysis;
+        auto tokAt = [] (int mode, int note, float& endHz)
+        {
+            GeProcessor p; fge::style::apply (p, fge::style::Modern, false); setP (p, "punch_mode", 0.f); setP (p, "pe_start", 494.f);   // (the tail START itself)
+            setP (p, "pe_start_mode", (float) mode); setP (p, "tail_penv_offset", 150.f);
+            setP (p, "sub_level", -60.f); setP (p, "body_level", -60.f);              // (the tail alone: the analysis reads the tok, not the sub under it)
+            const auto r = ka::analyse (fge::analysis::renderMine (p.exportSnapshot(), note, 150.0), 44100.0);
+            endHz = r.endHz;
+            std::vector<float> v; for (size_t k = 2; k < 14 && k < r.pitch.size(); ++k) if (r.pitch[k] > 150.f) v.push_back (r.pitch[k]);
+            std::sort (v.begin(), v.end()); return v.empty() ? 0.f : v[v.size() / 2];
+        };
+        float e1, e2, e3, e4;
+        const float fG = tokAt (1, 31, e1), fB = tokAt (1, 35, e2), lG = tokAt (0, 31, e3), lB = tokAt (0, 35, e4);
+        auto st = [] (float a, float b) { return a > 0.f && b > 0.f ? 12.f * std::log2 (a / b) : 99.f; };
+        check (std::abs (st (fB, fG)) < 0.3f && std::abs (st (lB, lG) - 4.f) < 0.5f && std::abs (st (e2, e1) - 4.f) < 0.5f && std::abs (st (e4, e3) - 4.f) < 0.5f,
+               "TOK FIXED: the tok stays on its pitch on every MIDI note (FOLLOW MIDI moves it), the tail lands on the note in both",
+               "FIXED G1 " + String (fG, 0) + " / B1 " + String (fB, 0) + " Hz, FOLLOW " + String (lG, 0) + " / " + String (lB, 0) + " Hz, ends " + String (e1, 1) + " / " + String (e2, 1));
+        GeProcessor q; q.setCurrentProgram (progIdx (q, "RAW - Screamer Main"));
+        const bool presetsFixed = q.frame().idx (P::punchMode) == 1 && q.frame().idx (P::punchNoteMode) == 0 && q.frame().idx (P::bodyLink) == 1;
+        const auto& d = def (P::peStart);
+        check (presetsFixed && std::abs (parseValue (d, "G4") - 392.f) < 0.1f && formatValue (d, 392.f).contains ("G4"),
+               "TOK: style presets = PUNCH / TOK on a FIXED note, BODY follows the tail; START reads / takes note names", formatValue (d, 392.f));
+    }
+    // ---------------------------------------------------------------- PUNCH / TOK -> BODY + TAIL (owner 2026-11-09): two parts, the tok first
+    {
+        namespace ka = fge::dsp::analysis;
+        auto run = [] (int note, float& tokHz, float& tailOnMs, float& endHz)
+        {
+            GeProcessor p; fge::style::apply (p, fge::style::Modern, false);
+            for (auto [id, v] : std::initializer_list<std::pair<const char*, float>> { { "punch_mode", 1 }, { "punch_note_mode", 0 }, { "punch_pitch", 392 }, { "punch_length", 110 },
+                     { "punch_source", 2 }, { "punch_level", 0 }, { "punch_sustain", 1 }, { "tail_penv_offset", 0 }, { "sub_level", -60 }, { "body_level", -60 } })
+                setP (p, id, v);
+            const auto b = fge::analysis::renderMine (p.exportSnapshot(), note, 150.0);
+            const auto r = ka::analyse (b, 44100.0);
+            std::vector<float> v; for (size_t k = 2; k < 16 && k < r.pitch.size(); ++k) if (r.pitch[k] > 150.f) v.push_back (r.pitch[k]);
+            std::sort (v.begin(), v.end()); tokHz = v.empty() ? 0.f : v[v.size() / 2]; endHz = r.endHz;
+            tailOnMs = -1.f;
+            return b;
+        };
+        float t1, t2, a1, a2, e1, e2;
+        run (31, t1, a1, e1); run (35, t2, a2, e2);
+        // where the tail starts: the tail alone, the tok muted
+        GeProcessor p; fge::style::apply (p, fge::style::Modern, false);
+        for (auto [id, v] : std::initializer_list<std::pair<const char*, float>> { { "punch_mode", 1 }, { "punch_length", 110 }, { "punch_sustain", 1 }, { "punch_overlap", 4 },
+                 { "tail_penv_offset", 0 }, { "mix_punch_mute", 1 }, { "sub_level", -60 }, { "body_level", -60 } }) setP (p, id, v);
+        const auto tb = fge::analysis::renderMine (p.exportSnapshot(), 31, 150.0);
+        int on = 0; for (int i = 0; i < tb.getNumSamples(); ++i) if (std::abs (tb.getSample (0, i)) > 0.01f) { on = i; break; }
+        const float onMs = on * 1000.f / 44100.f;
+        check (std::abs (12.f * std::log2 (t2 / t1)) < 0.3f && std::abs (t1 - 392.f) < 8.f && std::abs (12.f * std::log2 (e2 / e1) - 4.f) < 0.5f && onMs > 95.f && onMs < 115.f,
+               "PUNCH / TOK: the tok holds its note (FIXED) on every MIDI note, BODY + TAIL start when it ends (LENGTH - OVERLAP), the tail on the note",
+               "tok " + String (t1, 0) + " / " + String (t2, 0) + " Hz, ends " + String (e1, 1) + " / " + String (e2, 1) + " Hz, tail from " + String (onMs, 1) + " ms");
+    }
     // ---------------------------------------------------------------- module 08: dynamics, compressor, transient & limiter (MODULE08.md 14)
     {
         namespace dy = fge::dsp::dyn;
@@ -4414,6 +4474,18 @@ int main (int argc, char** argv)
                 check (io && big == 1.f && hd == 0.9f && small >= 0.6f && small <= 0.7f && sized && sized80,
                        "M17 SETTINGS: interface file round trip, FIT per screen (2560 / 1920 / 1366), SIZE resizes the window",
                        "fit " + String (big, 2) + " / " + String (hd, 2) + " / " + String (small, 2) + (sized ? "" : " size100!") + (sized80 ? "" : " size80!"));
+            }
+            {
+                cv.showPage (0);
+                cv.selectPart (0);
+                const float s0 = p.apvts.getRawParameterValue ("punch_pitch")->load();
+                cv.tokNoteBox().setSelectedId (67 + 1, sendNotificationSync);           // G4
+                const float s1 = p.apvts.getRawParameterValue ("punch_pitch")->load();
+                p.undo.undo();
+                const float s2 = p.apvts.getRawParameterValue ("punch_pitch")->load();
+                check (std::abs (s1 - 392.f) < 0.5f && std::abs (s2 - s0) < 0.5f && cv.tokNoteBox().isVisible() && cv.findControl ("punch_note_mode") != nullptr && cv.findControl ("pe_start_mode") != nullptr,
+                       "TOK GUI: TOK NOTE sets the PUNCH / TOK note (one undo), FIXED / FOLLOW MIDI in the PUNCH, START mode in the pitch engine",
+                       String (s0, 0) + " -> " + String (s1, 1) + " -> " + String (s2, 0));
             }
             cv.showPage (0);
         }

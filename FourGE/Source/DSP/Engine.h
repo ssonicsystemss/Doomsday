@@ -43,6 +43,8 @@ namespace fge
         float endHz = 49.f, fineMul = 1.f, subHz = 49.f;
         bool keyTrack = true;
         bool startFixed = false;                  // the TOK (pitch START) at a fixed pitch (owner 2026-11-09)
+        bool tokMode = false, tokFixed = true;    // PUNCH / TOK -> TAIL: the punch is the tok (its own note), the tail starts after it
+        float tokHz = 400.f, tailStartMs = 0.f;
         float startHz = 220.f, endHz0 = 49.f, startAmountSt = 0.f, tailPAmt = 1.f;
         bool wide = false;                        // TAIL UNISON + WIDTH: the left / right tail chains run too
         float width = 0.f;
@@ -124,7 +126,7 @@ namespace fge
                 const float endEff = (cfg.keyTrack ? noteHz : cfg.endHz) * cfg.fineMul;
                 const float subBase = (cfg.keyTrack ? noteHz : cfg.subHz) * cfg.fineMul;
                 const float fTail = endEff * std::exp2 (pe.semis (dsp::PTail, 0.f) / 12.f);
-                const std::array<float, 4> hz { fTail * std::exp2 (pe.semis (dsp::PPunch, 0.f) / 12.f), fTail * std::exp2 (pe.semis (dsp::PBody, 0.f) / 12.f),
+                const std::array<float, 4> hz { cfg.tokMode ? tokHzFor (cfg) : fTail * std::exp2 (pe.semis (dsp::PPunch, 0.f) / 12.f), fTail * std::exp2 (pe.semis (dsp::PBody, 0.f) / 12.f),
                                                 fTail, subBase * std::exp2 (pe.semis (dsp::PSub, 0.f) / 12.f) };
                 const std::array<float, 4> starts { cfg.amp[dsp::PPunch].delayMs, cfg.amp[dsp::PBody].delayMs, cfg.amp[dsp::PTail].delayMs + cfg.holdMs, cfg.amp[dsp::PSub].delayMs };
                 lbv.start (cfg.lb, cfg.osc, hitCount, (uint64_t) (absTimeSec * cfg.ks.rate), hz, starts);
@@ -136,7 +138,7 @@ namespace fge
                 const float endEff = (cfg.keyTrack ? noteHz : cfg.endHz) * cfg.fineMul;
                 const float subBase = (cfg.keyTrack ? noteHz : cfg.subHz) * cfg.fineMul;
                 const float fTail = endEff * std::exp2 (pe.semis (dsp::PTail, 0.f) / 12.f);
-                const std::array<float, 4> hz { fTail * std::exp2 (pe.semis (dsp::PPunch, 0.f) / 12.f), fTail * std::exp2 (pe.semis (dsp::PBody, 0.f) / 12.f),
+                const std::array<float, 4> hz { cfg.tokMode ? tokHzFor (cfg) : fTail * std::exp2 (pe.semis (dsp::PPunch, 0.f) / 12.f), fTail * std::exp2 (pe.semis (dsp::PBody, 0.f) / 12.f),
                                                 fTail, subBase * std::exp2 (pe.semis (dsp::PSub, 0.f) / 12.f) };
                 oscs.start (cfg.osc, hz, absTimeSec, hitCount);
                 pe = {};
@@ -162,6 +164,12 @@ namespace fge
         uint64_t order() const { return age; }
         double samplePos (int slot) const { return lbv.samplePos (slot); }
         void phases (float* out) const { out[0] = punch.phase(); out[1] = body.phase(); out[2] = tail.phase(); out[3] = sub.phase(); }
+        // PUNCH / TOK: the tok core holds one note (FIXED = the same on every MIDI note, FOLLOW = moves with it) - no glide
+        float tokHzFor (const KickConfig& cfg) const
+        {
+            const float endEff = (cfg.keyTrack ? noteHz : cfg.endHz) * cfg.fineMul;
+            return cfg.tokFixed ? cfg.tokHz * cfg.fineMul : cfg.tokHz * endEff / juce::jmax (1.f, cfg.endHz);
+        }
         // TOK FIXED: the tail's pitch depth for THIS note, so the hit (START) is the same pitch on every note and the end is the note
         float tailScaleFor (const KickConfig& cfg) const
         {
@@ -182,6 +190,7 @@ namespace fge
             pe.c = &cfg; pe.tailScale = tailScaleFor (cfg);
             const float endEff = (cfg.keyTrack ? noteHz : cfg.endHz) * cfg.fineMul;
             const float subBase = (cfg.keyTrack ? noteHz : cfg.subHz) * cfg.fineMul;
+            const float tokHz = tokHzFor (cfg);
             float total = 0.f;
             for (auto e : cfg.partEnd) total = juce::jmax (total, e);
             if (cfg.lbAny) total = juce::jmax (total, cfg.lbEndMs);
@@ -208,7 +217,7 @@ namespace fge
                 }
                 if (cfg.osc.any)
                 {
-                    const std::array<float, 4> hz { juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
+                    const std::array<float, 4> hz { juce::jlimit (5.f, nyq, cfg.tokMode ? tokHz : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
                                                     juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f)), fTail,
                                                     juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f)) };
                     oscs.tick (cfg.osc, tables != nullptr ? *tables : noTables, hz, ms, ks.inv, ext, extL, extR);
@@ -225,7 +234,7 @@ namespace fge
                 // ---- module 04: noise into the part inputs, transient / layers into the 7 buses
                 if (cfg.lbAny)
                 {
-                    const std::array<float, 4> hz { juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
+                    const std::array<float, 4> hz { juce::jlimit (5.f, nyq, cfg.tokMode ? tokHz : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
                                                     juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f)), fTail,
                                                     juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f)) };
                     float bl[dsp::NumBus] {}, br[dsp::NumBus] {};
@@ -240,7 +249,7 @@ namespace fge
                 }
                 if (ms < cfg.partEnd[PPunch])
                 {
-                    const float f = juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f));
+                    const float f = juce::jlimit (5.f, nyq, cfg.tokMode ? tokHz : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f));
                     bus[PPunch][i] += punch.tick (ks.part[PPunch], ks, ms, f, amp[PPunch], mod[PPunch], ext[PPunch]) * gate;
                 }
                 if (ms < cfg.partEnd[PBody])
@@ -664,6 +673,9 @@ namespace fge
                 ps.drive = f[drv[p]];
             }
             auto& pu = ks.part[PPunch];
+            pu.trLevel = f[P::punchTrLevel]; pu.trLenMs = f[P::punchTrLength];
+            pu.trTone = svfCoefs (f[P::punchTrTone], 1.2f, rate);
+            cfg.tokMode = f.idx (P::punchMode) == 1; cfg.tokFixed = f.idx (P::punchNoteMode) == 0; cfg.tokHz = f[P::punchPitch];
             pu.pitchHz = f[P::punchPitch]; pu.glideMs = f[P::punchGlide]; pu.mix = f[P::punchMix];
             pu.tone = svfCoefs (pu.source == 5 ? juce::jlimit (300.f, 16000.f, f[P::punchPitch] * 6.f) : f[P::punchTone], pu.source == 5 ? 1.f / 1.5f : 1.414f, rate);
             auto& bo = ks.part[PBody]; bo.pitchHz = f[P::bodyPitch]; bo.glideMs = f[P::bodyGlide]; bo.mix = f[P::bodyMix];
@@ -785,6 +797,23 @@ namespace fge
                 cfg.pitch[PBody].depthSt  = 12.f * std::log2 (juce::jmax (1.f, f[P::bodyPitch]) / juce::jmax (1.f, tail0)) * f[P::bodyPAmount];
             }
             cfg.pitch[PSub].depthSt = f[P::subPDepth] * f[P::subPAmount];
+            // PUNCH / TOK -> BODY + TAIL: body and tail (amplitude, filter, drive, resonance and pitch clocks) start when the tok ends
+            // (minus the OVERLAP crossfade) - an explicit time relation, not the tail's pitch HOLD (owner 2026-11-09)
+            cfg.tailStartMs = 0.f;
+            if (cfg.tokMode)
+            {
+                const float ov = f[P::punchOverlap];
+                const float t0 = juce::jmax (0.f, cfg.partEnd[PPunch] - ov);
+                cfg.tailStartMs = t0;
+                for (int p : { (int) PBody, (int) PTail })                       // BODY and TAIL: two parts, each its own envelopes / character
+                {
+                    auto& a = cfg.amp[(size_t) p];
+                    a.delayMs += t0; a.adsr.attackMs = juce::jmax (a.adsr.attackMs, ov);
+                    cfg.partEnd[(size_t) p] += t0;
+                    for (auto* e : { &cfg.filter[(size_t) p], &cfg.drive[(size_t) p], &cfg.reso[(size_t) p] }) e->delayMs += t0;
+                    cfg.pitch[(size_t) p].offsetMs += t0;
+                }
+            }
             cfg.holdMs = cfg.pitch[PTail].on ? cfg.pitch[PTail].offsetMs : 0.f;
 
             // CORE MIXER: generator LEVEL x fader x mute / solo x polarity, constant-power pan

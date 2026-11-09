@@ -28,6 +28,8 @@ namespace fge::dsp
         bool toneOpen = true;       // tone at the top of the range = no filter
         float driveG = 1.f, driveNorm = 1.f;
         float endMs = 0.f;          // the part is silent after this (its envelope length)
+        // PUNCH / TOK: the TRANSIENT inside the punch (a very short click on top of the TOK CORE, not a separate part)
+        float trLevel = 0.f, trLenMs = 1.5f; SvfCoefs trTone;
     };
 
     // the part's tone / drive right now (per control block: the filter / drive / resonance envelopes move them)
@@ -64,7 +66,7 @@ namespace fge::dsp
     class PunchGenerator
     {
     public:
-        void start (const PartSettings& s, float phase01, uint32_t seed) { osc.reset (phase01); nz.reset (seed); tone = {}; click = {}; }
+        void start (const PartSettings& s, float phase01, uint32_t seed) { osc.reset (phase01); nz.reset (seed); tone = {}; click = {}; trf = {}; }
         float phase() const { return osc.ph; }
         // hz = this part's pitch now, amp = its amplitude envelope now, m = its tone / drive now
         inline float tick (const PartSettings& s, const KickSettings& ks, float ms, float hz, float amp, const ModNow& m, float ext = 0.f)
@@ -86,10 +88,13 @@ namespace fge::dsp
             float y = m.toneOpen ? raw : tone.lp (raw, m.tone);
             y = drive (y, m.driveG, m.driveNorm);
             const float out = raw + (y - raw) * s.mix;
-            return out * amp;
+            float tr = 0.f;
+            if (s.trLevel > 0.f && ms < s.trLenMs * 8.f)                                                 // TRANSIENT: a band-passed noise tick
+                tr = trf.bp (nz.tick(), s.trTone) * 3.f * s.trLevel * std::exp (-ms / juce::jmax (0.1f, s.trLenMs));
+            return out * amp + tr;
         }
     private:
-        Osc osc; Noise nz; Svf tone, click;
+        Osc osc; Noise nz; Svf tone, click, trf;
     };
 
     // ------------------------------------------------------------------ BODY

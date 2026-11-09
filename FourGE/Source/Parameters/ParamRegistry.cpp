@@ -93,7 +93,9 @@ namespace fge
         const juce::StringArray& spcModes()       { static const juce::StringArray a { "M/S WIDTH", "DECORRELATION", "HAAS (CREATIVE)", "DISABLED" }; return a; }
         const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
         const juce::StringArray& lenSyncs()       { static const juce::StringArray a { "OFF", "1/4 BEAT", "1/2 BEAT", "1 BEAT", "2 BEATS" }; return a; }
-        const juce::StringArray& tokModes()       { static const juce::StringArray a { "FOLLOW NOTE", "FIXED" }; return a; }
+        const juce::StringArray& tokModes()       { static const juce::StringArray a { "FOLLOW MIDI", "FIXED" }; return a; }
+        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK" }; return a; }
+        const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI" }; return a; }
         const juce::StringArray& noteCutModes()   { static const juce::StringArray a { "LENGTH", "NOTE", "NOTE + FX" }; return a; }
         const juce::StringArray& outModes()       { static const juce::StringArray a { "STEREO", "MONO" }; return a; }
         const juce::StringArray& spcHaasCh()      { static const juce::StringArray a { "DELAY LEFT", "DELAY RIGHT" }; return a; }
@@ -167,7 +169,7 @@ namespace fge
     juce::String formatValue (const ParamDef& d, float v)
     {
         using juce::String;
-        if (d.unit == Unit::Hz && d.kind == Kind::Float && (String (d.id) == "pe_start" || String (d.id) == "pe_end"))
+        if (d.unit == Unit::Hz && d.kind == Kind::Float && (String (d.id) == "pe_start" || String (d.id) == "pe_end" || String (d.id) == "punch_pitch"))
             return (v < 100.f ? String (v, 1) : String ((int) std::lround (v))) + " Hz " + hzNote (v);
         switch (d.kind)
         {
@@ -228,8 +230,14 @@ namespace fge
             case coreVoice:    return "CHOKE: a new kick fades the previous one out (clean low end). POLY: kicks overlap.";
             case coreVelocity: return "How much the MIDI velocity changes the kick level.";
             case peMode:       return "Shape of the pitch movement from START to END.";
-            case peStart:      return "Where the pitch starts = the TOK (the tail pitch at the hit, held for HOLD). Type a note (\"G4\") or pick it in TOK NOTE.";
-            case peStartMode:  return "TOK: FIXED = the tok always plays START (the same pitch on every note, like a punch); FOLLOW NOTE = START moves with the played note. The tail still lands on the played note.";
+            case peStart:      return "Where the tail pitch starts (held for HOLD, then the drop to the note). Type a note (\"G4\"). The tok = PUNCH in TOK mode.";
+            case punchMode:    return "TOK: the PUNCH is the tok - TRANSIENT + TOK CORE on one note for its LENGTH, then the TAIL starts (PUNCH / TOK -> TAIL). PUNCH: the classic short punch that glides into the kick, the tail from the hit.";
+            case punchNoteMode:return "TOK note: FIXED = the tok plays PITCH on every MIDI note (e.g. always G); FOLLOW MIDI = it moves with the played note.";
+            case punchOverlap: return "How long the tok and the tail overlap (a short crossfade where the tail takes over).";
+            case punchTrLevel: return "TRANSIENT: a very short attack / click at the start of the tok (inside the PUNCH - not a separate part).";
+            case punchTrLength:return "How long the transient click lasts.";
+            case punchTrTone:  return "The colour of the transient click (low = thump, high = tick).";
+            case peStartMode:  return "START of the tail drop: FIXED = the same pitch on every MIDI note; FOLLOW MIDI = moves with the played note. The tail still lands on the played note. (The tok itself = PUNCH in TOK mode.)";
             case peEnd:        return "Where the pitch lands. With PITCH TRACKING on, the played note sets it.";
             case peTime:       return "How long the pitch takes to land.";
             case peCurve:      return "Shape of the drop: low = falls early and fast, high = stays up longer.";

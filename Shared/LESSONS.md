@@ -351,3 +351,16 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   słychać najpierw – wysokość i długość toku (pe_start / HOLD), kształt spadku, źródło + CHARACTER ogona, rodzaj uderzenia, screech;
   sprawdzać odległość między presetami (pasma + krzywa pitchu), nie tylko zgodność z referencją. (2) EXPERIMENTAL z szablonu „metal fold +
   rectifier + custom + noise” = sam wysoki szum bez kicka: eksperyment = DZIAŁAJĄCY kick (rdzeń MODERN / RAW) + JEDEN nietypowy element.
+- **4GE – „to co powinno być punchem jest początkiem taila, pitch zmienia się z nutą” (owner, 2026-11-09)** – z PITCH TRACKING cały
+  kick (też START = tok) był transponowany o zagraną nutę. W hardstyle tok („pup pup”) gra STAŁĄ nutę (np. G „choćby skały srały”),
+  a za MIDI idzie tylko ogon / sub; przełącznik, bo czasem tok ma chodzić z MIDI. → `pe_start_mode` FIXED / FOLLOW MIDI (głębokość
+  obwiedni pitchu ogona liczona per głos: `Voice::tailScaleFor`), TOK NOTE, nuty w START. Właściciel chce tok tak głośny jak ogon
+  (TOK LEVEL 0 dB w presetach; referencje OPS mają −4…−5 dB – gałka zostaje). Domyślnie FOLLOW = stare projekty brzmią bez zmian.
+- **4GE – PUNCH / TOK → BODY + TAIL (owner, 2026-11-09)** – tok jako „HOLD ogona” mieszał pitch z czasem startu i dawał tokowi barwę
+  ogona. Właściciel: dwa elementy, nie trzy – PUNCH/TOK (wewnątrz: TRANSIENT = krótki klik + TOK CORE = „pup”) i po nim BODY + TAIL,
+  każdy z własnymi obwiedniami; start BODY / TAIL = jawna relacja czasowa (koniec PUNCH − OVERLAP), nie HOLD (`punch_mode` TOK,
+  `KickConfig::tailStartMs`). Nuta toku FIXED / FOLLOW MIDI.
+- **4GE – „BODY cały czas robi łup łup, goofy as fuck”; „przy randomie w RAW nic się w nim nie zmienia” (owner, 2026-11-09)** – BODY
+  miało własny pitch 150–190 Hz zjeżdżający na nutę (808-owy „boing”). BODY idzie teraz za ogonem w stałym interwale (FOLLOW, depth 0,
+  offset 0 / 7 / 12 st), w MODERN / RAW = szum (gęstość ogona; tonalne BODY w tym miejscu dało czyste prążki = pisk). Randomizer losuje
+  interwał / źródło / drive / barwę / poziom BODY z szerokimi zakresami w RAW.

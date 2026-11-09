@@ -151,6 +151,11 @@ private:
     std::vector<std::pair<int, int>> activeParams;                    // (page, parameter) the "on" switches behind the navigation dots
     void knobValueMenu (doomsday::flat::Knob&, juce::PopupMenu&);
     void applyTooltips();
+    juce::ComboBox tokNote;                                          // TOK NOTE: sets START to a note (owner 2026-11-09)
+    void syncTokNote();
+public:
+    juce::ComboBox& tokNoteBox() { return tokNote; }
+private:
     void typeValue (doomsday::flat::Knob&);
     int pageBeforePresets = 0;
     juce::TextButton lengthBtn;

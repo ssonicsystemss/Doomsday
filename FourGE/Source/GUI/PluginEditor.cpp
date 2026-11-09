@@ -10,7 +10,7 @@ using fge::gui::palette;
 
 namespace
 {
-    const char* partName[4] { "PUNCH", "BODY", "TAIL", "SUB" };
+    const char* partName[4] { "PUNCH / TOK", "BODY", "TAIL", "SUB" };
     float raw (GeProcessor& p, int id) { return p.apvts.getRawParameterValue (def (id).id)->load(); }
 }
 
@@ -71,7 +71,22 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     pitchRow = { seg ("pe_mode", { "CLASSIC", "FAST", "SLOW", "DOUBLE", "RISE", "STABLE" }, c.red),
                  knob ("pe_start", "START", c.part[2], 38), knob ("pe_end", "END", c.part[2], 38), knob ("pe_time", "TIME", c.part[2], 38),
                  knob ("pe_curve", "CURVE", c.part[2], 38), knob ("pe_amount", "AMOUNT", c.part[2], 38, true), knob ("pe_fine", "FINE", c.part[2], 38, true),
-                 knob ("tail_penv_offset", "HOLD", c.part[2], 38), knob ("tail_hold_level", "TOK LEVEL", c.part[2], 38, true) };
+                 knob ("tail_penv_offset", "HOLD", c.part[2], 38), knob ("tail_hold_level", "TOK LEVEL", c.part[2], 38, true),
+                 seg ("pe_start_mode", { "FOLLOW MIDI", "FIXED" }, c.part[2]) };
+    // TOK NOTE: START (the tok) on a note - with TOK FIXED it plays that note whatever MIDI note is played
+    {
+        static const char* nm[12] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+        for (int m = 43; m <= 100; ++m) tokNote.addItem (String (nm[m % 12]) + String (m / 12 - 1), m + 1);
+        tokNote.setTooltip ("TOK NOTE: the note of the tok (the PUNCH pitch). With FIXED it plays this note on every MIDI note; BODY / TAIL / SUB land on the played note.");
+        tokNote.onChange = [this]
+        {
+            const int m = tokNote.getSelectedId() - 1;
+            if (m < 0) return;
+            proc.beginUndoStep ("Tok note");
+            proc.setParamInUndoStep ("punch_pitch", 440.f * std::exp2 ((float) (m - 69) / 12.f));
+        };
+        addAndMakeVisible (tokNote);
+    }
     // ---- the four parts: card (always visible) + detail (selected part) + mixer column
     const char* pre[4] { "punch", "body", "tail", "sub" };
     for (int i = 0; i < 4; ++i)
@@ -83,7 +98,9 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                              knob ((s + "_length").toRawUTF8(), "LENGTH", col), knob ((s + "_drive").toRawUTF8(), "DRIVE", col),
                              toggle (("mix_" + s + "_mute").toRawUTF8(), "MUTE", Toggle::Chip, c.silver), toggle (("mix_" + s + "_solo").toRawUTF8(), "SOLO", Toggle::Chip, col) };
         auto& d = detail[(size_t) i];
-        if (i == 0) d.push_back (seg ("punch_source", { "SINE", "TRI", "SAW", "SQUARE", "NOISE", "CLICK" }, col));
+        if (i == 0) { d.push_back (seg ("punch_source", { "SINE", "TRI", "SAW", "SQUARE", "NOISE", "CLICK" }, col));
+                      d.push_back (seg ("punch_mode", { "PUNCH", "TOK" }, col));
+                      d.push_back (seg ("punch_note_mode", { "FIXED", "FOLLOW MIDI" }, col)); }
         if (i == 1) d.push_back (seg ("body_source", { "SINE", "TRI", "SAW", "SQUARE", "NOISE" }, col));
         if (i == 2) { d.push_back (seg ("tail_source", { "SINE", "TRI", "SAW", "SQUARE", "PULSE", "NOISE" }, col));
                       d.push_back (seg ("tail_character", { "CLEAN", "TONAL", "DIRTY", "SCREAM", "METAL", "BUZZ", "CRUSH" }, col)); }
@@ -95,6 +112,14 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         if (i < 3) d.push_back (knob ((s + "_mix").toRawUTF8(), "MIX", col));
         if (i < 2) d.push_back (knob ((s + "_glide").toRawUTF8(), "GLIDE", col));
         if (i == 2) d.push_back (knob ("tail_pulse_width", "PULSE W", col));
+        if (i == 0)
+        {
+            d.push_back (knob ("punch_overlap", "OVERLAP", col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "punch_transient", "TRANSIENT" }, { "punch_transient_len", "TR LENGTH" }, { "punch_transient_tone", "TR TONE" } })
+                d.push_back (knob (id, lab, col));
+        }
         d.push_back (knob ((s + "_phase").toRawUTF8(), "PHASE", col));
         if (i == 2)
         {
@@ -202,6 +227,7 @@ void GeCanvas::selectPart (int i)
 {
     selected = jlimit (0, 3, i);
     for (int p = 0; p < 4; ++p) for (auto* c : detail[(size_t) p]) if (c != nullptr) c->setVisible (p == selected && pageIdx == 0);
+    tokNote.setVisible (pageIdx == 0 && selected == 0);
     layoutDetail();
     repaint();
 }
@@ -219,6 +245,7 @@ void GeCanvas::showPage (int i)
     for (auto* c : masterRow) c->setVisible (main);
     for (auto* c : pitchRow) c->setVisible (kick);
     header[5]->setVisible (kick);                                                    // PITCH TRACKING sits in the pitch engine
+    tokNote.setVisible (main && selected == 0);
     envPage->setVisible (pageIdx == 1);
     oscPage->setVisible (pageIdx == 2);
     layerPage->setVisible (pageIdx == 3);
@@ -274,8 +301,9 @@ void GeCanvas::resized()
     }
     // MAIN: pitch engine
     pitchArea = { X0, Y0, CW, 84 };
-    pitchRow[0]->setBounds (pitchArea.getX() + 14, pitchArea.getY() + 40, 520, 28);
+    pitchRow[0]->setBounds (pitchArea.getX() + 14, pitchArea.getY() + 40, 550, 28);
     header[5]->setBounds (pitchArea.getX() + 140, pitchArea.getY() + 7, 146, 20);  // PITCH TRACKING
+    pitchRow[9]->setBounds (pitchArea.getX() + 340, pitchArea.getY() + 5, 160, 24);   // TOK: FOLLOW MIDI / FIXED
     for (int i = 1; i < 9; ++i) pitchRow[(size_t) i]->setBounds (pitchArea.getX() + 570 + (i - 1) * 80, pitchArea.getY() + 4, 76, Knob::heightFor (38));
     // the central waveform
     waveArea = { X0, Y0 + 92, CW, 134 };
@@ -324,10 +352,17 @@ void GeCanvas::layoutDetail()
     // segmented rows (source, character)
     while (k < d.size() && dynamic_cast<Seg*> (d[k]) != nullptr)
     {
+        if (selected == 0)                                   // PUNCH / TOK: SOURCE | PUNCH / TOK | FIXED / FOLLOW MIDI + TOK NOTE
+        {
+            const int xs[3] { 0, 390, 540 }, ws[3] { 372, 140, 190 };
+            d[k]->setBounds (x + xs[jmin ((int) k, 2)], y, ws[jmin ((int) k, 2)], 26);
+            ++k; continue;
+        }
         const int items = selected == 2 && k == 1 ? 7 : (int) (selected == 3 ? 2 : 6);
         d[k]->setBounds (x + (int) k * 420, y, jmin (400, items * 62), 26);
         ++k;
     }
+    if (selected == 0) tokNote.setBounds (x + 738, y + 1, 70, 24);
     y += 36;
     for (int i = 0; k < d.size(); ++k)
     {
@@ -380,9 +415,8 @@ void GeCanvas::paint (Graphics& g)
     {
         panel (pitchArea, "PITCH ENGINE", c.part[2]);
         g.setColour (c.textDim); g.setFont (lnf.font (10.5f, doomsday::flat::Medium));
-        const bool track = raw (proc, P::coreKeyTrack) > 0.5f;
-        g.drawText (track ? "END = the played note, START moves with it" : "FIXED: START -> END in Hz",
-                    pitchArea.getX() + 296, pitchArea.getY() + 8, 260, 20, Justification::left);
+        g.setFont (lnf.font (10.f, doomsday::flat::Bold, 0.1f));
+        g.drawText ("START", pitchArea.getX() + 296, pitchArea.getY() + 8, 44, 20, Justification::left);
     }
     // MASTER MACROS + GLOBAL (every page)
     panel (macroArea, "MASTER MACROS", c.red);
@@ -467,11 +501,18 @@ void GeCanvas::updateEnabled()
     const bool mid = std::abs (raw (proc, P::tailMidGain)) > 0.05f;
     en ("tail_mid_hz", mid); en ("tail_mid_q", mid);
     en ("master_clip_soft", raw (proc, P::clipDrive) > 0.01f);
+    const bool tok = (int) raw (proc, P::punchMode) == 1;                  // PUNCH / TOK: what only the TOK mode uses
+    for (auto* id : { "punch_note_mode", "punch_overlap" }) en (id, tok);
+    en ("punch_glide", ! tok);
+    const bool tr = raw (proc, P::punchTrLevel) > 0.001f;
+    for (auto* id : { "punch_transient_len", "punch_transient_tone" }) en (id, tr);
+    if (tokNote.isEnabled() != tok) { tokNote.setEnabled (tok); tokNote.setAlpha (tok ? 1.f : 0.35f); }
 }
 
 void GeCanvas::timerCallback()
 {
     presetBar.refresh();
+    syncTokNote();
     styleStrip.setLit (proc.currentStyle());                                       // module 13: the STYLE shown (undo / presets change it too)
     {
         const auto f = proc.frame();                                               // module 14: the length category (none while SYNC decides)
@@ -915,4 +956,11 @@ void GeCanvas::stepPage (int dir)
     const auto o = fge::gui::NavBar::order();
     int at = 0; for (int i = 0; i < (int) o.size(); ++i) if (o[(size_t) i] == pageIdx) at = i;
     showPage (o[(size_t) ((at + dir + (int) o.size()) % (int) o.size())]);
+}
+
+void GeCanvas::syncTokNote()
+{
+    const float hz = raw (proc, P::punchPitch);
+    const int m = (int) std::lround (69.0 + 12.0 * std::log2 (jmax (1.f, hz) / 440.0));
+    if (tokNote.getSelectedId() != m + 1 && ! tokNote.isPopupActive()) tokNote.setSelectedId (jlimit (44, 101, m + 1), dontSendNotification);
 }

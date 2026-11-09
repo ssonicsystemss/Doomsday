@@ -3552,3 +3552,9 @@ len_follow_body
 len_follow_tail
 len_follow_sub
 pe_start_mode
+punch_mode
+punch_note_mode
+punch_overlap
+punch_transient
+punch_transient_len
+punch_transient_tone

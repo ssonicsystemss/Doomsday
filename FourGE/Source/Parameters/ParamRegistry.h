@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -346,7 +346,14 @@ namespace fge
     F (lenFollowTail,  "len_follow_tail",      "Tail Follows Length",  Unit::Pct, 0.f, 1.f, 1.f,  0.f, FNone) \
     F (lenFollowSub,   "len_follow_sub",       "Sub Follows Length",   Unit::Pct, 0.f, 1.f, 1.f,  0.f, FNone) \
     /* ================= owner 2026-11-09: the TOK (pitch START) at a FIXED pitch while the tail lands on the played note ================= */ \
-    C (peStartMode,    "pe_start_mode",        "Tok Pitch Mode",       tokModes, 0, FNone)
+    C (peStartMode,    "pe_start_mode",        "Tok Pitch Mode",       tokModes, 0, FNone) \
+    /* ================= owner 2026-11-09: PUNCH / TOK -> TAIL (two parts): PUNCH = TRANSIENT + TOK CORE before the tail ================= */ \
+    C (punchMode,      "punch_mode",           "Punch Mode",           punchModes, 0, FNone) \
+    C (punchNoteMode,  "punch_note_mode",      "Tok Note Mode",        tokNoteModes, 0, FNone) \
+    F (punchOverlap,   "punch_overlap",        "Tok To Tail Overlap",  Unit::Ms,  0.f,  40.f,   4.f,   8.f, FNone) \
+    F (punchTrLevel,   "punch_transient",      "Tok Transient",        Unit::Pct, 0.f,   1.f,   0.f,   0.f, FMod) \
+    F (punchTrLength,  "punch_transient_len",  "Tok Transient Length", Unit::Ms,  0.2f, 10.f,   1.5f,  2.f, FNone) \
+    F (punchTrTone,    "punch_transient_tone", "Tok Transient Tone",   Unit::Hz,  500.f, 16000.f, 5000.f, 4000.f, FMod)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

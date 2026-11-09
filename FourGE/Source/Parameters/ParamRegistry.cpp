@@ -345,7 +345,7 @@ namespace fge
         // module 11: the stereo units (one text per setting, the same for every group and the master)
         if (const juce::String pid (d.id); pid.startsWith ("spc_"))
         {
-            if (pid == "spc_sub_mono_lock") return "SUB MONO LOCK: the SUB group always stays mono and centred, and the MASTER keeps everything below its crossover (at least 120 Hz) mono - stronger than any WIDTH.";
+            if (pid == "spc_sub_mono_lock") return "SUB MONO LOCK: the SUB group always stays mono and centred, and the MASTER keeps everything below its crossover (at least 120 Hz) mono - stronger than any WIDTH. While it is on, the SUB group's PAN / WIDTH (LAYERS page) have no effect.";
             static const std::map<juce::String, const char*> t {
                 { "on", "Switch this stereo unit on (OFF = bypass: the signal passes untouched)." },
                 { "pan", "PAN: moves the position of the sound (its centre) left / right with constant power. Not the same as BALANCE." },

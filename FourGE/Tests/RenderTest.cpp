@@ -911,6 +911,7 @@ int main (int argc, char** argv)
                     if (k == "deviation") set2 (o + "mode", 4.f);
                 }
                 if (sid == "mod_movement") route (mo::SLfo1);
+                if (sid == "group_sub_pan" || sid == "group_sub_width") set2 ("spc_sub_mono_lock", 0.f);   // (SUB MONO LOCK keeps the SUB group centred on purpose)
                 if (sid.startsWith ("spc_"))                                                        // module 11: a stereo source in that group, the unit ON
                 {
                     const String key = sid.fromFirstOccurrenceOf ("_", false, false).fromFirstOccurrenceOf ("_", false, false);

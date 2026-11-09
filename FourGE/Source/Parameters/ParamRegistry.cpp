@@ -92,6 +92,7 @@ namespace fge
         const juce::StringArray& smpModes()       { static const juce::StringArray a { "ONE SHOT", "GATE", "LOOP", "PING-PONG" }; return a; }
         const juce::StringArray& spcModes()       { static const juce::StringArray a { "M/S WIDTH", "DECORRELATION", "HAAS (CREATIVE)", "DISABLED" }; return a; }
         const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
+        const juce::StringArray& noteCutModes()   { static const juce::StringArray a { "LENGTH", "NOTE", "NOTE + FX" }; return a; }
         const juce::StringArray& outModes()       { static const juce::StringArray a { "STEREO", "MONO" }; return a; }
         const juce::StringArray& spcHaasCh()      { static const juce::StringArray a { "DELAY LEFT", "DELAY RIGHT" }; return a; }
         const juce::StringArray& smpLinks()       { static const juce::StringArray a { "INDEPENDENT", "SAMPLE 1", "SAMPLE 2", "SAMPLE 3", "SAMPLE 4", "SAMPLE 5", "SAMPLE 6", "SAMPLE 7", "SAMPLE 8" }; return a; }
@@ -346,6 +347,7 @@ namespace fge
         // module 12: master output
         {
             const juce::String pid (d.id);
+            if (pid == "core_note_cut") return "KICK END: LENGTH = the kick plays its whole length (the note length does not matter). NOTE = the kick stops where the note in the piano roll ends (5 ms fade, no click), the effects ring out (resonators, delays, compressor release). +FX (NOTE + FX) = the effects are cut at the note end too.";
             if (pid == "master_mute") return "MASTER MUTE: silence the output (5 ms fade - no click).";
             if (pid == "master_bypass") return "MASTER BYPASS: skip the master processing (MASTER CLIP, MASTER STEREO, MASTER OUTPUT dynamics, SAFETY) - to compare.";
             if (pid == "master_output_mode") return "OUTPUT MODE: STEREO, or MONO (L + R on both channels; a mono export writes a 1-channel file).";

@@ -927,6 +927,7 @@ int main (int argc, char** argv)
                     if (k == "deviation") set2 (o + "mode", 4.f);
                 }
                 if (sid == "mod_movement") route (mo::SLfo1);
+                if (sid == "core_note_cut") { offAt = 0.1; set2 ("spc_master_on", 1.f); set2 ("spc_master_delay", 10.f); set2 ("spc_master_mode", 3.f); }
                 if (sid == "master_bypass") set2 ("master_clip_drive", 9.f);                       // module 12: something on the master to bypass
                 if (sid == "master_safety_clip" || sid == "master_safety_limiter") set2 ("core_master", 6.f);
                 if (sid == "group_sub_pan" || sid == "group_sub_width") set2 ("spc_sub_mono_lock", 0.f);   // (SUB MONO LOCK keeps the SUB group centred on purpose)
@@ -3126,6 +3127,21 @@ int main (int argc, char** argv)
             const bool name = ! jobs.empty() && jobs[0].target.getFileName().startsWith ("4GE_EXPERIMENTAL_");
             check (preview && fromName && name, "M13 PREVIEW changes nothing; STYLE set by factory presets (name) and used in export names", jobs.empty() ? String() : jobs[0].target.getFileName());
         }
+    }
+    // ---------------------------------------------------------------- KICK END: LENGTH / NOTE / NOTE + FX (the piano roll note decides)
+    {
+        auto run = [&] (int mode, bool fx)
+        {
+            GeProcessor p; setP (p, "core_note_cut", (float) mode); setP (p, "core_length", 800.f); setP (p, "core_auto_length", 0.f);
+            if (fx) { setP (p, "spc_master_on", 1.f); setP (p, "spc_master_delay", 10.f); setP (p, "spc_master_mode", 3.f); setP (p, "scr_on", 1.f); }
+            return hitProc (p, { { 0, MidiMessage::noteOn (1, G1, 1.f) }, { (int) (0.15 * sr), MidiMessage::noteOff (1, G1) } }, 0.5);
+        };
+        auto after = [&] (const AudioBuffer<float>& b, double from) { float m = 0; for (int c = 0; c < 2; ++c) for (int i = (int) (from * sr); i < b.getNumSamples(); ++i) m = jmax (m, std::abs (b.getSample (c, i))); return m; };
+        const auto len = run (0, false), note = run (1, false), all = run (2, true), noteFx = run (1, true);
+        float jump = 0; for (int i = (int) (0.149 * sr); i < (int) (0.16 * sr); ++i) jump = jmax (jump, std::abs (note.getSample (0, i) - note.getSample (0, i - 1)));
+        check (after (len, 0.2) > 0.1f && after (note, 0.16) < 0.01f && after (all, 0.16) == 0.f && after (noteFx, 0.16) > 0.05f && jump < 0.2f,
+               "KICK END: LENGTH plays on, NOTE cuts the kick at the note end (no click) with the effect tails ringing, NOTE + FX cuts them too",
+               "after the note: LENGTH " + String (after (len, 0.2), 3) + ", NOTE " + String (after (note, 0.16), 6) + " (fx tail " + String (after (noteFx, 0.16), 5) + "), NOTE+FX " + String (after (all, 0.16), 6));
     }
     // ---------------------------------------------------------------- module 08: dynamics, compressor, transient & limiter (MODULE08.md 14)
     {

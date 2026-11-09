@@ -265,6 +265,13 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
   STEREO FIELD. Pod gałkami tabela **ALL UNITS** (klik = otwórz). Wszystko modulowalne z MOD (pan, width, mid, side, crossover, delay…),
   bez klików.
 
+## KICK END – długość z piano rolla
+- W nagłówku pod PITCH TRACKING: **LENGTH / NOTE / +FX**.
+  - **LENGTH** – kick gra całą swoją długość (LENGTH), długość nuty nie ma znaczenia (jak dotąd).
+  - **NOTE** – kick kończy się tam, gdzie kończy się kostka w piano rollu (5 ms wyciszenia, bez klika); efekty (rezonatory,
+    opóźnienia stereo, release kompresora, przester na masterze) wybrzmiewają dalej.
+  - **+FX** – jak NOTE, ale na końcu nuty ucinane są też ogony efektów.
+
 ## STYLE (moduł 13)
 - W nagłówku pod nazwą: **STYLE** – EARLY / MODERN / RAW / EXPERIMENTAL. Wybór ustawia **punkt startowy charakteru**: generatory
   PUNCH / BODY / TAIL / SUB, pitch drop, szum / transient, screech, master clip i Twój łańcuch przesteru na TAIL:

@@ -40,7 +40,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     // ---- header: global
     header = { knob ("core_length", "LENGTH", c.red, 44), knob ("core_master", "MASTER", c.silver, 44), knob ("core_velocity", "VELOCITY", c.silver, 44),
                toggle ("core_auto_length", "AUTO LENGTH", Toggle::Pill, c.red), toggle ("core_phase_reset", "PHASE RESET", Toggle::Pill, c.red),
-               toggle ("core_key_track", "PITCH TRACKING", Toggle::Pill, c.red), seg ("core_voice_mode", { "CHOKE", "POLY" }, c.red) };
+               toggle ("core_key_track", "PITCH TRACKING", Toggle::Pill, c.red), seg ("core_voice_mode", { "CHOKE", "POLY" }, c.red),
+               seg ("core_note_cut", { "LENGTH", "NOTE", "+FX" }, c.red) };
     // ---- pitch engine
     pitchRow = { seg ("pe_mode", { "CLASSIC", "FAST", "SLOW", "DOUBLE", "RISE", "STABLE" }, c.red),
                  knob ("pe_start", "START", c.part[2], 38), knob ("pe_end", "END", c.part[2], 38), knob ("pe_time", "TIME", c.part[2], 38),
@@ -235,7 +236,8 @@ void GeCanvas::resized()
     // header: LENGTH / MASTER / VELOCITY, the three switches, VOICE
     int x = 316;
     for (int i = 0; i < 3; ++i) { header[(size_t) i]->setBounds (x, 10, 68, Knob::heightFor (44)); x += 70; }
-    for (int i = 0; i < 3; ++i) header[(size_t) 3 + (size_t) i]->setBounds (x + 10, 14 + i * 26, 146, 22);
+    for (int i = 0; i < 3; ++i) header[(size_t) 3 + (size_t) i]->setBounds (x + 10, 8 + i * 23, 146, 20);
+    header[7]->setBounds (x + 10, 8 + 3 * 23, 146, 20);
     // the page buttons: a 5 x 3 grid (row 1: VOICE + STEREO, rows 2 - 3: the pages in module order)
     const int gx = 692, gw = 52, gs = 54;
     header[6]->setBounds (gx, 8, gw + gs, 26);

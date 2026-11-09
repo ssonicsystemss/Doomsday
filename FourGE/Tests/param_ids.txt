@@ -3545,3 +3545,4 @@ master_bypass
 master_output_mode
 master_safety_clip
 master_safety_limiter
+core_note_cut

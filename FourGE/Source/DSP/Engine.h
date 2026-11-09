@@ -56,6 +56,7 @@ namespace fge
         dsp::spatial::Bank spc;                   // module 11: the stereo unit of each group + the master
         uint32_t seedSalt = 0;                    // module 12: the render seed (0 = the preset's own randomness)
         bool masterMute = false, masterBypass = false, outMono = false, safetyClip = false, safetyLim = false;   // module 12: MASTER OUTPUT
+        bool noteCut = false, noteCutFx = false;  // KICK END: the kick (and, with NOTE + FX, the effect tails) ends with the MIDI note
         dsp::scr::Settings scr;                   // module 06: the screech
         bool lbAny = false;
         float lbEndMs = 0.f;                      // when the last layer / noise / click ends       // TOK LEVEL: tail gain while the pitch HOLDs (after the distortion, so the drop hits harder)
@@ -436,6 +437,7 @@ namespace fge
             shaper.hit();
             sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
+            scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
             {
                 const auto& ks = cfg.ks;
@@ -446,7 +448,19 @@ namespace fge
             }
             hits.fetch_add (1);
         }
-        void release (int) { for (auto& v : voices) v.noteOff (cfg); if (relMs < 0.f) relMs = sinceHitMs; modEng.onNoteOff(); }
+        void release (int)
+        {
+            for (auto& v : voices)
+            {
+                const bool held = v.isHeld();
+                v.noteOff (cfg);
+                if (cfg.noteCut && held) v.choke (5.f, cfg.ks.rate);        // NOTE END CUTS: the kick stops with the note
+            }
+            if (cfg.noteCut) scrCut = true;
+            if (cfg.noteCutFx) outCut = true;                                // NOTE + FX: the whole output fades too
+            if (relMs < 0.f) relMs = sinceHitMs;
+            modEng.onNoteOff();
+        }
         void stopAll() { for (auto& v : voices) v.choke (3.f, cfg.ks.rate); }
         void cookOnly (const ParamFrame& f) { cook (f); }
 
@@ -770,6 +784,7 @@ namespace fge
             masterTarget = f[P::coreMaster] <= -59.9f ? 0.f : db (f[P::coreMaster]);
             cfg.masterMute = f.on (P::masterMute); cfg.masterBypass = f.on (P::masterBypass); cfg.outMono = f.idx (P::masterOutMode) == 1;   // module 12
             cfg.safetyClip = f.on (P::masterSafeClip); cfg.safetyLim = f.on (P::masterSafeLim);
+            cfg.noteCut = f.idx (P::coreNoteCut) >= 1; cfg.noteCutFx = f.idx (P::coreNoteCut) == 2;
             if (first) { gainNow = gainTarget; masterNow = masterTarget; muteG = cfg.masterMute ? 0.f : 1.f; first = false; }
         }
 
@@ -975,6 +990,7 @@ namespace fge
                 const float muteT = cfg.masterMute ? 0.f : 1.f;
                 muteG = muteG < muteT ? juce::jmin (muteT, muteG + muteStep) : juce::jmax (muteT, muteG - muteStep);
                 if (muteG < 1.f) { yl *= muteG; yr *= muteG; }
+                if (outCut) { outGate = juce::jmax (0.f, outGate - muteStep); yl *= outGate; yr *= outGate; }   // NOTE + FX (5 ms)
                 out.setSample (0, start + i, yl);
                 if (out.getNumChannels() > 1) out.setSample (1, start + i, yr);
                 opk = juce::jmax (opk, std::abs (yl), std::abs (yr));
@@ -1065,6 +1081,7 @@ namespace fge
                 const float base = cfg.scr.pitchMode == 2 ? cfg.scr.baseHz : lastNoteHz * dsp::scr::registerMul * (cfg.scr.pitchMode == 1 ? std::exp2 (semis / 12.f) : 1.f);
                 float l = 0.f, r = 0.f, o = 0.f;
                 for (auto& v : scrEng.v) { float vl, vr, vo; v->process (cfg.scr, tb, base, cfg.ks.rate, lastNoteHz, vl, vr, vo); l += vl; r += vr; o += vo; }
+                if (scrCut) { scrGate = juce::jmax (0.f, scrGate - (float) (1000.0 / (5.0 * cfg.ks.rate))); l *= scrGate; r *= scrGate; o *= scrGate; }
                 scrOsc[(size_t) i] = o;
                 if (cfg.m06.any && cfg.m06.at (dsp::m06::LScreech, 0)) m06St->process (cfg.m06, dsp::m06::LScreech, 0, l, r, m6Ctx (i), cfg.ks.rate);
                 if (cfg.tone.any && cfg.tone.at (dsp::m06::LScreech, 0)) toneSt->process (cfg.tone, dsp::m06::LScreech, 0, l, r, m6Ctx (i), cfg.ks.rate);
@@ -1138,6 +1155,7 @@ namespace fge
         std::array<float, dsp::NumParts> freePhase {};
         float masterNow = 0.f, masterTarget = 1.f;
         float limG = 1.f, limRel = 0.001f, muteG = 1.f, muteStep = 0.01f;   // module 12
+        float scrGate = 1.f, outGate = 1.f; bool scrCut = false, outCut = false;   // KICK END: the screech / the whole output (NOTE + FX)
         static float safeClip (float x) { const float a = std::abs (x); if (a <= 0.9f) return x; return std::copysign (0.9f + 0.1f * std::tanh ((a - 0.9f) / 0.1f), x); }
         // module 12: what an export of one group / layer keeps (the engine renders everything, the rest is silenced at the buses)
         uint32_t keepCore = 0xF, keepBus = 0x7F;

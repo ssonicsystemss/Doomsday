@@ -143,6 +143,7 @@ public:
     uint32_t seedFor (const fge::xp::Settings&, uint32_t preset) const;
     // module 13: the STYLE (state property "style", -1 = none) and the parameters the user moved himself ("touched": a knob gesture
     // or host automation; presets / styles / randomize / macros never mark). Saved with the project, cleared by loading a preset.
+    double hostBpm() const { const double b = lastHostBpm.load(); return b > 0.0 ? b : 150.0; }   // (the last tempo the host gave, 150 before)
     int currentStyle() const { return (int) apvts.state.getProperty ("style", -1); }
     bool isTouched (int i) const { return juce::isPositiveAndBelow (i, (int) fge::P::count) && touched[(size_t) i].load (std::memory_order_relaxed); }
     int touchedCount() const { int n = 0; for (int i = 0; i < fge::P::count; ++i) n += touched[(size_t) i].load() ? 1 : 0; return n; }

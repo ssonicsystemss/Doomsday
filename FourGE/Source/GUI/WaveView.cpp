@@ -51,7 +51,7 @@ namespace fge::gui
             const env::Bank* b0 = bank.get();
             dsp::OscTables ot;
             for (size_t i = 0; i < tables.size(); ++i) ot.t[i] = tables[i].get();
-            const float lenMs = juce::jlimit (150.f, 2600.f, f[P::coreLength] + 60.f);
+            const float lenMs = juce::jlimit (150.f, 4100.f, kickLengthMs (f, 150.0) + 60.f);
             const double secs = lenMs / 1000.0;
             Render r;
             r.ms = lenMs;

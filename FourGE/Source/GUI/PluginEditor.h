@@ -63,6 +63,9 @@ public:
     void previewStyle (int style);
     juce::String styleStatus() const { return styleMsg; }
     juce::ComboBox& styleSelector() { return styleBox; }
+    // module 14: LENGTH in the header (always visible) - a panel with the profiles, SYNC, AUTO LENGTH and how each part follows
+    juce::TextButton& lengthButton() { return lengthBtn; }
+    juce::Component* openLengthPanel();                              // (tests: the panel's content)
 private:
     void timerCallback() override;
     using Knob = doomsday::flat::Knob;
@@ -113,6 +116,8 @@ private:
     std::unique_ptr<fge::gui::ExportPage> exPg;
     std::array<juce::TextButton, 12> pageBtn;
     juce::ComboBox styleBox;
+    juce::TextButton lengthBtn;
+    juce::Component::SafePointer<juce::CallOutBox> lengthBox;
     juce::String styleMsg;
     juce::uint32 styleMsgTime = 0;
     int styleShown = -2;

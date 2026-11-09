@@ -265,6 +265,16 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
   STEREO FIELD. Pod gałkami tabela **ALL UNITS** (klik = otwórz). Wszystko modulowalne z MOD (pan, width, mid, side, crossover, delay…),
   bez klików.
 
+## LENGTH (moduł 14)
+- W nagłówku pod STYLE: przycisk **LENGTH: MEDIUM 450 ms** – otwiera panel długości:
+  - **SHORT 180 / MEDIUM 400 / LONG 750 / X-LONG 1600** ms (zakresy ~100–250 / 250–500 / 500–1000 / 1000–2500) – ustawia LENGTH
+    i włącza AUTO LENGTH, części kicka skalują się z nim (jedno UNDO);
+  - **LENGTH SYNC**: OFF / 1/4 / 1/2 / 1 BEAT / 2 BEATS – długość z tempa projektu (1 BEAT przy 150 BPM = 400 ms); wtedy gałka
+    LENGTH jest wyszarzona;
+  - **FOLLOW** dla PUNCH / BODY / TAIL / SUB – ile dana część rośnie / maleje z LENGTH (domyślnie punch 0 % – zostaje krótki,
+    body 50 %, tail i sub 100 %) + własna długość każdej części.
+- Styl i długość są niezależne: EARLY X-LONG albo MODERN SHORT – bez problemu. Eksport AUTO czeka na ogony efektów.
+
 ## KICK END – długość z piano rolla
 - W nagłówku pod PITCH TRACKING: **LENGTH / NOTE / +FX**.
   - **LENGTH** – kick gra całą swoją długość (LENGTH), długość nuty nie ma znaczenia (jak dotąd).

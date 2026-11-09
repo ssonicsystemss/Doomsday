@@ -92,6 +92,7 @@ namespace fge
         const juce::StringArray& smpModes()       { static const juce::StringArray a { "ONE SHOT", "GATE", "LOOP", "PING-PONG" }; return a; }
         const juce::StringArray& spcModes()       { static const juce::StringArray a { "M/S WIDTH", "DECORRELATION", "HAAS (CREATIVE)", "DISABLED" }; return a; }
         const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
+        const juce::StringArray& lenSyncs()       { static const juce::StringArray a { "OFF", "1/4 BEAT", "1/2 BEAT", "1 BEAT", "2 BEATS" }; return a; }
         const juce::StringArray& noteCutModes()   { static const juce::StringArray a { "LENGTH", "NOTE", "NOTE + FX" }; return a; }
         const juce::StringArray& outModes()       { static const juce::StringArray a { "STEREO", "MONO" }; return a; }
         const juce::StringArray& spcHaasCh()      { static const juce::StringArray a { "DELAY LEFT", "DELAY RIGHT" }; return a; }
@@ -347,6 +348,8 @@ namespace fge
         // module 12: master output
         {
             const juce::String pid (d.id);
+            if (pid == "len_sync") return "LENGTH SYNC: the kick is as long as a part of the beat at the project tempo (1 BEAT at 150 BPM = 400 ms). OFF = the LENGTH knob.";
+            if (pid.startsWith ("len_follow_")) return "How much this part grows / shrinks with the kick LENGTH (AUTO LENGTH on): 0 % = it keeps its own time (a punch stays short), 100 % = it follows fully.";
             if (pid == "core_note_cut") return "KICK END: LENGTH = the kick plays its whole length (the note length does not matter). NOTE = the kick stops where the note in the piano roll ends (5 ms fade, no click), the effects ring out (resonators, delays, compressor release). +FX (NOTE + FX) = the effects are cut at the note end too.";
             if (pid == "master_mute") return "MASTER MUTE: silence the output (5 ms fade - no click).";
             if (pid == "master_bypass") return "MASTER BYPASS: skip the master processing (MASTER CLIP, MASTER STEREO, MASTER OUTPUT dynamics, SAFETY) - to compare.";

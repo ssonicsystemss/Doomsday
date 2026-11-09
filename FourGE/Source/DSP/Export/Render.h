@@ -95,10 +95,10 @@ namespace fge::dsp::xport
         const double r = s.rate;
         const int maxN = (int) (juce::jlimit (50.f, 60000.f, s.maxMs) * 0.001 * r);
         const int fixedN = (int) (juce::jlimit (1.f, 60000.f, s.fixedMs) * 0.001 * r);
-        const int minN = s.lengthMode == LenAuto ? (int) (f[P::coreLength] * 0.001 * r) : 0;
+        const int minN = s.lengthMode == LenAuto ? (int) (kickLengthMs (f, s.bpm) * 0.001 * r) : 0;
         const int minQuiet = juce::jmax (1, (int) (s.minSilenceMs * 0.001 * r)), post = (int) (juce::jmax (0.f, s.postRollMs) * 0.001 * r);
         const float thr = juce::Decibels::decibelsToGain (s.silenceDb), thrUp = thr * 2.f;     // +6 dB hysteresis
-        const int offAt = (int) (f[P::coreLength] * 0.001 * r);
+        const int offAt = (int) (kickLengthMs (f, s.bpm) * 0.001 * r);
         juce::AudioBuffer<float> out (2, juce::jmin (maxN, s.lengthMode == LenFixed ? fixedN : maxN)), tmp (2, block);
         out.clear();
         int written = 0, quiet = 0, end = -1, firstSound = -1;

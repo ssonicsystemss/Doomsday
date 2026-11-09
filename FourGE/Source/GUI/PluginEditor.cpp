@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "../Presets/StyleEngine.h"
+#include "../Presets/LengthEngine.h"
 #include "DoomsdayBrand.h"
 
 using namespace juce;
@@ -35,6 +36,10 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     styleBox.onChange = [this] { const int id = styleBox.getSelectedId(); if (id > 0 && id - 1 != proc.currentStyle()) chooseStyle (id - 1, true); };
     styleBox.addMouseListener (this, false);
     addAndMakeVisible (styleBox);
+    lengthBtn.setTooltip ("LENGTH: SHORT / MEDIUM / LONG / EXTRA LONG, LENGTH SYNC to the tempo, AUTO LENGTH and how much PUNCH / BODY / TAIL / SUB follow - "
+                          "independent of the STYLE.");
+    lengthBtn.onClick = [this] { openLengthPanel(); };
+    addAndMakeVisible (lengthBtn);
     addAndMakeVisible (wave);
 
     // ---- header: global
@@ -232,7 +237,8 @@ void GeCanvas::resized()
 {
     headerArea = { 0, 0, W, 100 };
     presetBar.setBounds (W - 16 - 300, 5, 300, 90);
-    styleBox.setBounds ((int) doomsday::brand::headerTextX (1.f) + 40, 66, 150, 20);
+    styleBox.setBounds ((int) doomsday::brand::headerTextX (1.f) + 40, 61, 150, 19);
+    lengthBtn.setBounds ((int) doomsday::brand::headerTextX (1.f) + 40, 82, 150, 19);
     // header: LENGTH / MASTER / VELOCITY, the three switches, VOICE
     int x = 316;
     for (int i = 0; i < 3; ++i) { header[(size_t) i]->setBounds (x, 10, 68, Knob::heightFor (44)); x += 70; }
@@ -331,11 +337,7 @@ void GeCanvas::paint (Graphics& g)
     g.drawText ("HARDSTYLE KICK DESIGNER", (int) tx, 50, 260, 16, Justification::left);
     g.setColour (c.textDim); g.setFont (lnf.font (11.f, doomsday::flat::Medium));
     g.drawText ("v" + String (versionText), (int) tx, 68, 40, 16, Justification::left);
-    if (styleMsg.isNotEmpty() && Time::getMillisecondCounter() - styleMsgTime < 6000)      // module 13: what the style change did
-    {
-        g.setColour (c.silver); g.setFont (lnf.font (10.f, doomsday::flat::Medium));
-        g.drawText (styleMsg, (int) tx, 86, 300, 14, Justification::left, true);
-    }
+
     // panels
     auto panel = [&] (Rectangle<int> r, const String& title, Colour dot)
     {
@@ -426,6 +428,7 @@ void GeCanvas::updateEnabled()
     for (auto* id : { "pe_start", "pe_time", "pe_curve", "pe_amount" }) en (id, ! stable);
     en ("tail_hold_level", raw (proc, P::tailPOffset) > 0.5f);        // TOK LEVEL only acts during the HOLD
     en ("sub_pitch", raw (proc, P::coreKeyTrack) < 0.5f);          // with tracking the sub sits on the note
+    en ("core_length", (int) raw (proc, P::lenSync) == 0);             // module 14: LENGTH SYNC decides the length
     en ("tail_pulse_width", (int) raw (proc, P::tailSrc) == 4);
     en ("punch_tone", (int) raw (proc, P::punchSrc) != 5);           // CLICK tunes its own band
     const bool uni = raw (proc, P::tailUniVoices) > 1.5f;
@@ -446,7 +449,7 @@ void GeCanvas::timerCallback()
         styleShown = st;
         if (st >= 0) styleBox.setSelectedId (st + 1, dontSendNotification); else styleBox.setText ("STYLE ...", dontSendNotification);
     }
-    if (styleMsg.isNotEmpty() && Time::getMillisecondCounter() - styleMsgTime > 6000) { styleMsg.clear(); repaint (0, 80, 320, 20); }
+    lengthBtn.setButtonText ("LENGTH: " + fge::length::label (proc, proc.hostBpm()));
     const auto tb = proc.currentTables();
     {
         fge::gui::WaveView::Samples ss;
@@ -582,6 +585,13 @@ void GeCanvas::chooseStyle (int st, bool keepMine)
     proc.apvts.state.setProperty ("vrStyle", st, nullptr);                        // RANDOMIZE stays in the chosen style
     styleMsg = fge::style::names()[st] + ": " + String (r.changed) + " settings set" + (r.kept > 0 ? ", " + String (r.kept) + " of your changes kept" : String());
     styleMsgTime = Time::getMillisecondCounter();
+    if (isShowing())
+    {
+        auto* bubble = new BubbleMessageComponent (300);
+        addChildComponent (bubble);
+        AttributedString t; t.append (styleMsg, FontOptions (13.f), palette().silver);
+        bubble->showAt (&styleBox, t, 3500, true, true);
+    }
     styleShown = -2;
     repaint();
 }
@@ -627,4 +637,83 @@ void GeCanvas::styleMenu()
         else if (act == 2) self->chooseStyle (st, false);
         else if (act == 3) self->previewStyle (st);
     });
+}
+
+// ------------------------------------------------------------ module 14: the LENGTH panel (a call-out from the header)
+namespace
+{
+    class LengthPanel : public Component
+    {
+    public:
+        LengthPanel (GeProcessor& p, doomsday::flat::FlatLookAndFeel& l) : proc (p)
+        {
+            setLookAndFeel (&l);
+            const auto& c = palette();
+            for (int i = 0; i < fge::length::NumProfiles; ++i)
+            {
+                auto& b = prof[(size_t) i];
+                b.setButtonText ((i == fge::length::ExtraLong ? String ("X-LONG") : fge::length::names()[i]) + "  " + String (roundToInt (fge::length::profileMs (i))));
+                b.setTooltip ("Set the LENGTH to " + String (roundToInt (fge::length::profileMs (i))) + " ms with AUTO LENGTH (the parts scale with it).");
+                b.onClick = [this, i] { fge::length::applyProfile (proc, i); };
+                addAndMakeVisible (b);
+            }
+            sync = std::make_unique<doomsday::flat::Segmented> (proc.apvts, "len_sync", StringArray { "OFF", "1/4", "1/2", "1 BEAT", "2 BEATS" }, c.red);
+            sync->setTooltip (fge::tooltip (P::lenSync)); addAndMakeVisible (*sync);
+            autoT = std::make_unique<doomsday::flat::Toggle> (proc.apvts, "core_auto_length", "AUTO LENGTH", doomsday::flat::Toggle::Pill, c.red);
+            autoT->setTooltip (fge::tooltip (P::coreAutoLen)); addAndMakeVisible (*autoT);
+            lenK = std::make_unique<doomsday::flat::Knob> (proc.apvts, "core_length", "LENGTH", c.red, false, 40);
+            lenK->slider.setTooltip (fge::tooltip (P::coreLength)); addAndMakeVisible (*lenK);
+            const char* fid[4] { "len_follow_punch", "len_follow_body", "len_follow_tail", "len_follow_sub" };
+            const char* lid[4] { "punch_length", "body_length", "tail_length", "sub_length" };
+            for (int i = 0; i < 4; ++i)
+            {
+                fol[(size_t) i] = std::make_unique<doomsday::flat::Knob> (proc.apvts, fid[i], "FOLLOW", c.part[(size_t) i], false, 32);
+                fol[(size_t) i]->slider.setTooltip (fge::tooltip (P::lenFollowPunch + i)); addAndMakeVisible (*fol[(size_t) i]);
+                plen[(size_t) i] = std::make_unique<doomsday::flat::Knob> (proc.apvts, lid[i], "LENGTH", c.part[(size_t) i], false, 32);
+                for (int k = 0; k < P::count; ++k) if (String (def (k).id) == lid[i]) plen[(size_t) i]->slider.setTooltip (fge::tooltip (k));
+                addAndMakeVisible (*plen[(size_t) i]);
+            }
+            setSize (520, 330);
+        }
+        ~LengthPanel() override { setLookAndFeel (nullptr); }
+        void paint (Graphics& g) override
+        {
+            const auto& c = palette();
+            g.fillAll (c.panel);
+            g.setColour (c.textDim); g.setFont (FontOptions (11.f, Font::bold));
+            g.drawText ("KICK LENGTH  -  independent of the STYLE", 12, 6, 400, 14, Justification::left);
+            g.drawText ("LENGTH SYNC (to the tempo)", 12, 112, 300, 14, Justification::left);
+            g.drawText ("EACH PART: how much it follows LENGTH  /  its own length", 12, 176, 400, 14, Justification::left);
+            const char* nm[4] { "PUNCH", "BODY", "TAIL", "SUB" };
+            for (int i = 0; i < 4; ++i) { g.setColour (palette().part[(size_t) i]); g.drawText (nm[i], 12 + i * 125, 194, 120, 14, Justification::centred); }
+            g.setColour (c.textDim); g.setFont (FontOptions (10.f));
+            g.drawText ("KICK END (header): LENGTH / NOTE / +FX - the piano-roll note can end the kick", 12, getHeight() - 18, 500, 14, Justification::left);
+        }
+        void resized() override
+        {
+            for (int i = 0; i < 4; ++i) prof[(size_t) i].setBounds (12 + i * 92, 26, 86, 40);
+            autoT->setBounds (12, 76, 150, 22);
+            lenK->setBounds (400, 20, 100, doomsday::flat::Knob::heightFor (40));
+            sync->setBounds (12, 130, 380, 26);
+            for (int i = 0; i < 4; ++i)
+            {
+                fol[(size_t) i]->setBounds (12 + i * 125, 210, 60, doomsday::flat::Knob::heightFor (32));
+                plen[(size_t) i]->setBounds (72 + i * 125, 210, 60, doomsday::flat::Knob::heightFor (32));
+            }
+        }
+        GeProcessor& proc;
+        std::array<TextButton, 4> prof;
+        std::unique_ptr<doomsday::flat::Segmented> sync;
+        std::unique_ptr<doomsday::flat::Toggle> autoT;
+        std::unique_ptr<doomsday::flat::Knob> lenK;
+        std::array<std::unique_ptr<doomsday::flat::Knob>, 4> fol, plen;
+    };
+}
+Component* GeCanvas::openLengthPanel()
+{
+    auto panel = std::make_unique<LengthPanel> (proc, lnf);
+    auto* raw = panel.get();
+    if (isShowing()) lengthBox = &CallOutBox::launchAsynchronously (std::move (panel), lengthBtn.getScreenBounds(), nullptr);
+    else { owned.push_back (std::move (panel)); raw->setBounds (0, 0, 520, 330); }
+    return raw;
 }

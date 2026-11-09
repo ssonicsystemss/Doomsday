@@ -316,6 +316,14 @@ namespace fge
     };
 
     // ------------------------------------------------------------------ the engine
+    // module 14: the kick LENGTH in ms - the LENGTH knob, or LENGTH SYNC (a part of the beat at the tempo)
+    inline float kickLengthMs (const ParamFrame& f, double bpm)
+    {
+        static const float beats[5] { 0.f, 0.25f, 0.5f, 1.f, 2.f };
+        const int s = f.idx (P::lenSync);
+        if (s <= 0) return f[P::coreLength];
+        return juce::jlimit (60.f, 4000.f, (float) (beats[juce::jlimit (0, 4, s)] * 60000.0 / juce::jlimit (30.0, 400.0, bpm > 0.0 ? bpm : 150.0)));
+    }
     class Engine
     {
     public:
@@ -606,7 +614,7 @@ namespace fge
             ks.dcR = (float) std::exp (-juce::MathConstants<double>::twoPi * 5.0 / rate);
             ks.dcTail = (float) std::exp (-juce::MathConstants<double>::twoPi * 10.0 / rate);
             ks.avgC = (float) (1.0 - std::exp (-juce::MathConstants<double>::twoPi * 8.0 / rate));
-            ks.lengthMs = f[P::coreLength];
+            ks.lengthMs = kickLengthMs (f, tempo());                          // module 14: the LENGTH knob or LENGTH SYNC
             ks.phaseReset = f.on (P::corePhaseRst);
             ks.velSens = f[P::coreVelocity];
             cfg.keyTrack = f.on (P::coreKeyTrack);
@@ -616,8 +624,10 @@ namespace fge
             const float syncF = f.on (P::envSync) ? (float) (150.0 / juce::jlimit (30.0, 400.0, tempo())) : 1.f;
 
             // AUTO LENGTH: the punch keeps its short attack, the body follows a little, tail and sub follow fully
-            const float sc = f.on (P::coreAutoLen) ? f[P::coreLength] / 450.f : 1.f;
-            const float scPart[4] { 1.f, std::sqrt (sc), sc, sc };
+            const float sc = f.on (P::coreAutoLen) ? ks.lengthMs / 450.f : 1.f;
+            // module 14: how much each part follows (default: punch 0, body 0.5 = square root, tail / sub 1)
+            auto follow = [sc] (float k) { return k <= 0.f ? 1.f : k >= 1.f ? sc : k == 0.5f ? std::sqrt (sc) : std::pow (sc, k); };
+            const float scPart[4] { follow (f[P::lenFollowPunch]), follow (f[P::lenFollowBody]), follow (f[P::lenFollowTail]), follow (f[P::lenFollowSub]) };
             auto db = [] (float v) { return std::pow (10.f, v / 20.f); };
             auto tone = [rate] (float hz, float reso) { return svfCoefs (hz, 1.f / (0.7f + reso * reso * 11.f), rate); };
             auto setDrive = [&db] (ModNow& m, float d, float maxDb) { m.drive = d; m.driveG = db (d * maxDb); m.driveNorm = 1.f / std::tanh (juce::jmax (1.0e-3f, m.driveG)); };

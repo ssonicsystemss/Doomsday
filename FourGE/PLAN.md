@@ -188,6 +188,10 @@ dist pool / master clip, NIGDY długości (`isLength`) ani reszta; `values()` / 
 Testy M13 OK. Uwaga: EXTRA LONG nie wydłuża jeszcze części – to moduł 14 (LENGTH ENGINE skaluje PUNCH / BODY / TAIL / SUB).
 **2026-11-09 (prośba właściciela): KICK END** – parametr `core_note_cut` (LENGTH / NOTE / NOTE + FX): note-off dławi głosy (5 ms) i screech,
 NOTE + FX dodatkowo wycisza całe wyjście (`outGate` po dynamice mastera); część modułu 14.
+**STAN 2026-11-09: MODUŁ 14 GOTOWY** – KICK LENGTH ENGINE: `kickLengthMs (f, bpm)` w `DSP/Engine.h` (LENGTH albo `len_sync` = część beatu),
+AUTO LENGTH skaluje części przez `len_follow_punch / body / tail / sub` (domyślnie 0 / 0.5 / 1 / 1 = dokładnie jak wcześniej), eksport
+i waveform liczą efektywną długość; `Presets/LengthEngine.h` (profile SHORT / MEDIUM / LONG / EXTRA LONG + etykieta), nagłówek: przycisk
+LENGTH → panel (CallOutBox) z profilami, AUTO, SYNC, FOLLOW i długościami części; KICK END (LENGTH / NOTE / +FX). Testy M14 OK.
 
 **STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
 przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH

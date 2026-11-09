@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -338,7 +338,13 @@ namespace fge
     B (masterSafeClip, "master_safety_clip",   "Safety Clip",          false, FGlobal) \
     B (masterSafeLim,  "master_safety_limiter","Safety Limiter",       false, FGlobal) \
     /* ================= MODULE 14 (part) - the kick ends where the MIDI note ends ================= */ \
-    C (coreNoteCut,    "core_note_cut",        "Kick End",             noteCutModes, 0, FGlobal)
+    C (coreNoteCut,    "core_note_cut",        "Kick End",             noteCutModes, 0, FGlobal) \
+    /* ================= MODULE 14 - KICK LENGTH ENGINE ================= */ \
+    C (lenSync,        "len_sync",             "Length Sync",          lenSyncs, 0, FGlobal) \
+    F (lenFollowPunch, "len_follow_punch",     "Punch Follows Length", Unit::Pct, 0.f, 1.f, 0.f,  0.f, FNone) \
+    F (lenFollowBody,  "len_follow_body",      "Body Follows Length",  Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (lenFollowTail,  "len_follow_tail",      "Tail Follows Length",  Unit::Pct, 0.f, 1.f, 1.f,  0.f, FNone) \
+    F (lenFollowSub,   "len_follow_sub",       "Sub Follows Length",   Unit::Pct, 0.f, 1.f, 1.f,  0.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

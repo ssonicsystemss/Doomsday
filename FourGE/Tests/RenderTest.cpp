@@ -11,6 +11,7 @@
 #include "../Source/Presets/ModState.h"
 #include "../Source/Presets/VariantRandomizer.h"
 #include "../Source/Presets/StyleEngine.h"
+#include "../Source/Presets/LengthEngine.h"
 #include "../Source/GUI/DistScope.h"
 #include "../Source/Presets/FactoryPresets.h"
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -199,6 +200,21 @@ int main (int argc, char** argv)
         }
         writeWav (outDir.getChildFile ("m10_listen.wav"), out);
         printf ("%s\n", outDir.getChildFile ("m10_listen.wav").getFullPathName().toRawUTF8());
+        return 0;
+    }
+    if (argc > 2 && String (argv[2]) == "--lengthdemo")                        // module 14 listening file: RAW and EARLY at SHORT / MEDIUM / LONG / EXTRA LONG
+    {
+        AudioBuffer<float> out (2, (int) (44100.0 * 16)); out.clear(); int at = 0;
+        for (int st : { 2, 0 })
+            for (int pr = 0; pr < 4; ++pr)
+            {
+                GeProcessor p; fge::style::apply (p, st, false); fge::length::applyProfile (p, pr);
+                auto b = renderKick (p.frame(), 31, 44100.0, fge::length::profileMs (pr) / 1000.0 + 0.2, -1, 1.f, &p.shapes(), 150.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy());
+                for (int c = 0; c < 2; ++c) out.addFrom (c, at, b, c, 0, jmin (b.getNumSamples(), out.getNumSamples() - at));
+                at += b.getNumSamples() + 17640;
+            }
+        out.setSize (2, jmin (at, out.getNumSamples()), true);
+        writeWav (outDir.getChildFile ("m14_lengths.wav"), out);
         return 0;
     }
     if (argc > 2 && String (argv[2]) == "--styledemo")                         // module 13 listening file: the 4 styles + EARLY long / MODERN short
@@ -927,6 +943,7 @@ int main (int argc, char** argv)
                     if (k == "deviation") set2 (o + "mode", 4.f);
                 }
                 if (sid == "mod_movement") route (mo::SLfo1);
+                if (sid.startsWith ("len_follow_")) set2 ("core_length", 1200.f);                  // module 14: the parts only follow a changed LENGTH
                 if (sid == "core_note_cut") { offAt = 0.1; set2 ("spc_master_on", 1.f); set2 ("spc_master_delay", 10.f); set2 ("spc_master_mode", 3.f); }
                 if (sid == "master_bypass") set2 ("master_clip_drive", 9.f);                       // module 12: something on the master to bypass
                 if (sid == "master_safety_clip" || sid == "master_safety_limiter") set2 ("core_master", 6.f);
@@ -3128,6 +3145,50 @@ int main (int argc, char** argv)
             check (preview && fromName && name, "M13 PREVIEW changes nothing; STYLE set by factory presets (name) and used in export names", jobs.empty() ? String() : jobs[0].target.getFileName());
         }
     }
+    // ---------------------------------------------------------------- module 14: KICK LENGTH ENGINE (profiles, sync, parts follow, independent of style)
+    {
+        auto dur = [] (const AudioBuffer<float>& b)                          // where the kick has really ended (-40 dB under its peak)
+        { const float pk = peak (b), thr = pk * 0.01f; int last = 0; for (int i = 0; i < b.getNumSamples(); ++i) if (std::abs (b.getSample (0, i)) > thr) last = i; return last / 44100.0 * 1000.0; };
+        auto rk = [&] (GeProcessor& p, double secs) { return renderKick (p.frame(), G1, sr, secs, -1, 1.f, &p.shapes(), 150.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy()); };
+        {
+            bool ok = true; String info;
+            const float lo[4] { 100, 250, 500, 1000 }, hi[4] { 260, 520, 1050, 2600 };
+            for (int st = 0; st < 4; ++st)
+                for (int pr = 0; pr < 4; ++pr)
+                {
+                    GeProcessor p; fge::style::apply (p, st, false); fge::length::applyProfile (p, pr);
+                    const double d = dur (rk (p, 3.0));
+                    const bool in = d >= lo[pr] * 0.8 && d <= hi[pr];
+                    ok &= in;
+                    if (! in || st == 0) info << fge::style::names()[st].substring (0, 3) << " " << fge::length::names()[pr] << " " << String (d, 0) << " ms  ";
+                }
+            check (ok, "M14 SHORT / MEDIUM / LONG / EXTRA LONG land in their ranges for every style (style and length independent)", info);
+        }
+        {
+            ParamFrame f = ParamFrame::defaults(); f[P::lenSync] = 3;
+            const float a = kickLengthMs (f, 150.0), b = kickLengthMs (f, 75.0);
+            const auto ra = renderKick (f, G1, sr, 2.0, -1, 1.f, nullptr, 150.0), rb = renderKick (f, G1, sr, 2.0, -1, 1.f, nullptr, 75.0);
+            const double da = dur (ra), db = dur (rb);
+            check (std::abs (a - 400.f) < 0.5f && std::abs (b - 800.f) < 0.5f && db > 1.6 * da, "M14 LENGTH SYNC: the kick length follows the tempo",
+                   "150 BPM " + String (da, 0) + " ms, 75 BPM " + String (db, 0) + " ms");
+        }
+        {
+            ParamFrame a = ParamFrame::defaults(); a[P::coreLength] = 450; ParamFrame b = a; b[P::coreLength] = 1350;
+            auto partDur = [&] (ParamFrame f, int part) { return dur (renderKick (f, G1, sr, 3.0, part, 1.f)); };
+            const double p1 = partDur (a, 0), p3 = partDur (b, 0), t1 = partDur (a, 2), t3 = partDur (b, 2);
+            ParamFrame c = b; c[P::lenFollowTail] = 0.f; const double t0 = partDur (c, 2);
+            check (std::abs (p3 - p1) < 5.0 && t3 > 2.0 * t1 && std::abs (t0 - t1) < 0.2 * t1, "M14 each part follows LENGTH by its own amount (punch stays short, tail scales, FOLLOW 0 % = own time)",
+                   "punch " + String (p1, 0) + " -> " + String (p3, 0) + " ms, tail " + String (t1, 0) + " -> " + String (t3, 0) + " ms (follow 0: " + String (t0, 0) + ")");
+        }
+        {
+            GeProcessor p; const float before = p.apvts.getRawParameterValue ("core_length")->load();
+            fge::length::applyProfile (p, fge::length::ExtraLong);
+            const bool set = std::abs (p.apvts.getRawParameterValue ("core_length")->load() - 1600.f) < 0.5f;
+            p.undo.undo();
+            check (set && std::abs (p.apvts.getRawParameterValue ("core_length")->load() - before) < 0.5f && fge::length::label (p, 150.0).startsWith ("MEDIUM"),
+                   "M14 a profile = one UNDO step; the header shows the category", fge::length::label (p, 150.0));
+        }
+    }
     // ---------------------------------------------------------------- KICK END: LENGTH / NOTE / NOTE + FX (the piano roll note decides)
     {
         auto run = [&] (int mode, bool fx)
@@ -3922,6 +3983,17 @@ int main (int argc, char** argv)
                             && ge->canvas.styleStatus().contains ("kept") && ge->canvas.styleSelector().isVisible();
             check (ok, "M13 GUI: STYLE selector in the header applies the style and keeps the knob you moved", ge->canvas.styleStatus());
             p.undo.undo(); p.forgetTouched();
+        }
+        // LENGTH panel (module 14)
+        {
+            auto* lp = ge->canvas.openLengthPanel();
+            const bool ok = lp != nullptr && lp->getNumChildComponents() >= 14 && ge->canvas.lengthButton().isVisible();
+            if (lp != nullptr)
+            {
+                PNGImageFormat png; auto img = lp->createComponentSnapshot (lp->getLocalBounds());
+                FileOutputStream os (outDir.getChildFile ("gui_length.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            }
+            check (ok, "M14 GUI: LENGTH button + panel (profiles, AUTO, SYNC, FOLLOW, part lengths)");
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);
         check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());

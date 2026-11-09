@@ -22,7 +22,7 @@ namespace fge::style
             "Classic, melodic hardstyle: a springy punch, a tonal body, simpler warm distortion (SOFT CLIP -> TUBE) and a clear pitch drop.",
             "Strong, clean and controlled: a precise transient, layered body, a polished tail and dense, precise distortion (HARD -> SOFT -> DIGITAL CLIP).",
             "Aggressive: heavy asymmetric distortion (ASYMMETRIC -> HARD -> WAVEFOLD), a sharp screech, strong harmonics, the bass entering early.",
-            "Unusual and hybrid: metallic folds, a ring-like rectifier, a custom shaper, odd pitch curves and noise." };
+            "Unusual but still a kick: a double drop, a metallic tail, folds / a rectifier / a custom shaper blended into a solid core." };
         return d[juce::jlimit (0, NumStyles - 1, s)];
     }
     inline int indexOf (const juce::String& id) { for (int i = 0; i < P::count; ++i) if (id == def (i).id) return i; return -1; }
@@ -78,12 +78,17 @@ namespace fge::style
                          { "noiseB_level", 0 }, { "noiseB_filter", 0 }, { "noiseB_cutoff", 4204 }, { "scr_on", 1 }, { "scr_level", -14 } },
                        { { dd::LocTail, { { "type", dd::Asym }, { "drive", 0.55f }, { "bias", 0.2f } } }, { dd::LocTail, { { "type", dd::Hard }, { "drive", 0.35f } } },
                          { dd::LocTail, { { "type", dd::Wavefold }, { "drive", 0.3f }, { "mix", 0.6f } } } } },
-            // EXPERIMENTAL - metallic: a fold, a ring-like rectifier, the custom shaper, an odd pitch curve, noise on the tail
-            Template { { { "tail_character", 4 }, { "tail_drive", 0.6f }, { "tail_tone", 9000 }, { "pe_mode", 3 }, { "pe_time", 160 }, { "pe_start", 300 },
-                         { "punch_source", 3 }, { "punch_pitch", 500 }, { "body_source", 2 }, { "noiseA_on", 1 }, { "noiseA_to_tail", -30 },
-                         { "tail_level", 1 }, { "master_clip_drive", 3 } },
-                       { { dd::LocTail, { { "type", dd::Wavefold }, { "drive", 0.45f } } }, { dd::LocTail, { { "type", dd::Rectifier }, { "drive", 0.4f }, { "mix", 0.5f } } },
-                         { dd::LocTail, { { "type", dd::Custom }, { "drive", 0.35f }, { "mix", 0.6f } } } } },
+            // EXPERIMENTAL - a WORKING kick (the MODERN core: click, tok, clean sub, noise density) + the unusual part: a DOUBLE DROP, a METALLIC
+            // character and a WAVEFOLD -> RECTIFIER -> CUSTOM chain blended in, not a wall of high noise (owner 2026-11-09: the old one "tragedia")
+            Template { { { "tail_character", 4 }, { "tail_source", 2 }, { "tail_st2_type", 0 }, { "pe_mode", 3 }, { "pe_start", 520 }, { "pe_time", 90 },
+                         { "tail_penv_offset", 60 }, { "pe_curve", 0.6f }, { "tail_drive", 0.75f }, { "tail_tone", 7000 }, { "tail_resonance", 0.3f },
+                         { "body_level", -6 }, { "body_pitch", 150 }, { "sub_level", -1 }, { "punch_level", 2 }, { "punch_pitch", 600 }, { "punch_drive", 0.6f },
+                         { "tail_level", -5 }, { "tail_uni_detune", 28 }, { "tail_uni_drift", 30 }, { "tail_uni_mix", 0.7f }, { "tail_st2_drive", 10 },
+                         { "tail_low_cut", 80 }, { "tail_high_cut", 16000 }, { "master_clip_drive", 0 }, { "tail_attack", 4 }, { "tail_hold_level", -3 },
+                         { "sub_amp_env_delay", 50 }, { "body_source", 4 }, { "body_tone", 6000 }, { "punch_source", 5 }, { "noiseB_on", 1 }, { "noiseB_type", 1 },
+                         { "noiseB_env", 3 }, { "noiseB_to_texture", -60 }, { "noiseB_to_tail", -30 }, { "noiseB_level", 0 }, { "noiseB_cutoff", 8000 } },
+                       { { dd::LocTail, { { "type", dd::Wavefold }, { "drive", 0.3f }, { "mix", 0.45f } } }, { dd::LocTail, { { "type", dd::Rectifier }, { "drive", 0.25f }, { "mix", 0.25f } } },
+                         { dd::LocTail, { { "type", dd::Custom }, { "drive", 0.25f }, { "mix", 0.35f } } } } },
         };
         return t[(size_t) juce::jlimit (0, NumStyles - 1, s)];
     }

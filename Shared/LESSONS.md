@@ -346,3 +346,8 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   (4) szerokość przez dekorelację (STEREO DECOR) daje grzebień w mono = pisk – szerokość dawać WIDTH ogona; (5) sprawdzać też na D1 / D2.
   Narzędzia: `RenderTest <out> --presetlab <spec>` (render jak eksport + analiza + porównanie + linia C++), `FourGE/Tools/kq.py` metryki
   (gęstość / pisk / wejście basu / kontrast toku / góra); spec presetów: `FourGE/Tools/presets_v06.txt`.
+- **4GE – „EXPERIMENTAL tragedia, MODERN praktycznie każdy brzmi tak samo” (owner, 2026-11-09, odsłuch MP3 24 presetów)** –
+  (1) 6 presetów z JEDNEGO szablonu + drobne zmiany (długość, ton, szerokość) = jeden dźwięk 6 razy: wariant musi zmieniać to, co
+  słychać najpierw – wysokość i długość toku (pe_start / HOLD), kształt spadku, źródło + CHARACTER ogona, rodzaj uderzenia, screech;
+  sprawdzać odległość między presetami (pasma + krzywa pitchu), nie tylko zgodność z referencją. (2) EXPERIMENTAL z szablonu „metal fold +
+  rectifier + custom + noise” = sam wysoki szum bez kicka: eksperyment = DZIAŁAJĄCY kick (rdzeń MODERN / RAW) + JEDEN nietypowy element.

@@ -7,3 +7,4 @@ Python (numpy / scipy / matplotlib). Kicki referencyjne są właściciela – NI
 Uruchamiaj z katalogu roboczego, w którym jest `tools/` (ścieżki względne `tools/kmatch4.py`, `match2/`).
 - `kq.py <wav...>` – jakość kicka: gęstość (płaskość 1–8 kHz w ogonie), pisk (wąskie prążki 1,5–6 kHz), wejście basu, kontrast tok → ogon, udział > 2 kHz.
 - `presets_v06.txt` – specyfikacja 24 presetów stylów dla `RenderTest <out> --presetlab presets_v06.txt` (`<refs>` = folder z referencjami właściciela).
+- `kd.py <wav...>` – jak bardzo kicki różnią się od siebie (spektrogram pierwszych 400 ms, średnia |dB|); presety jednego stylu: każda para ≥ ~4.

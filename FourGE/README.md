@@ -365,7 +365,7 @@ PUNCH, −0,3 dB), więc grają głośno i równo jak gotowe kicki z paczek. Str
 | **EARLY** | Classic Boom (450 ms), Dark Tonal (400), Punchy Short (220), Melodic Long (800), Warm Tube (500), Anthem XL (1100) | kick_hardstyle_28 / 84: tonalny, wyraźny pitch drop, cieplejszy przester |
 | **MODERN** | Festival Main (675), Clean Punch (450), Tok Bounce (520), Euphoric Long (950), Tight Short (240), Wide Anthem XL (1400) | OPS KICK2_*: tok ~365 Hz, czysty sub, gęsty, kontrolowany |
 | **RAW** | Screamer Main (815), Rawstyle Punch (500), Square Scream (650), Gated Short (240), Hardcore Crush (450), Rumble XL (1500) | OPS KICK_*: tok ~900 Hz, screech, szeroki ogon (dół mono) |
-| **EXPERIMENTAL** | Metal Fold, Double Drop, Rising Doom, Glitch Crush, Formant Scream, Pulse Machine | metaliczne fałdy, podwójny / rosnący pitch, bitcrush, formanty |
+| **EXPERIMENTAL** | Metal Fold, Double Drop, Laser Zap, Glitch Crush, Formant Scream, Pulse Machine | działający kick + jeden nietypowy element: metaliczny fałd, podwójny drop, „laser” z 2 kHz, bitcrush, formanty, PULSE |
 
 Gęstość ogona = ruch unisonu (DRIFT / DETUNE), szerokość = WIDTH ogona (mono przy sumowaniu). **RAW - Square Scream** jest w duchu
 Twoich RANDOM Picków (klasyczny drop, SCREAM, szeroki).

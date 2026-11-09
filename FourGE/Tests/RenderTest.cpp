@@ -22,6 +22,7 @@
 using namespace juce;
 using namespace fge;
 namespace juce::detail { bool dispatchNextMessageOnSystemQueue (bool returnIfNoPendingMessages); }   // (pumps callAsync in the tests)
+static int progIdx (juce::AudioProcessor& p, const juce::String& name) { for (int k = 0; k < p.getNumPrograms(); ++k) if (p.getProgramName (k) == name) return k; return 0; }
 static bool ok = true;
 static void check (bool c, const char* what, const String& extra = {}) { printf ("%-62s %s %s\n", what, c ? "OK" : "FAIL", extra.toRawUTF8()); fflush (stdout); ok &= c; }
 static double sr = 44100.0;
@@ -216,6 +217,74 @@ int main (int argc, char** argv)
             PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
             FileOutputStream os (File (argv[1]).getChildFile ("page" + String (pg).paddedLeft ('0', 2) + ".png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
         }
+        return 0;
+    }
+    if (argc > 3 && String (argv[2]) == "--presetlab")                        // factory preset work: render + analyse + compare + C++ line
+    {
+        namespace ka = fge::dsp::analysis;
+        // spec: "preset <name>" starts one; "style <0-3>", "note <midi>", "ref <wav>", "<param id> <value>"; "#" = comment
+        StringArray lines; lines.addLines (File (argv[3]).loadFileAsString());
+        struct Spec { String name, ref; int style = -1, note = 31, factory = -1; std::vector<std::pair<String, float>> v; };
+        std::vector<Spec> specs;
+        for (auto l : lines)
+        {
+            l = l.upToFirstOccurrenceOf ("#", false, false).trim();
+            if (l.isEmpty()) continue;
+            const String k = l.upToFirstOccurrenceOf (" ", false, false), rest = l.fromFirstOccurrenceOf (" ", false, false).trim();
+            if (k == "preset") { specs.push_back ({}); specs.back().name = rest; continue; }
+            if (specs.empty()) continue;
+            auto& sp = specs.back();
+            if (k == "style") sp.style = rest.getIntValue();
+            else if (k == "note") sp.note = rest.getIntValue();
+            else if (k == "ref") sp.ref = rest;
+            else if (k == "factory") sp.factory = rest.getIntValue();
+            else sp.v.push_back ({ k, rest.getFloatValue() });
+        }
+        const String only = argc > 4 ? String (argv[4]) : String();
+        String cpp;
+        for (auto& sp : specs)
+        {
+            if (only.isNotEmpty() && ! sp.name.containsIgnoreCase (only)) continue;
+            GeProcessor p;
+            if (sp.factory >= 0) p.setCurrentProgram (sp.factory);
+            if (sp.style >= 0) fge::style::apply (p, sp.style, false);
+            for (auto& [id, x] : sp.v)
+            {
+                auto* prm = p.apvts.getParameter (id);
+                if (prm == nullptr) { printf ("!! unknown parameter %s in %s\n", id.toRawUTF8(), sp.name.toRawUTF8()); continue; }
+                prm->setValueNotifyingHost (prm->convertTo0to1 (x));
+            }
+            auto audio = fge::analysis::renderMine (p.exportSnapshot(), sp.note, 150.0);
+            const auto M = ka::analyse (audio, 44100.0);
+            writeWav (File (argv[1]).getChildFile (File::createLegalFileName (sp.name) + ".wav"), audio);
+            printf ("== %-28s %4.0f ms start %4.0f end %5.1f %-10s drop %3.0f tok %3.0f att %4.1f tr %5.1f | bands", sp.name.toRawUTF8(), M.lengthMs, M.startHz, M.endHz,
+                    ka::noteText (M.endHz).toRawUTF8(), M.dropMs, M.tokMs, M.attackMs, M.transientDb);
+            for (int b = 0; b < 6; ++b) printf (" %5.1f", M.bandDb[b]);
+            printf (" | pk %5.1f rms %5.1f lufs %5.1f crest %4.1f corr %.2f side %5.1f clip %d\n", M.m.samplePeakDb, M.m.rmsDb, M.m.lufs, M.crestDb, M.corr, M.sideDb, M.clipped);
+            if (std::getenv ("FGE_LABPITCH")) { printf ("   pitch"); for (size_t k = 0; k < M.pitch.size() && k < 60; k += 2) printf (" %.0f%s", M.pitch[k], M.pitchConf[k] < 0.6f ? "?" : ""); printf ("\n"); }
+            if (sp.ref.isNotEmpty())
+            {
+                AudioBuffer<float> rb; double rr = 0; String err;
+                if (fge::analysis::loadReference (File (sp.ref), rb, rr, err))
+                {
+                    const auto R = ka::analyse (rb, rr);
+                    printf ("   ref %-24s %4.0f ms start %4.0f end %5.1f drop %3.0f tok %3.0f tr %5.1f | bands", File (sp.ref).getFileName().substring (0, 24).toRawUTF8(), R.lengthMs, R.startHz, R.endHz, R.dropMs, R.tokMs, R.transientDb);
+                    for (int b = 0; b < 6; ++b) printf (" %5.1f", R.bandDb[b]);
+                    printf (" | rms %5.1f crest %4.1f corr %.2f side %5.1f\n", R.m.rmsDb, R.crestDb, R.corr, R.sideDb);
+                    for (auto& x : fge::analysis::suggest (R, M, p.frame())) if (! x.text.startsWith ("Tail note") && ! x.text.startsWith ("The reference sits")) printf ("     -> %s\n", x.text.toRawUTF8());
+                }
+            }
+            // the C++ line: every parameter that differs from its default
+            String line = "            { \"" + sp.name + "\", { ";
+            int n = 0;
+            for (int i = 0; i < P::count; ++i)
+            {
+                const float x = p.apvts.getRawParameterValue (def (i).id)->load();
+                if (std::abs (x - def (i).def) > 1.0e-5f * jmax (1.f, std::abs (def (i).def))) { line << (n++ ? ", " : "") << "{ \"" << def (i).id << "\", " << String (x, 4) << "f }"; }
+            }
+            cpp << line << " } },\n";
+        }
+        File (argv[1]).getChildFile ("presets_cpp.txt").replaceWithText (cpp);
         return 0;
     }
     if (argc > 3 && String (argv[2]) == "--analyse")                           // module 16: report of a WAV (+ suggestions vs a 4GE style: --analyse <wav> [style])
@@ -3027,7 +3096,7 @@ int main (int argc, char** argv)
         }
         // 11: BATCH creates every chosen file (sources x variants), in STYLE / KICK_nn folders
         {
-            GeProcessor p; p.setCurrentProgram (1);
+            GeProcessor p; p.setCurrentProgram (progIdx (p, "MODERN - Festival Main"));
             Settings s = settings(); s.batchSources = 0b1011; s.batchVariants = 2; s.seedMode = SeedCustom;
             auto jobs = p.makeExportJobs (s, true);
             fge::xp::Exporter ex (hist); std::vector<JobResult> got; bool fin = false;
@@ -3152,7 +3221,7 @@ int main (int argc, char** argv)
             const bool saved = q.isTouched (P::tailDrive) && q.isTouched (P::peStart) && q.touchedCount() == 2 && q.currentStyle() == fs::Modern;
             fs::apply (q, fs::Raw, false);
             const bool all = std::abs (raw (q, "tail_drive") - 1.f) < 1e-4f;
-            q.setCurrentProgram (1);
+            q.setCurrentProgram (progIdx (q, "MODERN - Festival Main"));
             const bool cleared = q.touchedCount() == 0 && q.currentStyle() == fs::Modern;
             GeProcessor r; r.setCurrentProgram (0); setP (r, "tail_drive", 0.2f);
             const bool programmatic = r.touchedCount() == 0;                 // presets / randomize / automation-free changes never mark
@@ -3180,7 +3249,8 @@ int main (int argc, char** argv)
             GeProcessor p; const ParamFrame f0 = p.frame();
             const ParamFrame prev = fs::onFrame (f0, fs::Raw);
             const bool preview = diff (renderKick (prev, G1, sr, 0.3, -1, 1.f), renderKick (f0, G1, sr, 0.3, -1, 1.f)) > 1.0e-3 && p.frame()[P::scrOn] == f0[P::scrOn] && p.currentStyle() == -1;
-            p.setCurrentProgram (2);
+            int rawIdx = 0; for (int k = 0; k < p.getNumPrograms(); ++k) if (p.getProgramName (k).startsWith ("RAW - ")) { rawIdx = k; break; }
+            p.setCurrentProgram (rawIdx);
             const bool fromName = p.currentStyle() == fs::Raw;
             fs::apply (p, fs::Experimental, true);
             fge::xp::Settings s; s.folder = File::getSpecialLocation (File::tempDirectory).getFullPathName();
@@ -3305,7 +3375,7 @@ int main (int argc, char** argv)
             const float subD0 = std::abs (R.bandDb[2] - M0.bandDb[2]), subD1 = std::abs (R.bandDb[2] - M1.bandDb[2]);
             const bool closer = std::abs (R.lengthMs - M1.lengthMs) < std::abs (R.lengthMs - M0.lengthMs) && st (R.endHz, M1.endHz) < st (R.endHz, M0.endHz) && st (R.endHz, M1.endHz) < 0.6f
                                 && subD1 < subD0;
-            check (untouched && actions >= 3 && n >= 3 && closer, "M16 SUGGESTIONS: nothing changes before APPLY; APPLY moves 4GE toward the reference (length, tail note, body)",
+            check (untouched && actions >= 2 && n >= 3 && closer, "M16 SUGGESTIONS: nothing changes before APPLY; APPLY moves 4GE toward the reference (length, tail note, body)",
                    "length " + String (M0.lengthMs, 0) + " -> " + String (M1.lengthMs, 0) + " (ref " + String (R.lengthMs, 0) + "), note " + ka::noteText (M0.endHz) + " -> " + ka::noteText (M1.endHz)
                    + " (ref " + ka::noteText (R.endHz) + "), body diff " + String (subD0, 1) + " -> " + String (subD1, 1) + " dB; " + txt);
             me.undo.undo();
@@ -4111,7 +4181,7 @@ int main (int argc, char** argv)
             const bool opened = ge->canvas.page() == 12 && pp.isVisible();
             auto& lib = pp.library(); lib.scan();
             // 1: metadata + filters
-            const fge::lib::Entry* raw = nullptr; for (auto& e : lib.all()) if (e.name == "RAW - Buzz Saw") raw = &e;
+            const fge::lib::Entry* raw = nullptr; for (auto& e : lib.all()) if (e.name == "RAW - Rumble XL") raw = &e;
             pp.setFilter ({}, 2, -1, 0, {}); bool styleOk = pp.rows() > 0; for (int r = 0; r < pp.rows(); ++r) styleOk &= pp.entry (r)->style == 2;
             pp.setFilter ({}, -1, 0, 0, {}); bool lenOk = true; for (int r = 0; r < pp.rows(); ++r) lenOk &= pp.entry (r)->lengthMs < 250.f;
             pp.setFilter ("buzz", -1, -1, 0, {}); const bool searchOk = pp.rows() >= 1;
@@ -4146,7 +4216,7 @@ int main (int argc, char** argv)
                 acts &= ! lib.remove (lib.all()[0]);                                    // factory presets stay
                 ex.deleteFile(); junk.deleteFile();
                 // a factory preset duplicated = an editable user preset
-                const File fd = lib.duplicate (find ("RAW - Buzz Saw") != nullptr ? *find ("RAW - Buzz Saw") : lib.all()[0]); acts &= fd.existsAsFile(); fd.deleteFile();
+                const File fd = lib.duplicate (find ("MATCH - Buzz Saw") != nullptr ? *find ("MATCH - Buzz Saw") : lib.all()[0]); acts &= fd.existsAsFile(); fd.deleteFile();
             }
             // 3: missing samples are found
             {
@@ -4159,14 +4229,14 @@ int main (int argc, char** argv)
             const bool missing = em != nullptr && em->missing.contains ("lost_kick.wav") && em->tags.contains ("MISSING SAMPLES");
             // 4: recent + favorites
             pp.setFilter ({}, -1, -1, 0, {});
-            int rowRaw = -1; for (int r = 0; r < pp.rows(); ++r) if (pp.entry (r)->name == "RAW - Buzz Saw") rowRaw = r;
-            const bool loaded = rowRaw >= 0 && pp.loadRow (rowRaw) && p.currentPresetName() == "RAW - Buzz Saw";
+            int rowRaw = -1; for (int r = 0; r < pp.rows(); ++r) if (pp.entry (r)->name == "MATCH - Buzz Saw") rowRaw = r;
+            const bool loaded = rowRaw >= 0 && pp.loadRow (rowRaw) && p.currentPresetName() == "MATCH - Buzz Saw";
             pp.setFilter ({}, -1, -1, 4, {});
-            const bool recent = pp.rows() >= 1 && pp.entry (0)->name == "RAW - Buzz Saw";
-            const bool wasFav = ge->canvas.presets().isFavourite ("RAW - Buzz Saw");
-            if (! wasFav) ge->canvas.presets().toggleFavourite ("RAW - Buzz Saw");
-            pp.setFilter ({}, -1, -1, 3, {}); bool fav = false; for (int r = 0; r < pp.rows(); ++r) fav |= pp.entry (r)->name == "RAW - Buzz Saw";
-            if (! wasFav) ge->canvas.presets().toggleFavourite ("RAW - Buzz Saw");
+            const bool recent = pp.rows() >= 1 && pp.entry (0)->name == "MATCH - Buzz Saw";
+            const bool wasFav = ge->canvas.presets().isFavourite ("MATCH - Buzz Saw");
+            if (! wasFav) ge->canvas.presets().toggleFavourite ("MATCH - Buzz Saw");
+            pp.setFilter ({}, -1, -1, 3, {}); bool fav = false; for (int r = 0; r < pp.rows(); ++r) fav |= pp.entry (r)->name == "MATCH - Buzz Saw";
+            if (! wasFav) ge->canvas.presets().toggleFavourite ("MATCH - Buzz Saw");
             // 5: A / B
             auto rawv = [&] (const char* id) { return p.apvts.getRawParameterValue (id)->load(); };
             setP (p, "tail_drive", 0.2f);

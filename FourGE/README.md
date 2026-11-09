@@ -357,12 +357,19 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
 - **EXPORT HISTORY**: ostatnie 50 eksportów, RE-EXPORT z tymi samymi ustawieniami i seedem.
 
 ## Presety
-INIT, trzy kicki dopasowane do Twoich sampli (**MODERN - Festival Drive** = OPS KICK2_D, **RAW - Buzz Saw** = OPS KICK_G,
-**EARLY - Short Tonal** = kick_hardstyle_28) i przykłady każdego CHARACTER (CORE - …).
-MODERN / RAW: CLICK na początku (stuknięcie), tok na HOLD z szumem pod spodem (BODY = NOISE, żeby nie brzmiało „plastikowo”),
-TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – stąd power.
-**RANDOM - Pick 01…11** = Twoje wybrane wyniki z RANDOM (2026-11-08), dokładnie tak, jak je zapisałeś.
+**6 presetów na każdy STYLE** (v0.6) – każdy ma inną długość / charakter, wszystkie z limiterem na wyjściu (LIMITER 1 na MASTER OUTPUT,
+PUNCH, −0,3 dB), więc grają głośno i równo jak gotowe kicki z paczek. Strojone pomiarami do Twoich referencji.
+
+| STYLE | Presety (długość) | Wzór |
+|---|---|---|
+| **EARLY** | Classic Boom (450 ms), Dark Tonal (400), Punchy Short (220), Melodic Long (800), Warm Tube (500), Anthem XL (1100) | kick_hardstyle_28 / 84: tonalny, wyraźny pitch drop, cieplejszy przester |
+| **MODERN** | Festival Main (675), Clean Punch (450), Tok Bounce (520), Euphoric Long (950), Tight Short (240), Wide Anthem XL (1400) | OPS KICK2_*: tok ~365 Hz, czysty sub, gęsty, kontrolowany |
+| **RAW** | Screamer Main (815), Rawstyle Punch (500), Square Scream (650), Gated Short (240), Hardcore Crush (450), Rumble XL (1500) | OPS KICK_*: tok ~900 Hz, screech, szeroki ogon (dół mono) |
+| **EXPERIMENTAL** | Metal Fold, Double Drop, Rising Doom, Glitch Crush, Formant Scream, Pulse Machine | metaliczne fałdy, podwójny / rosnący pitch, bitcrush, formanty |
+
+Gęstość ogona = ruch unisonu (DRIFT / DETUNE), szerokość = WIDTH ogona (mono przy sumowaniu). **RAW - Square Scream** jest w duchu
+Twoich RANDOM Picków (klasyczny drop, SCREAM, szeroki).
+Dalej: **MATCH - Festival Drive / Buzz Saw / Short Tonal** (pierwsze dopasowania z v0.5) i **RANDOM - Pick 01…11** (Twoje wybrane wyniki z RANDOM).
 
 ## Co dalej
-Moduł po module wg `PLAN.md`: 12 eksport →
-13–16 gotowe (style, długość, presety, analiza) → 17 docelowy interfejs.
+Wszystkie 17 modułów są gotowe – teraz szlif brzmienia i presetów według Twoich uwag z odsłuchu.

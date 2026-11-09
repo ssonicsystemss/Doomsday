@@ -425,7 +425,7 @@ void GeProcessor::setCurrentProgram (int i)
     if (onPresetLoaded) onPresetLoaded ("F:" + factoryPresets()[(size_t) jlimit (0, (int) factoryPresets().size() - 1, i)].name);
     {
         const String n = factoryPresets()[(size_t) jlimit (0, (int) factoryPresets().size() - 1, i)].name;
-        const int st = n.startsWith ("EARLY") ? 0 : n.startsWith ("MODERN") ? 1 : n.startsWith ("RAW") ? 2 : -1;
+        const int st = n.startsWith ("EARLY") ? 0 : n.startsWith ("MODERN") ? 1 : n.startsWith ("RAW") ? 2 : n.startsWith ("EXPERIMENTAL") ? 3 : -1;
         if (st >= 0) apvts.state.setProperty ("style", st, nullptr); else apvts.state.removeProperty ("style", nullptr);
     }
     seedWanted.store (0);

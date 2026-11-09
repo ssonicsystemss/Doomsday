@@ -108,6 +108,13 @@ namespace fge::dsp::analysis
         for (auto v : lin) r.env.push_back (juce::Decibels::gainToDecibels (v / juce::jmax (1.0e-9f, envPk), -120.f));
         int last = 0; for (int k = 0; k < (int) r.env.size(); ++k) if (r.env[(size_t) k] > -40.f) last = k;
         r.lengthMs = (float) ((last + 1) * 5);
+        // loudness / crest over the KICK only (to its -40 dB end): trailing silence in a render or a file must not make it look "dynamic"
+        {
+            const int nk = juce::jlimit (juce::jmin (n, 64), n, (int) (r.lengthMs * 0.001 * rate));
+            juce::AudioBuffer<float> kick (const_cast<float* const*> (in.getArrayOfReadPointers()), ch, nk);
+            r.m = meter::measure (kick, rate);
+            r.crestDb = r.m.samplePeakDb - r.m.rmsDb;
+        }
         {
             float pk = 0.f; int pkAt = 0; for (int i = 0; i < juce::jmin (n, (int) (0.1 * rate)); ++i) if (std::abs (mono[(size_t) i]) > pk) { pk = std::abs (mono[(size_t) i]); pkAt = i; }
             int a10 = 0, a90 = pkAt; for (int i = 0; i <= pkAt; ++i) { if (a10 == 0 && std::abs (mono[(size_t) i]) > 0.1f * pk) a10 = i; if (std::abs (mono[(size_t) i]) > 0.9f * pk) { a90 = i; break; } }

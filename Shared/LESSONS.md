@@ -339,3 +339,10 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   Druga pułapka tego samego typu: timer APVTS zapisuje zmiany parametrów do drzewa z opóźnieniem (do 500 ms) – z undo – więc spóźniony
   zapis (np. po wczytaniu presetu) trafiał do NOWEJ transakcji po APPLY i to on był cofany. Grupowe zmiany zaczynać od
   `GeProcessor::beginUndoStep` (najpierw `apvts.copyState()` = flush do poprzedniego kroku, potem nowa transakcja).
+- **4GE – 24 presety stylów (2026-11-09): co mierzyć, zanim właściciel posłucha** – (1) głośność / crest liczyć TYLKO po kicku (do −40 dB),
+  bo cisza na końcu renderu zawyża crest i myli (KickAnalysis ją wliczał); (2) bez limitera kicki 4GE wychodzą z pikami +4…+7 dBFS –
+  presety kończy LIMITER 1 na MASTER OUTPUT (PUNCH, −0,3 dB) = RMS −5…−7 / crest 5–7 jak OPS; (3) gęstość ogona (płaskość 1–8 kHz, brak
+  wąskich prążków) robi RUCH unisonu (DRIFT / DETUNE ~30), nie przester ani rezonans – bez niego długie ogony mają „pisk” prążków;
+  (4) szerokość przez dekorelację (STEREO DECOR) daje grzebień w mono = pisk – szerokość dawać WIDTH ogona; (5) sprawdzać też na D1 / D2.
+  Narzędzia: `RenderTest <out> --presetlab <spec>` (render jak eksport + analiza + porównanie + linia C++), `FourGE/Tools/kq.py` metryki
+  (gęstość / pisk / wejście basu / kontrast toku / góra); spec presetów: `FourGE/Tools/presets_v06.txt`.

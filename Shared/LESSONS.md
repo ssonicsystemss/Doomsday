@@ -331,3 +331,11 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - **Czas „od uderzenia” jako suma float per blok = inny dźwięk przy innym rozmiarze bloku (2026-11-08, 4GE M09)** – `sinceHitMs += n*1000/rate`
   sumowane co blok dawało różnice 8e-4 między blokami 32 a 256 (M07 spectral / obwiednie w ms). Czas liczyć z licznika próbek (int64)
   w każdej próbce. Tak samo modulacja: siatka ticków restartowana przy każdym kicku, nie na granicach bloków hosta – wtedy realtime = eksport.
+- **APVTS + UndoManager: wartość „przyciągnięta” = drugi krok UNDO (4GE M16, 2026-11-09)** – zmiana parametru przez drzewo
+  (`setProperty ("value", v, &undo)`) przechodzi do parametru, a timer APVTS zapisuje do drzewa wartość PO zaokrągleniu zakresu
+  (float round trip / interwał) – z undo, w nowej (pustej) transakcji otwartej przez PresetBar. Jeden Ctrl+Z cofał tylko tę poprawkę
+  (1003.01 zostawało). Po zapisie odczytaj surową wartość parametru i, jeśli różni się od drzewa, zapisz ją w TYM SAMYM kroku (`GeProcessor::setParamInUndoStep`;
+  samo `convertFrom0to1 (convertTo0to1 (v))` nie wystarcza – parametr robi jeszcze jedną rundę).
+  Druga pułapka tego samego typu: timer APVTS zapisuje zmiany parametrów do drzewa z opóźnieniem (do 500 ms) – z undo – więc spóźniony
+  zapis (np. po wczytaniu presetu) trafiał do NOWEJ transakcji po APPLY i to on był cofany. Grupowe zmiany zaczynać od
+  `GeProcessor::beginUndoStep` (najpierw `apvts.copyState()` = flush do poprzedniego kroku, potem nowa transakcja).

@@ -73,6 +73,9 @@ public:
     const fge::env::Bank& shapes() const { return current; }
     uint32_t shapesVersion() const { return version; }
     // a parameter change that joins the current undo step (the APVTS otherwise records it later, from its timer)
+    // a new undo step for a group of parameter changes: first let the APVTS write every pending parameter value into the tree (its timer
+    // can wait up to 500 ms) - into the PREVIOUS step - so a late flush never becomes the newest step and Ctrl+Z takes this whole group back
+    void beginUndoStep (const juce::String& name) { (void) apvts.copyState(); undo.beginNewTransaction (name); }
     void setParamInUndoStep (const juce::String& id, float plainValue)
     {
         auto child = apvts.state.getChildWithProperty ("id", id);
@@ -82,6 +85,9 @@ public:
             // so the undo step records "current -> new" and the change is never swallowed as "no change"
             if (auto* a = apvts.getRawParameterValue (id)) child.setProperty ("value", a->load(), nullptr);
             child.setProperty ("value", plainValue, &undo);
+            // the value the parameter really holds now (range / float round trip): written into the tree in the SAME step - otherwise the
+            // APVTS timer writes it later as a second undo step and one Ctrl+Z only takes that tiny correction back
+            if (auto* a = apvts.getRawParameterValue (id)) if ((float) child["value"] != a->load()) child.setProperty ("value", a->load(), &undo);
         }
         else if (auto* a = apvts.getParameter (id)) a->setValueNotifyingHost (a->convertTo0to1 (plainValue));
     }

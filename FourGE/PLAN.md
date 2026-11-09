@@ -192,6 +192,13 @@ NOTE + FX dodatkowo wycisza całe wyjście (`outGate` po dynamice mastera); czę
 AUTO LENGTH skaluje części przez `len_follow_punch / body / tail / sub` (domyślnie 0 / 0.5 / 1 / 1 = dokładnie jak wcześniej), eksport
 i waveform liczą efektywną długość; `Presets/LengthEngine.h` (profile SHORT / MEDIUM / LONG / EXTRA LONG + etykieta), nagłówek: przycisk
 LENGTH → panel (CallOutBox) z profilami, AUTO, SYNC, FOLLOW i długościami części; KICK END (LENGTH / NOTE / +FX). Testy M14 OK.
+**STAN 2026-11-09: MODUŁ 16 GOTOWY** – KICK ANALYSIS: `DSP/Analysis/KickAnalysis.h` (czysta analiza bufora: waveform, obwiednia 5 ms,
+długość -40 dB, attack / transient / click, pitch NSDF na dwóch kopiach (2 kHz dla spadku, 250 Hz dla niskiego ogona pod skrzeczącym
+środkiem) + nuta ogona = mediana ważona głośnością, czas spadku i TOK, spektrum FFT 8192 + 6 pasm + % suba + harmoniczne, stereo /
+korelacja / korelacja < 150 Hz, peak / RMS / LUFS / crest / clip, cechy słowami); `Presets/AnalysisTools.h` (wczytanie referencji,
+`renderMine` = render eksportu migawki, `suggest` = sugestie z wartościami, `apply` = jeden krok UNDO); `GUI/AnalysisPage.*` = strona 13
+(przycisk ANALYZE w nagłówku, drag & drop, nakładki REF / 4GE, tabela, sugestie z checkboxami). `RenderTest <out> --analyse <wav> [styl]`.
+Testy M16 OK.
 **STAN 2026-11-09: MODUŁ 15 GOTOWY** – PRESET & BROWSER: `Presets/PresetLibrary.h` (metadane z wartości: styl, długość, typ ogona, tagi
 charakteru + tagi / notatki użytkownika w atrybutach .4gp, moduły, brakujące sample; filtry, RECENT w `4GE/presets.settings`,
 duplicate / rename / delete do kosza / import (walidacja, wolne nazwy) / export, preset fabryczny zapisywany przez prywatny procesor),

@@ -16,7 +16,7 @@ namespace fge::length
     inline int category (float ms) { return ms < 250.f ? Short : ms <= 500.f ? Medium : ms <= 1000.f ? Long : ExtraLong; }
     inline void applyProfile (GeProcessor& p, int prof)
     {
-        p.undo.beginNewTransaction ("Length " + names()[prof]);
+        p.beginUndoStep ("Length " + names()[prof]);
         p.setParamInUndoStep ("core_length", profileMs (prof));
         p.setParamInUndoStep ("core_auto_length", 1.f);
         p.setParamInUndoStep ("len_sync", 0.f);

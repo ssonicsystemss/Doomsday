@@ -135,6 +135,11 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     prPg->onClose = [this] { showPage (pageBeforePresets); };
     prPg->onRelink = [this] { showPage (9); };
     addChildComponent (*prPg);
+    anPg = std::make_unique<fge::gui::AnalysisPage> (proc, lnf);                       // module 16
+    addChildComponent (*anPg);
+    anaBtn.onClick = [this] { showPage (13); };
+    anaBtn.setTooltip ("Kick analysis: load a reference kick, compare it with 4GE (waveform, pitch, spectrum, bands, transient, length, stereo, loudness) and apply the suggested settings (one undo step).");
+    addAndMakeVisible (anaBtn);
     presetBar.onBrowse = [this] { if (pageIdx != 12) pageBeforePresets = pageIdx; showPage (pageIdx == 12 ? pageBeforePresets : 12); };
     const char* pages[12] { "MAIN", "ENV", "OSC", "LAYERS", "DIST", "SCREECH", "EQ", "DYN", "MOD", "SMP", "STEREO", "EXPORT" };
     for (int i = 0; i < 12; ++i)
@@ -199,7 +204,7 @@ void GeCanvas::selectPart (int i)
 
 void GeCanvas::showPage (int i)
 {
-    pageIdx = jlimit (0, 12, i);
+    pageIdx = jlimit (0, 13, i);
     const bool main = pageIdx == 0;
     for (int p = 0; p < 4; ++p)
     {
@@ -220,6 +225,7 @@ void GeCanvas::showPage (int i)
     stPg->setVisible (pageIdx == 10);
     exPg->setVisible (pageIdx == 11);
     prPg->setVisible (pageIdx == 12);
+    anPg->setVisible (pageIdx == 13);
     wave.setVisible (pageIdx < 2);
     for (auto* m : macroRow) m->setVisible (pageIdx < 2);
     const auto& c = palette();
@@ -228,6 +234,8 @@ void GeCanvas::showPage (int i)
         pageBtn[(size_t) k].setColour (TextButton::buttonColourId, k == pageIdx ? c.red : c.control);
         pageBtn[(size_t) k].setColour (TextButton::textColourOffId, k == pageIdx ? c.ground : c.silver);
     }
+    anaBtn.setColour (TextButton::buttonColourId, pageIdx == 13 ? c.red : c.control);
+    anaBtn.setColour (TextButton::textColourOffId, pageIdx == 13 ? c.ground : c.silver);
     repaint();
 }
 
@@ -255,7 +263,8 @@ void GeCanvas::resized()
     header[6]->setBounds (gx, 8, gw + gs, 26);
     const int order[10] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     for (int k = 0; k < 10; ++k) pageBtn[(size_t) order[k]].setBounds (gx + (k % 5) * gs, 40 + (k / 5) * 30, gw, 26);
-    pageBtn[10].setBounds (gx + 2 * gs, 8, gw + gs, 26);
+    pageBtn[10].setBounds (gx + 2 * gs, 8, gw, 26);
+    anaBtn.setBounds (gx + 3 * gs, 8, gw, 26);
     pageBtn[11].setBounds (gx + 4 * gs, 8, gw, 26);
     // pitch engine
     pitchArea = { 16, 104, W - 32, 84 };
@@ -305,6 +314,7 @@ void GeCanvas::resized()
     if (stPg != nullptr) stPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (exPg != nullptr) exPg->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
     if (prPg != nullptr) prPg->setBounds (16, 104, W - 32 - 34, H - 104 - 16);
+    if (anPg != nullptr) anPg->setBounds (16, 104, W - 32 - 34, H - 104 - 16);
     if (scrPage != nullptr) scrPage->setBounds (16, 196, W - 32 - 34, H - 196 - 16);
 }
 

@@ -12,6 +12,7 @@
 #include "../Source/Presets/VariantRandomizer.h"
 #include "../Source/Presets/StyleEngine.h"
 #include "../Source/Presets/LengthEngine.h"
+#include "../Source/Presets/AnalysisTools.h"
 #include "../Source/GUI/DistScope.h"
 #include "../Source/Presets/FactoryPresets.h"
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -200,6 +201,34 @@ int main (int argc, char** argv)
         }
         writeWav (outDir.getChildFile ("m10_listen.wav"), out);
         printf ("%s\n", outDir.getChildFile ("m10_listen.wav").getFullPathName().toRawUTF8());
+        return 0;
+    }
+    if (argc > 3 && String (argv[2]) == "--analyse")                           // module 16: report of a WAV (+ suggestions vs a 4GE style: --analyse <wav> [style])
+    {
+        namespace ka = fge::dsp::analysis;
+        AudioBuffer<float> ref; double rate = 0; String err;
+        if (! fge::analysis::loadReference (File (argv[3]), ref, rate, err)) { printf ("%s\n", err.toRawUTF8()); return 1; }
+        auto show = [] (const char* name, const ka::Report& r)
+        {
+            printf ("== %s: %.0f ms, start %.0f Hz end %.1f Hz (%s) drop %.0f ms tok %.0f ms, attack %.1f ms trans %.1f dB click %.0f Hz\n   bands", name, r.lengthMs, r.startHz, r.endHz,
+                    ka::noteName (r.endNote).toRawUTF8(), r.dropMs, r.tokMs, r.attackMs, r.transientDb, r.clickHz);
+            for (int b = 0; b < 6; ++b) printf (" %.1f", r.bandDb[b]);
+            printf ("  sub %.0f %%  peak %.1f rms %.1f lufs %.1f crest %.1f  corr %.2f side %.1f\n", r.subShare, r.m.samplePeakDb, r.m.rmsDb, r.m.lufs, r.crestDb, r.corr, r.sideDb);
+            for (auto& x : r.features) printf ("   * %s\n", x.toRawUTF8());
+        };
+        const auto R = ka::analyse (ref, rate); show ("REF", R);
+        GeProcessor p; if (argc > 4) fge::style::apply (p, String (argv[4]).getIntValue(), false);
+        const int note = R.endNote > 0 ? jlimit (24, 47, R.endNote) : 31;
+        auto b = renderKick (p.frame(), note, 44100.0, 2.5, -1, 1.f, &p.shapes(), 150.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy());
+        const auto M = ka::analyse (b, 44100.0); show ("4GE", M);
+        const auto sg = fge::analysis::suggest (R, M, p.frame());
+        for (auto& s : sg) printf ("  -> %s  [%d]\n", s.text.toRawUTF8(), (int) s.changes.size());
+        if (std::getenv ("FGE_UNDOCHK"))
+        {
+            std::vector<float> before; for (int i = 0; i < P::count; ++i) before.push_back (p.apvts.getParameter (def (i).id)->getValue());
+            fge::analysis::apply (p, sg); p.undo.undo();
+            for (int i = 0; i < P::count; ++i) if (std::abs (p.apvts.getParameter (def (i).id)->getValue() - before[(size_t) i]) > 1e-6f) printf ("NOT UNDONE %s\n", def (i).id);
+        }
         return 0;
     }
     if (argc > 2 && String (argv[2]) == "--lengthdemo")                        // module 14 listening file: RAW and EARLY at SHORT / MEDIUM / LONG / EXTRA LONG
@@ -3204,6 +3233,71 @@ int main (int argc, char** argv)
                "KICK END: LENGTH plays on, NOTE cuts the kick at the note end (no click) with the effect tails ringing, NOTE + FX cuts them too",
                "after the note: LENGTH " + String (after (len, 0.2), 3) + ", NOTE " + String (after (note, 0.16), 6) + " (fx tail " + String (after (noteFx, 0.16), 5) + "), NOTE+FX " + String (after (all, 0.16), 6));
     }
+    // ---------------------------------------------------------------- module 16: KICK ANALYSIS (measurements, suggestions, APPLY = one undo)
+    {
+        namespace ka = fge::dsp::analysis;
+        // a synthetic kick with known numbers: 30 ms TOK at 300 Hz, an 80 ms drop to A1 (55 Hz), 600 ms tail, a 2 ms click
+        auto synth = [] (bool stereo, float clipGain, float midHz)
+        {
+            const double r = 44100.0; const int n = (int) (0.8 * r);
+            AudioBuffer<float> b (2, n); b.clear(); double ph = 0; Random rnd (7);
+            for (int i = 0; i < n; ++i)
+            {
+                const double t = i / r;
+                const double hz = t < 0.03 ? 300.0 : t < 0.11 ? 300.0 * std::pow (55.0 / 300.0, (t - 0.03) / 0.08) : 55.0;
+                ph += hz / r;
+                const double a = t < 0.6 ? 0.8 * std::exp (-t * 2.0) : 0.8 * std::exp (-0.6 * 2.0) * std::exp (-(t - 0.6) * 60.0);
+                float x = (float) (a * std::sin (2.0 * MathConstants<double>::pi * ph));
+                if (t < 0.002) x += 0.4f * (rnd.nextFloat() * 2.f - 1.f);
+                if (midHz > 0.f) x += (float) (0.5 * a * std::sin (2.0 * MathConstants<double>::pi * midHz * t));
+                if (clipGain > 1.f) x = jlimit (-0.9f, 0.9f, x * clipGain);
+                const float side = stereo ? 0.2f * (float) a * (rnd.nextFloat() * 2.f - 1.f) : 0.f;
+                b.setSample (0, i, x + side); b.setSample (1, i, x - side);
+            }
+            return b;
+        };
+        {
+            const auto R = ka::analyse (synth (false, 1.f, 0.f), 44100.0);
+            const bool pitchOk = std::abs (R.endHz - 55.f) < 1.5f && R.endNote == 33 && std::abs (R.startHz - 300.f) < 45.f;
+            const bool timeOk = R.tokMs >= 15.f && R.tokMs <= 45.f && R.dropMs >= 80.f && R.dropMs <= 140.f && R.lengthMs > 450.f && R.lengthMs < 720.f;
+            const bool mono = ! R.stereo && R.corr > 0.99f && R.subShare > 60.f && R.bandDb[0] > R.bandDb[3];
+            check (R.valid && pitchOk && timeOk && mono, "M16 ANALYSIS: tail note, start pitch, tok, drop, length, sub share and mono of a known kick",
+                   ka::noteText (R.endHz) + " " + String (R.endHz, 1) + " Hz, start " + String (R.startHz, 0) + ", tok " + String (R.tokMs, 0) + " ms, drop " + String (R.dropMs, 0)
+                   + " ms, length " + String (R.lengthMs, 0) + " ms, sub " + String (R.subShare, 0) + " %, corr " + String (R.corr, 2));
+            const auto S = ka::analyse (synth (true, 1.f, 0.f), 44100.0), C = ka::analyse (synth (false, 4.f, 0.f), 44100.0), M = ka::analyse (synth (false, 1.f, 1000.f), 44100.0);
+            check (S.stereo && S.corr < R.corr && S.sideDb > -40.f && C.crestDb < R.crestDb - 2.f && C.clipped == 0 && M.bandDb[3] > R.bandDb[3] + 10.f
+                   && std::abs (M.endHz - 55.f) < 2.f && R.attackMs < 5.f && R.transientDb > 0.f,
+                   "M16 ANALYSIS: stereo / side, density (crest), a mid tone in its band, the transient",
+                   "side " + String (S.sideDb, 1) + " dB corr " + String (S.corr, 2) + ", crest " + String (R.crestDb, 1) + " -> " + String (C.crestDb, 1) + ", mid band " + String (R.bandDb[3], 1) + " -> " + String (M.bandDb[3], 1)
+                   + ", mid kick note " + String (M.endHz, 1) + " Hz, attack " + String (R.attackMs, 1) + " ms, transient " + String (R.transientDb, 1) + " dB");
+            AudioBuffer<float> silent (2, 4410); silent.clear(); const auto Z = ka::analyse (silent, 44100.0);
+            check (! Z.valid, "M16 ANALYSIS: silence = no report (no crash)");
+        }
+        {
+            // suggestions: the reference = 4GE with a longer kick, more body, pitch tracking off with another end pitch
+            GeProcessor refP; setP (refP, "core_auto_length", 1.f); setP (refP, "core_length", 900.f); setP (refP, "body_level", refP.apvts.getRawParameterValue ("body_level")->load() + 8.f);
+            setP (refP, "core_key_track", 0.f); setP (refP, "pe_end", 41.2f);
+            GeProcessor me; setP (me, "core_key_track", 0.f);
+            const auto R = ka::analyse (fge::analysis::renderMine (refP.exportSnapshot(), 31, 150.0), 44100.0);
+            const auto M0 = ka::analyse (fge::analysis::renderMine (me.exportSnapshot(), 31, 150.0), 44100.0);
+            std::vector<float> before; for (int i = 0; i < P::count; ++i) before.push_back (me.apvts.getParameter (def (i).id)->getValue());
+            const auto sug = fge::analysis::suggest (R, M0, me.frame());
+            bool untouched = true; for (int i = 0; i < P::count; ++i) untouched &= me.apvts.getParameter (def (i).id)->getValue() == before[(size_t) i];
+            int actions = 0; String txt; for (auto& x : sug) { actions += x.changes.empty() ? 0 : 1; txt << x.text << " | "; }
+            const int n = fge::analysis::apply (me, sug);
+            const auto M1 = ka::analyse (fge::analysis::renderMine (me.exportSnapshot(), 31, 150.0), 44100.0);
+            auto st = [] (float a, float b) { return a > 0.f && b > 0.f ? std::abs (12.f * std::log2 (a / b)) : 99.f; };
+            const float subD0 = std::abs (R.bandDb[2] - M0.bandDb[2]), subD1 = std::abs (R.bandDb[2] - M1.bandDb[2]);
+            const bool closer = std::abs (R.lengthMs - M1.lengthMs) < std::abs (R.lengthMs - M0.lengthMs) && st (R.endHz, M1.endHz) < st (R.endHz, M0.endHz) && st (R.endHz, M1.endHz) < 0.6f
+                                && subD1 < subD0;
+            check (untouched && actions >= 3 && n >= 3 && closer, "M16 SUGGESTIONS: nothing changes before APPLY; APPLY moves 4GE toward the reference (length, tail note, body)",
+                   "length " + String (M0.lengthMs, 0) + " -> " + String (M1.lengthMs, 0) + " (ref " + String (R.lengthMs, 0) + "), note " + ka::noteText (M0.endHz) + " -> " + ka::noteText (M1.endHz)
+                   + " (ref " + ka::noteText (R.endHz) + "), body diff " + String (subD0, 1) + " -> " + String (subD1, 1) + " dB; " + txt);
+            me.undo.undo();
+            bool back = true; for (int i = 0; i < P::count; ++i) back &= std::abs (me.apvts.getParameter (def (i).id)->getValue() - before[(size_t) i]) < 1.0e-6f;
+            check (back, "M16 APPLY = ONE undo step (one Ctrl+Z takes every change back)");
+        }
+    }
     // ---------------------------------------------------------------- module 08: dynamics, compressor, transient & limiter (MODULE08.md 14)
     {
         namespace dy = fge::dsp::dyn;
@@ -4084,6 +4178,51 @@ int main (int argc, char** argv)
             if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
             cleanup();
             p.setCurrentProgram (0);
+            ge->canvas.showPage (0);
+        }
+        // ANALYSIS page (module 16): reference in, 4GE analysed on the reference's note, overlays, suggestions, APPLY = one undo
+        {
+            GeProcessor refP; setP (refP, "core_length", 1000.f); setP (refP, "sub_level", refP.apvts.getRawParameterValue ("sub_level")->load() + 6.f);
+            const File refFile = outDir.getChildFile ("m16_reference.wav");
+            writeWav (refFile, fge::analysis::renderMine (refP.exportSnapshot(), 33, 150.0));
+            ge->canvas.showPage (13);
+            auto& ap = ge->canvas.analysisPage();
+            const bool shown = ap.isVisible() && ge->canvas.analysisButton().isVisible();
+            auto wait = [&] { for (int i = 0; i < 6000 && (ap.busy() || ! ap.mineReport().valid); ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (2); } };
+            ap.loadReference (refFile);
+            for (int i = 0; i < 200; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (2); }
+            wait();
+            const bool both = ap.refReport().valid && ap.mineReport().valid && ap.note() == 33 && ! ap.suggestions().empty();
+            const float lenBefore = p.apvts.getRawParameterValue ("core_length")->load();
+            int acts = 0; for (auto& x : ap.suggestions()) acts += x.changes.empty() ? 0 : 1;
+            PNGImageFormat png;
+            { auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+              FileOutputStream os (outDir.getChildFile ("gui_analysis.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); } }
+            struct Spy : ValueTree::Listener
+            {
+                String log;
+                void valueTreePropertyChanged (ValueTree& t, const Identifier& id) override { if (log.length() < 400) log << " " << t.getType().toString() << "." << id.toString() << (t.hasProperty ("id") ? "(" + t["id"].toString() + ")" : String()); }
+                void valueTreeChildAdded (ValueTree& t, ValueTree& c) override { if (log.length() < 400) log << " +" << t.getType().toString() << "/" << c.getType().toString(); }
+                void valueTreeChildRemoved (ValueTree& t, ValueTree& c, int) override { if (log.length() < 400) log << " -" << t.getType().toString() << "/" << c.getType().toString(); }
+            } spy;
+            p.apvts.state.addListener (&spy);
+            const int n = ap.applyAll();
+            spy.log << " |";
+            const float lenAfter = p.apvts.getRawParameterValue ("core_length")->load();
+            std::vector<float> afterApply; for (int i = 0; i < P::count; ++i) afterApply.push_back (p.apvts.getParameter (def (i).id)->getValue());
+            const String nameAfterApply = p.undo.getUndoDescription();
+            for (int i = 0; i < 100; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (2); }
+            wait();
+            p.apvts.state.removeListener (&spy);
+            String undoName = p.undo.getUndoDescription() + " / after apply: " + nameAfterApply + " / tree:" + spy.log + " / moved:";
+            for (int i = 0; i < P::count; ++i) if (p.apvts.getParameter (def (i).id)->getValue() != afterApply[(size_t) i]) undoName << " " << def (i).id;
+            p.undo.undo();
+            const bool undone = std::abs (p.apvts.getRawParameterValue ("core_length")->load() - lenBefore) < 0.5f;
+            check (shown && both && acts > 0 && n > 0 && lenAfter > lenBefore + 50.f && undone,
+                   "M16 GUI: ANALYZE page - reference + 4GE on the same note, overlays, suggestions, APPLY ALL (one undo)",
+                   String (shown ? "" : "shown! ") + (both ? "" : "reports! ") + "note " + String (ap.note()) + ", " + String (acts) + " actions, " + String (n) + " changes, length "
+                   + String (lenBefore, 0) + " -> " + String (lenAfter, 0) + (undone ? "" : " undo! (" + undoName + ", now " + String (p.apvts.getRawParameterValue ("core_length")->load(), 0) + ")"));
+            ap.clearReference(); refFile.deleteFile();
             ge->canvas.showPage (0);
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);

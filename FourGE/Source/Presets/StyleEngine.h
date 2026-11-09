@@ -119,7 +119,7 @@ namespace fge::style
     inline Report apply (GeProcessor& p, int s, bool keepTouched)
     {
         Report r;
-        p.undo.beginNewTransaction ("Style " + names()[s]);
+        p.beginUndoStep ("Style " + names()[s]);
         for (auto& [i, x] : values (s))
         {
             auto* prm = p.apvts.getParameter (def (i).id);

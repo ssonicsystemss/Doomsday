@@ -23,6 +23,7 @@
 #include "StereoPage.h"
 #include "ExportPage.h"
 #include "PresetPage.h"
+#include "AnalysisPage.h"
 #include "Palette.h"
 
 class GeCanvas : public juce::Component, public juce::DragAndDropContainer, public juce::DragAndDropTarget, private juce::Timer
@@ -50,6 +51,8 @@ public:
     fge::gui::StereoPage& stereoPage() { return *stPg; }
     fge::gui::ExportPage& exportPage() { return *exPg; }
     fge::gui::PresetPage& presetPage() { return *prPg; }
+    fge::gui::AnalysisPage& analysisPage() { return *anPg; }
+    juce::TextButton& analysisButton() { return anaBtn; }
     doomsday::ui::PresetBar& presets() { return presetBar; }
     int page() const { return pageIdx; }
     fge::gui::EnvPage& envelopes() { return *envPage; }
@@ -118,6 +121,8 @@ private:
     std::unique_ptr<fge::gui::StereoPage> stPg;
     std::unique_ptr<fge::gui::ExportPage> exPg;
     std::unique_ptr<fge::gui::PresetPage> prPg;
+    std::unique_ptr<fge::gui::AnalysisPage> anPg;                     // module 16 (page 13)
+    juce::TextButton anaBtn { "ANALYZE" };
     int pageBeforePresets = 0;
     std::array<juce::TextButton, 12> pageBtn;
     juce::ComboBox styleBox;

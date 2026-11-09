@@ -265,6 +265,19 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
   STEREO FIELD. Pod gałkami tabela **ALL UNITS** (klik = otwórz). Wszystko modulowalne z MOD (pan, width, mid, side, crossover, delay…),
   bez klików.
 
+## ANALIZA kicka (moduł 16)
+- Przycisk **ANALYZE** w nagłówku (obok STEREO). **LOAD REFERENCE** albo przeciągnij WAV / AIFF / FLAC / MP3 na stronę.
+  Referencja jest analizowana w tle, a 4GE jest renderowane tak jak przy eksporcie (cały kick z masterem) **na tej samej nucie**
+  co referencja (pole NOTE możesz zmienić). ANALYZE 4GE = przeanalizuj jeszcze raz aktualne brzmienie.
+- Widać: **waveform**, **krzywą pitchu** (z nutą ogona, np. „G1 +40 ct”), **spektrum**, **energię w 6 pasmach**
+  (SUB / LOW / BODY / MID / PRESENCE / AIR), tabelę **REFERENCJA | 4GE | RÓŻNICA**: długość, nuta i pitch ogona, start pitchu,
+  czas spadku, trzymany TOK, attack, transient, % suba, peak, RMS, LUFS, crest (gęstość), korelacja, korelacja basu, side.
+  CHARACTER = cechy słowami (TONAL TOK, SUB-HEAVY, BRIGHT / SCREECHY, STEREO, DC OFFSET, CLIPPED …).
+- **SUGESTIE**: co zmienić w 4GE, żeby było bliżej referencji, z dokładnymi wartościami (pitch START / END / TIME, offset toku,
+  LENGTH, PUNCH / SUB / BODY LEVEL, TAIL DRIVE / TONE / HIGH CUT, MASTER CLIP, szerokość, głośność do uczciwego porównania).
+  **Nic się nie zmienia samo** – zaznacz i **APPLY SELECTED** / **APPLY ALL** = jeden krok UNDO (Ctrl+Z cofa wszystko naraz),
+  potem 4GE jest analizowane od nowa. Ścieżka referencji zapisuje się w projekcie.
+
 ## PRESETY – przeglądarka (moduł 15)
 - **Klik na nazwę presetu** otwiera przeglądarkę (drugi klik / CLOSE wraca). Filtry: szukaj (nazwa, tagi, notatki), STYLE,
   LENGTH, ALL / FACTORY / USER / FAVORITES / RECENT, TAG (charakter: CLEAN / DIRTY / HEAVY, PUNCHY, SCREECH, LAYERS, SAMPLES,
@@ -336,4 +349,4 @@ TOK LEVEL ciszej, a SUB i BODY wchodzą dopiero po toku (DELAY obwiedni) – st�
 
 ## Co dalej
 Moduł po module wg `PLAN.md`: 12 eksport →
-13–14 style i długość → 15–16 presety i analiza → 17 docelowy interfejs.
+13–16 gotowe (style, długość, presety, analiza) → 17 docelowy interfejs.

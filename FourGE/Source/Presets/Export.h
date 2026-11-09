@@ -85,12 +85,12 @@ namespace fge::xp
         return replaceSharp ? s.replace ("#", "s") : s;
     }
     inline juce::String styleOf (const juce::String& preset) { return preset.containsChar ('-') ? preset.upToFirstOccurrenceOf ("-", false, false).trim() : juce::String ("KICK"); }
-    struct NameParts { juce::String preset, group; int note = 31, variant = 1, version = 1; double bpm = 150.0; uint32_t seed = 0; };
+    struct NameParts { juce::String preset, group, style; int note = 31, variant = 1, version = 1; double bpm = 150.0; uint32_t seed = 0; };
     inline juce::String makeName (const juce::String& tmpl, const NameParts& p, bool replaceSharp)
     {
         juce::String presetPart = p.preset.contains (" - ") ? p.preset.fromFirstOccurrenceOf (" - ", false, false) : p.preset;
         juce::String n = tmpl.isEmpty() ? juce::String ("4GE_{PRESET}_{GROUP}") : tmpl;
-        n = n.replace ("{PRESET}", presetPart.trim().replaceCharacter (' ', '_')).replace ("{STYLE}", styleOf (p.preset).replaceCharacter (' ', '_'))
+        n = n.replace ("{PRESET}", presetPart.trim().replaceCharacter (' ', '_')).replace ("{STYLE}", (p.style.isNotEmpty() ? p.style : styleOf (p.preset)).replaceCharacter (' ', '_'))
              .replace ("{NOTE}", noteName (p.note, replaceSharp)).replace ("{BPM}", juce::String (juce::roundToInt (p.bpm))).replace ("{GROUP}", p.group.replaceCharacter (' ', '_'))
              .replace ("{VARIANT}", juce::String (p.variant).paddedLeft ('0', 2)).replace ("{VERSION}", juce::String (p.version).paddedLeft ('0', 2))
              .replace ("{SEED}", juce::String ((juce::int64) p.seed)).replace ("{DATE}", juce::Time::getCurrentTime().formatted ("%Y%m%d"));

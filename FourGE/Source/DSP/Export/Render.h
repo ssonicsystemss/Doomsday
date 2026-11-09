@@ -26,6 +26,7 @@ namespace fge::dsp::xport
         std::shared_ptr<mod::Data> mod;                                    // null = no modulation
         std::array<std::shared_ptr<const SampleData>, numSampleSlots> samples {};
         juce::String presetName { "INIT" };
+        juce::String style;                                                // module 13 (empty = from the preset name)
         uint32_t presetSeed = 0;
     };
     struct Spec

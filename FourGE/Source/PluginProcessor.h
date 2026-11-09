@@ -13,7 +13,8 @@
 
 namespace fge { inline constexpr const char* versionText = "0.5"; }      // keep in step with CMakeLists.txt
 
-class GeProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener, private juce::Timer
+class GeProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener, private juce::Timer,
+                    private juce::AudioProcessorParameter::Listener
 {
 public:
     GeProcessor();
@@ -140,6 +141,13 @@ public:
     fge::dsp::xport::Snapshot exportSnapshotOfProgram (int program) const; // a factory preset, without touching the plugin
     std::vector<fge::xp::Job> makeExportJobs (const fge::xp::Settings&, bool batch, juce::String* error = nullptr) const;
     uint32_t seedFor (const fge::xp::Settings&, uint32_t preset) const;
+    // module 13: the STYLE (state property "style", -1 = none) and the parameters the user moved himself ("touched": a knob gesture
+    // or host automation; presets / styles / randomize / macros never mark). Saved with the project, cleared by loading a preset.
+    int currentStyle() const { return (int) apvts.state.getProperty ("style", -1); }
+    bool isTouched (int i) const { return juce::isPositiveAndBelow (i, (int) fge::P::count) && touched[(size_t) i].load (std::memory_order_relaxed); }
+    int touchedCount() const { int n = 0; for (int i = 0; i < fge::P::count; ++i) n += touched[(size_t) i].load() ? 1 : 0; return n; }
+    void forgetTouched() { for (auto& t : touched) t.store (false); }
+    void markTouched (int i) { if (juce::isPositiveAndBelow (i, (int) fge::P::count)) touched[(size_t) i].store (true); }
     fge::xp::History exportHistory;
     fge::xp::Exporter exporter { exportHistory };                       // RELINK: find the MISSING slots' files (by name) in a folder
     float samplePlayPos (int slot) const { return engine.smpPosMon[(size_t) juce::jlimit (0, fge::dsp::numSampleSlots - 1, slot)].load (std::memory_order_relaxed); }
@@ -168,6 +176,11 @@ private:
     void timerCallback() override { refreshTables(); serviceMidi(); samplePool.collectGarbage(); seedWanted.store (presetSeed()); }
     std::atomic<uint32_t> seedWanted { 0 };
     std::atomic<double> lastHostBpm { 0.0 };
+    std::array<std::atomic<bool>, fge::P::count> touched {};
+    void parameterValueChanged (int, float) override {}
+    void parameterGestureChanged (int index, bool starting) override { if (starting) markTouched (index); }
+    void storeTouched();
+    void restoreTouched();
     void rebuildOscData();
     void rebuildDistData();
     void rebuildModData();

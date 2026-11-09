@@ -180,6 +180,12 @@ SEED: `Engine::setSeed` (salt w głosach, warstwach, screechu, LFO S&H / RND / S
 ScopedNoDenormals), `DSP/Export/Finish.h` (normalizacja bez limitera, mono, dither TPDF / shaped), `Presets/Export.h` (ustawienia w dziecku
 EXPORT, nazwy, zapis `.part` + weryfikacja + rename, kontrola miejsca / folderu, historia JSON, `Exporter` wątek + batch), procesor
 `makeExportJobs` / snapshoty presetów fabrycznych, `GUI/ExportPage.*` (strona 11). Testy M12 (tabela 17) OK. Następne: moduły 13–17.
+**STAN 2026-11-09: MODUŁ 13 GOTOWY** – STYLE ENGINE: `Presets/StyleEngine.h` (szablony EARLY / MODERN / RAW / EXPERIMENTAL z presetów
+v0.4, które właściciel słyszał + łańcuchy przesteru właściciela na TAIL; zakres = generatory / pitch / szum / transient / screech /
+dist pool / master clip, NIGDY długości (`isLength`) ani reszta; `values()` / `onFrame()` (PREVIEW) / `apply()` = jedno UNDO przez
+`setParamInUndoStep`), procesor: `touched` (gesty = ruszone przez użytkownika, zapis w stanie, czyszczone przez preset), właściwość
+`style` (presety fabryczne z nazwy, eksport {STYLE}, RANDOMIZE `vrStyle`); nagłówek: combo STYLE + menu prawego klika + komunikat.
+Testy M13 OK. Uwaga: EXTRA LONG nie wydłuża jeszcze części – to moduł 14 (LENGTH ENGINE skaluje PUNCH / BODY / TAIL / SUB).
 
 **STAN 2026-11-05 (popołudnie): MODUŁ 06 GOTOWY** – `DSP/Filter/Filters.h` (8 filtrów, 10 algorytmów, 2 rezonatory, LOCATION + przed / po
 przesterze M05, SERIAL / PARALLEL / SPLIT), `Screech.h` (8 trybów syntezy, 4 oscylatory, formanty, feedback ze strażnikiem, obwiednie, SCREECH

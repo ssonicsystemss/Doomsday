@@ -10,6 +10,7 @@
 #include "../Source/Presets/M08Tools.h"
 #include "../Source/Presets/ModState.h"
 #include "../Source/Presets/VariantRandomizer.h"
+#include "../Source/Presets/StyleEngine.h"
 #include "../Source/GUI/DistScope.h"
 #include "../Source/Presets/FactoryPresets.h"
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -198,6 +199,21 @@ int main (int argc, char** argv)
         }
         writeWav (outDir.getChildFile ("m10_listen.wav"), out);
         printf ("%s\n", outDir.getChildFile ("m10_listen.wav").getFullPathName().toRawUTF8());
+        return 0;
+    }
+    if (argc > 2 && String (argv[2]) == "--styledemo")                         // module 13 listening file: the 4 styles + EARLY long / MODERN short
+    {
+        const std::vector<std::pair<int, float>> list { { 0, 600 }, { 1, 600 }, { 2, 600 }, { 3, 600 } };
+        AudioBuffer<float> out (2, (int) (44100.0 * 9.5)); out.clear(); int at = 0;
+        for (auto [st, len] : list)
+        {
+            GeProcessor p; fge::style::apply (p, st, false); setP (p, "core_auto_length", 0.f); setP (p, "core_length", len);
+            auto b = renderKick (p.frame(), 31, 44100.0, len / 1000.0 + 0.25, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy());
+            for (int c = 0; c < 2; ++c) out.addFrom (c, at, b, c, 0, jmin (b.getNumSamples(), out.getNumSamples() - at));
+            at += b.getNumSamples() + 22050;
+        }
+        out.setSize (2, at, true);
+        writeWav (outDir.getChildFile ("m13_styles.wav"), out);
         return 0;
     }
     if (argc > 2 && String (argv[2]) == "--stdemo")                            // module 11 listening file: as it is / wider tail / the wide one in mono
@@ -3009,6 +3025,108 @@ int main (int argc, char** argv)
         }
         dir.deleteRecursively();
     }
+    // ---------------------------------------------------------------- module 13: STYLE ENGINE (EARLY / MODERN / RAW / EXPERIMENTAL)
+    {
+        namespace fs = fge::style;
+        auto raw = [] (GeProcessor& p, const char* id) { return p.apvts.getRawParameterValue (id)->load(); };
+        auto gesture = [] (GeProcessor& p, const char* id, float v)          // the same as a knob turned by the user
+        { auto* a = p.apvts.getParameter (id); a->beginChangeGesture(); a->setValueNotifyingHost (a->convertTo0to1 (v)); a->endChangeGesture(); };
+        // 1: every template entry exists and is inside its range; the chain = the owner's chain per style
+        {
+            bool ok = true; String bad;
+            for (int st = 0; st < fs::NumStyles; ++st)
+                for (auto& [id, v] : fs::templ (st).values)
+                {
+                    const int i = fs::indexOf (id);
+                    const bool range = i >= 0 && (def (i).kind == Kind::Choice ? v >= 0.f && v < (float) def (i).choices().size() : def (i).kind == Kind::Bool ? (v == 0.f || v == 1.f)
+                                                                                                                          : v >= def (i).min - 1e-3f && v <= def (i).max + 1e-3f);
+                    if (i < 0 || ! fs::inScope (i) || ! range) { ok = false; bad << fs::names()[st] << ":" << id << " "; }
+                }
+            const int want[4][3] { { fge::dsp::dist::Soft, fge::dsp::dist::Tube, -1 }, { fge::dsp::dist::Hard, fge::dsp::dist::Soft, fge::dsp::dist::Digital },
+                                   { fge::dsp::dist::Asym, fge::dsp::dist::Hard, fge::dsp::dist::Wavefold }, { fge::dsp::dist::Wavefold, fge::dsp::dist::Rectifier, fge::dsp::dist::Custom } };
+            for (int st = 0; st < fs::NumStyles; ++st)
+            {
+                GeProcessor p; fs::apply (p, st, false);
+                for (int k = 0; k < 3; ++k)
+                {
+                    const String pre = "dist" + String (k + 1) + "_";
+                    const bool on = raw (p, (pre + "on").toRawUTF8()) > 0.5f;
+                    if (want[st][k] < 0) { ok &= ! on; continue; }
+                    ok &= on && (int) raw (p, (pre + "type").toRawUTF8()) == want[st][k] && (int) raw (p, (pre + "location").toRawUTF8()) == fge::dsp::dist::LocTail
+                          && (int) raw (p, (pre + "order").toRawUTF8()) == k + 1;
+                }
+                if (! ok && bad.isEmpty()) bad << fs::names()[st] << " chain ";
+            }
+            check (ok, "M13 style templates valid; distortion chains = the owner's (EARLY SOFT>TUBE, MODERN HARD>SOFT>DIGITAL, RAW ASYM>HARD>FOLD, EXP FOLD>RECT>CUSTOM)", bad);
+        }
+        // 2 + 3: a style never touches LENGTH (EARLY EXTRA LONG / MODERN SHORT), nothing outside its scope, nothing gets locked
+        {
+            bool ok = true; String bad;
+            for (int st = 0; st < fs::NumStyles; ++st)
+            {
+                GeProcessor p;
+                setP (p, "core_length", st % 2 ? 150.f : 2000.f); setP (p, "core_auto_length", 0.f); setP (p, "tail_length", 333.f); setP (p, "sub_decay", 777.f);
+                setP (p, "layer1_on", 1.f); setP (p, "eq1_on", 1.f); setP (p, "spc_tail_on", 1.f); setP (p, "core_master", -3.f);
+                const ParamFrame before = p.frame();
+                fs::apply (p, st, false);
+                const ParamFrame after = p.frame();
+                for (int i = 0; i < P::count; ++i)
+                    if (before[i] != after[i] && ! fs::inScope (i)) { ok = false; bad << fs::names()[st] << ":" << def (i).id << " "; }
+                setP (p, "tail_drive", 0.123f); ok &= std::abs (raw (p, "tail_drive") - 0.123f) < 1e-4f;
+            }
+            check (ok, "M13 a style never changes LENGTH or anything outside its scope (layers, EQ, stereo, master); every knob stays free", bad);
+        }
+        // 4 + 5: KEEP MY CHANGES (gestures), APPLY ALL, one UNDO, touched saved / restored, a preset clears it
+        {
+            GeProcessor p;
+            fs::apply (p, fs::Modern, false);
+            gesture (p, "tail_drive", 0.31f); gesture (p, "pe_start", 222.f);
+            const ParamFrame mine = p.frame();
+            const auto rep = fs::apply (p, fs::Raw, true);
+            const bool kept = std::abs (raw (p, "tail_drive") - 0.31f) < 1e-4f && std::abs (raw (p, "pe_start") - 222.f) < 0.01f && rep.kept == 2 && raw (p, "scr_on") > 0.5f;
+            p.undo.undo();
+            const bool undone = raw (p, "scr_on") == mine[P::scrOn] && raw (p, "pe_time") == mine[P::peTime] && std::abs (raw (p, "tail_drive") - 0.31f) < 1e-4f && p.currentStyle() == fs::Modern;
+            MemoryBlock mb; p.getStateInformation (mb); GeProcessor q; q.setStateInformation (mb.getData(), (int) mb.getSize());
+            const bool saved = q.isTouched (P::tailDrive) && q.isTouched (P::peStart) && q.touchedCount() == 2 && q.currentStyle() == fs::Modern;
+            fs::apply (q, fs::Raw, false);
+            const bool all = std::abs (raw (q, "tail_drive") - 1.f) < 1e-4f;
+            q.setCurrentProgram (1);
+            const bool cleared = q.touchedCount() == 0 && q.currentStyle() == fs::Modern;
+            GeProcessor r; r.setCurrentProgram (0); setP (r, "tail_drive", 0.2f);
+            const bool programmatic = r.touchedCount() == 0;                 // presets / randomize / automation-free changes never mark
+            check (kept && undone && saved && all && cleared && programmatic, "M13 KEEP MY CHANGES (touched knobs survive a style), APPLY ALL, one UNDO, saved with the project, a preset clears it",
+                   String (kept ? "" : "kept! ") + (undone ? "" : "undo! ") + (saved ? "" : "saved! ") + (all ? "" : "all! ") + (cleared ? "" : "cleared! ") + (programmatic ? "" : "programmatic!"));
+        }
+        // 6: the styles sound like themselves: RAW brighter / denser than EARLY, every style different, all clean signals
+        {
+            std::array<AudioBuffer<float>, 4> r; bool finite = true;
+            for (int st = 0; st < 4; ++st)
+            {
+                GeProcessor p; fs::apply (p, st, false); setP (p, "core_length", 600.f); setP (p, "core_auto_length", 0.f);
+                r[(size_t) st] = renderKick (p.frame(), G1, sr, 0.7, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy());
+                for (int i = 0; i < r[(size_t) st].getNumSamples(); ++i) finite &= std::isfinite (r[(size_t) st].getSample (0, i));
+            }
+            auto hiShare = [] (const AudioBuffer<float>& b)                 // energy above ~2 kHz (a first difference) vs all, during the tail
+            { double hi = 0, all = 0; for (int i = 4410; i < 26460; ++i) { const double x = b.getSample (0, i), d = x - b.getSample (0, i - 1); hi += d * d; all += x * x; } return hi / jmax (1.0e-9, all); };
+            bool differ = true; for (int a = 0; a < 4; ++a) for (int b = a + 1; b < 4; ++b) differ &= diff (r[(size_t) a], r[(size_t) b]) > 0.02;
+            const double e = hiShare (r[0]), rw = hiShare (r[2]);
+            check (finite && differ && rw > 1.5 * e, "M13 the four styles sound different; RAW has more top / harmonics than EARLY",
+                   "high share EARLY " + String (e, 4) + " MODERN " + String (hiShare (r[1]), 4) + " RAW " + String (rw, 4) + " EXP " + String (hiShare (r[3]), 4));
+        }
+        // 7 + 8: PREVIEW changes nothing; the style is saved, set by factory presets and used by the export names
+        {
+            GeProcessor p; const ParamFrame f0 = p.frame();
+            const ParamFrame prev = fs::onFrame (f0, fs::Raw);
+            const bool preview = diff (renderKick (prev, G1, sr, 0.3, -1, 1.f), renderKick (f0, G1, sr, 0.3, -1, 1.f)) > 1.0e-3 && p.frame()[P::scrOn] == f0[P::scrOn] && p.currentStyle() == -1;
+            p.setCurrentProgram (2);
+            const bool fromName = p.currentStyle() == fs::Raw;
+            fs::apply (p, fs::Experimental, true);
+            fge::xp::Settings s; s.folder = File::getSpecialLocation (File::tempDirectory).getFullPathName();
+            const auto jobs = p.makeExportJobs (s, false);
+            const bool name = ! jobs.empty() && jobs[0].target.getFileName().startsWith ("4GE_EXPERIMENTAL_");
+            check (preview && fromName && name, "M13 PREVIEW changes nothing; STYLE set by factory presets (name) and used in export names", jobs.empty() ? String() : jobs[0].target.getFileName());
+        }
+    }
     // ---------------------------------------------------------------- module 08: dynamics, compressor, transient & limiter (MODULE08.md 14)
     {
         namespace dy = fge::dsp::dyn;
@@ -3778,6 +3896,16 @@ int main (int argc, char** argv)
             p.setExportSettings (keepSet);
             ge->canvas.showPage (0);
             dir.deleteRecursively();
+        }
+        // STYLE in the header (module 13): choosing applies, keeps the user's knob, reports what it did
+        {
+            ge->canvas.showPage (0);
+            auto* a = p.apvts.getParameter ("tail_tone"); a->beginChangeGesture(); a->setValueNotifyingHost (a->convertTo0to1 (3333.f)); a->endChangeGesture();
+            ge->canvas.chooseStyle (fge::style::Early);
+            const bool ok = p.currentStyle() == fge::style::Early && std::abs (p.apvts.getRawParameterValue ("tail_tone")->load() - 3333.f) < 1.f
+                            && ge->canvas.styleStatus().contains ("kept") && ge->canvas.styleSelector().isVisible();
+            check (ok, "M13 GUI: STYLE selector in the header applies the style and keeps the knob you moved", ge->canvas.styleStatus());
+            p.undo.undo(); p.forgetTouched();
         }
         auto wav = ge->canvas.waveView().writeWav (outDir);
         check (wav.existsAsFile() && wav.getSize() > 20000, "EXPORT: the waveform writes the kick as a WAV (drag into FL)", wav.getFileName());

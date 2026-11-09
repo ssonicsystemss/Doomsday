@@ -38,6 +38,7 @@ GeProcessor::GeProcessor()
 {
     for (int i = 0; i < P::count; ++i) pointers.ptr[(size_t) i] = apvts.getRawParameterValue (def (i).id);
     engine.setSamples (&samplePool.ptrs);                                // module 10
+    for (auto* prm : getParameters()) prm->addListener (this);          // module 13: gestures = "touched by the user"
     apvts.state.addListener (this);
     setCurrentProgram (0);
     rebuildShapes();
@@ -419,6 +420,12 @@ void GeProcessor::setCurrentProgram (int i)
     auto dd = apvts.state.getChildWithName (distTag);
     if (dd.isValid()) { apvts.state.removeChild (dd, nullptr); rebuildDistData(); }
     apvts.state.removeProperty ("presetSeed", nullptr);                            // module 12: a factory preset plays with seed 0
+    forgetTouched();                                                                // module 13: a preset is a fresh start
+    {
+        const String n = factoryPresets()[(size_t) jlimit (0, (int) factoryPresets().size() - 1, i)].name;
+        const int st = n.startsWith ("EARLY") ? 0 : n.startsWith ("MODERN") ? 1 : n.startsWith ("RAW") ? 2 : -1;
+        if (st >= 0) apvts.state.setProperty ("style", st, nullptr); else apvts.state.removeProperty ("style", nullptr);
+    }
     seedWanted.store (0);
     auto sm = apvts.state.getChildWithName (sampleTag);                           // module 10: a factory preset has no samples
     if (sm.isValid()) apvts.state.removeChild (sm, nullptr);
@@ -469,6 +476,15 @@ bool GeProcessor::loadUserPresetFile (const File& f)
         }
         rebuildModData();
     }
+    if (auto xml = XmlDocument::parse (f))                                          // module 12 / 13: the preset's SEED and STYLE
+    {
+        if (xml->hasAttribute ("presetSeed")) apvts.state.setProperty ("presetSeed", xml->getStringAttribute ("presetSeed").getLargeIntValue(), nullptr);
+        else apvts.state.removeProperty ("presetSeed", nullptr);
+        if (xml->hasAttribute ("style")) apvts.state.setProperty ("style", xml->getIntAttribute ("style"), nullptr);
+        else apvts.state.removeProperty ("style", nullptr);
+        seedWanted.store (presetSeed());
+    }
+    forgetTouched();                                                                // a preset is a fresh start
     presetName = f.getFileNameWithoutExtension();
     return true;
 }
@@ -479,8 +495,19 @@ bool GeProcessor::saveUserPresetAs (const String& name)
     presetName = clean;
     return true;
 }
-void GeProcessor::getStateInformation (MemoryBlock& d) { doomsday::PresetIO::getState (apvts, d, currentProgram, presetName); }
-void GeProcessor::setStateInformation (const void* data, int size) { doomsday::PresetIO::setState (*this, apvts, data, size, currentProgram, presetName); }
+void GeProcessor::storeTouched()
+{
+    StringArray ids; for (int i = 0; i < P::count; ++i) if (touched[(size_t) i].load()) ids.add (def (i).id);
+    if (ids.isEmpty()) apvts.state.removeProperty ("touched", nullptr); else apvts.state.setProperty ("touched", ids.joinIntoString (","), nullptr);
+}
+void GeProcessor::restoreTouched()
+{
+    forgetTouched();
+    StringArray ids; ids.addTokens (apvts.state.getProperty ("touched").toString(), ",", {});
+    for (auto& id : ids) for (int i = 0; i < P::count; ++i) if (id == def (i).id) { touched[(size_t) i].store (true); break; }
+}
+void GeProcessor::getStateInformation (MemoryBlock& d) { storeTouched(); doomsday::PresetIO::getState (apvts, d, currentProgram, presetName); }
+void GeProcessor::setStateInformation (const void* data, int size) { doomsday::PresetIO::setState (*this, apvts, data, size, currentProgram, presetName); restoreTouched(); }
 
 // RANDOM (simple, module 01): musical ranges for the sound-design parameters only - never the mixer / master / mute / solo.
 // The full randomizer (modes / styles / LOCK / seed) is module 09.
@@ -513,6 +540,7 @@ fge::dsp::xport::Snapshot GeProcessor::exportSnapshot() const
     for (int k = 0; k < fge::dsp::numSampleSlots; ++k) s.samples[(size_t) k] = samplePool.data (k);
     s.presetName = presetName;
     s.presetSeed = presetSeed();
+    if (const int st = currentStyle(); st >= 0 && st < 4) s.style = StringArray { "EARLY", "MODERN", "RAW", "EXPERIMENTAL" }[st];
     return s;
 }
 fge::dsp::xport::Snapshot GeProcessor::exportSnapshotOfProgram (int program) const
@@ -563,11 +591,11 @@ std::vector<fge::xp::Job> GeProcessor::makeExportJobs (const fge::xp::Settings& 
                 j.spec.lengthMode = s.lengthMode; j.spec.fixedMs = s.fixedMs; j.spec.preRollMs = s.preRollMs; j.spec.postRollMs = s.postRollMs;
                 j.spec.silenceDb = s.silenceDb; j.spec.minSilenceMs = s.minSilenceMs; j.spec.maxMs = s.maxMs; j.spec.trim = s.trim; j.spec.seed = seed;
                 j.sourceLabel = sourceNames()[src];
-                NameParts np; np.preset = snap.presetName; np.group = src == 0 ? String ("FULL") : sourceNames()[src].upToFirstOccurrenceOf (" GROUP", false, false);
+                NameParts np; np.preset = snap.presetName; np.style = snap.style; np.group = src == 0 ? String ("FULL") : sourceNames()[src].upToFirstOccurrenceOf (" GROUP", false, false);
                 np.note = auditionNote; np.bpm = j.spec.bpm; np.variant = v; np.seed = seed;
                 File dir = root;
                 if (batch)   // 4GE_EXPORT / <STYLE> / KICK_nn (_Vv) / KICK_<GROUP>.wav
-                    dir = root.getChildFile (File::createLegalFileName (styleOf (snap.presetName)))
+                    dir = root.getChildFile (File::createLegalFileName (snap.style.isNotEmpty() ? snap.style : styleOf (snap.presetName)))
                               .getChildFile ("KICK_" + String (kickNo).paddedLeft ('0', 2) + (s.batchVariants > 1 ? "_V" + String (v).paddedLeft ('0', 2) : String()));
                 for (int ver = 1; ver < 1000; ++ver)                         // a free VERSION (no silent overwrite)
                 {

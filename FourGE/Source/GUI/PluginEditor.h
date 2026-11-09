@@ -58,6 +58,11 @@ public:
     void itemDropped (const SourceDetails&) override;
     void mouseDrag (const juce::MouseEvent&) override;
     int dropOnto (juce::Point<int> canvasPos, int source);          // (tests: the same code as a drop)
+    // module 13: STYLE in the header (always visible) - choosing one applies its template (KEEP MY CHANGES), right-click = options
+    void chooseStyle (int style, bool keepMine = true);
+    void previewStyle (int style);
+    juce::String styleStatus() const { return styleMsg; }
+    juce::ComboBox& styleSelector() { return styleBox; }
 private:
     void timerCallback() override;
     using Knob = doomsday::flat::Knob;
@@ -107,6 +112,12 @@ private:
     std::unique_ptr<fge::gui::StereoPage> stPg;
     std::unique_ptr<fge::gui::ExportPage> exPg;
     std::array<juce::TextButton, 12> pageBtn;
+    juce::ComboBox styleBox;
+    juce::String styleMsg;
+    juce::uint32 styleMsgTime = 0;
+    int styleShown = -2;
+    std::shared_ptr<std::atomic<bool>> alive = std::make_shared<std::atomic<bool>> (true);
+    void styleMenu();
     std::array<float, 4> meter {};
     float outMeter = 0.f;
 };

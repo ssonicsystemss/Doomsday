@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "../Presets/StyleEngine.h"
 #include "DoomsdayBrand.h"
 
 using namespace juce;
@@ -26,6 +27,14 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     presetBar.setLookAndFeel (&stageLnf);
     const auto& c = palette();
     addAndMakeVisible (presetBar);
+    // module 13: STYLE (always visible)
+    for (int st = 0; st < fge::style::NumStyles; ++st) styleBox.addItem (fge::style::names()[st], st + 1);
+    styleBox.setTextWhenNothingSelected ("STYLE ...");
+    styleBox.setTooltip ("STYLE: EARLY / MODERN / RAW / EXPERIMENTAL - a starting point for the character (generators, pitch drop, distortion chain, screech). "
+                         "It never changes the LENGTH and never locks a knob; your own changes are kept. Right-click: APPLY ALL / PREVIEW / FORGET MY CHANGES.");
+    styleBox.onChange = [this] { const int id = styleBox.getSelectedId(); if (id > 0 && id - 1 != proc.currentStyle()) chooseStyle (id - 1, true); };
+    styleBox.addMouseListener (this, false);
+    addAndMakeVisible (styleBox);
     addAndMakeVisible (wave);
 
     // ---- header: global
@@ -142,7 +151,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     startTimerHz (30);
 }
 
-GeCanvas::~GeCanvas() { stopTimer(); presetBar.setLookAndFeel (nullptr); setLookAndFeel (nullptr); }
+GeCanvas::~GeCanvas() { *alive = false; stopTimer(); presetBar.setLookAndFeel (nullptr); setLookAndFeel (nullptr); }
 
 GeCanvas::Knob* GeCanvas::knob (const char* id, const String& label, Colour accent, int d, bool bipolar)
 {
@@ -212,6 +221,7 @@ void GeCanvas::showPage (int i)
 
 void GeCanvas::mouseDown (const MouseEvent& e)
 {
+    if (e.eventComponent == &styleBox) { if (e.mods.isPopupMenu()) styleMenu(); return; }
     if (pageIdx != 0) return;
     for (int i = 0; i < 4; ++i)
         if (cardArea[(size_t) i].contains (e.getPosition())) { selectPart (i); return; }
@@ -221,6 +231,7 @@ void GeCanvas::resized()
 {
     headerArea = { 0, 0, W, 100 };
     presetBar.setBounds (W - 16 - 300, 5, 300, 90);
+    styleBox.setBounds ((int) doomsday::brand::headerTextX (1.f) + 40, 66, 150, 20);
     // header: LENGTH / MASTER / VELOCITY, the three switches, VOICE
     int x = 316;
     for (int i = 0; i < 3; ++i) { header[(size_t) i]->setBounds (x, 10, 68, Knob::heightFor (44)); x += 70; }
@@ -317,7 +328,12 @@ void GeCanvas::paint (Graphics& g)
     g.setColour (c.red); g.setFont (lnf.font (11.f, doomsday::flat::Bold, 0.18f));
     g.drawText ("HARDSTYLE KICK DESIGNER", (int) tx, 50, 260, 16, Justification::left);
     g.setColour (c.textDim); g.setFont (lnf.font (11.f, doomsday::flat::Medium));
-    g.drawText ("v" + String (versionText) + "  -  CORE ENGINE", (int) tx, 68, 260, 16, Justification::left);
+    g.drawText ("v" + String (versionText), (int) tx, 68, 40, 16, Justification::left);
+    if (styleMsg.isNotEmpty() && Time::getMillisecondCounter() - styleMsgTime < 6000)      // module 13: what the style change did
+    {
+        g.setColour (c.silver); g.setFont (lnf.font (10.f, doomsday::flat::Medium));
+        g.drawText (styleMsg, (int) tx, 86, 300, 14, Justification::left, true);
+    }
     // panels
     auto panel = [&] (Rectangle<int> r, const String& title, Colour dot)
     {
@@ -423,6 +439,12 @@ void GeCanvas::updateEnabled()
 void GeCanvas::timerCallback()
 {
     presetBar.refresh();
+    if (const int st = proc.currentStyle(); st != styleShown)                      // module 13: the STYLE shown (undo / presets change it too)
+    {
+        styleShown = st;
+        if (st >= 0) styleBox.setSelectedId (st + 1, dontSendNotification); else styleBox.setText ("STYLE ...", dontSendNotification);
+    }
+    if (styleMsg.isNotEmpty() && Time::getMillisecondCounter() - styleMsgTime > 6000) { styleMsg.clear(); repaint (0, 80, 320, 20); }
     const auto tb = proc.currentTables();
     {
         fge::gui::WaveView::Samples ss;
@@ -548,4 +570,59 @@ void GeEditor::resized()
 {
     canvas.setBounds (0, 0, GeCanvas::W, GeCanvas::H);
     canvas.setTransform (AffineTransform::scale ((float) getWidth() / (float) GeCanvas::W));
+}
+
+// ------------------------------------------------------------ module 13: STYLE ENGINE in the header
+void GeCanvas::chooseStyle (int st, bool keepMine)
+{
+    if (! isPositiveAndBelow (st, (int) fge::style::NumStyles)) return;
+    const auto r = fge::style::apply (proc, st, keepMine);
+    proc.apvts.state.setProperty ("vrStyle", st, nullptr);                        // RANDOMIZE stays in the chosen style
+    styleMsg = fge::style::names()[st] + ": " + String (r.changed) + " settings set" + (r.kept > 0 ? ", " + String (r.kept) + " of your changes kept" : String());
+    styleMsgTime = Time::getMillisecondCounter();
+    styleShown = -2;
+    repaint();
+}
+void GeCanvas::previewStyle (int st)
+{
+    auto snap = proc.exportSnapshot();
+    GeProcessor* pr = &proc;
+    snap.f = fge::style::onFrame (snap.f, st, [pr] (int i) { return pr->isTouched (i); });
+    fge::dsp::xport::Spec spec; spec.note = proc.auditionNote; spec.rate = 44100.0; spec.seed = snap.presetSeed;
+    const double host = proc.getSampleRate() > 0 ? proc.getSampleRate() : 44100.0;
+    auto life = alive;
+    styleMsg = "PREVIEW " + fge::style::names()[st] + " (nothing changed)"; styleMsgTime = Time::getMillisecondCounter(); repaint();
+    Thread::launch ([snap, spec, host, life, pr]
+    {
+        auto r = fge::dsp::xport::render (snap, spec);
+        if (*life && ! r.cancelled) pr->samples().previewAudio (r.audio, spec.rate, host);
+    });
+}
+void GeCanvas::styleMenu()
+{
+    const int cur = proc.currentStyle();
+    // the result ids: style * 10 + action
+    PopupMenu menu;
+    for (int s = 0; s < fge::style::NumStyles; ++s)
+    {
+        PopupMenu sub;
+        sub.addItem (s * 10 + 1, "APPLY (keep my " + String (proc.touchedCount()) + " changes)");
+        sub.addItem (s * 10 + 2, "APPLY ALL (reset my changes too)");
+        sub.addItem (s * 10 + 3, "PREVIEW (listen, change nothing)");
+        sub.addSeparator();
+        sub.addItem (99, fge::style::description (s), false);
+        menu.addSubMenu (fge::style::names()[s] + (s == cur ? "  (current)" : ""), sub);
+    }
+    menu.addSeparator();
+    menu.addItem (500, "FORGET MY CHANGES (" + String (proc.touchedCount()) + " remembered)", proc.touchedCount() > 0);
+    SafePointer<GeCanvas> self (this);
+    menu.showMenuAsync (PopupMenu::Options().withTargetComponent (&styleBox), [self] (int r)
+    {
+        if (self == nullptr || r <= 0) return;
+        if (r == 500) { self->proc.forgetTouched(); self->styleMsg = "your changes are forgotten - the next style sets everything"; self->styleMsgTime = Time::getMillisecondCounter(); self->repaint(); return; }
+        const int st = r / 10, act = r % 10;
+        if (act == 1) self->chooseStyle (st, true);
+        else if (act == 2) self->chooseStyle (st, false);
+        else if (act == 3) self->previewStyle (st);
+    });
 }

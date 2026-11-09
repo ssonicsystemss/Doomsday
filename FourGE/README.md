@@ -265,6 +265,18 @@ screech albo **MASTER OUTPUT** = na samym końcu), przed albo po przesterze z mo
   STEREO FIELD. Pod gałkami tabela **ALL UNITS** (klik = otwórz). Wszystko modulowalne z MOD (pan, width, mid, side, crossover, delay…),
   bez klików.
 
+## STYLE (moduł 13)
+- W nagłówku pod nazwą: **STYLE** – EARLY / MODERN / RAW / EXPERIMENTAL. Wybór ustawia **punkt startowy charakteru**: generatory
+  PUNCH / BODY / TAIL / SUB, pitch drop, szum / transient, screech, master clip i Twój łańcuch przesteru na TAIL:
+  EARLY SOFT CLIP → TUBE, MODERN HARD → SOFT → DIGITAL CLIP, RAW ASYMMETRIC → HARD → WAVEFOLD, EXPERIMENTAL WAVEFOLD → RECTIFIER
+  (zamiast ring moda, dopóki moduł 05 nie ma stopnia RING MOD) → CUSTOM.
+- Styl **nigdy nie zmienia DŁUGOŚCI** (LENGTH, długości / decay / release części) ani warstw, sampli, EQ, dynamiki, modulacji,
+  stereo, makr i mastera – i niczego nie blokuje.
+- **Twoje zmiany zostają**: gałka, którą sam ruszyłeś (albo automatyka z FL), nie jest nadpisywana przy zmianie stylu
+  (komunikat pod stylem: „…, 2 of your changes kept”). Prawy klik na STYLE: APPLY ALL (nadpisz też moje), PREVIEW (posłuchaj bez
+  zmiany), FORGET MY CHANGES. Jedna zmiana stylu = jedno UNDO. Wczytanie presetu zaczyna od czystej karty.
+- RANDOMIZE po wyborze stylu losuje w tym samym stylu; nazwy eksportu {STYLE} biorą styl z wyboru.
+
 ## Strona EXPORT (moduł 12)
 - Przycisk **EXPORT** (górny rząd, po prawej). **MASTER OUTPUT**: poziom MASTER, MUTE (bez klika), BYPASS (pomija master clip /
   master stereo / dynamikę wyjścia / safety – do porównania), STEREO / MONO, **SAFETY CLIP** i **SAFETY LIMITER** – domyślnie

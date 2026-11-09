@@ -93,6 +93,7 @@ namespace fge
         const juce::StringArray& spcModes()       { static const juce::StringArray a { "M/S WIDTH", "DECORRELATION", "HAAS (CREATIVE)", "DISABLED" }; return a; }
         const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
         const juce::StringArray& lenSyncs()       { static const juce::StringArray a { "OFF", "1/4 BEAT", "1/2 BEAT", "1 BEAT", "2 BEATS" }; return a; }
+        const juce::StringArray& tokModes()       { static const juce::StringArray a { "FOLLOW NOTE", "FIXED" }; return a; }
         const juce::StringArray& noteCutModes()   { static const juce::StringArray a { "LENGTH", "NOTE", "NOTE + FX" }; return a; }
         const juce::StringArray& outModes()       { static const juce::StringArray a { "STEREO", "MONO" }; return a; }
         const juce::StringArray& spcHaasCh()      { static const juce::StringArray a { "DELAY LEFT", "DELAY RIGHT" }; return a; }
@@ -144,9 +145,30 @@ namespace fge
         return table;
     }
 
+    // "G4" for a frequency (nearest note), and back: "G4" / "a#3" / "Db2" -> Hz (0 = not a note)
+    static juce::String hzNote (float hz)
+    {
+        static const char* n[12] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+        const int m = (int) std::lround (69.0 + 12.0 * std::log2 (juce::jmax (1.0f, hz) / 440.0));
+        return juce::String (n[((m % 12) + 12) % 12]) + juce::String (m / 12 - 1);
+    }
+    float noteToHz (const juce::String& text)
+    {
+        const auto s = text.trim().toUpperCase();
+        if (s.isEmpty() || s[0] < 'A' || s[0] > 'G') return 0.f;
+        static const int base[7] { 9, 11, 0, 2, 4, 5, 7 };          // A B C D E F G
+        int semi = base[s[0] - 'A'], k = 1;
+        if (k < s.length() && s[k] == '#') { ++semi; ++k; } else if (k < s.length() && s[k] == 'B' && k + 1 < s.length()) { --semi; ++k; }
+        const auto oct = s.substring (k).retainCharacters ("-0123456789");
+        if (oct.isEmpty()) return 0.f;
+        const int midi = (oct.getIntValue() + 1) * 12 + semi;
+        return 440.f * std::exp2 ((float) (midi - 69) / 12.f);
+    }
     juce::String formatValue (const ParamDef& d, float v)
     {
         using juce::String;
+        if (d.unit == Unit::Hz && d.kind == Kind::Float && (String (d.id) == "pe_start" || String (d.id) == "pe_end"))
+            return (v < 100.f ? String (v, 1) : String ((int) std::lround (v))) + " Hz " + hzNote (v);
         switch (d.kind)
         {
             case Kind::Bool:   return v > 0.5f ? "ON" : "OFF";
@@ -183,7 +205,8 @@ namespace fge
         const float n = s.retainCharacters ("0123456789.-+").getFloatValue();
         switch (d.unit)
         {
-            case Unit::Hz:  return s.containsIgnoreCase ("k") ? n * 1000.f : n;
+            case Unit::Hz:  if (const float nh = noteToHz (s); nh > 0.f) return nh;
+                            return s.containsIgnoreCase ("k") ? n * 1000.f : n;
             case Unit::Ms:  return (s.endsWithIgnoreCase ("s") && ! s.containsIgnoreCase ("ms")) ? n * 1000.f : n;
             case Unit::Db:  return s.containsIgnoreCase ("inf") ? d.min : n;
             case Unit::Pct: return n / 100.f;
@@ -205,7 +228,8 @@ namespace fge
             case coreVoice:    return "CHOKE: a new kick fades the previous one out (clean low end). POLY: kicks overlap.";
             case coreVelocity: return "How much the MIDI velocity changes the kick level.";
             case peMode:       return "Shape of the pitch movement from START to END.";
-            case peStart:      return "Where the pitch starts (= the TAIL pitch at the hit).";
+            case peStart:      return "Where the pitch starts = the TOK (the tail pitch at the hit, held for HOLD). Type a note (\"G4\") or pick it in TOK NOTE.";
+            case peStartMode:  return "TOK: FIXED = the tok always plays START (the same pitch on every note, like a punch); FOLLOW NOTE = START moves with the played note. The tail still lands on the played note.";
             case peEnd:        return "Where the pitch lands. With PITCH TRACKING on, the played note sets it.";
             case peTime:       return "How long the pitch takes to land.";
             case peCurve:      return "Shape of the drop: low = falls early and fast, high = stays up longer.";

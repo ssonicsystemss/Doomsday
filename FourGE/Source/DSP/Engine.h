@@ -42,6 +42,8 @@ namespace fge
         std::array<float, 4> partEnd {};          // ms after which the part is silent
         float endHz = 49.f, fineMul = 1.f, subHz = 49.f;
         bool keyTrack = true;
+        bool startFixed = false;                  // the TOK (pitch START) at a fixed pitch (owner 2026-11-09)
+        float startHz = 220.f, endHz0 = 49.f, startAmountSt = 0.f, tailPAmt = 1.f;
         bool wide = false;                        // TAIL UNISON + WIDTH: the left / right tail chains run too
         float width = 0.f;
         dsp::SvfCoefs widthSplit;                 // LR4 split: lows from the centre, mids / highs from left / right
@@ -67,10 +69,12 @@ namespace fge
     {
         const KickConfig* c = nullptr;
         std::array<int, 8> cur {};                // segment cursors (own curve, followed curve)
+        float tailScale = 1.f;                    // per voice: the tail depth so START stays fixed (TOK FIXED)
         float own (int part, float ms, int curIdx)
         {
             const auto& p = c->pitch[(size_t) part];
             if (! p.on) return 0.f;
+            if (part == dsp::PTail && tailScale != 1.f) { const float s = tailScale; tailScale = 1.f; const float r = own (part, ms, curIdx) * s; tailScale = s; return r; }
             const auto& shapeOf = p.link == dsp::Linked ? c->pitch[(size_t) p.src] : p;      // LINKED: the source's shape
             const float x = juce::jmax (0.f, ms - p.offsetMs) / juce::jmax (0.5f, p.timeMs);
             float e;
@@ -116,7 +120,7 @@ namespace fge
             mod = cfg.modBase;
             if (cfg.lbAny)
             {
-                pe.c = &cfg;
+                pe.c = &cfg; pe.tailScale = tailScaleFor (cfg);
                 const float endEff = (cfg.keyTrack ? noteHz : cfg.endHz) * cfg.fineMul;
                 const float subBase = (cfg.keyTrack ? noteHz : cfg.subHz) * cfg.fineMul;
                 const float fTail = endEff * std::exp2 (pe.semis (dsp::PTail, 0.f) / 12.f);
@@ -128,7 +132,7 @@ namespace fge
             }
             if (cfg.osc.any)
             {
-                pe.c = &cfg;
+                pe.c = &cfg; pe.tailScale = tailScaleFor (cfg);
                 const float endEff = (cfg.keyTrack ? noteHz : cfg.endHz) * cfg.fineMul;
                 const float subBase = (cfg.keyTrack ? noteHz : cfg.subHz) * cfg.fineMul;
                 const float fTail = endEff * std::exp2 (pe.semis (dsp::PTail, 0.f) / 12.f);
@@ -158,6 +162,14 @@ namespace fge
         uint64_t order() const { return age; }
         double samplePos (int slot) const { return lbv.samplePos (slot); }
         void phases (float* out) const { out[0] = punch.phase(); out[1] = body.phase(); out[2] = tail.phase(); out[3] = sub.phase(); }
+        // TOK FIXED: the tail's pitch depth for THIS note, so the hit (START) is the same pitch on every note and the end is the note
+        float tailScaleFor (const KickConfig& cfg) const
+        {
+            const float d = cfg.pitch[dsp::PTail].depthSt;
+            if (! cfg.startFixed || ! cfg.keyTrack || std::abs (d) < 0.01f) return 1.f;
+            const float v = (12.f * std::log2 (juce::jmax (1.f, cfg.startHz) / juce::jmax (1.f, noteHz)) + cfg.startAmountSt) * cfg.tailPAmt;
+            return v / d;
+        }
 
         // adds this voice into the four part buses (oversampled rate)
         const dsp::OscTables* tables = nullptr;
@@ -167,7 +179,7 @@ namespace fge
             using namespace dsp;
             if (! active) return;
             const auto& ks = cfg.ks;
-            pe.c = &cfg;
+            pe.c = &cfg; pe.tailScale = tailScaleFor (cfg);
             const float endEff = (cfg.keyTrack ? noteHz : cfg.endHz) * cfg.fineMul;
             const float subBase = (cfg.keyTrack ? noteHz : cfg.subHz) * cfg.fineMul;
             float total = 0.f;
@@ -618,6 +630,8 @@ namespace fge
             ks.phaseReset = f.on (P::corePhaseRst);
             ks.velSens = f[P::coreVelocity];
             cfg.keyTrack = f.on (P::coreKeyTrack);
+            cfg.startFixed = f.idx (P::peStartMode) == 1;
+            cfg.startHz = f[P::peStart]; cfg.startAmountSt = f[P::peAmount]; cfg.tailPAmt = f[P::tailPAmount];
             cfg.endHz = f[P::peEnd]; cfg.fineMul = std::exp2 (f[P::peFine] / 1200.f); cfg.subHz = f[P::subPitch];
             // global time (module 02, 9): TIME SCALE, OFFSET; SYNC = times designed at 150 BPM follow the host tempo
             const float gScale = f[P::envTimeScale], gOffset = f[P::envTimeOffset];

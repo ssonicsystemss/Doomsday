@@ -3551,3 +3551,4 @@ len_follow_punch
 len_follow_body
 len_follow_tail
 len_follow_sub
+pe_start_mode

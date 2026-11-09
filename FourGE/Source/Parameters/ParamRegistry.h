@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -344,7 +344,9 @@ namespace fge
     F (lenFollowPunch, "len_follow_punch",     "Punch Follows Length", Unit::Pct, 0.f, 1.f, 0.f,  0.f, FNone) \
     F (lenFollowBody,  "len_follow_body",      "Body Follows Length",  Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
     F (lenFollowTail,  "len_follow_tail",      "Tail Follows Length",  Unit::Pct, 0.f, 1.f, 1.f,  0.f, FNone) \
-    F (lenFollowSub,   "len_follow_sub",       "Sub Follows Length",   Unit::Pct, 0.f, 1.f, 1.f,  0.f, FNone)
+    F (lenFollowSub,   "len_follow_sub",       "Sub Follows Length",   Unit::Pct, 0.f, 1.f, 1.f,  0.f, FNone) \
+    /* ================= owner 2026-11-09: the TOK (pitch START) at a FIXED pitch while the tail lands on the played note ================= */ \
+    C (peStartMode,    "pe_start_mode",        "Tok Pitch Mode",       tokModes, 0, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system
@@ -1120,6 +1122,7 @@ namespace fge
     // text for a value in the parameter's unit (GUI, DAW)
     juce::String formatValue (const ParamDef&, float v);
     float parseValue (const ParamDef&, const juce::String&);
+    float noteToHz (const juce::String&);                          // "G4" -> 392 Hz (0 = not a note name)
     // a short tooltip text for each parameter (what it does to the sound)
     juce::String tooltip (int id);
 }

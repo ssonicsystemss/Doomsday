@@ -78,7 +78,7 @@ Najkrótsze możliwe wejście to 0,15 ms, a wyjście 3 ms, więc nie ma klików 
 - **BODY bez „łup”**: BODY nie ma już własnego zjazdu pitchu – idzie za ogonem w stałym interwale (FOLLOW → TAIL, 0 / +7 / +12 st),
   w MODERN / RAW to szum (gęstość, zero pitchu). RANDOMIZE losuje interwał, źródło, przester, barwę i poziom BODY w każdym stylu.
 - **START (PITCH ENGINE): FIXED / FOLLOW MIDI** – początek zjazdu ogona stały albo z nutą; START / END / PUNCH PITCH pokazują nutę,
-  można wpisać nutę („G4”). Wszystkie presety stylów: tok FIXED na czystej nucie, tok tak głośny jak ogon.
+  można wpisać nutę („G4”). Presety MODERN / RAW / EXPERIMENTAL: tok FIXED na czystej nucie, w słyszalnym paśmie (300 Hz – 6 kHz) najwyżej ~3 dB nad ogonem (głośniejszy przykrywał tail). **MODERN = czysty** (wg przykładów OPS FREE KICK: bas pod tokiem – SUB START 25 ms, jasny tail SAW bez ciężkiego przesteru; RANDOMIZE w MODERN nie bierze już cech RAW). **EARLY = tryb PUNCH** (krótkie uderzenie wpadające w kick, ogon od uderzenia – bez tonalnego „pup”).
 - **Środek**: duży **waveform** – to prawdziwy wyrenderowany kick, każda część w swoim kolorze.
   **Złap go myszką i przeciągnij do FL** – dostaniesz gotowy plik WAV.
 - **Cztery karty**: LEVEL, PITCH, LENGTH, DRIVE, MUTE, SOLO i pasek poziomu. **Kliknij kartę**, a na dole pojawią się jej szczegóły

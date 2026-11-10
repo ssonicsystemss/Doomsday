@@ -249,6 +249,19 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   początek, łagodny spadek, ogon przejmuje energię na końcu. Wniosek: relacje czasowe między warstwami to parametry, nie reguły.
   Uwaga: zakresy RANDOMIZE muszą iść za szablonami stylu (losowanie dawało tok 15–45 ms przy szablonie 110–125 ms).
 
+- **4GE – „EARLY bez pup pup” + „toki za mocne względem taila” (owner, 2026-11-10)** – EARLY to klasyczny PUNCH (krótkie uderzenie
+  zjeżdżające w kick, ogon od uderzenia), tonalny tok to cecha MODERN / RAW. Toki były „tak głośne jak ogon” wg RMS całego pasma,
+  ale RMS liczy też sub pod tokiem – w paśmie 300 Hz – 6 kHz (tam ucho słyszy tok) były 5–15 dB nad ogonem. Mierzyć głośność warstw
+  w paśmie słyszalnym, nie RMS całości; cel: tok ≤ ~3 dB nad ogonem w 300 Hz – 6 kHz.
+
+- **4GE – „MODERN za dzikie, w randomie wychodzą jak RAW” + 5 przykładów MODERN (OPS FREE KICK 1–5, owner, 2026-11-10)** –
+  losowanie MODERN brało charakter ogona DIRTY / SCREAM, tonalne BODY (SAW / SQUARE), HARD CLIP i screech = cechy RAW. MODERN
+  w losowaniu: CLEAN / TONAL, BODY szum, SOFT / TUBE, bez screecha, mniejsze drive / detune. Pomiar referencji (`tk.py` / `kq.py`):
+  pod tokiem JEST bas (30–150 Hz w 20–80 ms ok. −8 dB; u nas było −29 = tok „wisiał w powietrzu”), tail jasny i obecny w środku
+  (300 Hz–6 kHz w 150–300 ms ok. −12 dB, u nas −19; >2 kHz −14…−18 dB), tok tylko ~+1…+9 dB nad tailem w środku pasma.
+  Poprawka MODERN: SUB START 25 ms + attack 50 ms (bas pod tokiem), tail SAW głośniej (−3 dB) przy małym przesterze, tok ~−10 dB.
+  Wniosek: „czysto” ≠ ciemno i cicho – czysty MODERN to jasny, gęsty (unison) tail bez ciężkiego przesteru + bas pod tokiem.
+
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
   odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:

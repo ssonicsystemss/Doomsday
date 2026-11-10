@@ -85,6 +85,7 @@ namespace doomsday::flat
         void setModulation (float depth, float nowPos01 = -1.f);
         static int heightFor (int diameter) { return diameter + 36; }
         const juce::String& parameterId() const { return paramId; }
+        void setLabel (const juce::String& l) { if (l != label) { label = l; repaint(); } }     // e.g. LENGTH -> TOK LENGTH
         // a right-click on any knob (e.g. a plugin's "modulate with ..." menu); empty = nothing happens
         inline static std::function<void (Knob&, const juce::MouseEvent&)> onContextMenu;
         void mouseDown (const juce::MouseEvent& e) override { if (e.mods.isPopupMenu() && onContextMenu) onContextMenu (*this, e); }

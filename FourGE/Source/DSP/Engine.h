@@ -45,6 +45,8 @@ namespace fge
         bool startFixed = false;                  // the TOK (pitch START) at a fixed pitch (owner 2026-11-09)
         bool tokMode = false, tokFixed = true;    // PUNCH / TOK -> TAIL: the punch is the tok (its own note), the tail starts after it
         float tokHz = 400.f, tailStartMs = 0.f, tokOverlapMs = 4.f;
+        int tokNoteMode = 0;                      // 0 FIXED / 1 FOLLOW MIDI / 2 OFFSET (the played note + tokOffsetMul)
+        float tokOffsetMul = 2.f, tokEndMs = 0.f, tokDecayDb = 0.f, tokBendSt = 0.f, tokGlideMs = 10.f;   // (owner 2026-11-10)
         float startHz = 220.f, endHz0 = 49.f, startAmountSt = 0.f, tailPAmt = 1.f;
         bool wide = false;                        // TAIL UNISON + WIDTH: the left / right tail chains run too
         float width = 0.f;
@@ -169,7 +171,14 @@ namespace fge
         float tokHzFor (const KickConfig& cfg) const
         {
             const float endEff = (cfg.keyTrack ? noteHz : cfg.endHz) * cfg.fineMul;
+            if (cfg.tokNoteMode == 2) return endEff * cfg.tokOffsetMul;
             return cfg.tokFixed ? cfg.tokHz * cfg.fineMul : cfg.tokHz * endEff / juce::jmax (1.f, cfg.endHz);
+        }
+        // the tok's own pitch envelope: BEND semitones away at the hit, gliding to its note
+        static float tokBendAt (const KickConfig& cfg, float ms)
+        {
+            if (std::abs (cfg.tokBendSt) < 0.01f) return 1.f;
+            return std::exp2 (cfg.tokBendSt * std::exp (-3.f * ms / juce::jmax (0.5f, cfg.tokGlideMs)) / 12.f);
         }
         // TOK FIXED: the tail's pitch depth for THIS note, so the hit (START) is the same pitch on every note and the end is the note
         float tailScaleFor (const KickConfig& cfg) const
@@ -206,7 +215,9 @@ namespace fge
                 // ---- control rate (every 16 samples): the filter / drive / resonance envelopes move tone and drive
                 if ((ctl++ & 15) == 0) updateMods (cfg, ms);
                 // ---- pitch of every part
-                const float fTail = juce::jlimit (5.f, nyq, endEff * std::exp2 (pe.semis (PTail, ms) / 12.f));
+                const float tokNow = cfg.tokMode ? tokHz * tokBendAt (cfg, ms) : 0.f;
+                // TOK: before the tail starts it runs at the tok's pitch (same note, same phase) - the hand-over has no pitch / phase step
+                const float fTail = juce::jlimit (5.f, nyq, cfg.tokMode && ms < cfg.tailStartMs ? tokNow : endEff * std::exp2 (pe.semis (PTail, ms) / 12.f));
                 const float gate = juce::jlimit (0.f, 1.f, (ks.lengthMs - ms) / juce::jmax (0.5f, fadeLen)) * vel * fade;
                 // ---- module 03: the oscillators, pitched by the part they follow, feed the part inputs
                 std::array<float, 4> ext {};
@@ -218,7 +229,7 @@ namespace fge
                 }
                 if (cfg.osc.any)
                 {
-                    const std::array<float, 4> hz { juce::jlimit (5.f, nyq, cfg.tokMode ? tokHz : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
+                    const std::array<float, 4> hz { juce::jlimit (5.f, nyq, cfg.tokMode ? tokNow : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
                                                     juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f)), fTail,
                                                     juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f)) };
                     oscs.tick (cfg.osc, tables != nullptr ? *tables : noTables, hz, ms, ks.inv, ext, extL, extR);
@@ -235,7 +246,7 @@ namespace fge
                 // ---- module 04: noise into the part inputs, transient / layers into the 7 buses
                 if (cfg.lbAny)
                 {
-                    const std::array<float, 4> hz { juce::jlimit (5.f, nyq, cfg.tokMode ? tokHz : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
+                    const std::array<float, 4> hz { juce::jlimit (5.f, nyq, cfg.tokMode ? tokNow : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f)),
                                                     juce::jlimit (5.f, nyq, fTail * std::exp2 (pe.semis (PBody, ms) / 12.f)), fTail,
                                                     juce::jlimit (5.f, nyq, subBase * std::exp2 (pe.semis (PSub, ms) / 12.f)) };
                     float bl[dsp::NumBus] {}, br[dsp::NumBus] {};
@@ -252,12 +263,18 @@ namespace fge
                 float gTok = 1.f, gIn = 1.f;
                 if (cfg.tokMode)
                 {
-                    const float x = cfg.tokOverlapMs > 0.01f ? juce::jlimit (0.f, 1.f, (ms - cfg.tailStartMs) / cfg.tokOverlapMs) : (ms >= cfg.tailStartMs ? 1.f : 0.f);
-                    gTok = std::cos (x * 1.5707963f); gIn = std::sin (x * 1.5707963f);
+                    // the tok fades out over the last OVERLAP ms of its length, body + tail fade in over OVERLAP from their start
+                    // (AFTER TOK: the same window = an equal-power crossfade; INDEPENDENT: wherever TAIL START puts them)
+                    const float ov = cfg.tokOverlapMs;
+                    const float xo = ov > 0.01f ? juce::jlimit (0.f, 1.f, (ms - (cfg.tokEndMs - ov)) / ov) : (ms >= cfg.tokEndMs ? 1.f : 0.f);
+                    const float xi = ov > 0.01f ? juce::jlimit (0.f, 1.f, (ms - cfg.tailStartMs) / ov) : (ms >= cfg.tailStartMs ? 1.f : 0.f);
+                    gTok = std::cos (xo * 1.5707963f); gIn = std::sin (xi * 1.5707963f);
+                    if (cfg.tokDecayDb < -0.01f)                                       // TOK DECAY: a strong start that eases off towards the hand-over
+                        gTok *= std::exp2 (cfg.tokDecayDb * 0.1660964f * juce::jlimit (0.f, 1.f, ms / juce::jmax (1.f, cfg.tokEndMs)));
                 }
                 if (ms < cfg.partEnd[PPunch])
                 {
-                    const float f = juce::jlimit (5.f, nyq, cfg.tokMode ? tokHz : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f));
+                    const float f = juce::jlimit (5.f, nyq, cfg.tokMode ? tokNow : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f));
                     bus[PPunch][i] += punch.tick (ks.part[PPunch], ks, ms, f, amp[PPunch], mod[PPunch], ext[PPunch]) * gate * gTok;
                 }
                 if (ms < cfg.partEnd[PBody])
@@ -650,7 +667,7 @@ namespace fge
             // PUNCH / TOK: the tail starts its drop FROM THE TOK NOTE (no pitch jump at the hand-over, owner 2026-11-10 "słychać przejście")
             const bool tokM = f.idx (P::punchMode) == 1;
             cfg.startFixed = tokM ? f.idx (P::punchNoteMode) == 0 : f.idx (P::peStartMode) == 1;
-            cfg.startHz = tokM ? f[P::punchPitch] : f[P::peStart]; cfg.startAmountSt = f[P::peAmount]; cfg.tailPAmt = f[P::tailPAmount];
+            cfg.startHz = tokM ? (f.idx (P::punchNoteMode) == 2 ? f[P::peEnd] * std::exp2 (f[P::punchNoteOffset] / 12.f) : f[P::punchPitch]) : f[P::peStart]; cfg.startAmountSt = f[P::peAmount]; cfg.tailPAmt = f[P::tailPAmount];
             cfg.endHz = f[P::peEnd]; cfg.fineMul = std::exp2 (f[P::peFine] / 1200.f); cfg.subHz = f[P::subPitch];
             // global time (module 02, 9): TIME SCALE, OFFSET; SYNC = times designed at 150 BPM follow the host tempo
             const float gScale = f[P::envTimeScale], gOffset = f[P::envTimeOffset];
@@ -686,6 +703,8 @@ namespace fge
             pu.trLevel = f[P::punchTrLevel]; pu.trLenMs = f[P::punchTrLength];
             pu.trTone = svfCoefs (f[P::punchTrTone], 1.2f, rate);
             cfg.tokMode = f.idx (P::punchMode) == 1; cfg.tokFixed = f.idx (P::punchNoteMode) == 0; cfg.tokHz = f[P::punchPitch];
+            cfg.tokNoteMode = f.idx (P::punchNoteMode); cfg.tokOffsetMul = std::exp2 (f[P::punchNoteOffset] / 12.f);
+            cfg.tokDecayDb = f[P::punchTokDecay]; cfg.tokBendSt = f[P::punchTokBend]; cfg.tokGlideMs = f[P::punchGlide];
             pu.pitchHz = f[P::punchPitch]; pu.glideMs = f[P::punchGlide]; pu.mix = f[P::punchMix];
             pu.tone = svfCoefs (pu.source == 5 ? juce::jlimit (300.f, 16000.f, f[P::punchPitch] * 6.f) : f[P::punchTone], pu.source == 5 ? 1.f / 1.5f : 1.414f, rate);
             auto& bo = ks.part[PBody]; bo.pitchHz = f[P::bodyPitch]; bo.glideMs = f[P::bodyGlide]; bo.mix = f[P::bodyMix];
@@ -813,8 +832,10 @@ namespace fge
             if (cfg.tokMode)
             {
                 const float ov = f[P::punchOverlap];
-                const float t0 = juce::jmax (0.f, cfg.partEnd[PPunch] - ov);
-                cfg.tailStartMs = t0; cfg.tokOverlapMs = ov;
+                // TAIL START MODE: AFTER TOK = when the tok ends (minus the crossfade); INDEPENDENT = at TAIL START (may overlap the tok)
+                const float t0 = f.idx (P::tailStartMode) == 1 ? f[P::tailStart] * gScale + gOffset
+                                                              : juce::jmax (0.f, cfg.partEnd[PPunch] - ov);
+                cfg.tailStartMs = t0; cfg.tokOverlapMs = ov; cfg.tokEndMs = cfg.partEnd[PPunch];
                 for (int p : { (int) PBody, (int) PTail })                       // BODY and TAIL: two parts, each its own envelopes / character
                 {
                     auto& a = cfg.amp[(size_t) p];

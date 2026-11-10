@@ -242,6 +242,13 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - Drugi raz (2026-11-02, kick_hardstyle_84 od tyłu przy 20 %): „znów wchodzi za wcześnie”. → Domyślnie **~28 % kroku** (Late: 38 %),
   a DELAY jest teraz na MAIN, żeby właściciel sam dosuwał. Zasada: przy wątpliwości bas raczej później niż wcześniej.
 
+- **4GE – TOK to faza, nie klik; SUB nie czeka na tok (owner, 2026-11-10)** – w MODERN / RAW tok trwa 80–150 ms, więc „PUNCH = 18 ms”
+  było złym założeniem: długość toka = parametr stylu (EARLY 15–50, MODERN 80–140, RAW 80–150, EXP 5–300 jako zakres projektowy).
+  TAIL START = koniec toka tylko domyślnie (AFTER TOK), a nie twarda reguła – INDEPENDENT pozwala na świadomy overlap. SUB ma
+  własny START i wchodzi pod tok (55–75 ms) – to część charakteru RAW. Tok nie musi mieć stałej głośności: TOK DECAY = mocny
+  początek, łagodny spadek, ogon przejmuje energię na końcu. Wniosek: relacje czasowe między warstwami to parametry, nie reguły.
+  Uwaga: zakresy RANDOMIZE muszą iść za szablonami stylu (losowanie dawało tok 15–45 ms przy szablonie 110–125 ms).
+
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
   odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:

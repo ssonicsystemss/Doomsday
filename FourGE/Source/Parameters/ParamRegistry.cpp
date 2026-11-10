@@ -95,7 +95,8 @@ namespace fge
         const juce::StringArray& lenSyncs()       { static const juce::StringArray a { "OFF", "1/4 BEAT", "1/2 BEAT", "1 BEAT", "2 BEATS" }; return a; }
         const juce::StringArray& tokModes()       { static const juce::StringArray a { "FOLLOW MIDI", "FIXED" }; return a; }
         const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK" }; return a; }
-        const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI" }; return a; }
+        const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "OFFSET" }; return a; }
+        const juce::StringArray& tailStartModes() { static const juce::StringArray a { "AFTER TOK", "INDEPENDENT" }; return a; }
         const juce::StringArray& noteCutModes()   { static const juce::StringArray a { "LENGTH", "NOTE", "NOTE + FX" }; return a; }
         const juce::StringArray& outModes()       { static const juce::StringArray a { "STEREO", "MONO" }; return a; }
         const juce::StringArray& spcHaasCh()      { static const juce::StringArray a { "DELAY LEFT", "DELAY RIGHT" }; return a; }
@@ -232,11 +233,16 @@ namespace fge
             case peMode:       return "Shape of the pitch movement from START to END.";
             case peStart:      return "Where the tail pitch starts (held for HOLD, then the drop to the note). Type a note (\"G4\"). The tok = PUNCH in TOK mode.";
             case punchMode:    return "TOK: the PUNCH is the tok - TRANSIENT + TOK CORE on one note for its LENGTH, then the TAIL starts (PUNCH / TOK -> TAIL). PUNCH: the classic short punch that glides into the kick, the tail from the hit.";
-            case punchNoteMode:return "TOK note: FIXED = the tok plays PITCH on every MIDI note (e.g. always G); FOLLOW MIDI = it moves with the played note.";
+            case punchNoteMode:return "TOK note: FIXED = the tok plays PITCH on every MIDI note (e.g. always G); FOLLOW MIDI = it moves with the played note (keeping its distance to the tail note); OFFSET = the played note + NOTE OFFSET semitones.";
             case punchOverlap: return "The hand-over TOK -> BODY + TAIL: an equal-power crossfade this long (the tail starts from the tok note, in phase). ~20 ms = no audible seam, shorter = a harder cut.";
             case punchTrLevel: return "TRANSIENT: a very short attack / click at the start of the tok (inside the PUNCH - not a separate part).";
             case punchTrLength:return "How long the transient click lasts.";
             case punchTrTone:  return "The colour of the transient click (low = thump, high = tick).";
+            case tailStartMode: return "AFTER TOK: body + tail start when the tok ends (minus OVERLAP). INDEPENDENT: they start at TAIL START, the tok keeps playing to its own end (a conscious overlap).";
+            case tailStart:    return "INDEPENDENT: when body + tail start (ms after the hit). Earlier than the tok's end = both play together.";
+            case punchTokDecay: return "How much the tok falls over its length: 0 dB = flat, -6 dB = a strong start that eases off, so the tail takes the energy at the tok's end.";
+            case punchTokBend: return "The tok's own pitch envelope: it starts this many semitones away and glides to its note in GLIDE ms.";
+            case punchNoteOffset: return "OFFSET mode: the tok plays the MIDI note + this many semitones (12 = an octave above the tail's note).";
             case peStartMode:  return "START of the tail drop: FIXED = the same pitch on every MIDI note; FOLLOW MIDI = moves with the played note. The tail still lands on the played note. (The tok itself = PUNCH in TOK mode.)";
             case peEnd:        return "Where the pitch lands. With PITCH TRACKING on, the played note sets it.";
             case peTime:       return "How long the pitch takes to land.";

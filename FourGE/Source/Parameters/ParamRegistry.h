@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -353,7 +353,13 @@ namespace fge
     F (punchOverlap,   "punch_overlap",        "Tok To Tail Overlap",  Unit::Ms,  0.f,  60.f,  20.f,  15.f, FNone) \
     F (punchTrLevel,   "punch_transient",      "Tok Transient",        Unit::Pct, 0.f,   1.f,   0.f,   0.f, FMod) \
     F (punchTrLength,  "punch_transient_len",  "Tok Transient Length", Unit::Ms,  0.2f, 10.f,   1.5f,  2.f, FNone) \
-    F (punchTrTone,    "punch_transient_tone", "Tok Transient Tone",   Unit::Hz,  500.f, 16000.f, 5000.f, 4000.f, FMod)
+    F (punchTrTone,    "punch_transient_tone", "Tok Transient Tone",   Unit::Hz,  500.f, 16000.f, 5000.f, 4000.f, FMod) \
+    /* ================= owner 2026-11-10: TOK LENGTH per style, TAIL START MODE, SUB START, the tok's own decay / pitch bend / OFFSET ================= */ \
+    C (tailStartMode,  "tail_start_mode",      "Tail Start Mode",      tailStartModes, 0, FNone) \
+    F (tailStart,      "tail_start",           "Tail Start",           Unit::Ms,  0.f, 300.f, 100.f, 80.f, FNone) \
+    F (punchTokDecay,  "punch_tok_decay",      "Tok Decay",            Unit::Db, -24.f,  0.f,   0.f,   0.f, FMod) \
+    F (punchTokBend,   "punch_tok_bend",       "Tok Pitch Bend",       Unit::Semi, -24.f, 24.f, 0.f,   0.f, FMod) \
+    F (punchNoteOffset,"punch_note_offset",    "Tok Note Offset",      Unit::Semi, -24.f, 36.f, 12.f,  0.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

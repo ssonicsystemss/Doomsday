@@ -65,6 +65,15 @@ Najkrótsze możliwe wejście to 0,15 ms, a wyjście 3 ms, więc nie ma klików 
   toku**, w tej samej fazie, a **OVERLAP** (domyślnie 20 ms) to płynne przejście równej mocy – bez słyszalnego szwu; krócej = twardsze cięcie.
   W stylach tok dostaje też ten sam łańcuch przesteru co ogon (barwa się nie łamie).
   **FIXED** = tok gra zawsze nutę z **TOK NOTE** (np. G „choćby ogon chodził w MIDI po różnych nutach”), **FOLLOW MIDI** = idzie za nutą.
+  **OFFSET** = tok gra nutę z MIDI + **NOTE OFFSET** półtonów (np. +12 = oktawa nad ogonem).
+  **TOK LENGTH** (gałka LENGTH na karcie PUNCH / TOK w trybie TOK) – w stylach: EARLY ~15–50 ms, MODERN ~80–140, RAW ~80–150,
+  EXPERIMENTAL 5–150 (zakresy RANDOMIZE). Tok to pełna tonalna faza początku kicka, nie tylko klik.
+  **TOK DECAY** (dB) – mocny początek toka i kontrolowane opadanie do końca, gdzie ogon przejmuje energię (MODERN -4, RAW -5).
+  **BEND** + GLIDE – własna obwiednia pitchu toka (zaczyna BEND półtonów obok i dojeżdża do swojej nuty w GLIDE ms).
+  **TAIL START MODE** (karta TAIL): **AFTER TOK** (domyślnie) = body + tail startują po toku; **INDEPENDENT** = startują w **TAIL START**
+  ms – np. tok 125 ms, tail od 90 ms = świadome nakładanie (tok gra do swojego końca).
+  **SUB START** (gałka START na karcie SUB = opóźnienie obwiedni suba) – sub ma własny start i może wejść pod tok (MODERN 75 ms,
+  RAW 55 ms), nie czeka na koniec toka.
   BODY i TAIL mają dalej własne obwiednie i charakter. Tryb **PUNCH** = dawny krótki punch (zjeżdża w pitch kicka, ogon od uderzenia).
 - **BODY bez „łup”**: BODY nie ma już własnego zjazdu pitchu – idzie za ogonem w stałym interwale (FOLLOW → TAIL, 0 / +7 / +12 st),
   w MODERN / RAW to szum (gęstość, zero pitchu). RANDOMIZE losuje interwał, źródło, przester, barwę i poziom BODY w każdym stylu.

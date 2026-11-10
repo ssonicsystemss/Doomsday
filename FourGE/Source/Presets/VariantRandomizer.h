@@ -38,46 +38,46 @@ namespace fge::variant
         {
             std::array<Table, NumStyles> x;
             // ---- EARLY: classic, melodic, tonal body, simpler distortion, clear pitch drop
-            x[Early][APunch]   = { { "punch_source", 0, 0, { 0, 1 } }, { "punch_pitch", 220, 420 }, { "punch_level", -12, -6 }, { "punch_drive", 0.f, 0.3f }, { "punch_length", 20, 40 } };
+            x[Early][APunch]   = { { "punch_source", 0, 0, { 0, 1 } }, { "punch_pitch", 220, 420 }, { "punch_level", -3, 0 }, { "punch_drive", 0.f, 0.3f }, { "punch_length", 15, 50 }, { "punch_tok_decay", -4, 0 } };
             x[Early][ABody]    = { { "body_link", 0, 0, { 1 } }, { "body_link_source", 0, 0, { 2 } }, { "body_follow_depth", 0, 0, { 0 } }, { "body_follow_offset", 0, 0, { 0, 0, 12 } },
                                    { "body_source", 0, 0, { 0, 1, 2 } }, { "body_level", -14, -6 }, { "body_drive", 0.1f, 0.45f }, { "body_decay", 80, 200 },
                                    { "body_tone", 1500, 4500 }, { "body_resonance", 0.f, 0.3f } };
             x[Early][ATail]    = { { "tail_character", 0, 0, { 0, 1, 2 } }, { "tail_source", 0, 0, { 0, 1 } }, { "tail_drive", 0.2f, 0.5f }, { "tail_tone", 2000, 6000 },
                                    { "tail_resonance", 0.f, 0.25f }, { "tail_mid_gain", 0, 3 }, { "tail_uni_voices", 1, 3 }, { "tail_decay", 400, 900 } };
-            x[Early][ASub]     = { { "sub_level", -14, -8 }, { "sub_drive", 0.f, 0.2f }, { "sub_length", 300, 500 } };
+            x[Early][ASub]     = { { "sub_level", -14, -8 }, { "sub_drive", 0.f, 0.2f }, { "sub_length", 300, 500 }, { "sub_amp_env_delay", 0, 25 } };
             x[Early][APitch]   = { { "pe_mode", 0, 0, { 0, 2 } }, { "pe_start", 160, 300 }, { "pe_time", 60, 160 }, { "pe_curve", 0.2f, 0.5f } };
             x[Early][ADrive]   = { { "tail_st2_type", 0, 0, { 0, 1, 3 } }, { "tail_st2_drive", 0, 6 }, { "master_clip_drive", 0, 3 } };
             x[Early][AScreech] = { { "scr_on", 0, 0, { 0 } } };
             // ---- MODERN: strong, clean and controlled, precise transient, layered body
-            x[Modern][APunch]   = { { "punch_source", 0, 0, { 0, 1, 2, 5 } }, { "punch_pitch", 250, 500 }, { "punch_level", -10, -4 }, { "punch_drive", 0.1f, 0.5f }, { "punch_length", 20, 45 } };
+            x[Modern][APunch]   = { { "punch_source", 0, 0, { 0, 1, 2, 5 } }, { "punch_pitch", 392, 660 }, { "punch_level", -6, -1 }, { "punch_drive", 0.1f, 0.5f }, { "punch_length", 80, 140 }, { "punch_tok_decay", -6, -2 } };
             x[Modern][ABody]    = { { "body_link", 0, 0, { 1 } }, { "body_link_source", 0, 0, { 2 } }, { "body_follow_depth", 0, 0, { 0 } }, { "body_follow_offset", 0, 0, { 0, 7, 12, 12, 19 } },
                                     { "body_source", 0, 0, { 1, 2, 3 } }, { "body_level", -13, -5 }, { "body_drive", 0.2f, 0.7f }, { "body_decay", 80, 220 },
                                     { "body_tone", 2000, 8000 }, { "body_resonance", 0.f, 0.4f } };
             x[Modern][ATail]    = { { "tail_character", 0, 0, { 2, 3 } }, { "tail_source", 0, 0, { 0, 1, 2 } }, { "tail_drive", 0.45f, 0.75f }, { "tail_tone", 4000, 10000 },
                                     { "tail_resonance", 0.05f, 0.35f }, { "tail_mid_gain", 0, 5 }, { "tail_uni_voices", 3, 5 }, { "tail_decay", 500, 1000 } };
-            x[Modern][ASub]     = { { "sub_level", -12, -6 }, { "sub_drive", 0.f, 0.3f }, { "sub_length", 300, 550 } };
+            x[Modern][ASub]     = { { "sub_level", -12, -6 }, { "sub_drive", 0.f, 0.3f }, { "sub_length", 300, 550 }, { "sub_amp_env_delay", 50, 90 } };
             x[Modern][APitch]   = { { "pe_mode", 0, 0, { 0, 1 } }, { "pe_start", 200, 380 }, { "pe_time", 40, 110 }, { "pe_curve", 0.15f, 0.45f } };
             x[Modern][ADrive]   = { { "tail_st2_type", 0, 0, { 0, 1, 2, 3 } }, { "tail_st2_drive", 3, 12 }, { "master_clip_drive", 0, 6 } };
             x[Modern][AScreech] = { { "scr_on", 0, 0, { 0, 0, 0, 1 } }, { "scr_level", -18, -9 } };
             // ---- RAW: aggressive, strong distortion, sharp screech, asymmetry, raw character
-            x[Raw][APunch]   = { { "punch_source", 0, 0, { 0, 2, 3, 5 } }, { "punch_pitch", 300, 600 }, { "punch_level", -9, -3 }, { "punch_drive", 0.3f, 0.7f }, { "punch_length", 15, 40 } };
+            x[Raw][APunch]   = { { "punch_source", 0, 0, { 0, 2, 3, 5 } }, { "punch_pitch", 520, 990 }, { "punch_level", -5, -1 }, { "punch_drive", 0.3f, 0.7f }, { "punch_length", 80, 150 }, { "punch_tok_decay", -7, -2 } };
             x[Raw][ABody]    = { { "body_link", 0, 0, { 1 } }, { "body_link_source", 0, 0, { 2 } }, { "body_follow_depth", 0, 0, { 0 } }, { "body_follow_offset", 0, 0, { 0, 7, 12, 19, 24 } },
                                  { "body_source", 0, 0, { 2, 3, 4 } }, { "body_level", -12, -2 }, { "body_drive", 0.4f, 1.f }, { "body_decay", 60, 260 },
                                  { "body_tone", 2500, 12000 }, { "body_resonance", 0.f, 0.6f } };
             x[Raw][ATail]    = { { "tail_character", 0, 0, { 3, 4, 5, 6 } }, { "tail_source", 0, 0, { 0, 2, 3 } }, { "tail_drive", 0.65f, 0.95f }, { "tail_tone", 7000, 15000 },
                                  { "tail_resonance", 0.2f, 0.6f }, { "tail_mid_gain", 2, 7 }, { "tail_uni_voices", 3, 7 }, { "tail_decay", 500, 1100 } };
-            x[Raw][ASub]     = { { "sub_level", -12, -6 }, { "sub_drive", 0.f, 0.4f }, { "sub_length", 250, 500 } };
+            x[Raw][ASub]     = { { "sub_level", -12, -6 }, { "sub_drive", 0.f, 0.4f }, { "sub_length", 250, 500 }, { "sub_amp_env_delay", 40, 80 } };
             x[Raw][APitch]   = { { "pe_mode", 0, 0, { 0, 1, 3 } }, { "pe_start", 250, 500 }, { "pe_time", 30, 90 }, { "pe_curve", 0.1f, 0.4f } };
             x[Raw][ADrive]   = { { "tail_st2_type", 0, 0, { 2, 3, 4, 5 } }, { "tail_st2_drive", 6, 18 }, { "tail_st2_bias", 0.f, 0.4f }, { "master_clip_drive", 3, 9 } };
             x[Raw][AScreech] = { { "scr_on", 0, 0, { 0, 1 } }, { "scr_level", -15, -6 } };
             // ---- EXPERIMENTAL: hybrid, unusual - the whole range
-            x[Experimental][APunch]   = { { "punch_source", 0, 0, { 0, 1, 2, 3, 4, 5 } }, { "punch_pitch", 150, 900 }, { "punch_level", -14, -2 }, { "punch_drive", 0.f, 0.9f }, { "punch_length", 8, 80 } };
+            x[Experimental][APunch]   = { { "punch_source", 0, 0, { 0, 1, 2, 3, 4, 5 } }, { "punch_pitch", 150, 1200 }, { "punch_level", -8, 0 }, { "punch_drive", 0.f, 0.9f }, { "punch_length", 5, 150 }, { "punch_tok_decay", -12, 0 }, { "punch_tok_bend", -12, 12 } };
             x[Experimental][ABody]    = { { "body_link", 0, 0, { 1 } }, { "body_link_source", 0, 0, { 2 } }, { "body_follow_depth", 0, 0, { 0 } }, { "body_follow_offset", 0, 0, { -12, 0, 5, 7, 12, 19, 24 } },
                                           { "body_source", 0, 0, { 0, 1, 2, 3, 4 } }, { "body_level", -18, -2 }, { "body_drive", 0.f, 1.f }, { "body_decay", 30, 400 },
                                           { "body_tone", 500, 14000 }, { "body_resonance", 0.f, 0.8f } };
             x[Experimental][ATail]    = { { "tail_character", 0, 0, { 0, 1, 2, 3, 4, 5, 6 } }, { "tail_source", 0, 0, { 0, 1, 2, 3, 4, 5 } }, { "tail_drive", 0.2f, 1.f },
                                           { "tail_tone", 1000, 18000 }, { "tail_resonance", 0.f, 0.9f }, { "tail_mid_gain", -6, 9 }, { "tail_uni_voices", 1, 7 }, { "tail_decay", 200, 1500 } };
-            x[Experimental][ASub]     = { { "sub_level", -18, -4 }, { "sub_drive", 0.f, 0.6f }, { "sub_length", 150, 700 } };
+            x[Experimental][ASub]     = { { "sub_level", -18, -4 }, { "sub_drive", 0.f, 0.6f }, { "sub_length", 150, 700 }, { "sub_amp_env_delay", 0, 120 } };
             x[Experimental][APitch]   = { { "pe_mode", 0, 0, { 0, 1, 2, 3, 4, 5 } }, { "pe_start", 150, 700 }, { "pe_time", 20, 250 }, { "pe_curve", 0.f, 0.8f } };
             x[Experimental][ADrive]   = { { "tail_st2_type", 0, 0, { 0, 1, 2, 3, 4, 5, 6 } }, { "tail_st2_drive", 0, 24 }, { "tail_st2_bias", -0.5f, 0.5f }, { "master_clip_drive", 0, 12 } };
             x[Experimental][AScreech] = { { "scr_on", 0, 0, { 0, 1 } }, { "scr_level", -18, -4 } };

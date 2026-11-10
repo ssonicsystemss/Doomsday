@@ -3558,3 +3558,8 @@ punch_overlap
 punch_transient
 punch_transient_len
 punch_transient_tone
+tail_start_mode
+tail_start
+punch_tok_decay
+punch_tok_bend
+punch_note_offset

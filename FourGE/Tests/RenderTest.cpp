@@ -1062,6 +1062,10 @@ int main (int argc, char** argv)
                 if (sid.startsWith ("len_follow_")) set2 ("core_length", 1200.f);
                 if (sid == "pe_start_mode") set2 ("pe_end", 30.f);
                 if (sid == "punch_note_mode" || sid == "punch_overlap") { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); }
+                if (sid == "punch_tok_decay" || sid == "punch_tok_bend" || sid == "tail_start_mode" || sid == "tail_start" || sid == "punch_note_offset")
+                    { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); set2 ("punch_length", 110.f); set2 ("punch_sustain", 1.f); }
+                if (sid == "tail_start") set2 ("tail_start_mode", 1.f);
+                if (sid == "punch_note_offset") set2 ("punch_note_mode", 2.f);
                 if (sid == "punch_transient_len" || sid == "punch_transient_tone") set2 ("punch_transient", 1.f);                                  // (FIXED = FOLLOW when the note is END)                  // module 14: the parts only follow a changed LENGTH
                 if (sid == "core_note_cut") { offAt = 0.1; set2 ("spc_master_on", 1.f); set2 ("spc_master_delay", 10.f); set2 ("spc_master_mode", 3.f); }
                 if (sid == "master_bypass") set2 ("master_clip_drive", 9.f);                       // module 12: something on the master to bypass
@@ -3451,6 +3455,42 @@ int main (int argc, char** argv)
         check (std::abs (12.f * std::log2 (t2 / t1)) < 0.3f && std::abs (t1 - 392.f) < 8.f && std::abs (12.f * std::log2 (e2 / e1) - 4.f) < 0.5f && onMs > 95.f && onMs < 115.f,
                "PUNCH / TOK: the tok holds its note (FIXED) on every MIDI note, BODY + TAIL start when it ends (LENGTH - OVERLAP), the tail on the note",
                "tok " + String (t1, 0) + " / " + String (t2, 0) + " Hz, ends " + String (e1, 1) + " / " + String (e2, 1) + " Hz, tail from " + String (onMs, 1) + " ms");
+    }
+    // ---------------------------------------------------------------- TOK LENGTH / TAIL START MODE / SUB START / OFFSET (owner 2026-11-10)
+    {
+        namespace ka = fge::dsp::analysis;
+        auto onset = [] (const AudioBuffer<float>& b) { for (int i = 0; i < b.getNumSamples(); ++i) if (std::abs (b.getSample (0, i)) > 0.01f) return i * 1000.f / 44100.f; return -1.f; };
+        auto make = [] (std::initializer_list<std::pair<const char*, float>> extra)
+        {
+            auto p = std::make_unique<GeProcessor>(); fge::style::apply (*p, fge::style::Raw, false);
+            for (auto [id, v] : std::initializer_list<std::pair<const char*, float>> { { "punch_mode", 1 }, { "punch_length", 125 }, { "punch_sustain", 1 }, { "punch_overlap", 4 },
+                     { "tail_penv_offset", 0 }, { "body_level", -60 } }) setP (*p, id, v);
+            for (auto [id, v] : extra) setP (*p, id, v);
+            return p;
+        };
+        // INDEPENDENT: the tail at TAIL START (90 ms) while the tok is 125 ms long
+        auto pi = make ({ { "tail_start_mode", 1 }, { "tail_start", 90 }, { "mix_punch_mute", 1 }, { "sub_level", -60 } });
+        const float tInd = onset (fge::analysis::renderMine (pi->exportSnapshot(), 31, 150.0));
+        auto pa = make ({ { "mix_punch_mute", 1 }, { "sub_level", -60 } });
+        const float tAft = onset (fge::analysis::renderMine (pa->exportSnapshot(), 31, 150.0));
+        // SUB START: the sub alone enters at its own time (65 ms), not at the tok's end
+        auto ps = make ({ { "sub_amp_env_delay", 65 }, { "sub_attack", 0 }, { "sub_level", 0 }, { "mix_punch_mute", 1 }, { "mix_tail_mute", 1 } });
+        const float tSub = onset (fge::analysis::renderMine (ps->exportSnapshot(), 31, 150.0));
+        // OFFSET: the tok = the played note + 12 (moves with MIDI)
+        auto tokOf = [&] (int note)
+        {
+            auto p = make ({ { "punch_note_mode", 2 }, { "punch_note_offset", 12 }, { "punch_source", 0 }, { "punch_level", 0 }, { "mix_tail_mute", 1 }, { "sub_level", -60 },
+                             { "noiseB_to_punch", -60 }, { "punch_transient", 0 } });
+            const auto r = ka::analyse (fge::analysis::renderMine (p->exportSnapshot(), note, 150.0), 44100.0);
+            std::vector<float> v; for (size_t k = 2; k < 12 && k < r.pitch.size(); ++k) if (r.pitch[k] > 40.f) v.push_back (r.pitch[k]);
+            std::sort (v.begin(), v.end()); return v.empty() ? 0.f : v[v.size() / 2];
+        };
+        const float o1 = tokOf (31), o2 = tokOf (36);
+        const float want1 = 440.f * std::exp2 ((31 + 12 - 69) / 12.f);
+        check (std::abs (tInd - 90.f) < 6.f && std::abs (tAft - 121.f) < 6.f && std::abs (tSub - 65.f) < 6.f
+                   && std::abs (12.f * std::log2 (o2 / o1) - 5.f) < 0.5f && std::abs (12.f * std::log2 (o1 / want1)) < 0.6f,
+               "TOK -> TAIL: AFTER TOK starts the tail at the tok's end, INDEPENDENT at TAIL START (overlap), SUB START is its own time, OFFSET = note + semitones",
+               "after " + String (tAft, 1) + " ms, independent " + String (tInd, 1) + " ms, sub " + String (tSub, 1) + " ms, offset tok " + String (o1, 0) + " / " + String (o2, 0) + " Hz");
     }
     // ---------------------------------------------------------------- module 08: dynamics, compressor, transient & limiter (MODULE08.md 14)
     {

@@ -100,7 +100,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         auto& d = detail[(size_t) i];
         if (i == 0) { d.push_back (seg ("punch_source", { "SINE", "TRI", "SAW", "SQUARE", "NOISE", "CLICK" }, col));
                       d.push_back (seg ("punch_mode", { "PUNCH", "TOK" }, col));
-                      d.push_back (seg ("punch_note_mode", { "FIXED", "FOLLOW MIDI" }, col)); }
+                      d.push_back (seg ("punch_note_mode", { "FIXED", "FOLLOW MIDI", "OFFSET" }, col)); }
         if (i == 1) d.push_back (seg ("body_source", { "SINE", "TRI", "SAW", "SQUARE", "NOISE" }, col));
         if (i == 2) { d.push_back (seg ("tail_source", { "SINE", "TRI", "SAW", "SQUARE", "PULSE", "NOISE" }, col));
                       d.push_back (seg ("tail_character", { "CLEAN", "TONAL", "DIRTY", "SCREAM", "METAL", "BUZZ", "CRUSH" }, col)); }
@@ -114,12 +114,15 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         if (i == 2) d.push_back (knob ("tail_pulse_width", "PULSE W", col));
         if (i == 0)
         {
+            d.push_back (knob ("punch_tok_bend", "BEND", col, 40, true));
             d.push_back (knob ("punch_overlap", "OVERLAP", col));
             d.push_back (nullptr);
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "punch_tok_decay", "TOK DECAY" }, { "punch_note_offset", "NOTE OFFSET" },
                      { "punch_transient", "TRANSIENT" }, { "punch_transient_len", "TR LENGTH" }, { "punch_transient_tone", "TR TONE" } })
                 d.push_back (knob (id, lab, col));
         }
+        if (i == 3) d.push_back (knob ("sub_amp_env_delay", "START", col));      // SUB START: its own time, may enter under the tok
         d.push_back (knob ((s + "_phase").toRawUTF8(), "PHASE", col));
         if (i == 2)
         {
@@ -135,6 +138,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (knob ("tail_st2_drive", "ST2 DRIVE", col));
             d.push_back (knob ("tail_st2_bias", "ST2 BIAS", col, 40, true));
             d.push_back (knob ("tail_st2_mix", "ST2 MIX", col));
+            d.push_back (combo ("tail_start_mode"));                              // TOK -> TAIL: AFTER TOK / INDEPENDENT + TAIL START
+            d.push_back (knob ("tail_start", "TAIL START", col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };
@@ -354,7 +359,7 @@ void GeCanvas::layoutDetail()
     {
         if (selected == 0)                                   // PUNCH / TOK: SOURCE | PUNCH / TOK | FIXED / FOLLOW MIDI + TOK NOTE
         {
-            const int xs[3] { 0, 390, 540 }, ws[3] { 372, 140, 190 };
+            const int xs[3] { 0, 345, 495 }, ws[3] { 330, 140, 270 };
             d[k]->setBounds (x + xs[jmin ((int) k, 2)], y, ws[jmin ((int) k, 2)], 26);
             ++k; continue;
         }
@@ -362,7 +367,7 @@ void GeCanvas::layoutDetail()
         d[k]->setBounds (x + (int) k * 420, y, jmin (400, items * 62), 26);
         ++k;
     }
-    if (selected == 0) tokNote.setBounds (x + 738, y + 1, 70, 24);
+    if (selected == 0) tokNote.setBounds (x + 775, y + 1, 70, 24);
     y += 36;
     for (int i = 0; k < d.size(); ++k)
     {
@@ -502,11 +507,16 @@ void GeCanvas::updateEnabled()
     en ("tail_mid_hz", mid); en ("tail_mid_q", mid);
     en ("master_clip_soft", raw (proc, P::clipDrive) > 0.01f);
     const bool tok = (int) raw (proc, P::punchMode) == 1;                  // PUNCH / TOK: what only the TOK mode uses
-    for (auto* id : { "punch_note_mode", "punch_overlap" }) en (id, tok);
-    en ("punch_glide", ! tok);
+    for (auto* id : { "punch_note_mode", "punch_overlap", "punch_tok_decay", "punch_tok_bend", "tail_start_mode" }) en (id, tok);
+    const int nMode = (int) raw (proc, P::punchNoteMode);
+    en ("punch_note_offset", tok && nMode == 2);
+    en ("tail_start", tok && (int) raw (proc, P::tailStartMode) == 1);
+    en ("punch_glide", ! tok || std::abs (raw (proc, P::punchTokBend)) > 0.01f);   // TOK: GLIDE = the time of its BEND
+    if (auto* lk = dynamic_cast<Knob*> (card[0][2])) lk->setLabel (tok ? "TOK LENGTH" : "LENGTH");
     const bool tr = raw (proc, P::punchTrLevel) > 0.001f;
     for (auto* id : { "punch_transient_len", "punch_transient_tone" }) en (id, tr);
-    if (tokNote.isEnabled() != tok) { tokNote.setEnabled (tok); tokNote.setAlpha (tok ? 1.f : 0.35f); }
+    const bool tn = tok && nMode != 2;
+    if (tokNote.isEnabled() != tn) { tokNote.setEnabled (tn); tokNote.setAlpha (tn ? 1.f : 0.35f); }
 }
 
 void GeCanvas::timerCallback()

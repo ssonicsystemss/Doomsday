@@ -281,6 +281,8 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   szum biały +12 dB w tok i +9 dB w ogon na własnej obwiedni ~400 ms. Gęstość 30–300 ms −5…−6 dB (refs −4…−5,5).
   Wniosek: „trzask” = nieregularny sygnał (pogłos / szum) PRZED umiarkowanym przesterem; twardy clip czystego tonu = pisk.
   Pliki A/B: przycinać ciszę na końcu renderów (inaczej długie przerwy między kickami).
+  Dopracowanie (pasma vs refs): refs mają REZONANS ŚRODKA ~600–800 Hz przez cały kick (toku i ogona) = tail mid EQ +12 dB przed
+  przesterem; szum w ogonie ciemniejszy (LP ~3,5 kHz) i krótszy (~250 ms), inaczej ogon syczy (2–8 kHz o 6–10 dB za dużo); bas później.
 
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)

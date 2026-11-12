@@ -98,23 +98,24 @@ namespace fge::variant
         {
             Table t;
             t[APunch]   = { { "punch_mode", 0, 0, { 1 } }, { "punch_note_mode", 0, 0, { 0 } }, { "punch_source", 0, 0, { 0, 1 } }, { "punch_pitch", 520, 740 },
-                            { "punch_length", 8, 15 }, { "punch_level", -8, -3 }, { "punch_drive", 0.2f, 0.4f }, { "punch_tok_decay", -4, 0 },
+                            { "punch_length", 8, 15 }, { "punch_level", -7, -3 }, { "punch_drive", 0.2f, 0.4f }, { "punch_tok_decay", -4, 0 },
                             { "punch_transient", 0.2f, 0.6f }, { "punch_overlap", 4, 10 }, { "tail_start_mode", 0, 0, { 0 } },
                             // the tok is a CRACK, not a beep (owner 2026-11-12: "piep -> trzask"): pink noise on its own short envelope
                             // into the tok (it goes through the tok's distortion) - measured: refs flatness -9..-11 dB, a clean tok -19 dB
                             { "noiseB_on", 0, 0, { 1 } }, { "noiseB_type", 0, 0, { 0 } }, { "noiseB_env", 0, 0, { 0 } }, { "noiseB_attack", 0.1f, 0.4f },
                             // (owner, same day: "still not a crack") the noise rides the whole start into the tail, the tok goes through the room
                             // too and the drive eats both = the crackle on the wave (refs flatness -4 dB at 30-150 ms)
-                            { "noiseB_decay", 300, 450 }, { "noiseB_length", 500, 650 }, { "noiseB_level", 0, 0 }, { "noiseB_to_punch", 9, 12 },
-                            { "noiseB_to_tail", 6, 9 }, { "noiseB_to_body", -3, 0 }, { "noiseB_to_texture", -60, -60 }, { "noiseB_filter", 0, 0, { 0 } }, { "noiseB_cutoff", 5000, 7500 } };
+                            { "noiseB_decay", 200, 300 }, { "noiseB_length", 500, 650 }, { "noiseB_level", 0, 0 }, { "noiseB_to_punch", 9, 12 },
+                            { "noiseB_to_tail", 0, 4 }, { "noiseB_to_body", -3, 0 }, { "noiseB_to_texture", -60, -60 }, { "noiseB_filter", 0, 0, { 0 } }, { "noiseB_cutoff", 3000, 4500 } };
             t[ABody]    = { { "body_link", 0, 0, { 1 } }, { "body_link_source", 0, 0, { 2 } }, { "body_follow_depth", 0, 0, { 0 } }, { "body_follow_offset", 0, 0, { 0, 12, 12 } },
                             { "body_source", 0, 0, { 4, 4, 1 } }, { "body_level", -16, -8 }, { "body_drive", 0.3f, 0.6f }, { "body_decay", 80, 200 },
                             { "body_tone", 2500, 6000 }, { "body_resonance", 0.f, 0.25f } };
+            // the mid resonance ~600-800 Hz before the drive: the refs have a peak there through the whole kick (owner 2026-11-12, "dopracuj")
             t[ATail]    = { { "tail_character", 0, 0, { 1, 2, 2 } }, { "tail_source", 0, 0, { 0, 2 } }, { "tail_drive", 0.55f, 0.85f }, { "tail_tone", 3000, 7000 },
-                            { "tail_resonance", 0.1f, 0.35f }, { "tail_mid_gain", 3, 7 }, { "tail_uni_voices", 1, 3 }, { "tail_decay", 600, 1000 },
+                            { "tail_resonance", 0.1f, 0.35f }, { "tail_mid_hz", 600, 800 }, { "tail_mid_gain", 8, 12 }, { "tail_uni_voices", 1, 3 }, { "tail_decay", 600, 1000 },
                             { "tail_room", 0.8f, 1.f }, { "tail_room_input", 0, 0, { 1 } }, { "tail_room_decay", 300, 500 }, { "tail_room_tone", 9000, 13000 },
                             { "tail_room_delay", 0, 0, { 0, 0, 150 } } };
-            t[ASub]     = { { "sub_level", -12, -6 }, { "sub_drive", 0.f, 0.2f }, { "sub_length", 300, 500 }, { "sub_amp_env_delay", 50, 100 }, { "sub_attack", 30, 60 } };
+            t[ASub]     = { { "sub_level", -12, -6 }, { "sub_drive", 0.f, 0.2f }, { "sub_length", 300, 500 }, { "sub_amp_env_delay", 90, 130 }, { "sub_attack", 30, 60 } };
             t[APitch]   = { { "pe_mode", 0, 0, { 0 } }, { "pe_start", 300, 520 }, { "pe_time", 50, 100 }, { "pe_curve", 0.15f, 0.4f } };
             t[ADrive]   = { { "tail_st2_type", 0, 0, { 1, 2, 3 } }, { "tail_st2_drive", 4, 12 }, { "master_clip_drive", 2, 6 } };
             t[AScreech] = { { "scr_on", 0, 0, { 0 } } };

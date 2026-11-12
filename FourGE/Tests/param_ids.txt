@@ -3568,3 +3568,8 @@ tail_room_decay
 tail_room_tone
 tail_room_input
 tail_room_delay
+tail_color_gain
+tail_color_freq
+tail_color_q
+tail_color_track
+tail_color_harm

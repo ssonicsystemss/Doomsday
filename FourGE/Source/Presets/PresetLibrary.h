@@ -22,12 +22,12 @@ namespace fge::lib
         juce::StringArray tags, userTags, modules, missing;   // tags = auto + user; modules = what it uses; missing = sample files not found
         juce::String key() const { return source == SrcFactory ? "F:" + name : "U:" + file.getFullPathName(); }
     };
-    inline const juce::StringArray& styleNames() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL" }; return a; }
+    inline const juce::StringArray& styleNames() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC" }; return a; }
     inline const juce::StringArray& lengthNames() { static const juce::StringArray a { "SHORT", "MEDIUM", "LONG", "EXTRA LONG" }; return a; }
     inline int lengthCategory (float ms) { return ms < 250.f ? 0 : ms <= 500.f ? 1 : ms <= 1000.f ? 2 : 3; }
     inline int styleFromName (const juce::String& n)
     {
-        for (int s = 0; s < 4; ++s) if (n.startsWithIgnoreCase (styleNames()[s])) return s;
+        for (int s = 0; s < styleNames().size(); ++s) if (n.startsWithIgnoreCase (styleNames()[s])) return s;
         return n.startsWithIgnoreCase ("CLASSIC") ? 0 : -1;
     }
     inline int indexOf (const juce::String& id) { for (int i = 0; i < P::count; ++i) if (id == def (i).id) return i; return -1; }

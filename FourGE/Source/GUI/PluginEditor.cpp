@@ -30,11 +30,12 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     const auto& c = palette();
     addAndMakeVisible (presetBar);
     // module 13: STYLE (always visible) - a click applies (KEEP MY CHANGES), a right-click = APPLY ALL / PREVIEW / FORGET
-    styleStrip.setTooltip ("STYLE: EARLY / MODERN / RAW / EXPERIMENTAL - a starting point for the character (generators, pitch drop, distortion chain, screech). "
+    styleStrip.setTooltip ("STYLE: EARLY / EUPHORIC / MODERN / RAW / EXPERIMENTAL - a starting point for the character (generators, pitch drop, distortion chain, screech). "
                            "It never changes the LENGTH and never locks a knob; your own changes are kept. Right-click: APPLY ALL / PREVIEW / FORGET MY CHANGES.");
     styleStrip.tipFor = [] (int i) { return fge::style::names()[i] + ": " + fge::style::description (i) + "  (right-click: APPLY ALL / PREVIEW / FORGET MY CHANGES)"; };
     styleStrip.onPick = [this] (int st) { chooseStyle (st, true); };
     styleStrip.onMenu = [this] (int) { styleMenu(); };
+    lengthStrip.emptyText = "SYNC";
     addAndMakeVisible (styleStrip);
     // module 14: LENGTH profiles (one click = one undo) + the ms button = the LENGTH panel
     lengthStrip.tipFor = [] (int i) { return "LENGTH " + fge::length::names()[i] + ": " + String (roundToInt (fge::length::profileMs (i))) + " ms with AUTO LENGTH (the parts scale with it) - independent of the STYLE"; };
@@ -86,6 +87,14 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             proc.setParamInUndoStep ("punch_pitch", 440.f * std::exp2 ((float) (m - 69) / 12.f));
         };
         addAndMakeVisible (tokNote);
+        for (int t = 0; t < 2; ++t)
+        {
+            detTab[t].setButtonText (t == 0 ? "TONE" : "ROOM / COLOR"); detTab[t].setClickingTogglesState (false);
+            detTab[t].setTooltip (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
+                                         : "TAIL ROOM (a room BEFORE the tail's distortion - the early / euphoric crackle) and TAIL COLOR (the EQ AFTER it: which harmonics stay).");
+            detTab[t].onClick = [this, t] { detailPage = t; layoutDetail(); repaint(); };
+            addChildComponent (detTab[t]);
+        }
     }
     // ---- the four parts: card (always visible) + detail (selected part) + mixer column
     const char* pre[4] { "punch", "body", "tail", "sub" };
@@ -140,11 +149,18 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (knob ("tail_st2_mix", "ST2 MIX", col));
             d.push_back (combo ("tail_start_mode"));                              // TOK -> TAIL: AFTER TOK / INDEPENDENT + TAIL START
             d.push_back (knob ("tail_start", "TAIL START", col));
+            d.push_back (&detailPageMark);                                        // 2nd tab: ROOM + COLOR
             d.push_back (knob ("tail_room", "ROOM", col));                         // EARLY: a room BEFORE the tail's distortion
             d.push_back (knob ("tail_room_decay", "ROOM DECAY", col));
             d.push_back (knob ("tail_room_tone", "ROOM TONE", col));
             d.push_back (knob ("tail_room_delay", "ROOM DELAY", col));
             d.push_back (combo ("tail_room_input"));
+            d.push_back (nullptr);
+            d.push_back (knob ("tail_color_gain", "COLOR", col, 40, true));         // TAIL COLOR: the EQ AFTER the tail's distortion (BOOM / GRRRAAANG / KRAAASH)
+            d.push_back (knob ("tail_color_freq", "COLOR HZ", col));
+            d.push_back (knob ("tail_color_harm", "HARMONIC", col));
+            d.push_back (knob ("tail_color_q", "COLOR Q", col));
+            d.push_back (combo ("tail_color_track"));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };
@@ -236,7 +252,7 @@ Component* GeCanvas::findControl (const String& id) { auto it = byId.find (id); 
 void GeCanvas::selectPart (int i)
 {
     selected = jlimit (0, 3, i);
-    for (int p = 0; p < 4; ++p) for (auto* c : detail[(size_t) p]) if (c != nullptr) c->setVisible (p == selected && pageIdx == 0);
+    for (int p = 0; p < 4; ++p) for (auto* c : detail[(size_t) p]) if (c != nullptr && c != &detailPageMark) c->setVisible (p == selected && pageIdx == 0);
     tokNote.setVisible (pageIdx == 0 && selected == 0);
     layoutDetail();
     repaint();
@@ -250,12 +266,13 @@ void GeCanvas::showPage (int i)
     {
         for (auto* c : card[(size_t) p]) c->setVisible (main);
         for (auto* c : mixer[(size_t) p]) c->setVisible (main);
-        for (auto* c : detail[(size_t) p]) if (c != nullptr) c->setVisible (main && p == selected);
+        for (auto* c : detail[(size_t) p]) if (c != nullptr && c != &detailPageMark) c->setVisible (main && p == selected);
     }
     for (auto* c : masterRow) c->setVisible (main);
     for (auto* c : pitchRow) c->setVisible (kick);
     header[5]->setVisible (kick);                                                    // PITCH TRACKING sits in the pitch engine
     tokNote.setVisible (main && selected == 0);
+    layoutDetail();
     envPage->setVisible (pageIdx == 1);
     oscPage->setVisible (pageIdx == 2);
     layerPage->setVisible (pageIdx == 3);
@@ -289,9 +306,9 @@ void GeCanvas::resized()
     headerArea = { 0, 0, W, 96 };
     presetBar.setBounds (W - 16 - 300, 5, 300, 90);
     // top bar: STYLE, LENGTH (+ the ms panel), the INFO LINE under them
-    styleStrip.setBounds (300, 28, 300, 30);
-    lengthStrip.setBounds (624, 28, 280, 30);
-    lengthBtn.setBounds (910, 28, 210, 30);
+    styleStrip.setBounds (300, 28, 220, 30);
+    lengthStrip.setBounds (540, 28, 170, 30);
+    lengthBtn.setBounds (722, 28, 210, 30);
     infoArea = { 300, 66, W - 16 - 300 - 300 - 14, 26 };
     // the navigation (left)
     nav.setBounds (16, Y0, navW - 16, CH);
@@ -374,9 +391,21 @@ void GeCanvas::layoutDetail()
     }
     if (selected == 0) tokNote.setBounds (x + 775, y + 1, 70, 24);
     y += 36;
+    // a 2nd tab (TAIL: ROOM / COLOR): the items after the marker share the rows of the first tab, one tab shown at a time
+    const bool tabs = std::find (d.begin(), d.end(), &detailPageMark) != d.end();
+    for (int t = 0; t < 2; ++t)
+    {
+        detTab[t].setVisible (tabs && pageIdx == 0);
+        detTab[t].setBounds (detailArea.getRight() - 14 - (2 - t) * 112, detailArea.getY() + 6, 108, 22);
+        detTab[t].setColour (TextButton::buttonColourId, t == detailPage ? palette().red.withAlpha (0.5f) : palette().control);
+    }
+    const int y0 = y;
+    int tab = 0;
     for (int i = 0; k < d.size(); ++k)
     {
+        if (d[k] == &detailPageMark) { tab = 1; y = y0; i = 0; continue; }
         if (d[k] == nullptr) { y += Knob::heightFor (40) + 6; i = 0; continue; }       // row break
+        if (tabs) d[k]->setVisible (pageIdx == 0 && tab == detailPage);
         if (dynamic_cast<ComboBox*> (d[k]) != nullptr) { d[k]->setBounds (x + i * 76, y + 22, 150, 26); i += 2; continue; }
         d[k]->setBounds (x + i * 76, y, 74, Knob::heightFor (40));
         ++i;
@@ -481,11 +510,18 @@ void GeCanvas::paintMain (Graphics& g, const std::function<void (Rectangle<int>,
     g.drawText ("MASTER CLIP", mixerArea.getX() + 12, mixerArea.getBottom() - 100, 200, 14, Justification::left);
     g.setColour (c.textDim); g.setFont (lnf.font (9.5f, doomsday::flat::Medium));
     g.drawFittedText ("the SUB goes\naround it", mixerArea.getX() + 12, mixerArea.getBottom() - 70, 76, 30, Justification::topLeft, 2);
-    if (selected == 2) if (auto* cb = findControl ("tail_st2_type"))
+    if (selected == 2) if (auto* cb = findControl ("tail_st2_type"); cb != nullptr && cb->isVisible())
     {
         g.setColour (c.textDim); g.setFont (lnf.font (10.5f, doomsday::flat::Bold, 0.06f));
         g.drawText ("STAGE 2", cb->getX(), cb->getY() - 18, 150, 14, Justification::left);
     }
+    if (selected == 2)
+        for (auto [id, t] : std::initializer_list<std::pair<const char*, const char*>> { { "tail_room_input", "ROOM INPUT" }, { "tail_color_track", "COLOR MODE" }, { "tail_start_mode", "TAIL START" } })
+            if (auto* cb = findControl (id); cb != nullptr && cb->isVisible())
+            {
+                g.setColour (c.textDim); g.setFont (lnf.font (10.5f, doomsday::flat::Bold, 0.06f));
+                g.drawText (t, cb->getX(), cb->getY() - 18, 150, 14, Justification::left);
+            }
 }
 
 void GeCanvas::updateEnabled()
@@ -517,6 +553,11 @@ void GeCanvas::updateEnabled()
     en ("punch_note_offset", tok && nMode == 2);
     en ("tail_start", tok && (int) raw (proc, P::tailStartMode) == 1);
     for (auto* id : { "tail_room_decay", "tail_room_tone", "tail_room_delay", "tail_room_input" }) en (id, raw (proc, P::tailRoom) > 0.001f);
+    {
+        const bool col = std::abs (raw (proc, P::tailColorGain)) > 0.05f, trk = (int) raw (proc, P::tailColorTrack) == 1;
+        for (auto* id : { "tail_color_q", "tail_color_track" }) en (id, col);
+        en ("tail_color_freq", col && ! trk); en ("tail_color_harm", col && trk);
+    }
     en ("punch_glide", ! tok || std::abs (raw (proc, P::punchTokBend)) > 0.01f);   // TOK: GLIDE = the time of its BEND
     if (auto* lk = dynamic_cast<Knob*> (card[0][2])) lk->setLabel (tok ? "TOK LENGTH" : "LENGTH");
     const bool tr = raw (proc, P::punchTrLevel) > 0.001f;

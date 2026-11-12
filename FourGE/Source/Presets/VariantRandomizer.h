@@ -1,7 +1,7 @@
 #pragma once
 // =====================================================================
 //  4GE module 09 (6) - the VARIANT RANDOMIZER (message thread only: tools / presets, never the audio thread, never GUI code)
-//   STYLE   EARLY (2 patterns: CLASSIC 2004-08 = 909 punch + room + drive / EUPHORIC 2009-12 = short tok, dense driven tail) / MODERN (dirty, controlled) / RAW (scream / metal / buzz / crush,
+//   STYLE   EARLY 2004-08 (909 punch + room + drive) / EUPHORIC 2009-12 (short tok with a driven pitch drop, melodic driven tail) / MODERN (dirty, controlled) / RAW (scream / metal / buzz / crush,
 //           a lot of drive) / EXPERIMENTAL (everything) - every style has its own MUSICAL ranges per area (owner: RULES.md 5).
 //   SCOPE   FULL KICK or one area (PUNCH / BODY / TAIL / SUB / PITCH / DRIVE / SCREECH);  LOCK = areas that never change.
 //   AMOUNT  100 % = a new value inside the style's range, less = a step from the current value toward it (a variation).
@@ -14,9 +14,9 @@
 
 namespace fge::variant
 {
-    enum Style { Early = 0, Modern, Raw, Experimental, NumStyles };
+    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, NumStyles };
     enum Area { APunch = 0, ABody, ATail, ASub, APitch, ADrive, AScreech, NumAreas };
-    inline const juce::StringArray& styleNames() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL" }; return a; }
+    inline const juce::StringArray& styleNames() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC" }; return a; }
     inline const juce::StringArray& areaNames()  { static const juce::StringArray a { "PUNCH", "BODY", "TAIL", "SUB", "PITCH", "DRIVE", "SCREECH" }; return a; }
     inline const juce::StringArray& scopeNames() { static const juce::StringArray a { "FULL KICK", "PUNCH", "BODY", "TAIL", "SUB", "PITCH", "DRIVE", "SCREECH" }; return a; }
 
@@ -27,19 +27,50 @@ namespace fge::variant
         int seed = 1;
         uint32_t locks = 0;                   // bit = Area
         bool routing = false;
-        int pattern = 0;                      // EARLY only: 0 AUTO (one of the two per randomize) / 1 CLASSIC (2004-08) / 2 EUPHORIC (2009-12)
     };
-    inline const juce::StringArray& earlyPatternNames() { static const juce::StringArray a { "EARLY: AUTO", "EARLY: CLASSIC 2004-08", "EARLY: EUPHORIC 2009-12" }; return a; }
     // a range: a float [lo, hi], or (choices non-empty) one of the listed choice indices
     struct R { const char* id; float lo, hi; std::vector<int> choices {}; };
     using Table = std::array<std::vector<R>, NumAreas>;
 
+    // ---- EUPHORIC 2009-12 (its own style since 2026-11-12, was an EARLY pattern) (Wildstylez / Headhunterz / Brennan Heart / Noisecontrollers; owner 2026-11-12).
+    //      Measured on the owner's refs (Wildstylez "Unleash The Beast", Noisecontrollers WS BD, Zatox "Wakanda"): a SHORT tonal tok
+    //      ~520-700 Hz for ~20 ms, a fast drop to the note in 60-100 ms, the bass late (~100-130 ms, weak under the tok), a dense,
+    //      well-driven tail that is the loudest part and holds (flat, "gated"), a room in the drive (the reverb kicks of that time).
+    inline const Table& euphoricTable()
+    {
+        // ranges around the EUPHORIC template (band matched to Wildstylez / Noisecontrollers / Zatox, owner 2026-11-12); never RAW: no screech,
+        // CLEAN / TONAL / DIRTY only, moderate drive, the sub present, the colour from TAIL COLOR (KEY TRACK, harmonics 12-18)
+        static const Table x = []
+        {
+            Table t;
+            t[APunch]   = { { "punch_mode", 0, 0, { 1 } }, { "punch_note_mode", 0, 0, { 1 } }, { "punch_source", 0, 0, { 0, 0, 1 } }, { "punch_pitch", 587, 784 },
+                            { "punch_length", 15, 30 }, { "punch_level", -11, -7 }, { "punch_drive", 0.7f, 0.95f }, { "punch_tok_decay", -4, 0 },
+                            { "punch_tok_bend", 8, 14 }, { "punch_glide", 5, 12 }, { "punch_transient", 0.2f, 0.45f }, { "punch_overlap", 6, 12 }, { "tail_start_mode", 0, 0, { 0 } },
+                            { "noiseB_on", 0, 0, { 1 } }, { "noiseB_type", 0, 0, { 0 } }, { "noiseB_env", 0, 0, { 0 } }, { "noiseB_attack", 0.1f, 0.4f },
+                            { "noiseB_decay", 250, 350 }, { "noiseB_length", 500, 650 }, { "noiseB_level", 0, 0 }, { "noiseB_to_punch", -3, 3 },
+                            { "noiseB_to_tail", -6, 0 }, { "noiseB_to_texture", -60, -60 }, { "noiseB_filter", 0, 0, { 0 } }, { "noiseB_cutoff", 2500, 3500 } };
+            t[ABody]    = { { "body_link", 0, 0, { 1 } }, { "body_link_source", 0, 0, { 2 } }, { "body_follow_depth", 0, 0, { 0 } }, { "body_follow_offset", 0, 0, { 0, 0, 12 } },
+                            { "body_source", 0, 0, { 1, 1, 2 } }, { "body_level", -11, -6 }, { "body_drive", 0.35f, 0.6f }, { "body_decay", 80, 140 },
+                            { "body_tone", 2000, 4000 }, { "body_resonance", 0.f, 0.25f } };
+            t[ATail]    = { { "tail_character", 0, 0, { 0, 1, 1 } }, { "tail_source", 0, 0, { 0, 0, 1 } }, { "tail_drive", 0.55f, 0.75f }, { "tail_tone", 6000, 10000 },
+                            { "tail_resonance", 0.05f, 0.3f }, { "tail_mid_hz", 800, 1000 }, { "tail_mid_gain", 4, 8 }, { "tail_uni_voices", 1, 3 }, { "tail_decay", 600, 1000 },
+                            { "tail_room", 0.5f, 0.8f }, { "tail_room_input", 0, 0, { 1 } }, { "tail_room_decay", 300, 450 }, { "tail_room_tone", 7000, 11000 },
+                            { "tail_room_delay", 0, 0, { 0, 0, 0, 150 } },
+                            { "tail_color_gain", 8, 12 }, { "tail_color_track", 0, 0, { 1 } }, { "tail_color_harm", 0, 0, { 12, 14, 16, 16, 18 } }, { "tail_color_q", 1.5f, 3.f } };
+            t[ASub]     = { { "sub_level", -7, -3 }, { "sub_drive", 0.f, 0.2f }, { "sub_length", 300, 500 }, { "sub_amp_env_delay", 20, 40 }, { "sub_attack", 20, 40 } };
+            t[APitch]   = { { "pe_mode", 0, 0, { 0 } }, { "pe_start_mode", 0, 0, { 0 } }, { "pe_time", 80, 120 }, { "pe_curve", 0.2f, 0.4f } };
+            t[ADrive]   = { { "tail_st2_type", 0, 0, { 0, 0, 1, 3 } }, { "tail_st2_drive", 2, 6 }, { "master_clip_drive", 1, 4 } };
+            t[AScreech] = { { "scr_on", 0, 0, { 0 } } };
+            return t;
+        }();
+        return x;
+    }
     inline const Table& table (int style)
     {
         static const std::array<Table, NumStyles> t = []
         {
             std::array<Table, NumStyles> x;
-            // ---- EARLY (pattern CLASSIC 2004-08): a 909-like PUNCH (no tonal tok), a room before the drive, melodic body, clear pitch drop
+            // ---- EARLY 2004-08: a 909-like PUNCH (no tonal tok), a room before the drive, melodic body, clear pitch drop
             x[Early][APunch]   = { { "punch_mode", 0, 0, { 0 } }, { "punch_source", 0, 0, { 0, 1 } }, { "punch_pitch", 600, 1600 }, { "punch_glide", 2, 8 }, { "punch_level", -6, -1 }, { "punch_drive", 0.f, 0.5f }, { "punch_length", 15, 50 } };
             x[Early][ABody]    = { { "body_link", 0, 0, { 1 } }, { "body_link_source", 0, 0, { 2 } }, { "body_follow_depth", 0, 0, { 0 } }, { "body_follow_offset", 0, 0, { 0, 0, 12 } },
                                    { "body_source", 0, 0, { 0, 1, 2 } }, { "body_level", -14, -6 }, { "body_drive", 0.1f, 0.45f }, { "body_decay", 80, 200 },
@@ -84,44 +115,10 @@ namespace fge::variant
             x[Experimental][APitch]   = { { "pe_mode", 0, 0, { 0, 1, 2, 3, 4, 5 } }, { "pe_start", 150, 700 }, { "pe_time", 20, 250 }, { "pe_curve", 0.f, 0.8f } };
             x[Experimental][ADrive]   = { { "tail_st2_type", 0, 0, { 0, 1, 2, 3, 4, 5, 6 } }, { "tail_st2_drive", 0, 24 }, { "tail_st2_bias", -0.5f, 0.5f }, { "master_clip_drive", 0, 12 } };
             x[Experimental][AScreech] = { { "scr_on", 0, 0, { 0, 1 } }, { "scr_level", -18, -4 } };
+            x[Euphoric] = euphoricTable();
             return x;
         }();
         return t[(size_t) juce::jlimit (0, NumStyles - 1, style)];
-    }
-    // ---- EARLY pattern EUPHORIC 2009-12 (Wildstylez / Headhunterz / Brennan Heart / Noisecontrollers; owner 2026-11-12).
-    //      Measured on the owner's refs (Wildstylez "Unleash The Beast", Noisecontrollers WS BD, Zatox "Wakanda"): a SHORT tonal tok
-    //      ~520-700 Hz for ~20 ms, a fast drop to the note in 60-100 ms, the bass late (~100-130 ms, weak under the tok), a dense,
-    //      well-driven tail that is the loudest part and holds (flat, "gated"), a room in the drive (the reverb kicks of that time).
-    inline const Table& earlyEuphoric()
-    {
-        static const Table x = []
-        {
-            Table t;
-            t[APunch]   = { { "punch_mode", 0, 0, { 1 } }, { "punch_note_mode", 0, 0, { 0 } }, { "punch_source", 0, 0, { 0, 1 } }, { "punch_pitch", 520, 740 },
-                            { "punch_length", 8, 15 }, { "punch_level", -7, -3 }, { "punch_drive", 0.2f, 0.4f }, { "punch_tok_decay", -4, 0 },
-                            { "punch_transient", 0.2f, 0.6f }, { "punch_overlap", 4, 10 }, { "tail_start_mode", 0, 0, { 0 } },
-                            // the tok is a CRACK, not a beep (owner 2026-11-12: "piep -> trzask"): pink noise on its own short envelope
-                            // into the tok (it goes through the tok's distortion) - measured: refs flatness -9..-11 dB, a clean tok -19 dB
-                            { "noiseB_on", 0, 0, { 1 } }, { "noiseB_type", 0, 0, { 0 } }, { "noiseB_env", 0, 0, { 0 } }, { "noiseB_attack", 0.1f, 0.4f },
-                            // (owner, same day: "still not a crack") the noise rides the whole start into the tail, the tok goes through the room
-                            // too and the drive eats both = the crackle on the wave (refs flatness -4 dB at 30-150 ms)
-                            { "noiseB_decay", 200, 300 }, { "noiseB_length", 500, 650 }, { "noiseB_level", 0, 0 }, { "noiseB_to_punch", 9, 12 },
-                            { "noiseB_to_tail", 0, 4 }, { "noiseB_to_body", -3, 0 }, { "noiseB_to_texture", -60, -60 }, { "noiseB_filter", 0, 0, { 0 } }, { "noiseB_cutoff", 3000, 4500 } };
-            t[ABody]    = { { "body_link", 0, 0, { 1 } }, { "body_link_source", 0, 0, { 2 } }, { "body_follow_depth", 0, 0, { 0 } }, { "body_follow_offset", 0, 0, { 0, 12, 12 } },
-                            { "body_source", 0, 0, { 4, 4, 1 } }, { "body_level", -16, -8 }, { "body_drive", 0.3f, 0.6f }, { "body_decay", 80, 200 },
-                            { "body_tone", 2500, 6000 }, { "body_resonance", 0.f, 0.25f } };
-            // the mid resonance ~600-800 Hz before the drive: the refs have a peak there through the whole kick (owner 2026-11-12, "dopracuj")
-            t[ATail]    = { { "tail_character", 0, 0, { 1, 2, 2 } }, { "tail_source", 0, 0, { 0, 2 } }, { "tail_drive", 0.55f, 0.85f }, { "tail_tone", 3000, 7000 },
-                            { "tail_resonance", 0.1f, 0.35f }, { "tail_mid_hz", 600, 800 }, { "tail_mid_gain", 8, 12 }, { "tail_uni_voices", 1, 3 }, { "tail_decay", 600, 1000 },
-                            { "tail_room", 0.8f, 1.f }, { "tail_room_input", 0, 0, { 1 } }, { "tail_room_decay", 300, 500 }, { "tail_room_tone", 9000, 13000 },
-                            { "tail_room_delay", 0, 0, { 0, 0, 150 } } };
-            t[ASub]     = { { "sub_level", -12, -6 }, { "sub_drive", 0.f, 0.2f }, { "sub_length", 300, 500 }, { "sub_amp_env_delay", 90, 130 }, { "sub_attack", 30, 60 } };
-            t[APitch]   = { { "pe_mode", 0, 0, { 0 } }, { "pe_start", 300, 520 }, { "pe_time", 50, 100 }, { "pe_curve", 0.15f, 0.4f } };
-            t[ADrive]   = { { "tail_st2_type", 0, 0, { 1, 2, 3 } }, { "tail_st2_drive", 4, 12 }, { "master_clip_drive", 2, 6 } };
-            t[AScreech] = { { "scr_on", 0, 0, { 0 } } };
-            return t;
-        }();
-        return x;
     }
 
     // ---- settings in the state (root properties: saved with the project, not automatable)
@@ -132,7 +129,6 @@ namespace fge::variant
         s.style = juce::jlimit (0, NumStyles - 1, (int) t.getProperty ("vrStyle", (int) Modern)); s.scope = juce::jlimit (0, (int) NumAreas, (int) t.getProperty ("vrScope", 0));
         s.amount = juce::jlimit (0.f, 1.f, (float) (double) t.getProperty ("vrAmount", 1.0)); s.seed = (int) t.getProperty ("vrSeed", 1);
         s.locks = (uint32_t) (int) t.getProperty ("vrLocks", 0); s.routing = (bool) t.getProperty ("vrRouting", false);
-        s.pattern = juce::jlimit (0, 2, (int) t.getProperty ("vrPattern", 0));
         return s;
     }
     inline void save (GeProcessor& p, const Settings& s)
@@ -140,7 +136,6 @@ namespace fge::variant
         auto t = p.apvts.state;
         t.setProperty ("vrStyle", s.style, nullptr); t.setProperty ("vrScope", s.scope, nullptr); t.setProperty ("vrAmount", s.amount, nullptr);
         t.setProperty ("vrSeed", s.seed, nullptr); t.setProperty ("vrLocks", (int) s.locks, nullptr); t.setProperty ("vrRouting", s.routing, nullptr);
-        t.setProperty ("vrPattern", s.pattern, nullptr);
     }
 
     inline double kickRms (GeProcessor& p)
@@ -162,11 +157,7 @@ namespace fge::variant
         // remember the starting values of everything the randomizer may touch
         auto snap = std::make_unique<juce::XmlElement> ("START");
         juce::Random rng ((juce::int64) s.seed * 7919 + 13);
-        // EARLY: two patterns - CLASSIC 2004-08 / EUPHORIC 2009-12 (AUTO = one of them, from the seed)
-        int pat = 0;
-        if (s.style == Early) { const float d = rng.nextFloat(); pat = s.pattern != 0 ? s.pattern : (d < 0.5f ? 1 : 2); }
-        const auto& tb = pat == 2 ? earlyEuphoric() : table (s.style);
-        p.apvts.state.setProperty ("vrLastPattern", pat, nullptr);
+        const auto& tb = table (s.style);
         juce::StringArray touched;
         for (auto& area : tb) for (auto& r : area) touched.addIfNotAlreadyThere (r.id);
         touched.add ("core_master");

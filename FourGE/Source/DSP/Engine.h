@@ -24,6 +24,7 @@
 #include "DoomsdayKick.h"
 #include "../Parameters/ParamFrame.h"
 #include "Tone/Room.h"
+#include "Tone/TailColor.h"
 #include <array>
 #include <atomic>
 
@@ -46,7 +47,8 @@ namespace fge
         bool startFixed = false;                  // the TOK (pitch START) at a fixed pitch (owner 2026-11-09)
         bool tokMode = false, tokFixed = true;    // PUNCH / TOK -> TAIL: the punch is the tok (its own note), the tail starts after it
         float tokHz = 400.f, tailStartMs = 0.f, tokOverlapMs = 4.f;
-        dsp::room::Settings room;                 // the TAIL room before its distortion (EARLY, owner 2026-11-12)
+        dsp::room::Settings room;
+        dsp::color::Settings color;               // TAIL COLOR after the tail's distortion (owner 2026-11-12)                 // the TAIL room before its distortion (EARLY, owner 2026-11-12)
         int tokNoteMode = 0;                      // 0 FIXED / 1 FOLLOW MIDI / 2 OFFSET (the played note + tokOffsetMul)
         float tokOffsetMul = 2.f, tokEndMs = 0.f, tokDecayDb = 0.f, tokBendSt = 0.f, tokGlideMs = 10.f;   // (owner 2026-11-10)
         float startHz = 220.f, endHz0 = 49.f, startAmountSt = 0.f, tailPAmt = 1.f;
@@ -393,7 +395,7 @@ namespace fge
             m06St->reset(); scrEng.reset(); toneSt->reset(); dynSt->reset();
             limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
             muteG = 1.f;
-            tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor);
+            tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor); tailColor.reset();
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -740,6 +742,8 @@ namespace fge
             cfg.width = f[P::tailWidth];
             cfg.room.mix = f[P::tailRoom]; cfg.room.on = cfg.room.mix > 0.001f;
             cfg.room.t60Ms = f[P::tailRoomDecay]; cfg.room.tone = f[P::tailRoomTone];
+            cfg.color.gainDb = f[P::tailColorGain]; cfg.color.on = std::abs (cfg.color.gainDb) > 0.05f;
+            cfg.color.freq = f[P::tailColorFreq]; cfg.color.q = f[P::tailColorQ]; cfg.color.track = f.idx (P::tailColorTrack) == 1; cfg.color.harm = f[P::tailColorHarm];
             cfg.room.delayMs = f[P::tailRoomDelay]; cfg.room.onTok = f.idx (P::tailRoomInput) == 1;
             cfg.wide = tx.uniVoices > 1 && cfg.width > 0.001f;
             cfg.widthSplit = svfCoefs (f[P::tailWidthFrom], 1.414f, rate);
@@ -1007,6 +1011,8 @@ namespace fge
                 const bool roomHere = cfg.room.on && (c == 2 || (c == 0 && cfg.room.onTok));
                 auto* room = c == 0 ? tokRoom.get() : tailRoom.get();
                 if (roomHere) room->cook (cfg.room);
+                const bool colorHere = c == 2 && cfg.color.on;
+                if (colorHere) tailColor.cook (cfg.color, cfg.keyTrack ? lastNoteHz * cfg.fineMul : cfg.endHz * cfg.fineMul, cfg.ks.rate);
                 float p = 0.f;
                 for (int i = 0; i < on; ++i)
                 {
@@ -1033,6 +1039,7 @@ namespace fge
                         yl = distChain[(size_t) (c + 1) * 2].process (cfg.dist, c + 1, yl, mc, cfg.ks.rate);
                         yr = distChain[(size_t) (c + 1) * 2 + 1].process (cfg.dist, c + 1, yr, mc, cfg.ks.rate);
                     }
+                    if (colorHere) tailColor.process (yl, yr);                        // TAIL COLOR: after the tail's distortion
                     if (m6 && cfg.m06.at (c + 1, 1)) m06St->process (cfg.m06, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 AFTER
                     if (m7 && cfg.tone.at (c + 1, 1)) toneSt->process (cfg.tone, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 AFTER
                     if (m8 && cfg.dyn.at (c + 1, 1)) dynSt->process (cfg.dyn, c + 1, 1, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 AFTER
@@ -1206,6 +1213,7 @@ namespace fge
         std::unique_ptr<dsp::tone::State> toneSt = std::make_unique<dsp::tone::State>(); // module 07 at engine level (not the layers)
         std::unique_ptr<dsp::dyn::State> dynSt = std::make_unique<dsp::dyn::State>();    // module 08 at engine level (not the layers)
         std::unique_ptr<dsp::room::Room> tailRoom = std::make_unique<dsp::room::Room>();
+        dsp::color::TailColor tailColor;
         std::unique_ptr<dsp::room::Room> tokRoom = std::make_unique<dsp::room::Room>();     // TOK + TAIL: the same room on the punch bus
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};

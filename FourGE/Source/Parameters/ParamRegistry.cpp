@@ -96,6 +96,7 @@ namespace fge
         const juce::StringArray& tokModes()       { static const juce::StringArray a { "FOLLOW MIDI", "FIXED" }; return a; }
         const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK" }; return a; }
         const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "OFFSET" }; return a; }
+        const juce::StringArray& colorTracks() { static const juce::StringArray a { "HZ", "KEY TRACK" }; return a; }
         const juce::StringArray& roomInputs() { static const juce::StringArray a { "TAIL", "TOK + TAIL" }; return a; }
         const juce::StringArray& tailStartModes() { static const juce::StringArray a { "AFTER TOK", "INDEPENDENT" }; return a; }
         const juce::StringArray& noteCutModes()   { static const juce::StringArray a { "LENGTH", "NOTE", "NOTE + FX" }; return a; }
@@ -249,6 +250,11 @@ namespace fge
             case tailRoomTone: return "The room's brightness: low = a dark, warm room; high = a bright, metallic one.";
             case tailRoomInput: return "TAIL: the room only on the tail. TOK + TAIL: the tok goes through the room too, before its distortion - the drive turns the room into the crackle of the euphoric kicks (2009-12).";
             case tailRoomDelay: return "The room starts this much later (a pre-delay): 0 = with the hit; 150-300 ms = it comes in mid-beat (a bouncing, gated tail).";
+            case tailColorGain: return "TAIL COLOR: an EQ AFTER the tail's distortion - it picks which harmonics stay. Low = BOOOM, ~300-600 Hz = GRRRAAANG, high = KRAAASH. 0 dB = off.";
+            case tailColorFreq: return "Where the TAIL COLOR boosts (HZ mode).";
+            case tailColorQ:   return "How narrow the TAIL COLOR is: high = one harmonic, a resonant / metallic ring; low = a wide colour.";
+            case tailColorTrack: return "HZ: a fixed frequency. KEY TRACK: the boost follows the played note (HARMONIC x note) - the same colour on every note of a bass line.";
+            case tailColorHarm: return "KEY TRACK: which harmonic of the note is boosted (e.g. 8 on a 60 Hz note = 480 Hz).";
             case peStartMode:  return "START of the tail drop: FIXED = the same pitch on every MIDI note; FOLLOW MIDI = moves with the played note. The tail still lands on the played note. (The tok itself = PUNCH in TOK mode.)";
             case peEnd:        return "Where the pitch lands. With PITCH TRACKING on, the played note sets it.";
             case peTime:       return "How long the pitch takes to land.";

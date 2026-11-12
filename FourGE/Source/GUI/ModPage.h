@@ -74,7 +74,7 @@ namespace fge::gui
         juce::TextButton storeA { "STORE A" }, storeB { "STORE B" }, rndGo { "RANDOMIZE" }, rndRegen { "REGENERATE" }, macroLearn { "LEARN" };
         std::array<juce::TextButton, 4> ccLearn;
         std::array<juce::TextButton, 7> lockBtn;
-        juce::ComboBox styleBox, scopeBox, macroBox, patternBox;
+        juce::ComboBox styleBox, scopeBox, macroBox;
         juce::Slider amountSl, seedSl;
         juce::ToggleButton routingTg { "ROUTING (a few LFO / SEQ / RANDOM connections)" };
         void loadVariant();

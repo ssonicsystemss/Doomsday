@@ -11,7 +11,7 @@ namespace fge::gui
         search.setTextToShowWhenEmpty ("search: name, tag, notes...", c.textDim);
         search.onTextChange = [this] { apply(); };
         search.setTooltip ("Every word must be in the name, the tags or the notes.");
-        styleBox.addItem ("ALL STYLES", 1); for (int s = 0; s < 4; ++s) styleBox.addItem (fge::lib::styleNames()[s], s + 2);
+        styleBox.addItem ("ALL STYLES", 1); for (int s = 0; s < fge::lib::styleNames().size(); ++s) styleBox.addItem (fge::lib::styleNames()[s], s + 2);
         lengthBox.addItem ("ALL LENGTHS", 1); for (int s = 0; s < 4; ++s) lengthBox.addItem (fge::lib::lengthNames()[s], s + 2);
         sourceBox.addItemList ({ "ALL", "FACTORY", "USER", "FAVORITES", "RECENT" }, 1);
         tagBox.addItem ("ALL TAGS", 1);
@@ -208,7 +208,7 @@ namespace fge::gui
         g.drawText (e->source == fge::lib::SrcFactory ? "FACTORY" : "USER", 310, 0, 70, h, Justification::centredLeft);
         g.drawText (e->style >= 0 ? fge::lib::styleNames()[e->style] : String ("-"), 380, 0, 100, h, Justification::centredLeft);
         g.drawText (fge::lib::lengthNames()[e->lengthCat] + " " + String (roundToInt (e->lengthMs)), 480, 0, 120, h, Justification::centredLeft);
-        StringArray t (e->tags); for (auto* x : { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "SHORT", "MEDIUM", "LONG", "EXTRA LONG" }) t.removeString (x);
+        StringArray t (e->tags); for (auto* x : { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "SHORT", "MEDIUM", "LONG", "EXTRA LONG" }) t.removeString (x);
         g.setColour (e->missing.isEmpty() ? c.textDim : c.hot);
         g.drawText (t.joinIntoString ("  "), 600, 0, w - 640, h, Justification::centredLeft, true);
         const bool fav = bar.isFavourite (e->name);

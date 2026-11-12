@@ -42,6 +42,7 @@ public:
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
     void selectPart (int);
+    void tailTab (int t) { detailPage = juce::jlimit (0, 1, t); layoutDetail(); repaint(); }
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
@@ -90,7 +91,7 @@ public:
     juce::Component& styleSelector() { return styleStrip; }
     // module 14: LENGTH in the header (always visible) - a panel with the profiles, SYNC, AUTO LENGTH and how each part follows
     juce::TextButton& lengthButton() { return lengthBtn; }
-    fge::gui::ChoiceStrip& lengthProfiles() { return lengthStrip; }
+    fge::gui::ChoiceDrop& lengthProfiles() { return lengthStrip; }
     juce::Component* openLengthPanel();                              // (tests: the panel's content)
 private:
     void timerCallback() override;
@@ -145,13 +146,18 @@ private:
     std::unique_ptr<fge::gui::SettingsPage> setPg;                    // module 17 (page 14)
     fge::ui::Settings uiSet;
     fge::gui::NavBar nav;
-    fge::gui::ChoiceStrip styleStrip { { "EARLY", "MODERN", "RAW", "EXP" } }, lengthStrip { { "SHORT", "MEDIUM", "LONG", "XL" } };
+    // STYLE / LENGTH = drop-down lists (owner 2026-11-12); STYLE is listed in time order, the ids stay (EUPHORIC = 4, appended)
+    fge::gui::ChoiceDrop styleStrip { { "EARLY  2004-08", "EUPHORIC  2009-12", "MODERN", "RAW", "EXPERIMENTAL" }, { 0, 4, 1, 2, 3 } },
+                         lengthStrip { { "SHORT", "MEDIUM", "LONG", "EXTRA LONG" } };
     juce::String infoText;
     juce::Rectangle<int> infoArea, globalArea;
     std::vector<std::pair<int, int>> activeParams;                    // (page, parameter) the "on" switches behind the navigation dots
     void knobValueMenu (doomsday::flat::Knob&, juce::PopupMenu&);
     void applyTooltips();
     juce::ComboBox tokNote;                                          // TOK NOTE: sets START to a note (owner 2026-11-09)
+    juce::Component detailPageMark;                                 // (a marker in a part's detail list: the items after it = the 2nd tab)
+    juce::TextButton detTab[2];                                      // TAIL detail tabs: TONE / ROOM + COLOR (owner 2026-11-12)
+    int detailPage = 0;
     void syncTokNote();
 public:
     juce::ComboBox& tokNoteBox() { return tokNote; }

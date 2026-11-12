@@ -220,6 +220,12 @@ int main (int argc, char** argv)
         ge->canvas.showPage (0); ge->canvas.selectPart (0);
         { PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
           FileOutputStream os (File (argv[1]).getChildFile ("page00_punch.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); } }
+        for (int t = 0; t < 2; ++t)                                                         // TAIL: the TONE and ROOM / COLOR tabs
+        {
+            ge->canvas.selectPart (2); ge->canvas.tailTab (t);
+            PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os (File (argv[1]).getChildFile ("page00_tail" + String (t) + ".png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+        }
         return 0;
     }
     if (argc > 3 && String (argv[2]) == "--presetlab")                        // factory preset work: render + analyse + compare + C++ line
@@ -1066,6 +1072,8 @@ int main (int argc, char** argv)
                     { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); set2 ("punch_length", 110.f); set2 ("punch_sustain", 1.f); }
                 if (sid == "tail_start") set2 ("tail_start_mode", 1.f);
                 if (sid == "tail_room_decay" || sid == "tail_room_tone" || sid == "tail_room_delay" || sid == "tail_room_input") set2 ("tail_room", 0.6f);
+                if (sid == "tail_color_freq" || sid == "tail_color_q" || sid == "tail_color_track" || sid == "tail_color_harm") { set2 ("tail_color_gain", 12.f); set2 ("tail_drive", 0.7f); }
+                if (sid == "tail_color_harm") set2 ("tail_color_track", 1.f);
                 if (sid == "tail_room_input") { set2 ("punch_mode", 1.f); set2 ("punch_length", 60.f); set2 ("punch_sustain", 1.f); }
                 if (sid == "punch_note_offset") set2 ("punch_note_mode", 2.f);
                 if (sid == "punch_transient_len" || sid == "punch_transient_tone") set2 ("punch_transient", 1.f);                                  // (FIXED = FOLLOW when the note is END)                  // module 14: the parts only follow a changed LENGTH
@@ -2617,13 +2625,10 @@ int main (int argc, char** argv)
             bool early = true, raw = true;
             for (int sd = 1; sd <= 6; ++sd)
             {
-                const auto e = run (fge::variant::Early, sd), r = run (fge::variant::Raw, sd);
-                // EARLY = 2 patterns (owner 2026-11-12): CLASSIC (a PUNCH, little drive, a room) / EUPHORIC 2009-12 (a short TOK, more drive)
-                GeProcessor pe; fge::variant::Settings ve; ve.style = fge::variant::Early; ve.seed = sd; fge::variant::save (pe, ve); fge::variant::apply (pe, ve);
-                const int pat = (int) pe.apvts.state.getProperty ("vrLastPattern", 0); const auto ee = pe.frame();
-                early &= ee.idx (P::tailChar) <= 2 && ! ee.on (P::scrOn) && e[P::tailDrive] == ee[P::tailDrive]
-                         && (pat == 1 ? ee.idx (P::punchMode) == 0 && ee[P::tailDrive] <= 0.501f && ee[P::tailRoom] >= 0.199f
-                                      : pat == 2 && ee.idx (P::punchMode) == 1 && ee[P::punchLen] <= 30.01f && ee[P::tailDrive] <= 0.851f);
+                const auto e = run (fge::variant::Early, sd), r = run (fge::variant::Raw, sd), eu = run (fge::variant::Euphoric, sd);
+                // EARLY 2004-08: a PUNCH, little drive, a room / EUPHORIC 2009-12 (its own style, owner 2026-11-12): a short TOK, a driven melodic tail
+                early &= e.idx (P::tailChar) <= 2 && ! e.on (P::scrOn) && e.idx (P::punchMode) == 0 && e[P::tailDrive] <= 0.501f && e[P::tailRoom] >= 0.199f
+                         && eu.idx (P::tailChar) <= 2 && ! eu.on (P::scrOn) && eu.idx (P::punchMode) == 1 && eu[P::punchLen] <= 30.01f && eu[P::tailDrive] <= 0.851f;
                 raw &= r.idx (P::tailChar) >= 3 && r[P::tailDrive] >= 0.649f;
             }
             const auto a = run (fge::variant::Modern, 42), b = run (fge::variant::Modern, 42), c = run (fge::variant::Modern, 43);
@@ -3190,8 +3195,9 @@ int main (int argc, char** argv)
                                                                                                                           : v >= def (i).min - 1e-3f && v <= def (i).max + 1e-3f);
                     if (i < 0 || ! fs::inScope (i) || ! range) { ok = false; bad << fs::names()[st] << ":" << id << " "; }
                 }
-            const int want[4][3] { { fge::dsp::dist::Soft, fge::dsp::dist::Tube, -1 }, { fge::dsp::dist::Hard, fge::dsp::dist::Soft, fge::dsp::dist::Digital },
-                                   { fge::dsp::dist::Asym, fge::dsp::dist::Hard, fge::dsp::dist::Wavefold }, { fge::dsp::dist::Wavefold, fge::dsp::dist::Rectifier, fge::dsp::dist::Custom } };
+            const int want[5][3] { { fge::dsp::dist::Soft, fge::dsp::dist::Tube, -1 }, { fge::dsp::dist::Hard, fge::dsp::dist::Soft, fge::dsp::dist::Digital },
+                                   { fge::dsp::dist::Asym, fge::dsp::dist::Hard, fge::dsp::dist::Wavefold }, { fge::dsp::dist::Wavefold, fge::dsp::dist::Rectifier, fge::dsp::dist::Custom },
+                                   { fge::dsp::dist::Soft, fge::dsp::dist::Wavefold, -1 } };          // EUPHORIC: saturation -> waveshaping (owner 2026-11-12)
             for (int st = 0; st < fs::NumStyles; ++st)
             {
                 GeProcessor p; fs::apply (p, st, false);
@@ -3214,7 +3220,7 @@ int main (int argc, char** argv)
                 ok &= nP == nT;
                 if (! ok && bad.isEmpty()) bad << fs::names()[st] << " chain ";
             }
-            check (ok, "M13 style templates valid; distortion chains = the owner's (EARLY SOFT>TUBE, MODERN HARD>SOFT>DIGITAL, RAW ASYM>HARD>FOLD, EXP FOLD>RECT>CUSTOM) on the TAIL and the TOK", bad);
+            check (ok, "M13 style templates valid; distortion chains = the owner's (EARLY SOFT>TUBE, MODERN HARD>SOFT>DIGITAL, RAW ASYM>HARD>FOLD, EXP FOLD>RECT>CUSTOM, EUPHORIC SOFT>FOLD) on the TAIL and the TOK", bad);
         }
         // 2 + 3: a style never touches LENGTH (EARLY EXTRA LONG / MODERN SHORT), nothing outside its scope, nothing gets locked
         {
@@ -4459,12 +4465,12 @@ int main (int argc, char** argv)
             const float len1 = p.apvts.getRawParameterValue ("core_length")->load();
             p.undo.undo();
             const float len2 = p.apvts.getRawParameterValue ("core_length")->load();
-            auto& ss = dynamic_cast<fge::gui::ChoiceStrip&> (cv.styleSelector());
+            auto& ss = dynamic_cast<fge::gui::ChoiceDrop&> (cv.styleSelector());
             ss.onPick (fge::style::Raw);
             const bool styled = p.currentStyle() == fge::style::Raw;
             p.undo.undo(); p.forgetTouched();
-            check (std::abs (len1 - 750.f) < 1.f && std::abs (len2 - len0) < 1.f && styled && ss.count() == 4,
-                   "M17 TOP BAR: STYLE (4) and LENGTH profiles apply with one click (one undo each)", String (len0, 0) + " -> " + String (len1, 0) + " -> " + String (len2, 0));
+            check (std::abs (len1 - 750.f) < 1.f && std::abs (len2 - len0) < 1.f && styled && ss.count() == 5,
+                   "M17 TOP BAR: STYLE (5, a drop-down) and LENGTH (a drop-down) apply with one pick (one undo each)", String (len0, 0) + " -> " + String (len1, 0) + " -> " + String (len2, 0));
             // the INFO LINE: name, value, range, default, what it does; a page line when nothing is under the mouse
             const String inf = cv.infoFor (cv.findControl ("pe_time")), infT = cv.infoFor (cv.findControl ("core_phase_reset"));
             check (inf.contains ("=") && inf.contains ("default") && inf.contains ("..") && inf.contains (fge::tooltip (P::peTime).substring (0, 20))

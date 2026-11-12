@@ -133,6 +133,59 @@ namespace fge::gui
         std::vector<bool> lastOn;
     };
 
+    // ---- a drop-down choice (STYLE / LENGTH in the top bar; owner 2026-11-12: "a drop-down list instead of 10 buttons"):
+    //      shows the current item, a click opens the list (the current one ticked), a right-click opens onMenu.
+    //      Items have their own ids (the list order may differ from the ids: STYLE shows EARLY, EUPHORIC, MODERN ...).
+    class ChoiceDrop : public juce::Component, public juce::SettableTooltipClient
+    {
+    public:
+        ChoiceDrop (juce::StringArray l, std::vector<int> itemIds = {}) : labels (std::move (l)), ids (std::move (itemIds))
+        { if (ids.empty()) for (int i = 0; i < labels.size(); ++i) ids.push_back (i); }
+        std::function<void (int id)> onPick;
+        std::function<void (int id)> onMenu;                   // right-click (the id shown now)
+        std::function<juce::String (int id)> tipFor;
+        juce::String emptyText { "-" };                        // shown when nothing is lit (e.g. LENGTH SYNC)
+        void setLit (int id) { if (id != lit) { lit = id; if (tipFor) setTooltip (lit >= 0 ? tipFor (lit) : juce::String()); repaint(); } }
+        int getLit() const { return lit; }
+        int count() const { return labels.size(); }
+        const std::vector<int>& itemIds() const { return ids; }
+        juce::String labelOf (int id) const { for (size_t i = 0; i < ids.size(); ++i) if (ids[i] == id) return labels[(int) i]; return emptyText; }
+        void paint (juce::Graphics& g) override
+        {
+            const auto& c = palette();
+            auto r = getLocalBounds().toFloat();
+            g.setColour (hover ? c.control.brighter (0.08f) : c.control); g.fillRoundedRectangle (r, 4.f);
+            g.setColour (c.red); g.fillRect (r.getX() + 1.f, r.getBottom() - 3.f, r.getWidth() - 2.f, 2.f);
+            g.setColour (c.silver); g.setFont (juce::FontOptions (12.f, juce::Font::bold));
+            g.drawText (labelOf (lit), getLocalBounds().withTrimmedLeft (12).withTrimmedRight (24), juce::Justification::centredLeft, true);
+            juce::Path a; const float x = r.getRight() - 16.f, y = r.getCentreY() - 2.f;
+            a.addTriangle (x - 5.f, y, x + 5.f, y, x, y + 5.f);
+            g.setColour (c.silver.withAlpha (0.7f)); g.fillPath (a);
+        }
+        void mouseEnter (const juce::MouseEvent&) override { hover = true; repaint(); }
+        void mouseExit (const juce::MouseEvent&) override { hover = false; repaint(); }
+        void mouseDown (const juce::MouseEvent& e) override
+        {
+            if (e.mods.isPopupMenu()) { if (onMenu) onMenu (lit); return; }
+            juce::PopupMenu m;
+            for (size_t i = 0; i < ids.size(); ++i)
+            {
+                juce::PopupMenu::Item it (labels[(int) i]); it.itemID = (int) i + 1; it.isTicked = ids[i] == lit;
+                m.addItem (it);
+            }
+            juce::Component::SafePointer<ChoiceDrop> self (this);
+            m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withMinimumWidth (getWidth()), [self] (int r)
+            {
+                if (self != nullptr && r > 0 && self->onPick) self->onPick (self->ids[(size_t) (r - 1)]);
+            });
+        }
+    private:
+        juce::StringArray labels;
+        std::vector<int> ids;
+        int lit = -1;
+        bool hover = false;
+    };
+
     // ---- a row of choice buttons (STYLE / LENGTH in the top bar): one is lit, a click picks, a right-click opens a menu
     class ChoiceStrip : public juce::Component, public juce::SettableTooltipClient
     {

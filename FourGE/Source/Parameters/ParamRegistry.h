@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -366,7 +366,13 @@ namespace fge
     F (tailRoomTone,   "tail_room_tone",       "Tail Room Tone",       Unit::Hz,  500.f, 16000.f, 5000.f, 3000.f, FNone) \
     /* owner 2026-11-12: the euphoric CRACK - the room also on the tok (before its distortion) + a pre-delay */ \
     C (tailRoomInput,  "tail_room_input",      "Tail Room Input",      roomInputs, 0, FNone) \
-    F (tailRoomDelay,  "tail_room_delay",      "Tail Room Delay",      Unit::Ms,  0.f, 300.f, 0.f, 80.f, FNone)
+    F (tailRoomDelay,  "tail_room_delay",      "Tail Room Delay",      Unit::Ms,  0.f, 300.f, 0.f, 80.f, FNone) \
+    /* owner 2026-11-12: TAIL COLOR - the EQ after the tail's distortion chooses which harmonics stay (BOOM / GRRRAAANG / KRAAASH) */ \
+    F (tailColorGain,  "tail_color_gain",      "Tail Color Gain",      Unit::Db, -12.f, 18.f, 0.f, 0.f, FMod) \
+    F (tailColorFreq,  "tail_color_freq",      "Tail Color Freq",      Unit::Hz,  60.f, 8000.f, 500.f, 600.f, FMod) \
+    F (tailColorQ,     "tail_color_q",         "Tail Color Q",         Unit::None, 0.3f, 8.f, 2.f, 1.5f, FNone) \
+    C (tailColorTrack, "tail_color_track",     "Tail Color Track",     colorTracks, 0, FNone) \
+    F (tailColorHarm,  "tail_color_harm",      "Tail Color Harmonic",  Unit::None, 1.f, 32.f, 8.f, 0.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

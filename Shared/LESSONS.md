@@ -284,6 +284,14 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   Dopracowanie (pasma vs refs): refs mają REZONANS ŚRODKA ~600–800 Hz przez cały kick (toku i ogona) = tail mid EQ +12 dB przed
   przesterem; szum w ogonie ciemniejszy (LP ~3,5 kHz) i krótszy (~250 ms), inaczej ogon syczy (2–8 kHz o 6–10 dB za dużo); bas później.
 
+- **4GE – EUPHORIC jako osobny styl + notatki ownera o kicku 2012 (owner, 2026-11-12)** – trzask = szybki pitch drop + nieliniowość na
+  transjencie (nie osobny klik); BODY = przejście z energią 100–1000 Hz; barwa taila = źródło + pitch env + typ / krzywa przesteru + EQ PO
+  przesterze (który harmoniczny zostaje: BOOM / GRRRAAANG / KRAAASH) – stąd TAIL COLOR z KEY TRACK. Euphoric = kontrolowany przester,
+  uporządkowane harmoniczne, sub obecny (RAW = ekstremalny, gęsty). Strojenie pasmami ownera (40–65 / 70–150 / 150–500 / 500–1.5k / 1.5–6k)
+  w oknach TOK 0–20 / BODY 20–100 / TAIL 100–300 ms: refs mają TOK w 500–1500 Hz (tok ~650 Hz, nie 180), BODY w 70–150 Hz, TAIL = podstawa.
+  Pułapka: silnik stylów nie ustawia parametrów *_decay / *_length (długość kicka) – zanik szumu był domyślny (60 ms) i ziarno znikało;
+  wyjątek dla noise* (charakter, nie długość). Pokrętła w karcie TAIL się nie mieściły – druga zakładka ROOM / COLOR.
+
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
   odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:

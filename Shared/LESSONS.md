@@ -262,6 +262,13 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   Poprawka MODERN: SUB START 25 ms + attack 50 ms (bas pod tokiem), tail SAW głośniej (−3 dB) przy małym przesterze, tok ~−10 dB.
   Wniosek: „czysto” ≠ ciemno i cicho – czysty MODERN to jasny, gęsty (unison) tail bez ciężkiego przesteru + bas pod tokiem.
 
+- **4GE – EARLY = 909 + pokój przed przesterem / euphoric 2009–12 (owner, 2026-11-12)** – early kick (2004–08): punch 909 bez
+  tonalnego toka, płynny zjazd z 220–420 Hz do nuty w 100–150 ms, REVERB PRZED przesterem (przester zjada pogłos = pełny „gated”
+  ogon). Euphoric 2009–12 (Wildstylez / NC / Zatox – pomiar): krótki tok 520–700 Hz ~20 ms, zjazd ~100 ms, bas późno (~100–130 ms),
+  gęsty ogon najgłośniejszy i płaski. W obu ogon w 150–300 ms to GŁÓWNIE PODSTAWA (harmoniczne 15–25 dB niżej) – u nas było o 8–12 dB
+  za dużo powyżej 120 Hz; limiter wyrównuje głośność, więc zmiany drive'u nic nie dają – trzeba zmienić proporcję tail (ton) / sub.
+  Mierzyć widmo ogona względem 30–120 Hz, nie RMS. Pokój: wet gaśnie z końcem kicka (KICK END), żeby nie wydłużał kicka.
+
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
   odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:

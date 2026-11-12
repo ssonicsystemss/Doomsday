@@ -359,7 +359,11 @@ namespace fge
     F (tailStart,      "tail_start",           "Tail Start",           Unit::Ms,  0.f, 300.f, 100.f, 80.f, FNone) \
     F (punchTokDecay,  "punch_tok_decay",      "Tok Decay",            Unit::Db, -24.f,  0.f,   0.f,   0.f, FMod) \
     F (punchTokBend,   "punch_tok_bend",       "Tok Pitch Bend",       Unit::Semi, -24.f, 24.f, 0.f,   0.f, FMod) \
-    F (punchNoteOffset,"punch_note_offset",    "Tok Note Offset",      Unit::Semi, -24.f, 36.f, 12.f,  0.f, FNone)
+    F (punchNoteOffset,"punch_note_offset",    "Tok Note Offset",      Unit::Semi, -24.f, 36.f, 12.f,  0.f, FNone) \
+    /* ================= owner 2026-11-12: the EARLY kick - a room on the tail BEFORE its distortion ================= */ \
+    F (tailRoom,       "tail_room",            "Tail Room",            Unit::Pct, 0.f, 1.f, 0.f, 0.f, FMod) \
+    F (tailRoomDecay,  "tail_room_decay",      "Tail Room Decay",      Unit::Ms,  80.f, 1500.f, 450.f, 400.f, FNone) \
+    F (tailRoomTone,   "tail_room_tone",       "Tail Room Tone",       Unit::Hz,  500.f, 16000.f, 5000.f, 3000.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

@@ -78,7 +78,7 @@ Najkrótsze możliwe wejście to 0,15 ms, a wyjście 3 ms, więc nie ma klików 
 - **BODY bez „łup”**: BODY nie ma już własnego zjazdu pitchu – idzie za ogonem w stałym interwale (FOLLOW → TAIL, 0 / +7 / +12 st),
   w MODERN / RAW to szum (gęstość, zero pitchu). RANDOMIZE losuje interwał, źródło, przester, barwę i poziom BODY w każdym stylu.
 - **START (PITCH ENGINE): FIXED / FOLLOW MIDI** – początek zjazdu ogona stały albo z nutą; START / END / PUNCH PITCH pokazują nutę,
-  można wpisać nutę („G4”). Presety MODERN / RAW / EXPERIMENTAL: tok FIXED na czystej nucie, w słyszalnym paśmie (300 Hz – 6 kHz) najwyżej ~3 dB nad ogonem (głośniejszy przykrywał tail). **MODERN = czysty** (wg przykładów OPS FREE KICK: bas pod tokiem – SUB START 25 ms, jasny tail SAW bez ciężkiego przesteru; RANDOMIZE w MODERN nie bierze już cech RAW). **EARLY = tryb PUNCH** (krótkie uderzenie wpadające w kick, ogon od uderzenia – bez tonalnego „pup”).
+  można wpisać nutę („G4”). Presety MODERN / RAW / EXPERIMENTAL: tok FIXED na czystej nucie, w słyszalnym paśmie (300 Hz – 6 kHz) najwyżej ~3 dB nad ogonem (głośniejszy przykrywał tail). **MODERN = czysty** (wg przykładów OPS FREE KICK: bas pod tokiem – SUB START 25 ms, jasny tail SAW bez ciężkiego przesteru; RANDOMIZE w MODERN nie bierze już cech RAW). **TAIL ROOM** (karta TAIL: ROOM / ROOM DECAY / ROOM TONE) – mały pokój na ogonie PRZED jego przesterem (trik early hardstyle: przester „zjada” pogłos i robi pełny, gated ogon); nie wydłuża kicka (gaśnie z końcem kicka). RANDOMIZE w EARLY ma 2 wzory: CLASSIC 2004–08 / EUPHORIC 2009–12 (Wildstylez, Headhunterz, Brennan Heart, Noisecontrollers) albo AUTO. **EARLY = tryb PUNCH** (krótkie uderzenie wpadające w kick, ogon od uderzenia – bez tonalnego „pup”).
 - **Środek**: duży **waveform** – to prawdziwy wyrenderowany kick, każda część w swoim kolorze.
   **Złap go myszką i przeciągnij do FL** – dostaniesz gotowy plik WAV.
 - **Cztery karty**: LEVEL, PITCH, LENGTH, DRIVE, MUTE, SOLO i pasek poziomu. **Kliknij kartę**, a na dole pojawią się jej szczegóły
@@ -382,7 +382,7 @@ PUNCH, −0,3 dB), więc grają głośno i równo jak gotowe kicki z paczek. Str
 
 | STYLE | Presety (długość) | Wzór |
 |---|---|---|
-| **EARLY** | Classic Boom (450 ms), Dark Tonal (400), Punchy Short (220), Melodic Long (800), Warm Tube (500), Anthem XL (1100) | kick_hardstyle_28 / 84: tonalny, wyraźny pitch drop, cieplejszy przester |
+| **EARLY** | CLASSIC 2004–08: Classic Boom (450 ms), Dark Tonal (400), Warm Tube (500); EUPHORIC 2009–12: Euphoric Tok (420), Reverb Kick (450), Anthem XL (900) | Old Kick Pick 019 / 027 (909 punch, pokój przed przesterem, ogon = głównie podstawa); Wildstylez / Noisecontrollers / Zatox (krótki tok 520–700 Hz ~20 ms, szybki zjazd, gęsty ogon) |
 | **MODERN** | Festival Main (675), Clean Punch (450), Tok Bounce (520), Euphoric Long (950), Tight Short (240), Wide Anthem XL (1400) | OPS KICK2_*: tok ~365 Hz, czysty sub, gęsty, kontrolowany |
 | **RAW** | Screamer Main (815), Rawstyle Punch (500), Square Scream (650), Gated Short (240), Hardcore Crush (450), Rumble XL (1500) | OPS KICK_*: tok ~900 Hz, screech, szeroki ogon (dół mono) |
 | **EXPERIMENTAL** | Metal Fold, Double Drop, Laser Zap, Glitch Crush, Formant Scream, Pulse Machine | działający kick + jeden nietypowy element: metaliczny fałd, podwójny drop, „laser” z 2 kHz, bitcrush, formanty, PULSE |

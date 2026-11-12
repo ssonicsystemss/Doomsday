@@ -3563,3 +3563,6 @@ tail_start
 punch_tok_decay
 punch_tok_bend
 punch_note_offset
+tail_room
+tail_room_decay
+tail_room_tone

@@ -140,6 +140,9 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (knob ("tail_st2_mix", "ST2 MIX", col));
             d.push_back (combo ("tail_start_mode"));                              // TOK -> TAIL: AFTER TOK / INDEPENDENT + TAIL START
             d.push_back (knob ("tail_start", "TAIL START", col));
+            d.push_back (knob ("tail_room", "ROOM", col));                         // EARLY: a room BEFORE the tail's distortion
+            d.push_back (knob ("tail_room_decay", "ROOM DECAY", col));
+            d.push_back (knob ("tail_room_tone", "ROOM TONE", col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };
@@ -511,6 +514,7 @@ void GeCanvas::updateEnabled()
     const int nMode = (int) raw (proc, P::punchNoteMode);
     en ("punch_note_offset", tok && nMode == 2);
     en ("tail_start", tok && (int) raw (proc, P::tailStartMode) == 1);
+    for (auto* id : { "tail_room_decay", "tail_room_tone" }) en (id, raw (proc, P::tailRoom) > 0.001f);
     en ("punch_glide", ! tok || std::abs (raw (proc, P::punchTokBend)) > 0.01f);   // TOK: GLIDE = the time of its BEND
     if (auto* lk = dynamic_cast<Knob*> (card[0][2])) lk->setLabel (tok ? "TOK LENGTH" : "LENGTH");
     const bool tr = raw (proc, P::punchTrLevel) > 0.001f;

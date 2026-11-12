@@ -23,6 +23,7 @@
 #include "Mod/Mod.h"
 #include "DoomsdayKick.h"
 #include "../Parameters/ParamFrame.h"
+#include "Tone/Room.h"
 #include <array>
 #include <atomic>
 
@@ -45,6 +46,7 @@ namespace fge
         bool startFixed = false;                  // the TOK (pitch START) at a fixed pitch (owner 2026-11-09)
         bool tokMode = false, tokFixed = true;    // PUNCH / TOK -> TAIL: the punch is the tok (its own note), the tail starts after it
         float tokHz = 400.f, tailStartMs = 0.f, tokOverlapMs = 4.f;
+        dsp::room::Settings room;                 // the TAIL room before its distortion (EARLY, owner 2026-11-12)
         int tokNoteMode = 0;                      // 0 FIXED / 1 FOLLOW MIDI / 2 OFFSET (the played note + tokOffsetMul)
         float tokOffsetMul = 2.f, tokEndMs = 0.f, tokDecayDb = 0.f, tokBendSt = 0.f, tokGlideMs = 10.f;   // (owner 2026-11-10)
         float startHz = 220.f, endHz0 = 49.f, startAmountSt = 0.f, tailPAmt = 1.f;
@@ -391,6 +393,7 @@ namespace fge
             m06St->reset(); scrEng.reset(); toneSt->reset(); dynSt->reset();
             limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
             muteG = 1.f;
+            tailRoom->prepare (sampleRate * osFactor);
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -489,7 +492,7 @@ namespace fge
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
-            sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            tailRoom->clear(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
@@ -735,6 +738,8 @@ namespace fge
             tx.lowCutOn = f[P::tailLowCut] > 20.5f; tx.lowCut = svfCoefs (f[P::tailLowCut], 1.414f, rate);
             tx.highCutOn = f[P::tailHighCut] < 19500.f; tx.highCut = svfCoefs (f[P::tailHighCut], 1.414f, rate);
             cfg.width = f[P::tailWidth];
+            cfg.room.mix = f[P::tailRoom]; cfg.room.on = cfg.room.mix > 0.001f;
+            cfg.room.t60Ms = f[P::tailRoomDecay]; cfg.room.tone = f[P::tailRoomTone];
             cfg.wide = tx.uniVoices > 1 && cfg.width > 0.001f;
             cfg.widthSplit = svfCoefs (f[P::tailWidthFrom], 1.414f, rate);
             cfg.clipG = db (f[P::clipDrive]); cfg.clipSoft = f[P::clipSoft];
@@ -998,6 +1003,8 @@ namespace fge
                 const auto g0 = gainNow[(size_t) c], g1 = gainTarget[(size_t) c];
                 const float* x = b[c];
                 const bool wideTail = c == 2 && cfg.wide;
+                const bool roomHere = c == 2 && cfg.room.on;
+                if (roomHere) tailRoom->cook (cfg.room);
                 float p = 0.f;
                 for (int i = 0; i < on; ++i)
                 {
@@ -1014,6 +1021,7 @@ namespace fge
                     }
                     else { yl = x[i]; yr = x[i]; }
                     yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i];                    // module 04: layers on this part's bus
+                    if (roomHere) tailRoom->process (cfg.room, yl, yr, juce::jlimit (0.f, 1.f, (cfg.ks.lengthMs - msAt (i)) / 40.f));               // TAIL ROOM: before everything that distorts the tail
                     if (m6 && cfg.m06.at (c + 1, 0)) m06St->process (cfg.m06, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 BEFORE
                     if (m7 && cfg.tone.at (c + 1, 0)) toneSt->process (cfg.tone, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 BEFORE
                     if (m8 && cfg.dyn.at (c + 1, 0)) dynSt->process (cfg.dyn, c + 1, 0, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 BEFORE
@@ -1195,6 +1203,7 @@ namespace fge
         std::unique_ptr<dsp::m06::State> m06St = std::make_unique<dsp::m06::State>();   // module 06 at engine level (not the layers)
         std::unique_ptr<dsp::tone::State> toneSt = std::make_unique<dsp::tone::State>(); // module 07 at engine level (not the layers)
         std::unique_ptr<dsp::dyn::State> dynSt = std::make_unique<dsp::dyn::State>();    // module 08 at engine level (not the layers)
+        std::unique_ptr<dsp::room::Room> tailRoom = std::make_unique<dsp::room::Room>();
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};
         float* const* curBus = nullptr;

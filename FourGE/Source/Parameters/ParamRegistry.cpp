@@ -243,6 +243,9 @@ namespace fge
             case punchTokDecay: return "How much the tok falls over its length: 0 dB = flat, -6 dB = a strong start that eases off, so the tail takes the energy at the tok's end.";
             case punchTokBend: return "The tok's own pitch envelope: it starts this many semitones away and glides to its note in GLIDE ms.";
             case punchNoteOffset: return "OFFSET mode: the tok plays the MIDI note + this many semitones (12 = an octave above the tail's note).";
+            case tailRoom:     return "A small room on the TAIL before its distortion (the early-hardstyle trick: the drive eats the reverb and makes the full, gated tail). 0 = off.";
+            case tailRoomDecay: return "How long the room rings (the drive after it makes it sound longer and denser).";
+            case tailRoomTone: return "The room's brightness: low = a dark, warm room; high = a bright, metallic one.";
             case peStartMode:  return "START of the tail drop: FIXED = the same pitch on every MIDI note; FOLLOW MIDI = moves with the played note. The tail still lands on the played note. (The tok itself = PUNCH in TOK mode.)";
             case peEnd:        return "Where the pitch lands. With PITCH TRACKING on, the played note sets it.";
             case peTime:       return "How long the pitch takes to land.";

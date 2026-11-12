@@ -1065,6 +1065,7 @@ int main (int argc, char** argv)
                 if (sid == "punch_tok_decay" || sid == "punch_tok_bend" || sid == "tail_start_mode" || sid == "tail_start" || sid == "punch_note_offset")
                     { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); set2 ("punch_length", 110.f); set2 ("punch_sustain", 1.f); }
                 if (sid == "tail_start") set2 ("tail_start_mode", 1.f);
+                if (sid == "tail_room_decay" || sid == "tail_room_tone") set2 ("tail_room", 0.6f);
                 if (sid == "punch_note_offset") set2 ("punch_note_mode", 2.f);
                 if (sid == "punch_transient_len" || sid == "punch_transient_tone") set2 ("punch_transient", 1.f);                                  // (FIXED = FOLLOW when the note is END)                  // module 14: the parts only follow a changed LENGTH
                 if (sid == "core_note_cut") { offAt = 0.1; set2 ("spc_master_on", 1.f); set2 ("spc_master_delay", 10.f); set2 ("spc_master_mode", 3.f); }
@@ -2616,7 +2617,12 @@ int main (int argc, char** argv)
             for (int sd = 1; sd <= 6; ++sd)
             {
                 const auto e = run (fge::variant::Early, sd), r = run (fge::variant::Raw, sd);
-                early &= e.idx (P::tailChar) <= 2 && e[P::tailDrive] <= 0.501f && ! e.on (P::scrOn);
+                // EARLY = 2 patterns (owner 2026-11-12): CLASSIC (a PUNCH, little drive, a room) / EUPHORIC 2009-12 (a short TOK, more drive)
+                GeProcessor pe; fge::variant::Settings ve; ve.style = fge::variant::Early; ve.seed = sd; fge::variant::save (pe, ve); fge::variant::apply (pe, ve);
+                const int pat = (int) pe.apvts.state.getProperty ("vrLastPattern", 0); const auto ee = pe.frame();
+                early &= ee.idx (P::tailChar) <= 2 && ! ee.on (P::scrOn) && e[P::tailDrive] == ee[P::tailDrive]
+                         && (pat == 1 ? ee.idx (P::punchMode) == 0 && ee[P::tailDrive] <= 0.501f && ee[P::tailRoom] >= 0.199f
+                                      : pat == 2 && ee.idx (P::punchMode) == 1 && ee[P::punchLen] <= 30.01f && ee[P::tailDrive] <= 0.851f);
                 raw &= r.idx (P::tailChar) >= 3 && r[P::tailDrive] >= 0.649f;
             }
             const auto a = run (fge::variant::Modern, 42), b = run (fge::variant::Modern, 42), c = run (fge::variant::Modern, 43);

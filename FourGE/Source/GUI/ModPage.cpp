@@ -312,6 +312,10 @@ namespace fge::gui
         styleBox.addItemList (fge::variant::styleNames(), 1); scopeBox.addItemList (fge::variant::scopeNames(), 1);
         styleBox.setTooltip ("STYLE: the musical ranges - EARLY clean / tonal, MODERN controlled, RAW aggressive, EXPERIMENTAL everything.");
         scopeBox.setTooltip ("SCOPE: the whole kick or one area.");
+        patternBox.addItemList (fge::variant::earlyPatternNames(), 1);
+        patternBox.setTooltip ("EARLY has two patterns: CLASSIC 2004-08 (a 909 punch, a room before the drive, a melodic drop) and EUPHORIC 2009-12 "
+                               "(Wildstylez / Headhunterz / Brennan Heart / Noisecontrollers: a short tok, a fast drop, a dense driven tail). AUTO = one of them per click.");
+        patternBox.onChange = [this] { saveVariant(); };
         amountSl.setSliderStyle (Slider::LinearBar); amountSl.setRange (0.0, 1.0, 0.01); amountSl.textFromValueFunction = [] (double v) { return "AMOUNT " + String (roundToInt (v * 100.0)) + " %"; };
         amountSl.setTooltip ("AMOUNT: 100 % = a new sound inside the style, less = a variation of the current one.");
         seedSl.setSliderStyle (Slider::LinearBar); seedSl.setRange (1.0, 9999.0, 1.0); seedSl.textFromValueFunction = [] (double v) { return "SEED " + String (roundToInt (v)); };
@@ -322,7 +326,7 @@ namespace fge::gui
             auto& b = lockBtn[(size_t) a]; b.setButtonText ("LOCK " + fge::variant::areaNames()[a]); b.setClickingTogglesState (true);
             b.setTooltip ("This area never changes."); b.onClick = [this] { saveVariant(); }; addChildComponent (b);
         }
-        styleBox.onChange = scopeBox.onChange = [this] { saveVariant(); };
+        styleBox.onChange = scopeBox.onChange = [this] { saveVariant(); patternBox.setEnabled (styleBox.getSelectedId() == 1); };
         amountSl.onValueChange = seedSl.onValueChange = [this] { saveVariant(); };
         routingTg.onClick = [this] { saveVariant(); };
         rndGo.setTooltip ("A new seed and a new kick (one undo step; the level stays the same).");
@@ -330,7 +334,7 @@ namespace fge::gui
         rndGo.onClick = [this] { fge::variant::randomize (proc); loadVariant(); };
         rndRegen.onClick = [this] { fge::variant::apply (proc, fge::variant::load (proc), true); };
         doomsday::flat::FlatLookAndFeel::makePrimary (rndGo);
-        for (Component* c : std::initializer_list<Component*> { &storeA, &storeB, &macroBox, &macroLearn, &styleBox, &scopeBox, &amountSl, &seedSl, &routingTg, &rndGo, &rndRegen })
+        for (Component* c : std::initializer_list<Component*> { &storeA, &storeB, &macroBox, &macroLearn, &styleBox, &scopeBox, &patternBox, &amountSl, &seedSl, &routingTg, &rndGo, &rndRegen })
             addChildComponent (c);
         loadVariant();
         showTab (TLfo);
@@ -350,6 +354,7 @@ namespace fge::gui
     {
         const auto v = fge::variant::load (proc);
         styleBox.setSelectedId (v.style + 1, dontSendNotification); scopeBox.setSelectedId (v.scope + 1, dontSendNotification);
+        patternBox.setSelectedId (v.pattern + 1, dontSendNotification); patternBox.setEnabled (v.style == fge::variant::Early);
         amountSl.setValue (v.amount, dontSendNotification); seedSl.setValue (v.seed, dontSendNotification); routingTg.setToggleState (v.routing, dontSendNotification);
         for (int a = 0; a < 7; ++a) lockBtn[(size_t) a].setToggleState ((v.locks >> a) & 1u, dontSendNotification);
     }
@@ -357,7 +362,7 @@ namespace fge::gui
     {
         fge::variant::Settings v;
         v.style = styleBox.getSelectedId() - 1; v.scope = scopeBox.getSelectedId() - 1; v.amount = (float) amountSl.getValue(); v.seed = (int) seedSl.getValue();
-        v.routing = routingTg.getToggleState();
+        v.routing = routingTg.getToggleState(); v.pattern = jmax (0, patternBox.getSelectedId() - 1);
         for (int a = 0; a < 7; ++a) if (lockBtn[(size_t) a].getToggleState()) v.locks |= 1u << a;
         fge::variant::save (proc, v);
     }
@@ -456,7 +461,7 @@ namespace fge::gui
         for (int i = 0; i < 8; ++i) lfoBtn[(size_t) i].setVisible (tabIdx == TLfo);
         for (Component* c : std::initializer_list<Component*> { &storeA, &storeB, &macroBox, &macroLearn }) c->setVisible (tabIdx == TMidi);
         for (auto& b : ccLearn) b.setVisible (tabIdx == TMidi);
-        for (Component* c : std::initializer_list<Component*> { &styleBox, &scopeBox, &amountSl, &seedSl, &routingTg, &rndGo, &rndRegen }) c->setVisible (tabIdx == TVariant);
+        for (Component* c : std::initializer_list<Component*> { &styleBox, &scopeBox, &patternBox, &amountSl, &seedSl, &routingTg, &rndGo, &rndRegen }) c->setVisible (tabIdx == TVariant);
         for (auto& b : lockBtn) b.setVisible (tabIdx == TVariant);
         grid->setVisible (tabIdx == TSeq);
         for (Component* c : std::initializer_list<Component*> { &seqCopy, &seqPaste, &seqRev, &seqShift, &seqRand, &seqClear }) c->setVisible (tabIdx == TSeq);
@@ -634,7 +639,7 @@ namespace fge::gui
         styleBox.setBounds (editArea.getX(), y0 + 24, 160, 24); scopeBox.setBounds (editArea.getX() + 168, y0 + 24, 160, 24);
         amountSl.setBounds (editArea.getX() + 336, y0 + 24, 200, 24); seedSl.setBounds (editArea.getX() + 544, y0 + 24, 160, 24);
         for (int a = 0; a < 7; ++a) lockBtn[(size_t) a].setBounds (editArea.getX() + a * 122, y0 + 64, 116, 24);
-        routingTg.setBounds (editArea.getX(), y0 + 100, 420, 24);
+        routingTg.setBounds (editArea.getX(), y0 + 100, 420, 24); patternBox.setBounds (editArea.getX() + 430, y0 + 100, 240, 24);
         rndGo.setBounds (editArea.getX(), y0 + 140, 180, 34); rndRegen.setBounds (editArea.getX() + 188, y0 + 140, 160, 34);
         if (builtFor != editArea) { builtFor = editArea; build(); return; }          // (the editors are laid out in the editor area)
         for (auto& [c, r] : layoutMap) c->setBounds (r);

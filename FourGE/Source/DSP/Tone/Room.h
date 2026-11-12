@@ -18,6 +18,8 @@ namespace fge::dsp::room
         float mix = 0.f;          // 0..1 wet (dry stays at 1: the room adds to the tail)
         float t60Ms = 450.f;      // decay
         float tone = 5000.f;      // damping (Hz)
+        float delayMs = 0.f;      // pre-delay
+        bool onTok = false;       // TOK + TAIL: the tok goes through the room too
     };
 
     class Room
@@ -28,18 +30,20 @@ namespace fge::dsp::room
             fs = rate;
             const int maxLen = (int) (rate * 0.065) + 8;              // the longest line (43.7 ms x 1.4) + margin
             for (auto& d : line) d.assign ((size_t) maxLen, 0.f);
+            for (auto& d : pre) d.assign ((size_t) (rate * 0.31) + 8, 0.f);
             clear();
             cooked = -1.f;
         }
         void clear()
         {
             for (auto& d : line) std::fill (d.begin(), d.end(), 0.f);
-            lp.fill (0.f); pos = 0;
+            for (auto& d : pre) std::fill (d.begin(), d.end(), 0.f);
+            lp.fill (0.f); pos = 0; prePos = 0;
         }
         // (per block) delay lengths / feedback / damping from the settings
         void cook (const Settings& s)
         {
-            const float key = s.t60Ms * 7.f + s.tone;
+            const float key = s.t60Ms * 7.f + s.tone + s.delayMs * 131.f;
             if (key == cooked || line[0].empty()) return;
             cooked = key;
             // the room grows a little with the decay (a small room ~ 0.85, a hall ~ 1.35)
@@ -52,6 +56,7 @@ namespace fge::dsp::room
                 g[(size_t) k] = std::pow (10.f, -3.f * dSec / std::max (0.02f, s.t60Ms * 0.001f));
             }
             damp = std::exp (-6.2831853f * std::clamp (s.tone, 500.f, 20000.f) / (float) fs);
+            preLen = pre[0].empty() ? 0 : std::clamp ((int) (s.delayMs * 0.001 * fs), 0, (int) pre[0].size() - 1);
         }
         void process (const Settings& s, float& l, float& r, float gate = 1.f)       // gate: 1 -> 0 at the kick's end (the room never makes the kick longer)
         {
@@ -65,7 +70,16 @@ namespace fge::dsp::room
                 o[(size_t) k] = lp[(size_t) k];
             }
             const float sum = 0.5f * (o[0] + o[1] + o[2] + o[3]);              // Householder: x - 2/N * sum
-            const float in[4] { l * gate, r * gate, l * gate, r * gate };
+            float il = l * gate, ir = r * gate;
+            if (preLen > 0)                                                         // pre-delay
+            {
+                const int pn = (int) pre[0].size();
+                int rp = prePos - preLen; if (rp < 0) rp += pn;
+                pre[0][(size_t) prePos] = il; pre[1][(size_t) prePos] = ir;
+                il = pre[0][(size_t) rp]; ir = pre[1][(size_t) rp];
+                if (++prePos >= pn) prePos = 0;
+            }
+            const float in[4] { il, ir, il, ir };
             for (int k = 0; k < 4; ++k)
                 line[(size_t) k][(size_t) pos] = (o[(size_t) k] - sum) * g[(size_t) k] + in[k] * 0.5f;
             if (++pos >= n) pos = 0;
@@ -75,6 +89,8 @@ namespace fge::dsp::room
     private:
         double fs = 48000.0;
         std::array<std::vector<float>, 4> line;
+        std::array<std::vector<float>, 2> pre;
+        int prePos = 0, preLen = 0;
         std::array<int, 4> len { 100, 120, 140, 160 };
         std::array<float, 4> g {}, lp {};
         float damp = 0.f, cooked = -1.f;

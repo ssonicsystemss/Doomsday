@@ -393,7 +393,7 @@ namespace fge
             m06St->reset(); scrEng.reset(); toneSt->reset(); dynSt->reset();
             limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
             muteG = 1.f;
-            tailRoom->prepare (sampleRate * osFactor);
+            tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor);
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -492,7 +492,7 @@ namespace fge
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
-            tailRoom->clear(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            tailRoom->clear(); tokRoom->clear(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
@@ -740,6 +740,7 @@ namespace fge
             cfg.width = f[P::tailWidth];
             cfg.room.mix = f[P::tailRoom]; cfg.room.on = cfg.room.mix > 0.001f;
             cfg.room.t60Ms = f[P::tailRoomDecay]; cfg.room.tone = f[P::tailRoomTone];
+            cfg.room.delayMs = f[P::tailRoomDelay]; cfg.room.onTok = f.idx (P::tailRoomInput) == 1;
             cfg.wide = tx.uniVoices > 1 && cfg.width > 0.001f;
             cfg.widthSplit = svfCoefs (f[P::tailWidthFrom], 1.414f, rate);
             cfg.clipG = db (f[P::clipDrive]); cfg.clipSoft = f[P::clipSoft];
@@ -1003,8 +1004,9 @@ namespace fge
                 const auto g0 = gainNow[(size_t) c], g1 = gainTarget[(size_t) c];
                 const float* x = b[c];
                 const bool wideTail = c == 2 && cfg.wide;
-                const bool roomHere = c == 2 && cfg.room.on;
-                if (roomHere) tailRoom->cook (cfg.room);
+                const bool roomHere = cfg.room.on && (c == 2 || (c == 0 && cfg.room.onTok));
+                auto* room = c == 0 ? tokRoom.get() : tailRoom.get();
+                if (roomHere) room->cook (cfg.room);
                 float p = 0.f;
                 for (int i = 0; i < on; ++i)
                 {
@@ -1021,7 +1023,7 @@ namespace fge
                     }
                     else { yl = x[i]; yr = x[i]; }
                     yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i];                    // module 04: layers on this part's bus
-                    if (roomHere) tailRoom->process (cfg.room, yl, yr, juce::jlimit (0.f, 1.f, (cfg.ks.lengthMs - msAt (i)) / 40.f));               // TAIL ROOM: before everything that distorts the tail
+                    if (roomHere) room->process (cfg.room, yl, yr, juce::jlimit (0.f, 1.f, (cfg.ks.lengthMs - msAt (i)) / 40.f));               // TAIL ROOM: before everything that distorts the tail
                     if (m6 && cfg.m06.at (c + 1, 0)) m06St->process (cfg.m06, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 BEFORE
                     if (m7 && cfg.tone.at (c + 1, 0)) toneSt->process (cfg.tone, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 BEFORE
                     if (m8 && cfg.dyn.at (c + 1, 0)) dynSt->process (cfg.dyn, c + 1, 0, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 BEFORE
@@ -1204,6 +1206,7 @@ namespace fge
         std::unique_ptr<dsp::tone::State> toneSt = std::make_unique<dsp::tone::State>(); // module 07 at engine level (not the layers)
         std::unique_ptr<dsp::dyn::State> dynSt = std::make_unique<dsp::dyn::State>();    // module 08 at engine level (not the layers)
         std::unique_ptr<dsp::room::Room> tailRoom = std::make_unique<dsp::room::Room>();
+        std::unique_ptr<dsp::room::Room> tokRoom = std::make_unique<dsp::room::Room>();     // TOK + TAIL: the same room on the punch bus
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};
         float* const* curBus = nullptr;

@@ -3566,3 +3566,5 @@ punch_note_offset
 tail_room
 tail_room_decay
 tail_room_tone
+tail_room_input
+tail_room_delay

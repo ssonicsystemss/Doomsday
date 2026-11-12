@@ -1065,7 +1065,8 @@ int main (int argc, char** argv)
                 if (sid == "punch_tok_decay" || sid == "punch_tok_bend" || sid == "tail_start_mode" || sid == "tail_start" || sid == "punch_note_offset")
                     { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); set2 ("punch_length", 110.f); set2 ("punch_sustain", 1.f); }
                 if (sid == "tail_start") set2 ("tail_start_mode", 1.f);
-                if (sid == "tail_room_decay" || sid == "tail_room_tone") set2 ("tail_room", 0.6f);
+                if (sid == "tail_room_decay" || sid == "tail_room_tone" || sid == "tail_room_delay" || sid == "tail_room_input") set2 ("tail_room", 0.6f);
+                if (sid == "tail_room_input") { set2 ("punch_mode", 1.f); set2 ("punch_length", 60.f); set2 ("punch_sustain", 1.f); }
                 if (sid == "punch_note_offset") set2 ("punch_note_mode", 2.f);
                 if (sid == "punch_transient_len" || sid == "punch_transient_tone") set2 ("punch_transient", 1.f);                                  // (FIXED = FOLLOW when the note is END)                  // module 14: the parts only follow a changed LENGTH
                 if (sid == "core_note_cut") { offAt = 0.1; set2 ("spc_master_on", 1.f); set2 ("spc_master_delay", 10.f); set2 ("spc_master_mode", 3.f); }

@@ -274,6 +274,14 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   Poprawka: różowy szum na WŁASNEJ krótkiej obwiedni (atak 0.2 ms, zanik ~25 ms) wpuszczony w tok (+6 dB) i przez przester toka.
   Pułapka: szum na obwiedni TAIL AMP jest w trybie TOK cichy przez cały tok (tail startuje po toku) – zmiana poziomu nic nie dawała.
 
+- **4GE – „dalej piep, ma trzaskać” (owner, 2026-11-12, druga runda)** – wykres: w referencjach (Wildstylez / NC) szum / chrzęst JEDZIE PO FALI
+  przez ~150 ms i dalej w ogon (przesterowany pogłos + szum), fala „włochata”, nie ścięta. U nas tok był równym PROSTOKĄTEM: łańcuch
+  przesteru toka (SOFT / TUBE skopiowany z taila przy poprawce szwu) ścina ton w kwadrat i wycina szum = „piep”. Poprawka EUPHORIC:
+  tok 10 ms bez łańcucha prostokątnego, POKÓJ także na toku (TAIL ROOM INPUT = TOK + TAIL), wet ~100 %, jasny, krótki (350 ms),
+  szum biały +12 dB w tok i +9 dB w ogon na własnej obwiedni ~400 ms. Gęstość 30–300 ms −5…−6 dB (refs −4…−5,5).
+  Wniosek: „trzask” = nieregularny sygnał (pogłos / szum) PRZED umiarkowanym przesterem; twardy clip czystego tonu = pisk.
+  Pliki A/B: przycinać ciszę na końcu renderów (inaczej długie przerwy między kickami).
+
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
   odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:

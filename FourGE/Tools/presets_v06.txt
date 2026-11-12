@@ -77,7 +77,7 @@ punch_sustain 1
 punch_attack 0
 punch_decay 60
 punch_length 20
-punch_drive 0.5
+punch_drive 0.95
 punch_overlap 6
 punch_tok_decay -2
 punch_transient 0.4
@@ -105,6 +105,19 @@ tail_tone 3200
 tail_attack 35
 sub_level -1
 tail_level -5
+noiseB_on 1
+noiseB_type 1
+noiseB_env 0
+noiseB_attack 0.2
+noiseB_decay 25
+noiseB_length 35
+noiseB_level 0
+noiseB_to_punch 6
+noiseB_to_tail -60
+noiseB_to_texture -60
+noiseB_filter 0
+noiseB_cutoff 14000
+punch_source 2
 preset EARLY - Reverb Kick
 style 0
 ref /mnt/user-data/attachments/58b64e7f-1af8-5704-b9cc-8cf07f46953c/3206b8f0-002_Noisecontrollers_WS_BD.wav
@@ -115,7 +128,7 @@ punch_sustain 1
 punch_attack 0
 punch_decay 60
 punch_length 20
-punch_drive 0.5
+punch_drive 0.95
 punch_overlap 6
 punch_tok_decay -2
 punch_transient 0.4
@@ -145,6 +158,19 @@ tail_room_decay 800
 tail_attack 35
 sub_level -1
 tail_level -8
+noiseB_on 1
+noiseB_type 1
+noiseB_env 0
+noiseB_attack 0.2
+noiseB_decay 25
+noiseB_length 35
+noiseB_level 0
+noiseB_to_punch 6
+noiseB_to_tail -60
+noiseB_to_texture -60
+noiseB_filter 0
+noiseB_cutoff 14000
+punch_source 2
 preset EARLY - Anthem XL
 style 0
 ref /mnt/user-data/attachments/58b64e7f-1af8-5704-b9cc-8cf07f46953c/3d2c70f8-005_Zatox_Wakanda_Kick_F.wav
@@ -155,7 +181,7 @@ punch_sustain 1
 punch_attack 0
 punch_decay 60
 punch_length 20
-punch_drive 0.5
+punch_drive 0.95
 punch_overlap 6
 punch_tok_decay -2
 punch_transient 0.4
@@ -187,6 +213,19 @@ tail_sustain 0.8
 tail_attack 35
 sub_level -1
 tail_level -5
+noiseB_on 1
+noiseB_type 1
+noiseB_env 0
+noiseB_attack 0.2
+noiseB_decay 25
+noiseB_length 35
+noiseB_level 0
+noiseB_to_punch 6
+noiseB_to_tail -60
+noiseB_to_texture -60
+noiseB_filter 0
+noiseB_cutoff 14000
+punch_source 2
 preset MODERN - Festival Main
 style 1
 core_length 675

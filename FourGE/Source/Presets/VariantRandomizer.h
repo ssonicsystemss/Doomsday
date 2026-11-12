@@ -97,9 +97,14 @@ namespace fge::variant
         static const Table x = []
         {
             Table t;
-            t[APunch]   = { { "punch_mode", 0, 0, { 1 } }, { "punch_note_mode", 0, 0, { 0 } }, { "punch_source", 0, 0, { 0, 1, 2 } }, { "punch_pitch", 520, 740 },
-                            { "punch_length", 15, 30 }, { "punch_level", -8, -3 }, { "punch_drive", 0.3f, 0.7f }, { "punch_tok_decay", -4, 0 },
-                            { "punch_transient", 0.2f, 0.6f }, { "punch_overlap", 4, 10 }, { "tail_start_mode", 0, 0, { 0 } } };
+            t[APunch]   = { { "punch_mode", 0, 0, { 1 } }, { "punch_note_mode", 0, 0, { 0 } }, { "punch_source", 0, 0, { 1, 2 } }, { "punch_pitch", 520, 740 },
+                            { "punch_length", 15, 30 }, { "punch_level", -8, -3 }, { "punch_drive", 0.75f, 0.95f }, { "punch_tok_decay", -4, 0 },
+                            { "punch_transient", 0.2f, 0.6f }, { "punch_overlap", 4, 10 }, { "tail_start_mode", 0, 0, { 0 } },
+                            // the tok is a CRACK, not a beep (owner 2026-11-12: "piep -> trzask"): pink noise on its own short envelope
+                            // into the tok (it goes through the tok's distortion) - measured: refs flatness -9..-11 dB, a clean tok -19 dB
+                            { "noiseB_on", 0, 0, { 1 } }, { "noiseB_type", 0, 0, { 1 } }, { "noiseB_env", 0, 0, { 0 } }, { "noiseB_attack", 0.1f, 0.4f },
+                            { "noiseB_decay", 18, 32 }, { "noiseB_length", 30, 45 }, { "noiseB_level", 0, 0 }, { "noiseB_to_punch", 3, 8 },
+                            { "noiseB_to_tail", -60, -60 }, { "noiseB_to_texture", -60, -60 }, { "noiseB_filter", 0, 0, { 0 } }, { "noiseB_cutoff", 9000, 16000 } };
             t[ABody]    = { { "body_link", 0, 0, { 1 } }, { "body_link_source", 0, 0, { 2 } }, { "body_follow_depth", 0, 0, { 0 } }, { "body_follow_offset", 0, 0, { 0, 12, 12 } },
                             { "body_source", 0, 0, { 4, 4, 1 } }, { "body_level", -16, -8 }, { "body_drive", 0.3f, 0.6f }, { "body_decay", 80, 200 },
                             { "body_tone", 2500, 6000 }, { "body_resonance", 0.f, 0.25f } };

@@ -269,6 +269,11 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   za dużo powyżej 120 Hz; limiter wyrównuje głośność, więc zmiany drive'u nic nie dają – trzeba zmienić proporcję tail (ton) / sub.
   Mierzyć widmo ogona względem 30–120 Hz, nie RMS. Pokój: wet gaśnie z końcem kicka (KICK END), żeby nie wydłużał kicka.
 
+- **4GE – „early euphoric: piep zamiast trzasku” (owner, 2026-11-12)** – tok 520–700 Hz z czystego tonu = „piep”. W referencjach
+  (Wildstylez / NC / Zatox) pierwsze 25 ms to szum z wysokością: płaskość widma 500 Hz–10 kHz −9…−11 dB (nasz czysty tok −19).
+  Poprawka: różowy szum na WŁASNEJ krótkiej obwiedni (atak 0.2 ms, zanik ~25 ms) wpuszczony w tok (+6 dB) i przez przester toka.
+  Pułapka: szum na obwiedni TAIL AMP jest w trybie TOK cichy przez cały tok (tail startuje po toku) – zmiana poziomu nic nie dawała.
+
 ## Technika (pułapki)
 - **Filtr DC ze stałym współczynnikiem** (`y = x - x1 + 0.9995 * y1`) zależy od częstotliwości próbkowania: w Forge (4× oversampling)
   odcinał 14 Hz przy 44.1 kHz, ale 30 Hz przy 96 kHz – kick na 96 kHz tracił ~1 dB fundamentu. → Współczynnik z częstotliwości:

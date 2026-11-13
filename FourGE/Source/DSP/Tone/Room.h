@@ -31,6 +31,10 @@ namespace fge::dsp::room
             const int maxLen = (int) (rate * 0.065) + 8;              // the longest line (43.7 ms x 1.4) + margin
             for (auto& d : line) d.assign ((size_t) maxLen, 0.f);
             for (auto& d : pre) d.assign ((size_t) (rate * 0.31) + 8, 0.f);
+            // input diffusion: 4 short allpasses per channel (owner 2026-11-13: "the reverb sounds odd" - the bare FDN rang metallic)
+            static constexpr float apMs[4] { 4.7f, 3.6f, 12.7f, 9.3f };
+            for (int c = 0; c < 2; ++c) for (int k = 0; k < 4; ++k)
+            { const int n = (int) (apMs[k] * (c ? 1.07f : 1.f) * 0.001 * rate) + 1; ap[(size_t) c][(size_t) k].assign ((size_t) n, 0.f); apPos[(size_t) c][(size_t) k] = 0; }
             clear();
             cooked = -1.f;
         }
@@ -38,6 +42,7 @@ namespace fge::dsp::room
         {
             for (auto& d : line) std::fill (d.begin(), d.end(), 0.f);
             for (auto& d : pre) std::fill (d.begin(), d.end(), 0.f);
+            for (auto& ch : ap) for (auto& d : ch) std::fill (d.begin(), d.end(), 0.f);
             lp.fill (0.f); pos = 0; prePos = 0;
         }
         // (per block) delay lengths / feedback / damping from the settings
@@ -79,6 +84,7 @@ namespace fge::dsp::room
                 il = pre[0][(size_t) rp]; ir = pre[1][(size_t) rp];
                 if (++prePos >= pn) prePos = 0;
             }
+            il = diffuse (0, il); ir = diffuse (1, ir);
             const float in[4] { il, ir, il, ir };
             for (int k = 0; k < 4; ++k)
                 line[(size_t) k][(size_t) pos] = (o[(size_t) k] - sum) * g[(size_t) k] + in[k] * 0.5f;
@@ -87,6 +93,20 @@ namespace fge::dsp::room
             l += wl * s.mix * gate; r += wr * s.mix * gate;
         }
     private:
+        float diffuse (int c, float x)                                  // 4 series allpasses (g 0.65)
+        {
+            for (int k = 0; k < 4; ++k)
+            {
+                auto& d = ap[(size_t) c][(size_t) k]; if (d.empty()) continue;
+                int& p = apPos[(size_t) c][(size_t) k];
+                const float z = d[(size_t) p], v = x + 0.65f * z;
+                d[(size_t) p] = v; x = z - 0.65f * v;
+                if (++p >= (int) d.size()) p = 0;
+            }
+            return x;
+        }
+        std::array<std::array<std::vector<float>, 4>, 2> ap;
+        std::array<std::array<int, 4>, 2> apPos {};
         double fs = 48000.0;
         std::array<std::vector<float>, 4> line;
         std::array<std::vector<float>, 2> pre;

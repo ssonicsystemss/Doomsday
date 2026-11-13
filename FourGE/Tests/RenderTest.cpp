@@ -2626,9 +2626,9 @@ int main (int argc, char** argv)
             for (int sd = 1; sd <= 6; ++sd)
             {
                 const auto e = run (fge::variant::Early, sd), r = run (fge::variant::Raw, sd), eu = run (fge::variant::Euphoric, sd);
-                // EARLY 2004-08: a PUNCH, little drive, a room / EUPHORIC 2009-12 (its own style, owner 2026-11-12): a short TOK, a driven melodic tail
+                // EARLY 2004-08: a PUNCH, little drive, a room / EUPHORIC (the owner's kick 2026-11-13): low punch, high BODY, tail from ~760 Hz
                 early &= e.idx (P::tailChar) <= 2 && ! e.on (P::scrOn) && e.idx (P::punchMode) == 0 && e[P::tailDrive] <= 0.501f && e[P::tailRoom] >= 0.199f
-                         && eu.idx (P::tailChar) <= 2 && ! eu.on (P::scrOn) && eu.idx (P::punchMode) == 1 && eu[P::punchLen] <= 30.01f && eu[P::tailDrive] <= 0.851f;
+                         && ! eu.on (P::scrOn) && eu.idx (P::punchMode) == 0 && eu[P::punchLen] >= 74.9f && eu[P::bodyPitch] >= 949.f && eu[P::peStart] >= 649.f && eu[P::tailDrive] <= 0.751f;
                 raw &= r.idx (P::tailChar) >= 3 && r[P::tailDrive] >= 0.649f;
             }
             const auto a = run (fge::variant::Modern, 42), b = run (fge::variant::Modern, 42), c = run (fge::variant::Modern, 43);
@@ -3217,10 +3217,10 @@ int main (int argc, char** argv)
                     if (raw (p, (pre + "on").toRawUTF8()) > 0.5f && (int) raw (p, (pre + "location").toRawUTF8()) == fge::dsp::dist::LocPunch
                         && (int) raw (p, (pre + "type").toRawUTF8()) == want[st][nP % 3]) ++nP;
                 }
-                ok &= nP == nT;
+                ok &= nP == (st == fs::Euphoric ? 0 : nT);         // EUPHORIC = the owner's kick: the chain on the tail only (2026-11-13)
                 if (! ok && bad.isEmpty()) bad << fs::names()[st] << " chain ";
             }
-            check (ok, "M13 style templates valid; distortion chains = the owner's (EARLY SOFT>TUBE, MODERN HARD>SOFT>DIGITAL, RAW ASYM>HARD>FOLD, EXP FOLD>RECT>CUSTOM, EUPHORIC SOFT>FOLD) on the TAIL and the TOK", bad);
+            check (ok, "M13 style templates valid; distortion chains = the owner's (EARLY SOFT>TUBE, MODERN HARD>SOFT>DIGITAL, RAW ASYM>HARD>FOLD, EXP FOLD>RECT>CUSTOM, EUPHORIC SOFT>FOLD tail only) on the TAIL and the TOK", bad);
         }
         // 2 + 3: a style never touches LENGTH (EARLY EXTRA LONG / MODERN SHORT), nothing outside its scope, nothing gets locked
         {

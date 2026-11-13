@@ -418,3 +418,9 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   wysokości (tok 494 Hz → ogon od 110 Hz), dwa niezależne oscylatory (faza), inna barwa (tok bez przesteru ogona), 4 ms przejścia.
   Fix: w trybie TOK ogon zaczyna zjazd Z NUTY TOKU (`cfg.startHz = punch_pitch`), startuje w fazie z tokiem, przejście = crossfade
   równej mocy (cos / sin) przez OVERLAP 20 ms (domyślnie), łańcuch distortion stylu także na PUNCH. Miernik `FourGE/Tools/seam.py`.
+- **4GE – trzask euphoric: „u mnie takie ustawienia sa najbliżej” (owner, 2026-11-13)** – po wielu próbach (klik, tok 470–2500 Hz,
+  body 100–300 Hz = werbel / clap) właściciel sam ustawił na INIT: punch 231 Hz / 91 ms / drive 67 % (uderzenie, NIE trzask), BODY
+  1.14 kHz / 370 ms / drive 37 % (chrupnięcie = pasmo 500–1500 Hz, długie, pod całym kickiem), ogon START 760 Hz → END 20 Hz w 161 ms
+  (krzywa 24 %, -13.6 st) przez drive 63 % (trzask = początek ogona), trzy warstwy prawie równo. Efekty „między H2 i H3”, najlepszy
+  wariant BODY 1250 Hz / 50 % / -4 dB, 7. harmoniczna. Lekcja: gdy szukanie brzmienia kręci się w kółko, poprosić właściciela o jego
+  własne ustawienia / preset zamiast zgadywać dalej.

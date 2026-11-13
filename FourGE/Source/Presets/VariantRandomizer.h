@@ -38,28 +38,19 @@ namespace fge::variant
     //      well-driven tail that is the loudest part and holds (flat, "gated"), a room in the drive (the reverb kicks of that time).
     inline const Table& euphoricTable()
     {
-        // ranges around the EUPHORIC template (band matched to Wildstylez / Noisecontrollers / Zatox, owner 2026-11-12); never RAW: no screech,
-        // CLEAN / TONAL / DIRTY only, moderate drive, the sub present, the colour from TAIL COLOR (KEY TRACK, harmonics 12-18)
+        // ranges around the EUPHORIC template = the owner's own kick (2026-11-13, from INIT): low punch, high long BODY (the crunch), the tail
+        // falling from ~760 Hz (the crack), soft -> wavefold, the 6th harmonic; never RAW: no screech, moderate drive
         static const Table x = []
         {
             Table t;
-            t[APunch]   = { { "punch_mode", 0, 0, { 1 } }, { "punch_note_mode", 0, 0, { 1 } }, { "punch_source", 0, 0, { 0, 0, 1 } }, { "punch_pitch", 587, 784 },
-                            { "punch_length", 15, 30 }, { "punch_level", -11, -7 }, { "punch_drive", 0.7f, 0.95f }, { "punch_tok_decay", -4, 0 },
-                            { "punch_tok_bend", 8, 14 }, { "punch_glide", 5, 12 }, { "punch_transient", 0.2f, 0.45f }, { "punch_overlap", 6, 12 }, { "tail_start_mode", 0, 0, { 0 } },
-                            { "noiseB_on", 0, 0, { 1 } }, { "noiseB_type", 0, 0, { 0 } }, { "noiseB_env", 0, 0, { 0 } }, { "noiseB_attack", 0.1f, 0.4f },
-                            { "noiseB_decay", 250, 350 }, { "noiseB_length", 500, 650 }, { "noiseB_level", 0, 0 }, { "noiseB_to_punch", -3, 3 },
-                            { "noiseB_to_tail", -6, 0 }, { "noiseB_to_texture", -60, -60 }, { "noiseB_filter", 0, 0, { 0 } }, { "noiseB_cutoff", 2500, 3500 } };
-            t[ABody]    = { { "body_link", 0, 0, { 1 } }, { "body_link_source", 0, 0, { 2 } }, { "body_follow_depth", 0, 0, { 0 } }, { "body_follow_offset", 0, 0, { 0, 0, 12 } },
-                            { "body_source", 0, 0, { 1, 1, 2 } }, { "body_level", -11, -6 }, { "body_drive", 0.35f, 0.6f }, { "body_decay", 80, 140 },
-                            { "body_tone", 2000, 4000 }, { "body_resonance", 0.f, 0.25f } };
-            t[ATail]    = { { "tail_character", 0, 0, { 0, 1, 1 } }, { "tail_source", 0, 0, { 0, 0, 1 } }, { "tail_drive", 0.55f, 0.75f }, { "tail_tone", 6000, 10000 },
-                            { "tail_resonance", 0.05f, 0.3f }, { "tail_mid_hz", 800, 1000 }, { "tail_mid_gain", 4, 8 }, { "tail_uni_voices", 1, 3 }, { "tail_decay", 600, 1000 },
-                            { "tail_room", 0.5f, 0.8f }, { "tail_room_input", 0, 0, { 1 } }, { "tail_room_decay", 300, 450 }, { "tail_room_tone", 7000, 11000 },
-                            { "tail_room_delay", 0, 0, { 0, 0, 0, 150 } },
-                            { "tail_color_gain", 8, 12 }, { "tail_color_track", 0, 0, { 1 } }, { "tail_color_harm", 0, 0, { 12, 14, 16, 16, 18 } }, { "tail_color_q", 1.5f, 3.f } };
-            t[ASub]     = { { "sub_level", -7, -3 }, { "sub_drive", 0.f, 0.2f }, { "sub_length", 300, 500 }, { "sub_amp_env_delay", 20, 40 }, { "sub_attack", 20, 40 } };
-            t[APitch]   = { { "pe_mode", 0, 0, { 0 } }, { "pe_start_mode", 0, 0, { 0 } }, { "pe_time", 80, 120 }, { "pe_curve", 0.2f, 0.4f } };
-            t[ADrive]   = { { "tail_st2_type", 0, 0, { 0, 0, 1, 3 } }, { "tail_st2_drive", 2, 6 }, { "master_clip_drive", 1, 4 } };
+            t[APunch]   = { { "punch_mode", 0, 0, { 0 } }, { "punch_pitch", 196, 277 }, { "punch_length", 75, 110 }, { "punch_level", -7.5f, -4.5f }, { "punch_drive", 0.55f, 0.8f } };
+            t[ABody]    = { { "body_link", 0, 0, { 0 } }, { "body_pitch", 1050, 1400 }, { "body_level", -5.5f, -3 }, { "body_drive", 0.38f, 0.62f } };
+            t[ATail]    = { { "tail_drive", 0.5f, 0.75f }, { "tail_level", -5.5f, -3.5f }, { "tail_room", 0.1f, 0.35f }, { "tail_room_input", 0, 0, { 0 } },
+                            { "tail_room_decay", 350, 550 }, { "tail_room_tone", 5000, 8000 },
+                            { "tail_color_gain", 4, 8 }, { "tail_color_track", 0, 0, { 1 } }, { "tail_color_harm", 0, 0, { 6, 7, 7, 7, 8 } }, { "tail_color_q", 1.f, 1.6f } };
+            t[ASub]     = { { "sub_level", 0, 0, { -12 } } };                     // INIT sub (the owner's kick)
+            t[APitch]   = { { "pe_start", 650, 900 }, { "pe_time", 130, 200 }, { "pe_curve", 0.18f, 0.32f }, { "pe_amount", -15, -12 } };
+            t[ADrive]   = { { "master_clip_drive", 0.5f, 2.5f } };
             t[AScreech] = { { "scr_on", 0, 0, { 0 } } };
             return t;
         }();

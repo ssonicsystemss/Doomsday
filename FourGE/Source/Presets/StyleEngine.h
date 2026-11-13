@@ -23,8 +23,8 @@ namespace fge::style
             "Strong, clean and controlled: a precise transient, layered body, a polished tail and dense, precise distortion (HARD -> SOFT -> DIGITAL CLIP).",
             "Aggressive: heavy asymmetric distortion (ASYMMETRIC -> HARD -> WAVEFOLD), a sharp screech, strong harmonics, the bass entering early.",
             "Unusual but still a kick: a double drop, a metallic tail, folds / a rectifier / a custom shaper blended into a solid core.",
-            "Euphoric 2009-12 (Wildstylez, Headhunterz, Brennan Heart, Noisecontrollers): a short TOK whose fast pitch drop goes through the drive "
-            "(the crack), a driven tonal BODY, a melodic tail through moderate saturation -> waveshaper -> TAIL COLOR (the harmonics), the sub present." };
+            "Euphoric 2009-12 (Wildstylez, Headhunterz, Brennan Heart, Noisecontrollers): a low driven punch (the hit), a high long BODY (the crunch), "
+            "a tail that falls fast from ~760 Hz through the drive (the crack), soft -> wavefold, the 6th harmonic coloured, a small room." };
         return d[juce::jlimit (0, NumStyles - 1, s)];
     }
     inline int indexOf (const juce::String& id) { for (int i = 0; i < P::count; ++i) if (id == def (i).id) return i; return -1; }
@@ -99,17 +99,19 @@ namespace fge::style
                          { "noiseB_env", 3 }, { "noiseB_to_texture", -60 }, { "noiseB_to_tail", -30 }, { "noiseB_level", 0 }, { "noiseB_cutoff", 8000 } },
                        { { dd::LocTail, { { "type", dd::Wavefold }, { "drive", 0.3f }, { "mix", 0.45f } } }, { dd::LocTail, { { "type", dd::Rectifier }, { "drive", 0.25f }, { "mix", 0.25f } } }, { dd::LocTail, { { "type", dd::Custom }, { "drive", 0.25f }, { "mix", 0.35f } } },
                          { dd::LocPunch, { { "type", dd::Wavefold }, { "drive", 0.3f }, { "mix", 0.45f } } }, { dd::LocPunch, { { "type", dd::Rectifier }, { "drive", 0.25f }, { "mix", 0.25f } } }, { dd::LocPunch, { { "type", dd::Custom }, { "drive", 0.25f }, { "mix", 0.35f } } } } },
-            // EUPHORIC 2009-12 (owner 2026-11-12: its own style; the owner's notes, matched band by band to Wildstylez / NC / Zatox): a short TOK
-            // ~E5 FOLLOW MIDI + BEND (the refs' tok sits at 500-1500 Hz), its fast drop goes
-            // through the drive (the crack); a driven tonal BODY; SINE tail -> SOFT (saturation) -> WAVEFOLD (waveshaping) -> TAIL COLOR (KEY TRACK,
-            // the harmonics) -> a light clip; noise + room only a quiet layer; the sub present
-            Template { { { "sub_attack", 30 }, { "sub_amp_env_delay", 25 }, { "tail_color_q", 2 }, { "tail_color_harm", 16 }, { "tail_color_track", 1 }, { "tail_color_gain", 11 }, { "noiseB_cutoff", 3000 }, { "noiseB_to_texture", -60 }, { "noiseB_to_tail", -3 }, { "noiseB_to_punch", 0 }, { "noiseB_level", 0 }, { "noiseB_length", 600 }, { "noiseB_decay", 300 }, { "noiseB_attack", 0.2f }, { "noiseB_env", 0 }, { "noiseB_type", 0 }, { "noiseB_on", 1 }, { "tail_room_input", 1 }, { "tail_penv_offset", 0 }, { "body_resonance", 0.1f }, { "body_tone", 2500 }, { "body_drive", 0.5f }, { "body_source", 1 }, { "body_follow_offset", 0 }, { "body_follow_depth", 0 }, { "body_link_source", 2 }, { "body_link", 1 }, { "punch_overlap", 8 }, { "punch_transient_tone", 4000 }, { "punch_transient", 0.3f }, { "punch_release", 5 }, { "punch_sustain", 1 }, { "punch_decay", 60 }, { "punch_attack", 0 }, { "punch_tone", 6000 }, { "punch_length", 25 }, { "punch_tok_decay", -3 }, { "punch_tok_bend", 12 }, { "punch_note_offset", 19 }, { "tail_start_mode", 0 }, { "tail_start", 100 }, { "punch_note_mode", 1 }, { "punch_mode", 1 }, { "tail_character", 1 }, { "tail_source", 0 }, { "tail_st2_type", 0 }, { "pe_start", 349.23f }, { "tail_room", 0.65f }, { "tail_room_decay", 350 }, { "tail_room_tone", 9000 }, { "pe_start_mode", 0 }, { "pe_time", 100 }, { "pe_curve", 0.3f },
-                         { "tail_drive", 0.65f }, { "tail_tone", 4463 }, { "tail_resonance", 0.06f }, { "body_level", -8 }, { "body_pitch", 187.7f },
-                         { "sub_level", -4 }, { "punch_level", -9 }, { "punch_pitch", 659.26f }, { "punch_glide", 8 }, { "punch_drive", 0.85f }, { "tail_level", 0 }, { "tail_uni_drift", 14 },
-                         { "tail_uni_mix", 1 }, { "tail_st2_drive", 14 }, { "tail_mid_hz", 900 }, { "tail_mid_gain", 6 }, { "tail_low_cut", 40 },
-                         { "tail_high_cut", 19000 }, { "master_clip_drive", 2 }, { "tail_attack", 3.6f }, { "tail_hold_level", 0 }, { "punch_source", 0 } },
-                       { { dd::LocTail, { { "type", dd::Soft }, { "drive", 0.35f }, { "shape", 0.5f } } }, { dd::LocTail, { { "type", dd::Wavefold }, { "drive", 0.25f } } },
-                         { dd::LocPunch, { { "type", dd::Soft }, { "drive", 0.55f }, { "shape", 0.5f } } }, { dd::LocPunch, { { "type", dd::Wavefold }, { "drive", 0.45f } } } } },
+            // EUPHORIC 2009-12 - the OWNER'S OWN kick (2026-11-13: "u mnie takie ustawienia sa najbliżej", made from INIT): a LOW tok (231 Hz, 91 ms,
+            // drive 67 %) = the hit; a HIGH long BODY (1.14 kHz, 370 ms, drive 37 %) = the crunch ("chrupnięcie", the 500-1500 Hz band); the TAIL
+            // starts at 760 Hz and falls in 161 ms (curve 24 %, -13.6 st) through drive 63 % = the crack; the three layers about equally loud.
+            // Effects = "between H2 and H3": SOFT -> WAVEFOLD on the tail, TAIL COLOR the 6th harmonic (KEY TRACK, "GRRRAAANG"), a small room
+            // before the drive, a light clip. Everything else stays INIT (the owner's base).
+            Template { { { "punch_level", -5.8f }, { "punch_pitch", 231 }, { "punch_length", 91 }, { "punch_drive", 0.67f },
+                         { "body_level", -4 }, { "body_pitch", 1250 }, { "body_drive", 0.5f },   // "Crunch Body" = "jest git" (2026-11-13)
+                         { "tail_level", -4.4f }, { "tail_drive", 0.63f },
+                         { "pe_start", 760 }, { "pe_end", 20.3f }, { "pe_time", 161 }, { "pe_curve", 0.24f }, { "pe_amount", -13.6f },
+                         { "tail_color_gain", 6 }, { "tail_color_track", 1 }, { "tail_color_harm", 7 }, { "tail_color_q", 1.2f },
+                         { "tail_room", 0.2f }, { "tail_room_decay", 450 }, { "tail_room_tone", 6000 }, { "tail_room_input", 0 },
+                         { "master_clip_drive", 1.5f } },
+                       { { dd::LocTail, { { "type", dd::Soft }, { "drive", 0.5f } } }, { dd::LocTail, { { "type", dd::Wavefold }, { "drive", 0.3f } } } } },
         };
         return t[(size_t) juce::jlimit (0, NumStyles - 1, s)];
     }

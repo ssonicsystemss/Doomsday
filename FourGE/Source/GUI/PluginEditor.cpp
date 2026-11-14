@@ -66,6 +66,9 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         fge::pagernd::randomizeIds (proc, ids, "tab");
     };
     addChildComponent (detDice);
+    punchType = combo ("punch_mode"); tailType = combo ("tail_engine");          // ARCHITECTURE.md: the TYPE lists in the panel header
+    punchType->setTooltip ("PUNCH TYPE: the mechanism that makes the punch - only its controls are shown below.");
+    tailType->setTooltip ("TAIL TYPE: the mechanism that makes the tail (CLASSIC / PVC / ZAAG) - only its controls are shown below.");
     liveSpec = std::make_unique<fge::gui::LiveSpecView> (proc);
     addChildComponent (*liveSpec);
     // module 17: the navigation + the interface settings
@@ -233,7 +236,6 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (knob ("tail_color_q", "COLOR Q", col));
             d.push_back (combo ("tail_color_track"));
             d.push_back (&detailPageMark);                                        // 3rd tab: TAIL ENGINE PVC - source / pitch / resonance / reverb (owner 2026-11-14)
-            d.push_back (combo ("tail_engine"));
             d.push_back (combo ("pt_source"));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
                      { "pt_start", "START" }, { "pt_hold", "HOLD" }, { "pt_drop_time", "DROP TIME" }, { "pt_root", "ROOT" }, { "pt_slide", "SLIDE" }, { "pt_delay", "TAIL START" } })
@@ -262,7 +264,6 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                      { "pt_attack", "ATTACK" }, { "pt_length", "LENGTH" }, { "pt_fade", "FADE" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (&detailPageMark);                                        // 5th tab: TAIL ENGINE ZAAG (owner 2026-11-14)
-            d.push_back (combo ("tail_engine"));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
                      { "zg_start", "START" }, { "zg_drop", "DROP" }, { "zg_saw", "SAW" }, { "zg_drive", "DRIVE" }, { "zg_dirt", "DIRT" }, { "zg_dirt_tone", "DIRT TONE" },
                      { "zg_sub", "SUB" }, { "zg_press", "PRESS" }, { "zg_width", "WIDTH" } })
@@ -514,12 +515,20 @@ void GeCanvas::layoutDetail()
     if (selected == 0) tokNote.setBounds (x + 775, y + 1, 70, 24);
     y += 36;
     // a 2nd tab (TAIL: ROOM / COLOR): the items after the marker share the rows of the first tab, one tab shown at a time
-    const int nTabs = 1 + (int) std::count (d.begin(), d.end(), &detailPageMark);
-    const bool tabs = nTabs > 1;
-    detailPage = juce::jlimit (0, nTabs - 1, detailPage);
+    const int nAll = 1 + (int) std::count (d.begin(), d.end(), &detailPageMark);
+    const auto allowed = allowedTabs();                                          // ARCHITECTURE.md: only the picked TYPE's tabs
+    const auto isAllowed = [&] (int t) { return std::find (allowed.begin(), allowed.end(), t) != allowed.end() && t < nAll; };
+    if (! isAllowed (detailPage)) detailPage = allowed.empty() ? 0 : allowed.front();
+    const int nTabs = (int) std::count_if (allowed.begin(), allowed.end(), [&] (int t) { return t < nAll; });
+    const bool tabs = nAll > 1;
+    {   // the TYPE list in the header
+        auto* tb = selected == 0 ? punchType : selected == 2 ? tailType : nullptr;
+        for (auto* c : { punchType, tailType }) if (c != nullptr) c->setVisible (pageIdx == 0 && c == tb);
+        if (tb != nullptr) tb->setBounds (detailArea.getRight() - 14 - nTabs * 112 - 100 - 160, detailArea.getY() + 5, 150, 24);
+    }
     for (int t = 0; t < 5; ++t)
     {
-        detTab[t].setVisible (tabs && t < nTabs && pageIdx == 0);
+        detTab[t].setVisible (tabs && isAllowed (t) && nTabs > 1 && pageIdx == 0);
         detDice.setVisible (pageIdx == 0);
         static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "" };
         static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG" };
@@ -534,10 +543,10 @@ void GeCanvas::layoutDetail()
                                                         : t == 2 ? "TAIL ENGINE PVC (the KLOENK tail): the source (kick BODY / sine / saw / hybrid), its pitch and resonance, and the REVERB the tail is made of."
                                                                  : t == 3 ? "TAIL ENGINE PVC: the GATE, the distortion stages (drive 1 -> clip -> gate -> drive 2), the spectrum balance, mono low / stereo high, the final shape."
                                                                           : "TAIL ENGINE ZAAG: the whole kick as one huge distorted bass from 0 ms, the PIEP then the TRASK, a reverb on the punch, PRESS."));
-        const int tw = nTabs > 4 ? 96 : 108, step = tw + 4;
-        int right = detailArea.getRight() - 14; for (int u = nTabs - 1; u > t; --u) right -= step;
+        const int tw = 108, step = tw + 4;
+        int right = detailArea.getRight() - 14; for (int u = nAll - 1; u > t; --u) if (isAllowed (u)) right -= step;
         detTab[t].setBounds (right - tw, detailArea.getY() + 6, tw, 22);
-        if (t == 0) detDice.setBounds (right - tw - 100, detailArea.getY() + 6, 92, 22);
+        if (t == (allowed.empty() ? 0 : allowed.front())) detDice.setBounds (right - tw - 100, detailArea.getY() + 6, 92, 22);
         detTab[t].setColour (TextButton::buttonColourId, t == detailPage ? palette().red.withAlpha (0.5f) : palette().control);
     }
     const int y0 = y;
@@ -768,8 +777,28 @@ void GeCanvas::updateEnabled()
     if (tokNote.isEnabled() != tn) { tokNote.setEnabled (tn); tokNote.setAlpha (tn ? 1.f : 0.35f); }
 }
 
+std::vector<int> GeCanvas::allowedTabs() const                                // ARCHITECTURE.md: the tabs of the picked PUNCH TYPE / TAIL TYPE
+{
+    if (selected == 0)
+    {
+        const int m = (int) raw (proc, P::punchMode);
+        return { m <= 1 ? 0 : m == 2 ? 1 : 2, 3 };                                  // + SUB / BLEND (the shared CLICK / SUB PUNCH)
+    }
+    if (selected == 2)
+    {
+        const int e = (int) raw (proc, P::tailEngine);
+        if (e == 1) return { 2, 3 };
+        if (e == 2) return { 4 };
+        return { 0, 1 };
+    }
+    return { 0, 1, 2, 3, 4 };
+}
 void GeCanvas::timerCallback()
 {
+    {   // the TYPE changed (a click, undo, a preset): show its tabs
+        const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine);
+        if (pm != shownPunchType || te != shownTailType) { shownPunchType = pm; shownTailType = te; layoutDetail(); repaint(); }
+    }
     presetBar.refresh();
     syncTokNote();
     styleStrip.setLit (proc.currentStyle());                                       // module 13: the STYLE shown (undo / presets change it too)

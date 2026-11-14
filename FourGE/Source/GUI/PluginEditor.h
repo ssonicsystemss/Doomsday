@@ -169,7 +169,10 @@ private:
     juce::Slider rndStrength { juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox };   // RANDOMIZE STRENGTH (owner 2026-11-14)
     juce::Label rndLabel { {}, "RND POWER" };
     juce::TextButton detDice { "RANDOMIZE" };
-    std::unique_ptr<fge::gui::LiveSpecView> liveSpec;                                              // LIVE SPECTRUM on the EQ tabs (TAIL COLOR, MID FREQ ...)                                                       // the dice of the visible PUNCH / TAIL tab
+    std::unique_ptr<fge::gui::LiveSpecView> liveSpec;
+    juce::ComboBox* punchType = nullptr; juce::ComboBox* tailType = nullptr;                       // PUNCH TYPE / TAIL TYPE (ARCHITECTURE.md): only the picked type's tabs show
+    int shownPunchType = -1, shownTailType = -1;
+    std::vector<int> allowedTabs() const;                                              // LIVE SPECTRUM on the EQ tabs (TAIL COLOR, MID FREQ ...)                                                       // the dice of the visible PUNCH / TAIL tab
     juce::Component::SafePointer<juce::CallOutBox> lengthBox;
     juce::String styleMsg;
     juce::uint32 styleMsgTime = 0;

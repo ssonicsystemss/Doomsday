@@ -82,6 +82,12 @@ Najkrótsze możliwe wejście to 0,15 ms, a wyjście 3 ms, więc nie ma klików 
 przez przester (trzask = pitch drop + nieliniowość, nie osobny klik), tonalne BODY, tail SINE → SOFT → WAVEFOLD → **TAIL COLOR** → lekki clip, szum + pokój tylko jako ziarno.
 **TAIL COLOR** (karta TAIL, zakładka ROOM / COLOR): EQ PO przesterze taila – wybiera, które harmoniczne zostają (nisko BOOOM, ~300–600 Hz GRRRAAANG,
 wyżej KRAAASH); KEY TRACK = podbicie jedzie z nutą (HARMONIC × nuta), więc barwa jest ta sama na każdej nucie linii basowej.
+**SHAPED PUNCH** (PUNCH MODE = SHAPED, druga zakładka karty PUNCH, właściciel 2026-11-14 „mamy to”) – charakter punchu NIE z sinusa:
+szerokopasmowe źródło (SNARE / NOISE, TRANSPOSE – klasycznie werbel +14 st) → podbicie środka (MID FREQ płynnie, MID GAIN) → przester
+asymetryczny (DRIVE, ASYM) → TAPE STOP (punch zwalnia i opada pod koniec; TAPE START) → VOLUME SHAPER (SPIKE, BODY, BODY TIME, END) →
+LOW CUT; + CLICK (krótki przesterowany „laser”), + SUB punchu (mono, na nucie, wchodzi później – SUB DELAY), + krótki REVERB stereo.
+TONAL ONLY = sama warstwa tonalna (laboratorium). Sinus zostaje dla SUB i reszty kicka. Opis: `CRUNCH.md`, `Shared/RESEARCH.md` (Eternize).
+
 **TAIL ROOM** (karta TAIL: ROOM / ROOM DECAY / ROOM TONE / ROOM DELAY = pre-delay 0–300 ms / wejście TAIL albo TOK + TAIL – pokój także na toku: przester robi z niego trzask euphoric kicków) – mały pokój na ogonie PRZED jego przesterem (trik early hardstyle: przester „zjada” pogłos i robi pełny, gated ogon); nie wydłuża kicka (gaśnie z końcem kicka). RANDOMIZE w EARLY ma 2 wzory: CLASSIC 2004–08 / EUPHORIC 2009–12 (Wildstylez, Headhunterz, Brennan Heart, Noisecontrollers) albo AUTO. **EARLY = tryb PUNCH** (krótkie uderzenie wpadające w kick, ogon od uderzenia – bez tonalnego „pup”).
 - **Środek**: duży **waveform** – to prawdziwy wyrenderowany kick, każda część w swoim kolorze.
   **Złap go myszką i przeciągnij do FL** – dostaniesz gotowy plik WAV.
@@ -387,7 +393,7 @@ PUNCH, −0,3 dB), więc grają głośno i równo jak gotowe kicki z paczek. Str
 | STYLE | Presety (długość) | Wzór |
 |---|---|---|
 | **EARLY** (2004–08) | Classic Boom (450 ms), Dark Tonal (400), Punchy Short (220), Melodic Long (800), Warm Tube (500), Anthem XL (1100) | Old Kick Pick 019 / 027: punch 909 bez tonalnego toka, pokój przed przesterem, ogon = głównie podstawa |
-| **EUPHORIC** (2009–12) | Euphoric Main, Reverb Kick (pokój TOK + TAIL), Anthem XL (900), Festival Drive, Soft Body, Short Tok (320) | z kicka właściciela (INIT): niski punch 231 Hz / 91 ms (uderzenie), wysokie długie BODY ~1.25 kHz (chrupnięcie), ogon od 760 Hz w dół w 161 ms przez przester (trzask); SOFT → WAVEFOLD, 7. harmoniczna, mały pokój, lekki clip |
+| **EUPHORIC** (2009–12) | Euphoric Main (SHAPED punch, środek 1 kHz), Sharp Crack (1,6 kHz – najostrzejszy crack), Dark Punch (700 Hz – ciemniej, grubiej), Reverb Kick, Anthem XL (900), Short Tok (320) | punch SHAPED (werbel +14 st → EQ środka → przester → tape stop → shaper + click + opóźniony sub), wysokie długie BODY ~1.25 kHz, ogon od 760 Hz w dół przez przester; SOFT → WAVEFOLD, 7. harmoniczna, mały pokój |
 | **MODERN** | Festival Main (675), Clean Punch (450), Tok Bounce (520), Euphoric Long (950), Tight Short (240), Wide Anthem XL (1400) | OPS KICK2_*: tok ~365 Hz, czysty sub, gęsty, kontrolowany |
 | **RAW** | Screamer Main (815), Rawstyle Punch (500), Square Scream (650), Gated Short (240), Hardcore Crush (450), Rumble XL (1500) | OPS KICK_*: tok ~900 Hz, screech, szeroki ogon (dół mono) |
 | **EXPERIMENTAL** | Metal Fold, Double Drop, Laser Zap, Glitch Crush, Formant Scream, Pulse Machine | działający kick + jeden nietypowy element: metaliczny fałd, podwójny drop, „laser” z 2 kHz, bitcrush, formanty, PULSE |

@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -372,7 +372,26 @@ namespace fge
     F (tailColorFreq,  "tail_color_freq",      "Tail Color Freq",      Unit::Hz,  60.f, 8000.f, 500.f, 600.f, FMod) \
     F (tailColorQ,     "tail_color_q",         "Tail Color Q",         Unit::None, 0.3f, 8.f, 2.f, 1.5f, FNone) \
     C (tailColorTrack, "tail_color_track",     "Tail Color Track",     colorTracks, 0, FNone) \
-    F (tailColorHarm,  "tail_color_harm",      "Tail Color Harmonic",  Unit::None, 1.f, 32.f, 8.f, 0.f, FNone)
+    F (tailColorHarm,  "tail_color_harm",      "Tail Color Harmonic",  Unit::None, 1.f, 32.f, 8.f, 0.f, FNone) \
+    /* ================= owner 2026-11-14 ("no kurwa mamy to"): the SHAPED PUNCH (Eternize framework) - punch_mode SHAPED ================= */ \
+    C (pshSource,      "psh_source",           "Shaped Source",        pshSources, 0, FNone) \
+    F (pshTranspose,   "psh_transpose",        "Shaped Transpose",     Unit::Semi, -12.f, 24.f, 14.f, 0.f, FNone) \
+    F (pshMidFreq,     "psh_mid_freq",         "Shaped Mid Freq",      Unit::Hz,  300.f, 4000.f, 1000.f, 1000.f, FNone) \
+    F (pshMidGain,     "psh_mid_gain",         "Shaped Mid Gain",      Unit::Db,  0.f, 24.f, 12.f, 0.f, FNone) \
+    F (pshDrive,       "psh_drive",            "Shaped Drive",         Unit::Db,  0.f, 40.f, 24.f, 0.f, FNone) \
+    F (pshAsym,        "psh_asym",             "Shaped Asymmetry",     Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (pshTape,        "psh_tape",             "Shaped Tape Stop",     Unit::Pct, 0.f, 0.9f, 0.5f, 0.f, FNone) \
+    F (pshTapeStart,   "psh_tape_start",       "Shaped Tape Start",    Unit::Pct, 0.f, 0.9f, 0.35f, 0.f, FNone) \
+    F (pshSpike,       "psh_spike",            "Shaped Spike",         Unit::Ms,  1.f, 30.f, 6.f, 0.f, FNone) \
+    F (pshBody,        "psh_body",             "Shaped Body Level",    Unit::Pct, 0.f, 1.f, 0.55f, 0.f, FNone) \
+    F (pshBodyMs,      "psh_body_ms",          "Shaped Body Time",     Unit::Ms,  15.f, 250.f, 70.f, 80.f, FNone) \
+    F (pshEnd,         "psh_end",              "Shaped End",           Unit::Ms,  30.f, 400.f, 140.f, 150.f, FNone) \
+    F (pshLowCut,      "psh_low_cut",          "Shaped Low Cut",       Unit::Hz,  40.f, 1200.f, 250.f, 300.f, FNone) \
+    F (pshClick,       "psh_click",            "Shaped Click",         Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (pshSub,         "psh_sub",              "Shaped Sub",           Unit::Pct, 0.f, 1.5f, 0.9f, 0.f, FNone) \
+    F (pshSubDelay,    "psh_sub_delay",        "Shaped Sub Delay",     Unit::Ms,  0.f, 80.f, 25.f, 0.f, FNone) \
+    F (pshVerb,        "psh_verb",             "Shaped Reverb",        Unit::Pct, 0.f, 0.6f, 0.12f, 0.f, FNone) \
+    B (pshTonalOnly,   "psh_tonal_only",       "Shaped Tonal Only",    false, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

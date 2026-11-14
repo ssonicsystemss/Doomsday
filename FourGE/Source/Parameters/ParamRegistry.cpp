@@ -94,8 +94,9 @@ namespace fge
         const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
         const juce::StringArray& lenSyncs()       { static const juce::StringArray a { "OFF", "1/4 BEAT", "1/2 BEAT", "1 BEAT", "2 BEATS" }; return a; }
         const juce::StringArray& tokModes()       { static const juce::StringArray a { "FOLLOW MIDI", "FIXED" }; return a; }
-        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK" }; return a; }
+        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK", "SHAPED" }; return a; }
         const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "OFFSET" }; return a; }
+        const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE" }; return a; }
         const juce::StringArray& colorTracks() { static const juce::StringArray a { "HZ", "KEY TRACK" }; return a; }
         const juce::StringArray& roomInputs() { static const juce::StringArray a { "TAIL", "TOK + TAIL" }; return a; }
         const juce::StringArray& tailStartModes() { static const juce::StringArray a { "AFTER TOK", "INDEPENDENT" }; return a; }
@@ -235,6 +236,24 @@ namespace fge
             case peMode:       return "Shape of the pitch movement from START to END.";
             case peStart:      return "Where the tail pitch starts (held for HOLD, then the drop to the note). Type a note (\"G4\"). The tok = PUNCH in TOK mode.";
             case punchMode:    return "TOK: the PUNCH is the tok - TRANSIENT + TOK CORE on one note for its LENGTH, then the TAIL starts (PUNCH / TOK -> TAIL). PUNCH: the classic short punch that glides into the kick, the tail from the hit.";
+            case pshSource:    return "SHAPED PUNCH source: a BROADBAND sound the EQ + distortion turn into the character (a sine has nothing to shape). SNARE = noise + a short body, NOISE = white noise.";
+            case pshTranspose: return "Transposes the SNARE / NOISE source (shorter and higher up). The classic: a snare +14 semitones.";
+            case pshMidFreq:   return "CHARACTER: the mid boost BEFORE the distortion - this band is driven into the ceiling. ~700 Hz woody, ~1 kHz default, ~1.6 kHz sharp.";
+            case pshMidGain:   return "CHARACTER: how much the mid band is boosted before the distortion.";
+            case pshDrive:     return "CHARACTER: the distortion (asymmetric) after the mid boost - the punch's grit.";
+            case pshAsym:      return "How one-sided the distortion is: 0 = symmetric, 1 = the negative half much softer (more even harmonics, a fuller middle).";
+            case pshTape:      return "TAPE STOP: how far the punch slows / drops in pitch towards its end (0 = static).";
+            case pshTapeStart: return "TAPE STOP: where in the punch the slow-down starts (part of its length).";
+            case pshSpike:     return "VOLUME SHAPER: the transient spike at the start (ms).";
+            case pshBody:      return "VOLUME SHAPER: the level of the punch body after the spike.";
+            case pshBodyMs:    return "VOLUME SHAPER: how long the body holds (ms from the hit).";
+            case pshEnd:       return "VOLUME SHAPER: where the shaped punch has faded out (ms).";
+            case pshLowCut:    return "Corrective EQ: the lows out of the shaped punch (its low end comes from the SUB).";
+            case pshClick:     return "CLICK: a separate very short transient (a distorted laser) on top of the punch.";
+            case pshSub:       return "SUB of the punch: a mono sine on the played note under the punch.";
+            case pshSubDelay:  return "SUB of the punch enters a little LATER: first the transient, then the push in the chest.";
+            case pshVerb:      return "A very short stereo reverb on the shaped punch (a little - for stereo).";
+            case pshTonalOnly: return "LAB: only the tonal layer (no CLICK, no SUB) - to design the character on its own.";
             case punchNoteMode:return "TOK note: FIXED = the tok plays PITCH on every MIDI note (e.g. always G); FOLLOW MIDI = it moves with the played note (keeping its distance to the tail note); OFFSET = the played note + NOTE OFFSET semitones.";
             case punchOverlap: return "The hand-over TOK -> BODY + TAIL: an equal-power crossfade this long (the tail starts from the tok note, in phase). ~20 ms = no audible seam, shorter = a harder cut.";
             case punchTrLevel: return "TRANSIENT: a very short attack / click at the start of the tok (inside the PUNCH - not a separate part).";

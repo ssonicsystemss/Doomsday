@@ -43,7 +43,9 @@ namespace fge::variant
         static const Table x = []
         {
             Table t;
-            t[APunch]   = { { "punch_mode", 0, 0, { 0 } }, { "punch_pitch", 196, 277 }, { "punch_length", 75, 110 }, { "punch_level", -7.5f, -4.5f }, { "punch_drive", 0.55f, 0.8f } };
+            t[APunch]   = { { "punch_mode", 0, 0, { 2 } }, { "punch_level", -7.5f, -4.5f },                 // SHAPED PUNCH (owner 2026-11-14)
+                            { "psh_mid_freq", 800, 1800 }, { "psh_mid_gain", 9, 15 }, { "psh_drive", 18, 30 }, { "psh_asym", 0.3f, 0.7f },
+                            { "psh_tape", 0.3f, 0.7f }, { "psh_click", 0.3f, 0.7f }, { "psh_sub", 0.6f, 1.1f }, { "psh_sub_delay", 15, 35 } };
             t[ABody]    = { { "body_link", 0, 0, { 0 } }, { "body_pitch", 1050, 1400 }, { "body_level", -5.5f, -3 }, { "body_drive", 0.38f, 0.62f } };
             t[ATail]    = { { "tail_drive", 0.5f, 0.75f }, { "tail_level", -5.5f, -3.5f }, { "tail_room", 0.1f, 0.35f }, { "tail_room_input", 0, 0, { 0 } },
                             { "tail_room_decay", 350, 550 }, { "tail_room_tone", 5000, 8000 },

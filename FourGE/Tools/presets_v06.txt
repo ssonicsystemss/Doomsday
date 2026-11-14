@@ -136,6 +136,24 @@ tail_length 500
 core_auto_length 1
 lim1_on 1
 lim1_mode 2
+preset EUPHORIC - Sharp Crack
+style 4
+ref /mnt/user-data/attachments/58b64e7f-1af8-5704-b9cc-8cf07f46953c/930e5335-004_Wildstylez_Unleash_The_Beast_Kick.wav
+body_length 370
+tail_length 500
+core_auto_length 1
+lim1_on 1
+lim1_mode 2
+psh_mid_freq 1600
+preset EUPHORIC - Dark Punch
+style 4
+ref /mnt/user-data/attachments/58b64e7f-1af8-5704-b9cc-8cf07f46953c/930e5335-004_Wildstylez_Unleash_The_Beast_Kick.wav
+body_length 370
+tail_length 500
+core_auto_length 1
+lim1_on 1
+lim1_mode 2
+psh_mid_freq 700
 preset EUPHORIC - Reverb Kick
 style 4
 ref /mnt/user-data/attachments/58b64e7f-1af8-5704-b9cc-8cf07f46953c/930e5335-004_Wildstylez_Unleash_The_Beast_Kick.wav
@@ -148,6 +166,7 @@ tail_room 0.4
 tail_room_input 1
 tail_room_decay 700
 tail_room_tone 8000
+psh_verb 0.3
 preset EUPHORIC - Anthem XL
 style 4
 ref /mnt/user-data/attachments/58b64e7f-1af8-5704-b9cc-8cf07f46953c/930e5335-004_Wildstylez_Unleash_The_Beast_Kick.wav
@@ -162,30 +181,6 @@ tail_uni_voices 3
 tail_uni_detune 12
 tail_width 0.4
 pe_time 190
-preset EUPHORIC - Festival Drive
-style 4
-ref /mnt/user-data/attachments/58b64e7f-1af8-5704-b9cc-8cf07f46953c/930e5335-004_Wildstylez_Unleash_The_Beast_Kick.wav
-body_length 370
-tail_length 500
-core_auto_length 1
-lim1_on 1
-lim1_mode 2
-tail_drive 0.75
-tail_color_gain 8
-master_clip_drive 3
-punch_drive 0.8
-preset EUPHORIC - Soft Body
-style 4
-ref /mnt/user-data/attachments/58b64e7f-1af8-5704-b9cc-8cf07f46953c/930e5335-004_Wildstylez_Unleash_The_Beast_Kick.wav
-body_length 370
-tail_length 500
-core_auto_length 1
-lim1_on 1
-lim1_mode 2
-body_drive 0.37
-body_level -5
-body_pitch 1140
-tail_color_harm 6
 preset EUPHORIC - Short Tok
 style 4
 ref /mnt/user-data/attachments/58b64e7f-1af8-5704-b9cc-8cf07f46953c/930e5335-004_Wildstylez_Unleash_The_Beast_Kick.wav
@@ -196,7 +191,7 @@ lim1_on 1
 lim1_mode 2
 tail_length 300
 core_length 320
-punch_length 75
+psh_end 110
 pe_time 130
 preset MODERN - Festival Main
 style 1

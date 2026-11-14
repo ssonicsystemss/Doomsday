@@ -1067,6 +1067,7 @@ int main (int argc, char** argv)
                 if (sid == "mod_movement") route (mo::SLfo1);
                 if (sid.startsWith ("len_follow_")) set2 ("core_length", 1200.f);
                 if (sid == "pe_start_mode") set2 ("pe_end", 30.f);
+                if (sid.startsWith ("psh_")) set2 ("punch_mode", 2.f);                                           // SHAPED PUNCH (owner 2026-11-14)
                 if (sid == "punch_note_mode" || sid == "punch_overlap") { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); }
                 if (sid == "punch_tok_decay" || sid == "punch_tok_bend" || sid == "tail_start_mode" || sid == "tail_start" || sid == "punch_note_offset")
                     { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); set2 ("punch_length", 110.f); set2 ("punch_sustain", 1.f); }
@@ -2628,7 +2629,7 @@ int main (int argc, char** argv)
                 const auto e = run (fge::variant::Early, sd), r = run (fge::variant::Raw, sd), eu = run (fge::variant::Euphoric, sd);
                 // EARLY 2004-08: a PUNCH, little drive, a room / EUPHORIC (the owner's kick 2026-11-13): low punch, high BODY, tail from ~760 Hz
                 early &= e.idx (P::tailChar) <= 2 && ! e.on (P::scrOn) && e.idx (P::punchMode) == 0 && e[P::tailDrive] <= 0.501f && e[P::tailRoom] >= 0.199f
-                         && ! eu.on (P::scrOn) && eu.idx (P::punchMode) == 0 && eu[P::punchLen] >= 74.9f && eu[P::bodyPitch] >= 949.f && eu[P::peStart] >= 649.f && eu[P::tailDrive] <= 0.751f;
+                         && ! eu.on (P::scrOn) && eu.idx (P::punchMode) == 2 && eu[P::pshMidFreq] >= 799.f && eu[P::bodyPitch] >= 949.f && eu[P::peStart] >= 649.f && eu[P::tailDrive] <= 0.751f;
                 raw &= r.idx (P::tailChar) >= 3 && r[P::tailDrive] >= 0.649f;
             }
             const auto a = run (fge::variant::Modern, 42), b = run (fge::variant::Modern, 42), c = run (fge::variant::Modern, 43);

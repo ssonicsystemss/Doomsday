@@ -108,7 +108,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                              toggle (("mix_" + s + "_mute").toRawUTF8(), "MUTE", Toggle::Chip, c.silver), toggle (("mix_" + s + "_solo").toRawUTF8(), "SOLO", Toggle::Chip, col) };
         auto& d = detail[(size_t) i];
         if (i == 0) { d.push_back (seg ("punch_source", { "SINE", "TRI", "SAW", "SQUARE", "NOISE", "CLICK" }, col));
-                      d.push_back (seg ("punch_mode", { "PUNCH", "TOK" }, col));
+                      d.push_back (seg ("punch_mode", { "PUNCH", "TOK", "SHAPED" }, col));
                       d.push_back (seg ("punch_note_mode", { "FIXED", "FOLLOW MIDI", "OFFSET" }, col)); }
         if (i == 1) d.push_back (seg ("body_source", { "SINE", "TRI", "SAW", "SQUARE", "NOISE" }, col));
         if (i == 2) { d.push_back (seg ("tail_source", { "SINE", "TRI", "SAW", "SQUARE", "PULSE", "NOISE" }, col));
@@ -130,6 +130,19 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                      { "punch_tok_decay", "TOK DECAY" }, { "punch_note_offset", "NOTE OFFSET" },
                      { "punch_transient", "TRANSIENT" }, { "punch_transient_len", "TR LENGTH" }, { "punch_transient_tone", "TR TONE" } })
                 d.push_back (knob (id, lab, col));
+            // 2nd tab: the SHAPED PUNCH (owner 2026-11-14) - source / character / tape stop / shaper / click / sub / verb
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("psh_source"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "psh_transpose", "TRANSPOSE" }, { "psh_mid_freq", "MID FREQ" }, { "psh_mid_gain", "MID GAIN" }, { "psh_drive", "DRIVE" },
+                     { "psh_asym", "ASYM" }, { "psh_tape", "TAPE STOP" }, { "psh_tape_start", "TAPE START" }, { "psh_low_cut", "LOW CUT" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "psh_spike", "SPIKE" }, { "psh_body", "BODY" }, { "psh_body_ms", "BODY TIME" }, { "psh_end", "END" },
+                     { "psh_click", "CLICK" }, { "psh_sub", "SUB" }, { "psh_sub_delay", "SUB DELAY" }, { "psh_verb", "REVERB" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (toggle ("psh_tonal_only", "TONAL ONLY", Toggle::Chip, col));
         }
         if (i == 3) d.push_back (knob ("sub_amp_env_delay", "START", col));      // SUB START: its own time, may enter under the tok
         d.push_back (knob ((s + "_phase").toRawUTF8(), "PHASE", col));
@@ -396,6 +409,11 @@ void GeCanvas::layoutDetail()
     for (int t = 0; t < 2; ++t)
     {
         detTab[t].setVisible (tabs && pageIdx == 0);
+        detTab[t].setButtonText (selected == 0 ? (t == 0 ? "PUNCH / TOK" : "SHAPED") : (t == 0 ? "TONE" : "ROOM / COLOR"));
+        detTab[t].setTooltip (selected == 0 ? (t == 0 ? "The classic PUNCH / TOK generator (a waveform with a pitch glide)."
+                                                      : "SHAPED PUNCH (punch mode SHAPED): a broadband source -> mid boost -> distortion -> tape stop -> volume shaper + click + delayed sub.")
+                                            : (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
+                                                      : "TAIL ROOM (a room BEFORE the tail's distortion - the early / euphoric crackle) and TAIL COLOR (the EQ AFTER it: which harmonics stay)."));
         detTab[t].setBounds (detailArea.getRight() - 14 - (2 - t) * 112, detailArea.getY() + 6, 108, 22);
         detTab[t].setColour (TextButton::buttonColourId, t == detailPage ? palette().red.withAlpha (0.5f) : palette().control);
     }
@@ -551,6 +569,15 @@ void GeCanvas::updateEnabled()
     for (auto* id : { "punch_note_mode", "punch_overlap", "punch_tok_decay", "punch_tok_bend", "tail_start_mode" }) en (id, tok);
     const int nMode = (int) raw (proc, P::punchNoteMode);
     en ("punch_note_offset", tok && nMode == 2);
+    {
+        const bool shp = (int) raw (proc, P::punchMode) == 2, solo = raw (proc, P::pshTonalOnly) > 0.5f;
+        for (auto* id : { "psh_source", "psh_transpose", "psh_mid_freq", "psh_mid_gain", "psh_drive", "psh_asym", "psh_tape", "psh_spike", "psh_body",
+                          "psh_body_ms", "psh_end", "psh_low_cut", "psh_verb", "psh_tonal_only" }) en (id, shp);
+        en ("psh_tape_start", shp && raw (proc, P::pshTape) > 0.001f);
+        en ("psh_click", shp && ! solo); en ("psh_sub", shp && ! solo); en ("psh_sub_delay", shp && ! solo && raw (proc, P::pshSub) > 0.001f);
+        for (auto* id : { "punch_source", "punch_attack", "punch_decay", "punch_sustain", "punch_release", "punch_tone", "punch_mix", "punch_glide", "punch_transient", "punch_pitch", "punch_length", "punch_drive", "punch_phase", "punch_transient_len", "punch_transient_tone" })
+            if (shp) en (id, false);
+    }
     en ("tail_start", tok && (int) raw (proc, P::tailStartMode) == 1);
     for (auto* id : { "tail_room_decay", "tail_room_tone", "tail_room_delay", "tail_room_input" }) en (id, raw (proc, P::tailRoom) > 0.001f);
     {

@@ -42,7 +42,7 @@ namespace fge::style
     {
         const juce::String id (def (i).id);
         if (isLength (id)) return false;
-        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
+        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
         if (id.startsWith ("dist")) return true;                         // the whole distortion pool (dist1..16 + dist_ globals)
         return id == "master_clip_drive";
     }
@@ -104,7 +104,8 @@ namespace fge::style
             // starts at 760 Hz and falls in 161 ms (curve 24 %, -13.6 st) through drive 63 % = the crack; the three layers about equally loud.
             // Effects = "between H2 and H3": SOFT -> WAVEFOLD on the tail, TAIL COLOR the 6th harmonic (KEY TRACK, "GRRRAAANG"), a small room
             // before the drive, a light clip. Everything else stays INIT (the owner's base).
-            Template { { { "punch_level", -5.8f }, { "punch_pitch", 231 }, { "punch_length", 91 }, { "punch_drive", 0.67f },
+            Template { { { "punch_mode", 2 },                     // SHAPED PUNCH (owner 2026-11-14 "mamy to"): P1 = mid 1 kHz, the psh_ defaults
+                         { "punch_level", -5.8f }, { "punch_pitch", 231 }, { "punch_length", 91 }, { "punch_drive", 0.67f },
                          { "body_level", -4 }, { "body_pitch", 1250 }, { "body_drive", 0.5f },   // "Crunch Body" = "jest git" (2026-11-13)
                          { "tail_level", -4.4f }, { "tail_drive", 0.63f },
                          { "pe_start", 760 }, { "pe_end", 20.3f }, { "pe_time", 161 }, { "pe_curve", 0.24f }, { "pe_amount", -13.6f },

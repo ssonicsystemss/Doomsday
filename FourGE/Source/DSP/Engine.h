@@ -12,6 +12,7 @@
 // =====================================================================
 #include <juce_dsp/juce_dsp.h>
 #include "Core/Generators.h"
+#include "Core/ShapedPunch.h"
 #include "Env/KickEnvelopes.h"
 #include "Osc/OscTables.h"
 #include "Layers/LayerCook.h"
@@ -48,6 +49,8 @@ namespace fge
         bool tokMode = false, tokFixed = true;    // PUNCH / TOK -> TAIL: the punch is the tok (its own note), the tail starts after it
         float tokHz = 400.f, tailStartMs = 0.f, tokOverlapMs = 4.f;
         dsp::room::Settings room;
+        dsp::shaped::Settings shaped;             // SHAPED PUNCH (owner 2026-11-14): the rendered tonal layer + click + verb, read by the voices
+        const float* shL = nullptr; const float* shR = nullptr; int shLen = 0; double shRate = 48000.0;
         dsp::color::Settings color;               // TAIL COLOR after the tail's distortion (owner 2026-11-12)                 // the TAIL room before its distortion (EARLY, owner 2026-11-12)
         int tokNoteMode = 0;                      // 0 FIXED / 1 FOLLOW MIDI / 2 OFFSET (the played note + tokOffsetMul)
         float tokOffsetMul = 2.f, tokEndMs = 0.f, tokDecayDb = 0.f, tokBendSt = 0.f, tokGlideMs = 10.f;   // (owner 2026-11-10)
@@ -108,7 +111,7 @@ namespace fge
         {
             using namespace dsp;
             srcAmp = {}; srcPitch = 1.f; srcFilt = 0.f;
-            active = true; t = 0.0; age = order; vel = velocityGain; fade = 1.f; fadeStep = 0.f; held = true; ctl = 0; relAtMs = -1.f;
+            active = true; t = 0.0; shSubPh = 0.f; age = order; vel = velocityGain; fade = 1.f; fadeStep = 0.f; held = true; ctl = 0; relAtMs = -1.f;
             noteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f);
             const uint32_t seed = 0x9e3779b9u * (uint32_t) (note + 1) + cfg.seedSalt * 0x632BE5ABu;   // module 12: SEED (0 = as always)
             punch.start (cfg.ks.part[PPunch], phases01[PPunch], seed ^ 0x1234u);
@@ -276,7 +279,28 @@ namespace fge
                     if (cfg.tokDecayDb < -0.01f)                                       // TOK DECAY: a strong start that eases off towards the hand-over
                         gTok *= std::exp2 (cfg.tokDecayDb * 0.1660964f * juce::jlimit (0.f, 1.f, ms / juce::jmax (1.f, cfg.tokEndMs)));
                 }
-                if (ms < cfg.partEnd[PPunch])
+                if (cfg.shaped.on && ms < cfg.partEnd[PPunch])                         // SHAPED PUNCH: the rendered layer (stereo) + its SUB on the note
+                {
+                    const double pos = (double) ms * 0.001 * cfg.shRate; const int i0 = (int) pos;
+                    float sl = 0.f, sr = 0.f;
+                    if (cfg.shL != nullptr && i0 + 1 < cfg.shLen)
+                    {
+                        const float fr = (float) (pos - i0);
+                        sl = cfg.shL[i0] + (cfg.shL[i0 + 1] - cfg.shL[i0]) * fr; sr = cfg.shR[i0] + (cfg.shR[i0 + 1] - cfg.shR[i0]) * fr;
+                    }
+                    if (! cfg.shaped.tonalOnly && cfg.shaped.sub > 0.f)
+                    {
+                        const float d = cfg.shaped.subDelayMs;
+                        const float e = ms < d ? 0.2f * ms / juce::jmax (0.5f, d) : ms < d + 15.f ? 0.2f + 0.8f * (ms - d) / 15.f
+                                      : ms < 220.f ? 1.f - 0.2f * (ms - d - 15.f) / juce::jmax (1.f, 205.f - d) : juce::jmax (0.f, 0.8f * (1.f - (ms - 220.f) / 80.f));
+                        const float hz = noteHz * cfg.fineMul * (1.f + 1.2f * std::exp (-ms / 20.f));
+                        const float sv = std::sin (shSubPh) * e * cfg.shaped.sub;
+                        shSubPh += 6.2831853f * hz * (float) dt; if (shSubPh > 6.2831853f) shSubPh -= 6.2831853f;
+                        sl += sv; sr += sv;
+                    }
+                    bus[6][i] += sl * gate; bus[7][i] += sr * gate;
+                }
+                if (! cfg.shaped.on && ms < cfg.partEnd[PPunch])
                 {
                     const float f = juce::jlimit (5.f, nyq, cfg.tokMode ? tokNow : fTail * std::exp2 (pe.semis (PPunch, ms) / 12.f));
                     bus[PPunch][i] += punch.tick (ks.part[PPunch], ks, ms, f, amp[PPunch], mod[PPunch], ext[PPunch]) * gate * gTok;
@@ -359,7 +383,7 @@ namespace fge
         std::array<dsp::ModNow, 4> mod {};
         PitchEval pe;
         double t = 0.0;
-        float noteHz = 49.f, vel = 1.f, fade = 1.f, fadeStep = 0.f, relAtMs = -1.f;
+        float noteHz = 49.f, vel = 1.f, fade = 1.f, fadeStep = 0.f, relAtMs = -1.f, shSubPh = 0.f;
         bool active = false, held = false;
         uint32_t ctl = 0;
         uint64_t age = 0;
@@ -396,6 +420,7 @@ namespace fge
             limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
             muteG = 1.f;
             tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor); tailColor.reset();
+            shapedR->prepare (sampleRate);
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -856,6 +881,22 @@ namespace fge
                 }
             }
             cfg.holdMs = cfg.pitch[PTail].on ? cfg.pitch[PTail].offsetMs : 0.f;
+            // SHAPED PUNCH (owner 2026-11-14): a broadband source -> mid boost -> distortion -> tape stop -> shaper; rendered once per change
+            {
+                auto& sh = cfg.shaped;
+                sh.on = f.idx (P::punchMode) == 2;
+                if (sh.on)
+                {
+                    sh.source = f.idx (P::pshSource); sh.transposeSt = f[P::pshTranspose]; sh.midHz = f[P::pshMidFreq]; sh.midDb = f[P::pshMidGain];
+                    sh.driveDb = f[P::pshDrive]; sh.asym = f[P::pshAsym]; sh.tape = f[P::pshTape]; sh.tapeStart = f[P::pshTapeStart];
+                    sh.spikeMs = f[P::pshSpike]; sh.body = f[P::pshBody]; sh.bodyMs = f[P::pshBodyMs]; sh.endMs = f[P::pshEnd];
+                    sh.lowCutHz = f[P::pshLowCut]; sh.click = f[P::pshClick]; sh.verb = f[P::pshVerb];
+                    sh.sub = f[P::pshSub]; sh.subDelayMs = f[P::pshSubDelay]; sh.tonalOnly = f.on (P::pshTonalOnly);
+                    shapedR->render (sh);
+                    cfg.shL = shapedR->left(); cfg.shR = shapedR->right(); cfg.shLen = shapedR->length(); cfg.shRate = sr;
+                    cfg.partEnd[PPunch] = juce::jmax (shapedR->lengthMs(), sh.tonalOnly || sh.sub <= 0.f ? 0.f : 300.f);
+                }
+            }
 
             // CORE MIXER: generator LEVEL x fader x mute / solo x polarity, constant-power pan
             const int lvl[4]  { P::punchLevel, P::bodyLevel, P::tailLevel, P::subLevel };
@@ -1215,6 +1256,7 @@ namespace fge
         std::unique_ptr<dsp::room::Room> tailRoom = std::make_unique<dsp::room::Room>();
         dsp::color::TailColor tailColor;
         std::unique_ptr<dsp::room::Room> tokRoom = std::make_unique<dsp::room::Room>();     // TOK + TAIL: the same room on the punch bus
+        std::unique_ptr<dsp::shaped::Renderer> shapedR = std::make_unique<dsp::shaped::Renderer>();   // SHAPED PUNCH (owner 2026-11-14)
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};
         float* const* curBus = nullptr;

@@ -141,7 +141,7 @@ namespace fge::gui
             titles.push_back ({ { 440, 36, 400, 14 }, "CLIPPER " + String (sel + 1) + "  (CUSTOM CURVE: draw it on the right)" });
             place (toggle (id ("on"), "ON", col), 0, y0, 60, 22);
             comboRow ({ { id ("location"), "LOCATION" }, { id ("position"), "POSITION" }, { id ("type"), "TYPE" }, { id ("oversampling"), "OVERSAMPLING" } }, 70, y0, 120);
-            knobRow ({ { id ("input"), "INPUT", true }, { id ("ceiling"), "CEILING", false }, { id ("drive"), "DRIVE", false }, { id ("symmetry"), "SYMMETRY", true },
+            knobRow ({ { id ("input"), "INPUT", true }, { id ("ceiling"), "CEILING", false }, { id ("drive"), "CLIP DRIVE", false }, { id ("symmetry"), "SYMMETRY", true },
                        { id ("softness"), "SOFTNESS", false }, { id ("mix"), "MIX", false }, { id ("output"), "OUTPUT", true } }, 0, yk, col);
             clipEd.setCurve (proc.distData().clip[(size_t) sel]);
         }

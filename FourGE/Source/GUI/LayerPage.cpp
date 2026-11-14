@@ -176,7 +176,7 @@ namespace fge::gui
         for (auto [s, cap] : std::initializer_list<std::pair<const char*, const char*>> { { "type", "SOURCE" }, { "filter", "FILTER" }, { "env", "ENVELOPE" }, { "random_mode", "RANDOM" } })
             if (auto* c = combo (noiseCtl, nid (s), cap)) { place (c, cx, 50, 130, 22); cx += 140; }
         if (auto* c = toggle (noiseCtl, nid ("track"), "PITCH TRACK", col)) place (c, cx + 10, 50, 120, 22);
-        row ({ { "level", "LEVEL" }, { "color", "COLOR" }, { "cutoff", "CUTOFF" }, { "resonance", "RESO" }, { "drive", "DRIVE" }, { "attack", "ATTACK" },
+        row ({ { "level", "LEVEL" }, { "color", "COLOR" }, { "cutoff", "CUTOFF" }, { "resonance", "RESO" }, { "drive", "LAYER DRIVE" }, { "attack", "ATTACK" },
                { "decay", "DECAY" }, { "length", "LENGTH" }, { "mix", "MIX" }, { "width", "WIDTH" }, { "seed", "SEED" }, { "random_amount", "RAND AMT" } }, 84);
         row ({ { "res_freq", "RES FREQ" }, { "res_q", "RES Q" }, { "res_amount", "RES AMT" }, { "metal", "METAL" }, { "bits", "BITS" }, { "sr_reduce", "SR REDUCE" },
                { "quant", "QUANT" }, { "grain", "GRAIN" }, { "to_punch", "> PUNCH" }, { "to_body", "> BODY" }, { "to_tail", "> TAIL" }, { "to_sub", "> SUB" }, { "to_texture", "> TEXTURE" } }, 162);
@@ -196,7 +196,7 @@ namespace fge::gui
             if (auto* c = combo (trCtl, s, cap)) { place (c, cx, 50, 150, 22); cx += 160; }
         int k = 0;
         for (auto [s, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "tr_click_level", "CLICK LEVEL" }, { "tr_click_length", "LENGTH" }, { "tr_click_pitch", "PITCH" },
-                 { "tr_click_tone", "TONE" }, { "tr_click_drive", "DRIVE" }, { "tr_click_mix", "MIX" }, { "tr_width", "WIDTH" }, { "tr_position", "POSITION" } })
+                 { "tr_click_tone", "TONE" }, { "tr_click_drive", "CLICK DRIVE" }, { "tr_click_mix", "MIX" }, { "tr_width", "WIDTH" }, { "tr_position", "POSITION" } })
             if (auto* c = knob (trCtl, s, lab, col, 34)) place (c, (k++) * 82, 86, 80, doomsday::flat::Knob::heightFor (34));
         k = 0;
         for (auto [s, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "tr_attack_level", "ATTACK LVL" }, { "tr_attack_time", "ATK TIME" },

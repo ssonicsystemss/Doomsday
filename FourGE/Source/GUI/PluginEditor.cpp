@@ -379,8 +379,17 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
 
 GeCanvas::~GeCanvas() { *alive = false; stopTimer(); presetBar.setLookAndFeel (nullptr); setLookAndFeel (nullptr); }
 
-GeCanvas::Knob* GeCanvas::knob (const char* id, const String& label, Colour accent, int d, bool bipolar)
+GeCanvas::Knob* GeCanvas::knob (const char* id, const String& labelIn, Colour accent, int d, bool bipolar)
 {
+    String label = labelIn;                                                     // ARCHITECTURE.md: a parameter has its OWNER in the name - never a bare "DRIVE"
+    if (label == "DRIVE")
+    {
+        const String s (id);
+        label = (s.startsWith ("punch_") || s.startsWith ("psh_") || s.startsWith ("pvc_") ? "PUNCH" : s.startsWith ("body_") ? "BODY"
+               : s.startsWith ("tail_") || s.startsWith ("pt_") || s.startsWith ("zg_") ? "TAIL" : s.startsWith ("sub_") ? "SUB"
+               : s.startsWith ("scr_") ? "SCREECH" : s.startsWith ("master_") ? "MASTER" : "") + String (" DRIVE");
+        label = label.trim();
+    }
     auto k = std::make_unique<Knob> (proc.apvts, id, label, accent, bipolar, d);
     auto* raw = k.get(); addAndMakeVisible (raw); byId.insert ({ id, raw }); owned.push_back (std::move (k)); return raw;
 }

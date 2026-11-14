@@ -206,13 +206,13 @@ namespace fge::gui
             titles.push_back ({ { 320, y, 300, 14 }, "HARMONIC SHAPER" });
             place (toggle ("sp_harm_on", "ON", col), 314, y + 30, 64, 22);
             knobRow ({ { "sp_harm_even", "EVEN", false }, { "sp_harm_odd", "ODD", false }, { "sp_harm_low", "LOW", false }, { "sp_harm_high", "HIGH", false }, { "sp_harm_split", "SPLIT", false },
-                       { "sp_harm_drive", "DRIVE", false }, { "sp_harm_balance", "BALANCE", true }, { "sp_harm_mix", "MIX", false } }, 380, y + 16, col, 72);
+                       { "sp_harm_drive", "HARM DRIVE", false }, { "sp_harm_balance", "BALANCE", true }, { "sp_harm_mix", "MIX", false } }, 380, y + 16, col, 72);
             y += 100;
             titles.push_back ({ { 0, y, 200, 14 }, "EXCITER" });
             place (toggle ("sp_exc_on", "ON", col), 0, y + 30, 64, 22);
             place (combo ("sp_exc_mode", "MODE"), 70, y + 30, 104, 22); place (combo ("sp_exc_harmonics", "HARMONICS"), 180, y + 30, 90, 22);
             knobRow ({ { "sp_exc_low", "FROM", false }, { "sp_exc_high", "TO", false }, { "sp_exc_amount", "EXCITATION", false }, { "sp_exc_color", "COLOR", false },
-                       { "sp_exc_drive", "DRIVE", false }, { "sp_exc_mix", "MIX", false } }, 280, y + 16, col, 72);
+                       { "sp_exc_drive", "EXC DRIVE", false }, { "sp_exc_mix", "MIX", false } }, 280, y + 16, col, 72);
             y += 100;
             titles.push_back ({ { 0, y, 300, 14 }, "SPECTRAL COMPRESSION" });
             place (toggle ("sp_comp_on", "ON", col), 0, y + 30, 64, 22);

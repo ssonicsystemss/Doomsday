@@ -135,7 +135,7 @@ namespace fge::gui
             for (auto& [k, cap] : cs) { place (combo (o + k, cap), x, y1, 108, 22); x += 114; }
             place (toggle (o + "env_invert", "INVERT", col), x, y1, 90, 22); x += 96;
             place (toggle (o + "env_sync", "SYNC LEN", col), x, y1, 100, 22);
-            std::vector<K> row { { "cutoff", "CUTOFF", false }, { "resonance", "RESO", false }, { "drive", "DRIVE", false }, { "mix", "MIX", false },
+            std::vector<K> row { { "cutoff", "CUTOFF", false }, { "resonance", "RESO", false }, { "drive", "FILTER DRIVE", false }, { "mix", "MIX", false },
                                  { "key_track", "KEY TRACK", false }, { "env_amount", "ENV AMT", true }, { "velocity", "VELOCITY", true } };
             if (t == m6::FSvf) row.push_back ({ "svf_mode", "LP-BP-HP", false });
             if (t == m6::FFormant) row.push_back ({ "vowel", "VOWEL", false });
@@ -204,7 +204,7 @@ namespace fge::gui
                 if ((mode == sc::Formant || mode == sc::Hybrid) && raw ("scr_vowel_auto") > 0.5f) m.push_back ({ "scr_vowel_end", "VOWEL END", false });
                 if (mode == sc::Feedback || mode == sc::Hybrid)
                     for (auto k : std::initializer_list<K> { { "scr_fb_amount", "FEEDBACK", false }, { "scr_fb_tone", "TONE", false }, { "scr_fb_delay", "DELAY", false },
-                                                             { "scr_fb_drive", "DRIVE", false }, { "scr_fb_mix", "FB MIX", false }, { "scr_fb_stability", "STABILITY", false } }) m.push_back (k);
+                                                             { "scr_fb_drive", "FB DRIVE", false }, { "scr_fb_mix", "FB MIX", false }, { "scr_fb_stability", "STABILITY", false } }) m.push_back (k);
                 int xx = 0;
                 if (mode == sc::Formant || mode == sc::Hybrid) { place (toggle ("scr_vowel_auto", "AUTO MORPH", col), 0, y2 + 18, 110, 22); xx = 118; }
                 if (mode == sc::Feedback || mode == sc::Hybrid) { place (combo ("scr_fb_filter", "FB FILTER"), xx, y2 + 18, 100, 22); xx += 106; }
@@ -216,7 +216,7 @@ namespace fge::gui
                     const int fx = k * 600;
                     place (toggle (o + "on", "F" + String (k + 1), col), fx, y3 + 18, 50, 22);
                     place (combo (o + "type", ""), fx + 54, y3 + 18, 110, 22);
-                    std::vector<K> r { { "cutoff", "CUTOFF", false }, { "resonance", "RESO", false }, { "drive", "DRIVE", false }, { "key_track", "KEY", false }, { "env_amount", "MOD ENV", true }, { "mix", "MIX", false } };
+                    std::vector<K> r { { "cutoff", "CUTOFF", false }, { "resonance", "RESO", false }, { "drive", "FILTER DRIVE", false }, { "key_track", "KEY", false }, { "env_amount", "MOD ENV", true }, { "mix", "MIX", false } };
                     knobRow (r, fx + 170, y3, 70, 66, o);
                 }
             }
@@ -257,7 +257,7 @@ namespace fge::gui
                            { "scr_metal_q", "RINGING", false }, { "scr_noise_color", "N COLOR", true }, { "scr_noise_q", "N RESO", false }, { "scr_vowel", "VOWEL", false },
                            { "scr_formant_width", "F WIDTH", false }, { "scr_formant_reso", "F RESO", false } }, 0, y2, 70, 66);
                 place (combo ("scr_fb_filter", "FB FILTER"), 0, y3 + 18, 100, 22);
-                knobRow ({ { "scr_fb_amount", "FEEDBACK", false }, { "scr_fb_tone", "TONE", false }, { "scr_fb_delay", "DELAY", false }, { "scr_fb_drive", "DRIVE", false },
+                knobRow ({ { "scr_fb_amount", "FEEDBACK", false }, { "scr_fb_tone", "TONE", false }, { "scr_fb_delay", "DELAY", false }, { "scr_fb_drive", "FB DRIVE", false },
                            { "scr_fb_mix", "FB MIX", false }, { "scr_fb_stability", "STABILITY", false } }, 110, y3, 70, 66);
             }
             const bool cust = mode == sc::Custom;

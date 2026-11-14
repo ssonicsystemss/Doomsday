@@ -256,7 +256,7 @@ namespace fge
     F (tailMidQ,     "tail_mid_q",      "Tail Mid EQ Q",       Unit::None,  0.3f,   8.f,   1.f,   1.2f,  FMod) \
     F (tailLowCut,   "tail_low_cut",    "Tail Low Cut",        Unit::Hz,    20.f,  400.f,  20.f,  80.f,  FMod) \
     F (tailHighCut,  "tail_high_cut",   "Tail High Cut",       Unit::Hz,   500.f, 20000.f, 20000.f, 5000.f, FMod) \
-    F (clipDrive,    "master_clip_drive","Clip Drive",         Unit::Db,    0.f,   24.f,   0.f,   6.f,   FMod | FGlobal) \
+    F (clipDrive,    "master_clip_drive","Master Clip Drive",         Unit::Db,    0.f,   24.f,   0.f,   6.f,   FMod | FGlobal) \
     F (clipSoft,     "master_clip_soft","Clip Softness",       Unit::Pct,   0.f,    1.f,   0.5f,  0.f,   FMod | FGlobal) \
     F (tailHoldLvl,  "tail_hold_level", "Tok Level",           Unit::Db,   -24.f,   6.f,   0.f,   0.f,   FMod) \
     FGE_OSC (F, B, C, 1) FGE_OSC (F, B, C, 2) FGE_OSC (F, B, C, 3) FGE_OSC (F, B, C, 4) \
@@ -378,7 +378,7 @@ namespace fge
     F (pshTranspose,   "psh_transpose",        "Shaped Transpose",     Unit::Semi, -12.f, 24.f, 14.f, 0.f, FNone) \
     F (pshMidFreq,     "psh_mid_freq",         "Shaped Mid Freq",      Unit::Hz,  300.f, 4000.f, 1000.f, 1000.f, FNone) \
     F (pshMidGain,     "psh_mid_gain",         "Shaped Mid Gain",      Unit::Db,  0.f, 24.f, 12.f, 0.f, FNone) \
-    F (pshDrive,       "psh_drive",            "Shaped Drive",         Unit::Db,  0.f, 40.f, 24.f, 0.f, FNone) \
+    F (pshDrive,       "psh_drive",            "Punch Drive (Euphoric)",         Unit::Db,  0.f, 40.f, 24.f, 0.f, FNone) \
     F (pshAsym,        "psh_asym",             "Shaped Asymmetry",     Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
     F (pshTape,        "psh_tape",             "Shaped Tape Stop",     Unit::Pct, 0.f, 0.9f, 0.5f, 0.f, FNone) \
     F (pshTapeStart,   "psh_tape_start",       "Shaped Tape Start",    Unit::Pct, 0.f, 0.9f, 0.35f, 0.f, FNone) \
@@ -410,7 +410,7 @@ namespace fge
     F (pvcMix,         "pvc_mix",              "PVC Blend",            Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
     F (pvcRingRatio,   "pvc_ring_ratio",       "PVC Ring Ratio",       Unit::None, 0.25f, 8.f, 2.f, 2.f, FNone) \
     F (pvcComp,        "pvc_comp",             "PVC Compressor",       Unit::Pct, 0.f, 1.f, 0.6f, 0.f, FNone) \
-    F (pvcDrive,       "pvc_drive",            "PVC Drive",            Unit::Db,  0.f, 40.f, 20.f, 0.f, FNone) \
+    F (pvcDrive,       "pvc_drive",            "Punch Drive (PVC)",            Unit::Db,  0.f, 40.f, 20.f, 0.f, FNone) \
     F (pvcSat,         "pvc_sat",              "PVC Saturation",       Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
     F (pvcAsym,        "pvc_asym",             "PVC Asymmetry",        Unit::Pct, 0.f, 1.f, 0.4f, 0.f, FNone) \
     F (pvcLowMid,      "pvc_low_mid",          "PVC Low Mid",          Unit::Db,  -12.f, 12.f, 0.f, 0.f, FNone) \
@@ -457,9 +457,9 @@ namespace fge
     F (ptRevPre,       "pt_rev_pre",           "PVC Tail Pre-delay",   Unit::Ms,  0.f, 100.f, 0.f, 20.f, FNone) \
     F (ptRevCut,       "pt_rev_cut",           "PVC Tail High Cut",    Unit::Hz,  60.f, 8000.f, 450.f, 400.f, FNone) \
     F (ptRevWet,       "pt_rev_wet",           "PVC Tail Reverb Wet",  Unit::Pct, 0.f, 1.f, 1.f, 0.f, FNone) \
-    F (ptDrive1,       "pt_drive1",            "PVC Tail Drive 1",     Unit::Db,  0.f, 30.f, 18.f, 0.f, FNone) \
+    F (ptDrive1,       "pt_drive1",            "Tail Drive 1 (PVC)",     Unit::Db,  0.f, 30.f, 18.f, 0.f, FNone) \
     F (ptClip,         "pt_clip",              "PVC Tail Clip",        Unit::Pct, 0.f, 1.f, 0.7f, 0.f, FNone) \
-    F (ptDrive2,       "pt_drive2",            "PVC Tail Drive 2",     Unit::Db,  0.f, 30.f, 16.f, 0.f, FNone) \
+    F (ptDrive2,       "pt_drive2",            "Tail Drive 2 (PVC)",     Unit::Db,  0.f, 30.f, 16.f, 0.f, FNone) \
     F (ptAsym,         "pt_asym",              "PVC Tail Asymmetry",   Unit::Pct, 0.f, 1.f, 0.2f, 0.f, FNone) \
     C (ptGateCurve,    "pt_gate_curve",        "PVC Tail Gate Curve",  ptGateCurves, 0, FNone) \
     F (ptMovement,     "pt_movement",          "PVC Tail Movement",    Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
@@ -480,7 +480,7 @@ namespace fge
     F (zgStart, "zg_start", "Zaag Start Pitch", Unit::Semi, 0.f, 36.f, 14.f, 0.f, FNone) \
     F (zgDrop, "zg_drop", "Zaag Drop", Unit::Ms, 3.f, 150.f, 22.f, 25.f, FNone) \
     F (zgSaw, "zg_saw", "Zaag Saw", Unit::Pct, 0.f, 1.f, 0.35f, 0.f, FNone) \
-    F (zgDrive, "zg_drive", "Zaag Drive", Unit::Db, 0.f, 40.f, 28.f, 0.f, FNone) \
+    F (zgDrive, "zg_drive", "Tail Drive (Zaag)", Unit::Db, 0.f, 40.f, 28.f, 0.f, FNone) \
     F (zgDirt, "zg_dirt", "Zaag Dirt", Unit::Pct, 0.f, 0.3f, 0.06f, 0.f, FNone) \
     F (zgDirtTone, "zg_dirt_tone", "Zaag Dirt Tone", Unit::Hz, 1000.f, 12000.f, 5000.f, 5000.f, FNone) \
     F (zgSub, "zg_sub", "Zaag Sub", Unit::Pct, 0.f, 2.f, 1.2f, 0.f, FNone) \
@@ -781,7 +781,7 @@ namespace fge
     F (scrMRes,      "scr_mod_reso",      "Screech Mod -> Resonance", Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
     F (scrMFb,       "scr_mod_feedback",  "Screech Mod -> Feedback",  Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
     F (scrMFmt,      "scr_mod_formant",   "Screech Mod -> Formant",   Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
-    F (scrMDrive,    "scr_mod_drive",     "Screech Mod -> Drive",     Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
+    F (scrMDrive,    "scr_mod_drive",     "Screech Mod -> Screech Drive",     Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
     F (scrMDetune,   "scr_mod_detune",    "Screech Mod -> Detune",    Unit::Bip,  -1.f,   1.f,  0.f,   0.f,  FMod) \
     F (scrPStart,    "scr_pitch_start",   "Screech Pitch Env Start",  Unit::Semi,-48.f,  48.f, 12.f,   0.f,  FMod) \
     F (scrPEnd,      "scr_pitch_end",     "Screech Pitch Env End",    Unit::Semi,-48.f,  48.f,  0.f,   0.f,  FMod) \
@@ -887,7 +887,7 @@ namespace fge
     F (spHLow,     "sp_harm_low",        "Low Harmonics",              Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
     F (spHHigh,    "sp_harm_high",       "High Harmonics",             Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
     F (spHSplit,   "sp_harm_split",      "Harmonic Low / High Split",  Unit::Hz,  100.f, 8000.f, 800.f, 800.f, FMod) \
-    F (spHDrive,   "sp_harm_drive",      "Harmonic Drive",             Unit::Pct,   0.f,   1.f,   0.4f,  0.f,  FMod) \
+    F (spHDrive,   "sp_harm_drive",      "EQ Harmonic Drive",             Unit::Pct,   0.f,   1.f,   0.4f,  0.f,  FMod) \
     F (spHMix,     "sp_harm_mix",        "Harmonic Mix",               Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
     F (spHBal,     "sp_harm_balance",    "Harmonic Balance",           Unit::Bip,  -1.f,   1.f,   0.f,   0.f,  FMod) \
     B (spXOn,      "sp_exc_on",          "Exciter On",                 false, FNone) \
@@ -897,7 +897,7 @@ namespace fge
     F (spXHi,      "sp_exc_high",        "Exciter Range High",         Unit::Hz,   20.f, 20000.f, 12000.f, 5000.f, FMod) \
     F (spXAmt,     "sp_exc_amount",      "Excitation",                 Unit::Pct,   0.f,   1.f,   0.4f,  0.f,  FMod) \
     F (spXColor,   "sp_exc_color",       "Exciter Color",              Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
-    F (spXDrive,   "sp_exc_drive",       "Exciter Drive",              Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
+    F (spXDrive,   "sp_exc_drive",       "EQ Exciter Drive",              Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \
     F (spXMix,     "sp_exc_mix",         "Exciter Mix",                Unit::Pct,   0.f,   1.f,   1.f,   0.f,  FMod) \
     B (spCOn,      "sp_comp_on",         "Spectral Compression On",    false, FNone) \
     F (spCSens,    "sp_comp_sensitivity","Spectral Sensitivity",       Unit::Pct,   0.f,   1.f,   0.5f,  0.f,  FMod) \

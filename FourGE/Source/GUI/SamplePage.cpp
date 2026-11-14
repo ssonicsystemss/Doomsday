@@ -295,7 +295,7 @@ namespace fge::gui
                                                          { "start", "START" }, { "end", "END" }, { "fade_in", "FADE IN" }, { "fade_out", "FADE OUT" },
                                                          { "loop_start", "LOOP S" }, { "loop_end", "LOOP E" }, { "loop_xfade", "LOOP X" }, { "root", "ROOT" },
                                                          { "offset", "OFFSET" }, { "phase", "PHASE" } };
-        const std::pair<const char*, const char*> r2[] { { "width", "WIDTH" }, { "drive", "DRIVE" }, { "cutoff", "CUTOFF" }, { "resonance", "RESO" },
+        const std::pair<const char*, const char*> r2[] { { "width", "WIDTH" }, { "drive", "SAMPLE DRIVE" }, { "cutoff", "CUTOFF" }, { "resonance", "RESO" },
                                                          { "length", "LENGTH" }, { "attack", "ATTACK" }, { "decay", "DECAY" }, { "sustain", "SUSTAIN" },
                                                          { "release", "RELEASE" }, { "env_delay", "DELAY" }, { "env_amount", "ENV AMT" }, { "time_scale", "T SCALE" } };
         const std::pair<const char*, const char*> r3[] { { "send_punch", "> PUNCH" }, { "send_body", "> BODY" }, { "send_tail", "> TAIL" }, { "send_sub", "> SUB" },

@@ -301,7 +301,7 @@ namespace fge::gui
         if (auto* tc = typeCombo (t)) { place (combo (did (tc), typeComboCaption (t)), cx, 50, 110, 22); cx += 116; }
         place (toggle (did ("auto_gain"), "AUTO GAIN", col), cx, 50, 96, 22);
         // knobs: the common ones + what this type uses
-        std::vector<TypeKnob> ks { { "drive", "DRIVE", false }, { "input", "INPUT", true }, { "output", "OUTPUT", true }, { "mix", "MIX", false }, { "bias", "BIAS", true } };
+        std::vector<TypeKnob> ks { { "drive", "STAGE DRIVE", false }, { "input", "INPUT", true }, { "output", "OUTPUT", true }, { "mix", "MIX", false }, { "bias", "BIAS", true } };
         if (t != dd::Bitcrush) ks.push_back ({ "morph", "MORPH", false });
         for (auto& k : typeKnobs (t)) ks.push_back (k);
         int k = 0;
@@ -311,14 +311,14 @@ namespace fge::gui
         place (combo (did ("pre_type"), "TYPE"), x0 + 68, 172, 92, 22);
         place (combo (did ("pre_slope"), "SLOPE"), x0 + 164, 172, 62, 22);
         k = 0;
-        for (auto [s, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "pre_cutoff", "CUTOFF" }, { "pre_resonance", "RESO" }, { "pre_drive", "DRIVE" } })
+        for (auto [s, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "pre_cutoff", "CUTOFF" }, { "pre_resonance", "RESO" }, { "pre_drive", "PRE DRIVE" } })
             place (knob (did (s), lab, col), x0 + 230 + (k++) * 64, 156, 62, doomsday::flat::Knob::heightFor (28));
         const int px = 730;
         place (toggle (did ("post_on"), "ON", col), px, 172, 64, 22);
         place (combo (did ("post_type"), "TYPE"), px + 68, 172, 92, 22);
         place (combo (did ("post_slope"), "SLOPE"), px + 164, 172, 62, 22);
         k = 0;
-        for (auto [s, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "post_cutoff", "CUTOFF" }, { "post_resonance", "RESO" }, { "post_drive", "DRIVE" }, { "post_mix", "MIX" } })
+        for (auto [s, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "post_cutoff", "CUTOFF" }, { "post_resonance", "RESO" }, { "post_drive", "POST DRIVE" }, { "post_mix", "MIX" } })
             place (knob (did (s), lab, col), px + 230 + (k++) * 64, 156, 62, doomsday::flat::Knob::heightFor (28));
         // dynamic distortion
         place (combo (did ("mod_source"), "MOD SOURCE"), x0, 244, 110, 22);

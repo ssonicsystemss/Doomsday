@@ -40,3 +40,18 @@ Zasady:
 - 25 % „KA”, 50 % „KRA”, 75 % „KRRRA”, 100 % „KRRRRAAA” – CRUNCH to parametr epoki / stylu (EUPHORIC ~50, RAW ~100).
 
 Prototyp offline: `Tools/crunch_proto.py` (renderuje 0 / 25 / 50 / 75 / 100 % z wyrównaną głośnością).
+
+## EQ w CRUNCH PATH (właściciel 2026-11-14) – 3 makra AMOUNT / COLOR / AIR
+Crunch ma być „KRRR / KRA / RAA”, nie „TSS / KLIK / SSS”: główna energia ~700 Hz – 3.5 kHz.
+```
+PRE-EQ   HPF 300 Hz 12–18 dB/oct (sub / niski body nie wpada w drive) + bell 1.8 kHz +2..+4 dB Q 1.0 (pre-emphasis)
+SHAPER   drive + asymetria z AMOUNT
+POST-EQ  HPF ~600 Hz 12 dB/oct (miejsce dla BODY)
+         PRESENCE bell szeroki Q ~0.9, +2 → +6 dB; środek 2.0 kHz (0 %) → 2.5–3.0 (50 %) → 3.5–4.5 (100 %)
+         DYNAMIC 3.5–4.5 kHz – tnie tylko gdy za mocne (nie stały notch)
+         LPF 12 dB/oct schodzi Z AMOUNT: 6.5 kHz (0 %) → 6 (50 %) → 5–5.5 (100 %) – więcej gęstości, nie syczenia
+```
+- **AMOUNT** – ile nieliniowych harmonicznych; **COLOR** – gdzie w środku siedzi charakter (przesuwa PRESENCE);
+  **AIR** – ile najwyższych harmonicznych przechodzi (przesuwa LPF).
+- EQ crunchu oceniać razem z kształtem fali: ten sam EQ, inny waveshaper = inny crunch.
+Prototyp: `Tools/crunch_eq_proto.py`.

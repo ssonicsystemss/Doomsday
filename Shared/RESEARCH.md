@@ -448,3 +448,18 @@ Punch = 3 elementy (+ reverb): **warstwa TONALNA** (charakter, robi się ją pie
 - CLICK: osobna warstwa (on: syntezowany „laser kick” przetworzony w krótki klik / biały szum).
 - SUB punchu: osobny, **mono**, energia **lekko opóźniona** (najpierw transjent, potem „kopnięcie” suba).
 Zgadza się z pomiarem 100 kicków FHSP (połowa szumu w 1–8 kHz, bas od ~54 ms) i z testem G3 (szum + przester = trzask).
+
+## ZAAG kick (2026-11-14, właściciel: „kolejna kategoria” w 4GE)
+„Zaag” = po niderlandzku **piła** – kick, którego ogon brzmi jak piłowanie. Najnowszy hype rawstyle / rawtempo (packi „inspirowane”
+Rebelion, Vertile, Krowdexx, Aversion, Thyron; 150–155 BPM; „albo kochasz, albo nienawidzisz”); w kursach robiony w Serum
+(„Uptempo/Rawstyle Serum Zaagkick”). Źródła: onpointsamples Zaag Kick Expansion, MDX Samples zaag pack, Neroz Productions (lista lekcji).
+**Nasz pomiar** (OPS FREE ZAAGKICK 9_G / 22_F / 15_A / 10_E, 155 BPM, `scratchpad zaag/an.py`):
+- długość = 1 bit (388 ms przy 155 BPM), **crest ~2 dB** (cegła pod 0 dB, RMS ~ −2 dB od pierwszej ms do końca – uderzenie i ogon tak samo głośno;
+  Wildstylez 7,7 dB);
+- ogon = **prawie KWADRAT na nucie** (sinus zbity w prostokąt) z „fizzem” na płaskich szczytach; cała góra siedzi na **krawędziach** –
+  obwiednia 1–12 kHz pulsuje **2× na okres nuty** z głębią 0,8–0,96 (Wildstylez 0,6–0,7) = to „rrrr” piły;
+- początek ~50–60 ms: gęsty tok ~450 Hz (22_F trzyma ~450 Hz przez ~60 ms), potem prosto w kwadrat;
+- **szeroki** (side −7…−12 dB względem mono; klasyczne euphoric = mono);
+- widmo ogona: dominuje fundament, 150–500 Hz drugie, wysoka góra stała przez cały kick (bez gaśnięcia).
+Wniosek dla 4GE: ZAAG = tok ~450 Hz → ogon sinus / kwadrat w maksymalny HARD clip (kwadrat), unison + szerokość, MASTER CLIP + LIMITER
+LOUD do crest ~2 dB, ogon na pełnej długości bitu (sustain 1), sub w ogonie (bez osobnego suba).

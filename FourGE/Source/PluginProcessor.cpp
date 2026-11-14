@@ -425,7 +425,7 @@ void GeProcessor::setCurrentProgram (int i)
     if (onPresetLoaded) onPresetLoaded ("F:" + factoryPresets()[(size_t) jlimit (0, (int) factoryPresets().size() - 1, i)].name);
     {
         const String n = factoryPresets()[(size_t) jlimit (0, (int) factoryPresets().size() - 1, i)].name;
-        const int st = n.startsWith ("EARLY") ? 0 : n.startsWith ("MODERN") ? 1 : n.startsWith ("RAW") ? 2 : n.startsWith ("EXPERIMENTAL") ? 3 : n.startsWith ("EUPHORIC") ? 4 : -1;
+        const int st = n.startsWith ("EARLY") ? 0 : n.startsWith ("MODERN") ? 1 : n.startsWith ("RAW") ? 2 : n.startsWith ("EXPERIMENTAL") ? 3 : n.startsWith ("EUPHORIC") ? 4 : n.startsWith ("PVC") ? 5 : -1;
         if (st >= 0) apvts.state.setProperty ("style", st, nullptr); else apvts.state.removeProperty ("style", nullptr);
     }
     seedWanted.store (0);
@@ -558,7 +558,7 @@ fge::dsp::xport::Snapshot GeProcessor::exportSnapshot() const
     for (int k = 0; k < fge::dsp::numSampleSlots; ++k) s.samples[(size_t) k] = samplePool.data (k);
     s.presetName = presetName;
     s.presetSeed = presetSeed();
-    if (const int st = currentStyle(); st >= 0 && st < 5) s.style = StringArray { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC" }[st];
+    if (const int st = currentStyle(); st >= 0 && st < 6) s.style = StringArray { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "PVC" }[st];
     return s;
 }
 fge::dsp::xport::Snapshot GeProcessor::exportSnapshotOfProgram (int program) const

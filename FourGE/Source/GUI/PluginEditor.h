@@ -147,7 +147,7 @@ private:
     fge::ui::Settings uiSet;
     fge::gui::NavBar nav;
     // STYLE / LENGTH = drop-down lists (owner 2026-11-12); STYLE is listed in time order, the ids stay (EUPHORIC = 4, appended)
-    fge::gui::ChoiceDrop styleStrip { { "EARLY  2004-08", "EUPHORIC  2009-12", "MODERN", "RAW", "EXPERIMENTAL" }, { 0, 4, 1, 2, 3 } },
+    fge::gui::ChoiceDrop styleStrip { { "EARLY  2004-08", "EUPHORIC  2009-12", "MODERN", "RAW", "EXPERIMENTAL", "PVC" }, { 0, 4, 1, 2, 3, 5 } },
                          lengthStrip { { "SHORT", "MEDIUM", "LONG", "EXTRA LONG" } };
     juce::String infoText;
     juce::Rectangle<int> infoArea, globalArea;

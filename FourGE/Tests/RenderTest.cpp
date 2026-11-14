@@ -3230,9 +3230,9 @@ int main (int argc, char** argv)
                                                                                                                           : v >= def (i).min - 1e-3f && v <= def (i).max + 1e-3f);
                     if (i < 0 || ! fs::inScope (i) || ! range) { ok = false; bad << fs::names()[st] << ":" << id << " "; }
                 }
-            const int want[5][3] { { fge::dsp::dist::Soft, fge::dsp::dist::Tube, -1 }, { fge::dsp::dist::Hard, fge::dsp::dist::Soft, fge::dsp::dist::Digital },
+            const int want[6][3] { { fge::dsp::dist::Soft, fge::dsp::dist::Tube, -1 }, { fge::dsp::dist::Hard, fge::dsp::dist::Soft, fge::dsp::dist::Digital },
                                    { fge::dsp::dist::Asym, fge::dsp::dist::Hard, fge::dsp::dist::Wavefold }, { fge::dsp::dist::Wavefold, fge::dsp::dist::Rectifier, fge::dsp::dist::Custom },
-                                   { fge::dsp::dist::Soft, fge::dsp::dist::Wavefold, -1 } };          // EUPHORIC: saturation -> waveshaping (owner 2026-11-12)
+                                   { fge::dsp::dist::Soft, fge::dsp::dist::Wavefold, -1 }, { -1, -1, -1 } };          // EUPHORIC; PVC = no pool chain (its own stages): saturation -> waveshaping (owner 2026-11-12)
             for (int st = 0; st < fs::NumStyles; ++st)
             {
                 GeProcessor p; fs::apply (p, st, false);
@@ -4504,8 +4504,8 @@ int main (int argc, char** argv)
             ss.onPick (fge::style::Raw);
             const bool styled = p.currentStyle() == fge::style::Raw;
             p.undo.undo(); p.forgetTouched();
-            check (std::abs (len1 - 750.f) < 1.f && std::abs (len2 - len0) < 1.f && styled && ss.count() == 5,
-                   "M17 TOP BAR: STYLE (5, a drop-down) and LENGTH (a drop-down) apply with one pick (one undo each)", String (len0, 0) + " -> " + String (len1, 0) + " -> " + String (len2, 0));
+            check (std::abs (len1 - 750.f) < 1.f && std::abs (len2 - len0) < 1.f && styled && ss.count() == 6,
+                   "M17 TOP BAR: STYLE (6, a drop-down) and LENGTH (a drop-down) apply with one pick (one undo each)", String (len0, 0) + " -> " + String (len1, 0) + " -> " + String (len2, 0));
             // the INFO LINE: name, value, range, default, what it does; a page line when nothing is under the mouse
             const String inf = cv.infoFor (cv.findControl ("pe_time")), infT = cv.infoFor (cv.findControl ("core_phase_reset"));
             check (inf.contains ("=") && inf.contains ("default") && inf.contains ("..") && inf.contains (fge::tooltip (P::peTime).substring (0, 20))

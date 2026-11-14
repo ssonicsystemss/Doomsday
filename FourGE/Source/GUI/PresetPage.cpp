@@ -208,7 +208,7 @@ namespace fge::gui
         g.drawText (e->source == fge::lib::SrcFactory ? "FACTORY" : "USER", 310, 0, 70, h, Justification::centredLeft);
         g.drawText (e->style >= 0 ? fge::lib::styleNames()[e->style] : String ("-"), 380, 0, 100, h, Justification::centredLeft);
         g.drawText (fge::lib::lengthNames()[e->lengthCat] + " " + String (roundToInt (e->lengthMs)), 480, 0, 120, h, Justification::centredLeft);
-        StringArray t (e->tags); for (auto* x : { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "SHORT", "MEDIUM", "LONG", "EXTRA LONG" }) t.removeString (x);
+        StringArray t (e->tags); for (auto* x : { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "PVC", "SHORT", "MEDIUM", "LONG", "EXTRA LONG" }) t.removeString (x);
         g.setColour (e->missing.isEmpty() ? c.textDim : c.hot);
         g.drawText (t.joinIntoString ("  "), 600, 0, w - 640, h, Justification::centredLeft, true);
         const bool fav = bar.isFavourite (e->name);

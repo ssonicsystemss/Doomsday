@@ -14,9 +14,9 @@
 
 namespace fge::variant
 {
-    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, NumStyles };
+    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, Pvc, NumStyles };
     enum Area { APunch = 0, ABody, ATail, ASub, APitch, ADrive, AScreech, NumAreas };
-    inline const juce::StringArray& styleNames() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC" }; return a; }
+    inline const juce::StringArray& styleNames() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "PVC" }; return a; }
     inline const juce::StringArray& areaNames()  { static const juce::StringArray a { "PUNCH", "BODY", "TAIL", "SUB", "PITCH", "DRIVE", "SCREECH" }; return a; }
     inline const juce::StringArray& scopeNames() { static const juce::StringArray a { "FULL KICK", "PUNCH", "BODY", "TAIL", "SUB", "PITCH", "DRIVE", "SCREECH" }; return a; }
 
@@ -53,6 +53,28 @@ namespace fge::variant
             t[ASub]     = { { "sub_level", 0, 0, { -12 } } };                     // INIT sub (the owner's kick)
             t[APitch]   = { { "pe_start", 650, 900 }, { "pe_time", 130, 200 }, { "pe_curve", 0.18f, 0.32f }, { "pe_amount", -15, -12 } };
             t[ADrive]   = { { "master_clip_drive", 0.5f, 2.5f } };
+            t[AScreech] = { { "scr_on", 0, 0, { 0 } } };
+            return t;
+        }();
+        return x;
+    }
+    // ---- PVC (owner 2026-11-14): ranges spanned by his picks R02 / R04 / R09 of the first random PVC round (TUBE punch + TAIL ENGINE PVC)
+    inline const Table& pvcTable()
+    {
+        static const Table x = []
+        {
+            Table t;
+            t[APunch]   = { { "punch_mode", 0, 0, { 3 } }, { "pvc_model", 0, 0, { 1 } }, { "pvc_tube_hz", 850, 1150 }, { "pvc_tube_comb", 0.18f, 0.3f },
+                            { "pvc_jump", 4, 6.5f }, { "pvc_drop", -14, 0 }, { "pvc_drop_time", 45, 60 }, { "pvc_phaser", 0.25f, 0.55f }, { "pvc_ph_mode", 0, 0, { 0, 0, 1 } },
+                            { "pvc_ph_rate", 2, 6 }, { "pvc_ph_fb", 0.45f, 0.8f }, { "pvc_bright", 5000, 10000 }, { "pvc_drive", 6, 13 }, { "pvc_length", 140, 190 } };
+            t[ABody]    = { { "body_level", 0, 0, { -60 } } };
+            t[ATail]    = { { "tail_engine", 0, 0, { 1 } }, { "pt_source", 0, 0, { 0, 1, 3 } }, { "pt_start", 4, 11 }, { "pt_drop_time", 45, 60 }, { "pt_slide", -9, 0 },
+                            { "pt_rev_size", 0.85f, 1.5f }, { "pt_rev_decay", 1250, 2000 }, { "pt_rev_cut", 350, 440 }, { "pt_drive1", 13, 21.5f }, { "pt_clip", 0.43f, 0.62f },
+                            { "pt_drive2", 10, 18 }, { "pt_asym", 0, 0.32f }, { "gt_gate", 0, 0, { 0, 0, 1 } }, { "pt_gate_curve", 0, 0, { 1, 2, 3 } },
+                            { "gt_gate_len", 210, 280 }, { "gt_gate_depth", 0.35f, 0.57f }, { "gt_gate_div", 0, 0, { 2 } }, { "pt_movement", 0.55f, 0.65f },
+                            { "pt_low_mid", -3.2f, 1 }, { "pt_high", 1, 3.4f }, { "pt_width", 0.8f, 1 } };
+            t[ASub]     = { { "sub_level", 0, 0, { -60 } } };
+            t[ADrive]   = { { "master_clip_drive", 2, 3.5f } };
             t[AScreech] = { { "scr_on", 0, 0, { 0 } } };
             return t;
         }();
@@ -109,6 +131,7 @@ namespace fge::variant
             x[Experimental][ADrive]   = { { "tail_st2_type", 0, 0, { 0, 1, 2, 3, 4, 5, 6 } }, { "tail_st2_drive", 0, 24 }, { "tail_st2_bias", -0.5f, 0.5f }, { "master_clip_drive", 0, 12 } };
             x[Experimental][AScreech] = { { "scr_on", 0, 0, { 0, 1 } }, { "scr_level", -18, -4 } };
             x[Euphoric] = euphoricTable();
+            x[Pvc] = pvcTable();
             return x;
         }();
         return t[(size_t) juce::jlimit (0, NumStyles - 1, style)];

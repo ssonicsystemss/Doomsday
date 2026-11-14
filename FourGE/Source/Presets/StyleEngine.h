@@ -14,8 +14,8 @@
 
 namespace fge::style
 {
-    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, NumStyles };     // (EUPHORIC appended: saved projects keep their ids)
-    inline const juce::StringArray& names() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC" }; return a; }
+    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, Pvc, NumStyles };     // (EUPHORIC appended: saved projects keep their ids)
+    inline const juce::StringArray& names() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "PVC" }; return a; }
     inline const char* description (int s)
     {
         static const char* d[NumStyles] {
@@ -24,7 +24,9 @@ namespace fge::style
             "Aggressive: heavy asymmetric distortion (ASYMMETRIC -> HARD -> WAVEFOLD), a sharp screech, strong harmonics, the bass entering early.",
             "Unusual but still a kick: a double drop, a metallic tail, folds / a rectifier / a custom shaper blended into a solid core.",
             "Euphoric 2009-12 (Wildstylez, Headhunterz, Brennan Heart, Noisecontrollers): a low driven punch (the hit), a high long BODY (the crunch), "
-            "a tail that falls fast from ~760 Hz through the drive (the crack), soft -> wavefold, the 6th harmonic coloured, a small room." };
+            "a tail that falls fast from ~760 Hz through the drive (the crack), soft -> wavefold, the 6th harmonic coloured, a small room.",
+            "PVC / KLOENK (owner 2026-11-14, from his PVC samples): a plastic TUBE punch (~1 kHz, 'ciup', phaser), then a gated tail made of a REVERB "
+            "(high cut -> drive -> clip -> gate -> drive), low end mono, highs wide." };
         return d[juce::jlimit (0, NumStyles - 1, s)];
     }
     inline int indexOf (const juce::String& id) { for (int i = 0; i < P::count; ++i) if (id == def (i).id) return i; return -1; }
@@ -34,7 +36,8 @@ namespace fge::style
     {
         if (id.startsWith ("punch_")) return false;                    // PUNCH / TOK: the tok's own length / envelope is its character, not the kick length
         if (id.startsWith ("tail_room")) return false;                 // the TAIL ROOM decay is its character (it never makes the kick longer)
-        if (id.startsWith ("noise")) return false;                     // a noise layer's decay / length is its character (EUPHORIC's grain), not the kick length
+        if (id.startsWith ("noise")) return false;
+        if (id.startsWith ("pvc_") || id.startsWith ("pt_")) return false;   // PVC punch length / tail length = the PVC character (owner 2026-11-14)                     // a noise layer's decay / length is its character (EUPHORIC's grain), not the kick length
         return id == "core_length" || id == "core_auto_length" || id.endsWith ("_length") || id.endsWith ("_decay") || id.endsWith ("_release")
                || id.endsWith ("_sustain") || id.contains ("_length_") || id.endsWith ("_hold");
     }
@@ -42,7 +45,7 @@ namespace fge::style
     {
         const juce::String id (def (i).id);
         if (isLength (id)) return false;
-        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
+        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
         if (id.startsWith ("dist")) return true;                         // the whole distortion pool (dist1..16 + dist_ globals)
         return id == "master_clip_drive";
     }
@@ -114,6 +117,16 @@ namespace fge::style
                          { "tail_room", 0.2f }, { "tail_room_decay", 450 }, { "tail_room_tone", 6000 }, { "tail_room_input", 0 },
                          { "master_clip_drive", 1.5f } },
                        { { dd::LocTail, { { "type", dd::Soft }, { "drive", 0.5f } } }, { dd::LocTail, { { "type", dd::Wavefold }, { "drive", 0.3f } } } } },
+            // PVC (owner 2026-11-14): between his picks R02 / R04 / R09 - TUBE punch ~1 kHz + TAIL ENGINE PVC (its own distortion stages: no pool chain)
+            Template { { { "punch_mode", 3 }, { "punch_level", 0 }, { "pvc_model", 1 }, { "pvc_tube_hz", 1000 }, { "pvc_tube_comb", 0.25f }, { "pvc_jump", 5 },
+                         { "pvc_drop", -6 }, { "pvc_drop_time", 50 }, { "pvc_phaser", 0.4f }, { "pvc_ph_fb", 0.7f }, { "pvc_bright", 7500 }, { "pvc_drive", 10 },
+                         { "pvc_attack", 0.5f }, { "pvc_length", 175 }, { "pvc_decay", 15 },
+                         { "tail_engine", 1 }, { "tail_level", -2 }, { "body_level", -60 }, { "sub_level", -60 },
+                         { "pt_source", 3 }, { "pt_start", 8 }, { "pt_drop_time", 50 }, { "pt_rev_size", 1.1f }, { "pt_rev_decay", 1500 }, { "pt_rev_cut", 420 },
+                         { "pt_drive1", 17 }, { "pt_clip", 0.6f }, { "pt_drive2", 13 }, { "pt_asym", 0.15f }, { "pt_gate_curve", 2 },
+                         { "gt_gate_len", 260 }, { "gt_gate_depth", 0.5f }, { "pt_low_mid", -1.5f }, { "pt_high", 2 }, { "pt_width", 0.9f },
+                         { "pt_delay", 175 }, { "pt_length", 320 }, { "master_clip_drive", 3 } },
+                       {} },
         };
         return t[(size_t) juce::jlimit (0, NumStyles - 1, s)];
     }

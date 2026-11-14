@@ -253,7 +253,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (nullptr);
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
                      { "gt_comp", "PRE-COMP" }, { "pt_drive1", "DRIVE 1" }, { "pt_clip", "CLIP" }, { "pt_drive2", "DRIVE 2" }, { "pt_asym", "ASYM" },
-                     { "gt_filter", "FILTER" }, { "gt_reso", "RESONANCE" }, { "gt_move_rate", "MOVE RATE" }, { "gt_move_depth", "MOVE DEPTH" } })
+                     { "gt_filter", "FILTER" }, { "gt_reso", "RESONANCE" }, { "gt_move_rate", "MOVE RATE" }, { "gt_move_depth", "MOVE DEPTH" }, { "pt_grow", "GROW" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {

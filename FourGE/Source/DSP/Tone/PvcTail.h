@@ -28,6 +28,7 @@ namespace fge::dsp::pvctail
         float low = 0.f, lowMid = 0.f, mid = 0.f, high = 0.f;
         float monoBelow = 150.f, width = 0.8f, side = 0.5f;
         float delayMs = 170.f, attackMs = 6.f, lengthMs = 330.f, fadeMs = 5.f;
+        float growDb = 0.f;                                    // DRIVE 1 rises by this over the tail (zaag "narastanie")
     };
 
     struct Biquad
@@ -78,8 +79,9 @@ namespace fge::dsp::pvctail
         // body = the raw BODY bus of this sample; ms = since the hit; noteHz = the played note (x fine)
         void process (const Settings& s, float body, float ms, float noteHz, float& outL, float& outR)
         {
-            if (blk-- <= 0) { blk = 32; cook (s); }
             const float t = ms - s.delayMs;                                      // time in the tail
+            growU = std::clamp (t / std::max (1.f, s.lengthMs), 0.f, 1.f);
+            if (blk-- <= 0) { blk = 32; cook (s); }
             // ---- SOURCE
             float src = 0.f;
             if (s.source != 0)
@@ -127,7 +129,8 @@ namespace fge::dsp::pvctail
             const float a = std::abs (m), co = a > env ? atk : rel;
             env = co * env + (1.f - co) * a;
             m *= std::min (8.f, std::pow (std::max (env, 1.0e-3f) / 0.3f, -s.comp));
-            m = std::tanh (g1 * m);
+            const float grow = s.growDb > 0.f ? std::exp2 (-s.growDb * (1.f - growU) * 0.16609640f) : 1.f;   // GROW: both drives rise over the tail (dB / 20 * log2 10)
+            m = std::tanh (g1 * grow * m);
             if (s.clip > 0.f) m = std::clamp (m * (1.f + 3.f * s.clip), -1.f, 1.f);
             // ---- GATE (before DRIVE 2)
             float g = 0.f;
@@ -158,6 +161,7 @@ namespace fge::dsp::pvctail
             gs += (g - gs) * sm;
             m *= gs;
             // ---- DRIVE 2 (asymmetric), moving FILTER, SPECTRUM
+            m *= grow;
             m = (m >= 0.f ? std::tanh (g2 * m) : std::tanh (g2 * (1.f - 0.8f * s.asym) * m)) * n2;
             lfo += 6.283185307 * s.moveHz / fs; if (lfo > 6.283185307) lfo -= 6.283185307;
             m = mv.tick (m);
@@ -196,7 +200,7 @@ namespace fge::dsp::pvctail
             cut1.lp (fs, s.highCut, 0.54); cut2.lp (fs, s.highCut, 1.31);
             g1 = std::pow (10.f, s.drive1Db / 20.f);
             g2 = std::pow (10.f, s.drive2Db / 20.f); n2 = 1.f / std::tanh (std::max (1.f, g2));
-            mv.lp (fs, std::clamp (s.filterHz * std::exp2 (s.moveDepth * 2.f * (float) std::sin (lfo)), 40.f, (float) fs * 0.45f), std::max (0.5f, s.reso));
+            mv.lp (fs, std::clamp (s.filterHz * std::exp2 (s.moveDepth * 2.f * (float) std::sin (lfo) - s.growDb / 12.f * (1.f - growU)), 40.f, (float) fs * 0.45f), std::max (0.5f, s.reso));   // GROW also opens the filter
             eqL.shelf (fs, 100.0, s.low, false); eqLM.bell (fs, 300.0, s.lowMid, 0.8); eqM.bell (fs, 1000.0, s.mid, 0.8); eqH.shelf (fs, 3500.0, s.high, true);
             xl1.lp (fs, s.monoBelow, 0.7071); xl2.lp (fs, s.monoBelow, 0.7071); xh1.hp (fs, s.monoBelow, 0.7071); xh2.hp (fs, s.monoBelow, 0.7071);
             sh1.hp (fs, s.monoBelow, 0.7071);
@@ -208,6 +212,7 @@ namespace fge::dsp::pvctail
         int idx[NL] {}, dLen[NL] {}, preIdx = 0, preLen = 0, microIdx = 0, microLen = 0, blk = 0;
         float gk[NL] {}, damp[NL] {}, dA = 0.f;
         Biquad res, cut1, cut2, mv, eqL, eqLM, eqM, eqH, xl1, xl2, xh1, xh2, sh1;
+        float growU = 0.f;
         float env = 0.f, gs = 0.f, atk = 0.f, rel = 0.f, sm = 0.f, g1 = 1.f, g2 = 1.f, n2 = 1.f;
     };
 }

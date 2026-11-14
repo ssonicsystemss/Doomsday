@@ -939,7 +939,7 @@ namespace fge
                 pt.filterHz = f[P::gtFilter]; pt.reso = f[P::gtReso]; pt.moveHz = f[P::gtMoveRate]; pt.moveDepth = f[P::gtMoveDepth];
                 pt.low = f[P::ptLow]; pt.lowMid = f[P::ptLowMid]; pt.mid = f[P::ptMid]; pt.high = f[P::ptHigh];
                 pt.monoBelow = f[P::ptMonoBelow]; pt.width = f[P::ptWidth]; pt.side = f[P::ptSide];
-                pt.delayMs = f[P::ptDelay]; pt.attackMs = f[P::ptAttack]; pt.lengthMs = f[P::ptLength]; pt.fadeMs = f[P::ptFade];
+                pt.delayMs = f[P::ptDelay]; pt.attackMs = f[P::ptAttack]; pt.lengthMs = f[P::ptLength]; pt.fadeMs = f[P::ptFade]; pt.growDb = f[P::ptGrow];
             }
 
             // CORE MIXER: generator LEVEL x fader x mute / solo x polarity, constant-power pan

@@ -3668,3 +3668,4 @@ pt_delay
 pt_attack
 pt_length
 pt_fade
+pt_grow

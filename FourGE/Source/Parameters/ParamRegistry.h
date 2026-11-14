@@ -473,7 +473,9 @@ namespace fge
     F (ptDelay,        "pt_delay",             "PVC Tail Start",       Unit::Ms,  0.f, 400.f, 170.f, 150.f, FNone) \
     F (ptAttack,       "pt_attack",            "PVC Tail Attack",      Unit::Ms,  0.f, 50.f, 6.f, 10.f, FNone) \
     F (ptLength,       "pt_length",            "PVC Tail Length",      Unit::Ms,  40.f, 1000.f, 330.f, 300.f, FNone) \
-    F (ptFade,         "pt_fade",              "PVC Tail Fade",        Unit::Ms,  1.f, 100.f, 5.f, 10.f, FNone)
+    F (ptFade,         "pt_fade",              "PVC Tail Fade",        Unit::Ms,  1.f, 100.f, 5.f, 10.f, FNone) \
+    /* owner 2026-11-14 (zaag: "tail mocno drapiący i narastający"; OPS zaag kicks: the highs rise ~6 dB over the tail) */ \
+    F (ptGrow,         "pt_grow",              "Tail Drive Grow",      Unit::Db,  0.f, 24.f, 0.f, 0.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

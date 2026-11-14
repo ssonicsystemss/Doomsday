@@ -340,6 +340,7 @@ namespace fge
             case ptAttack:     return "PVC TAIL FINAL SHAPE: attack (ms).";
             case ptLength:     return "PVC TAIL FINAL SHAPE: length from the start (ms).";
             case ptFade:       return "PVC TAIL FINAL SHAPE: the fade at the end (ms).";
+            case ptGrow:       return "TAIL GROW: DRIVE 1 starts this much lower and rises to its value over the tail - the tail gets rougher and brighter as it goes (zaag).";
             case pshTonalOnly: return "LAB: only the tonal layer (no CLICK, no SUB) - to design the character on its own.";
             case punchNoteMode:return "TOK note: FIXED = the tok plays PITCH on every MIDI note (e.g. always G); FOLLOW MIDI = it moves with the played note (keeping its distance to the tail note); OFFSET = the played note + NOTE OFFSET semitones.";
             case punchOverlap: return "The hand-over TOK -> BODY + TAIL: an equal-power crossfade this long (the tail starts from the tok note, in phase). ~20 ms = no audible seam, shorter = a harder cut.";

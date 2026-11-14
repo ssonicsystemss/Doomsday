@@ -436,3 +436,15 @@ Do zrobienia przy wpinaniu: interfejsy tych funkcji w konkretnych wtyczkach (lis
 - **Syntezatory:** „slop” między głosami (Diva), tryb FM 3–4 operatorów (Sytrus), style saturacji nazwane charakterem (Decapitator);
   z Massive: INTENSITY z trybami SPECTRUM / BEND / FORMANT, oscylator modulujący RING / PHASE / FILTER FM, filtry szeregowo ↔ równolegle
   (modulowane), pętla FEEDBACK przez filtr, PERFORMER (16 kroków z krzywymi, morfing sekwencji), Random Track, unison ↔ akord.
+
+## Eternize – „Hardstyle Kick Punches Explained” (YouTube, 2026-07; transkrypcja przeczytana 2026-11-14 dla 4GE)
+Punch = 3 elementy (+ reverb): **warstwa TONALNA** (charakter, robi się ją pierwszą), **CLICK**, **SUB**.
+- Źródło tonalnej = coś **szerokopasmowego**: sample werbla transponowany +14 st albo biały szum. Czysty (EDM) kick ma tylko sub
+  i transjent – nie ma „ciągłych częstotliwości”, z których EQ + przester zrobią charakter.
+- Charakter = **podbicie środka EQ → przester** (wpycha te częstotliwości w sufit przesteru); „na czuja”.
+- Detale: **tape stop / slow down** (ShaperBox time) – punch opada w pitchu pod koniec; bardzo krótki reverb, mało, dla stereo.
+- **Volume shaper**: z „cegły przesterowanego szumu” robi transjent na początku + body punchu.
+- EQ korekcyjny: wycięty dół, góra wg potrzeby.
+- CLICK: osobna warstwa (on: syntezowany „laser kick” przetworzony w krótki klik / biały szum).
+- SUB punchu: osobny, **mono**, energia **lekko opóźniona** (najpierw transjent, potem „kopnięcie” suba).
+Zgadza się z pomiarem 100 kicków FHSP (połowa szumu w 1–8 kHz, bas od ~54 ms) i z testem G3 (szum + przester = trzask).

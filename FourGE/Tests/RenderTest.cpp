@@ -231,11 +231,15 @@ int main (int argc, char** argv)
             for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
             { auto im = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
               FileOutputStream o2 (File (argv[1]).getChildFile ("page00_pvc.png")); if (o2.openedOk()) { o2.setPosition (0); o2.truncate(); png.writeImageToStream (im, o2); } }
-            if (auto* te = p.apvts.getParameter ("tail_engine")) te->setValueNotifyingHost (te->convertTo0to1 (1.f));    // + the GATED tail tab
+            if (auto* te = p.apvts.getParameter ("tail_engine")) te->setValueNotifyingHost (te->convertTo0to1 (1.f));    // + the PVC tail tabs
             ge->canvas.selectPart (2); ge->canvas.tailTab (2);
             for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
             { auto im = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
-              FileOutputStream o2 (File (argv[1]).getChildFile ("page00_gated.png")); if (o2.openedOk()) { o2.setPosition (0); o2.truncate(); png.writeImageToStream (im, o2); } }
+              FileOutputStream o2 (File (argv[1]).getChildFile ("page00_pvctail.png")); if (o2.openedOk()) { o2.setPosition (0); o2.truncate(); png.writeImageToStream (im, o2); } }
+            ge->canvas.tailTab (3);
+            for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+            { auto im = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+              FileOutputStream o2 (File (argv[1]).getChildFile ("page00_pvcshape.png")); if (o2.openedOk()) { o2.setPosition (0); o2.truncate(); png.writeImageToStream (im, o2); } }
             if (auto* te = p.apvts.getParameter ("tail_engine")) te->setValueNotifyingHost (te->convertTo0to1 (0.f));
             if (auto* pm = p.apvts.getParameter ("punch_mode")) pm->setValueNotifyingHost (pm->convertTo0to1 (0.f));
         }
@@ -1090,7 +1094,14 @@ int main (int argc, char** argv)
                 if (sid.startsWith ("pvc_")) set2 ("punch_mode", 3.f);                                          // PVC (owner 2026-11-14)
                 if (sid == "pvc_ring_ratio") set2 ("pvc_material", 0.f);
                 if (sid.startsWith ("gt_")) set2 ("tail_engine", 1.f);                                          // TAIL ENGINE GATED
-                if (sid == "gt_gate_depth" || sid == "gt_gate_div") set2 ("gt_gate", 1.f);                                           // SHAPED PUNCH (owner 2026-11-14)
+                if (sid == "gt_gate_div") set2 ("gt_gate", 1.f);
+                if (sid.startsWith ("pt_")) set2 ("tail_engine", 1.f);                                          // TAIL ENGINE PVC (owner 2026-11-14)
+                if (sid == "pt_movement") set2 ("gt_gate", 1.f);
+                if (sid == "pt_start" || sid == "pt_hold" || sid == "pt_drop_time" || sid == "pt_root" || sid == "pt_slide") set2 ("pt_source", 1.f);
+                if (sid == "pt_res_freq" || sid == "pt_res_q") set2 ("pt_res_amount", 0.7f);
+                for (auto* k : { "pvc_source", "pvc_pitch", "pvc_res_freq", "pvc_res_q", "pvc_res_amount", "pvc_material", "pvc_mix", "pvc_ring_ratio", "pvc_comp", "pvc_sat", "pvc_asym" })
+                    if (sid == k) set2 ("pvc_model", 0.f);                                                     // the KLOENK model
+                if (sid == "pvc_ph_rate") set2 ("pvc_ph_mode", 1.f);                                           // SHAPED PUNCH (owner 2026-11-14)
                 if (sid == "punch_note_mode" || sid == "punch_overlap") { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); }
                 if (sid == "punch_tok_decay" || sid == "punch_tok_bend" || sid == "tail_start_mode" || sid == "tail_start" || sid == "punch_note_offset")
                     { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); set2 ("punch_length", 110.f); set2 ("punch_sustain", 1.f); }

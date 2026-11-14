@@ -24,12 +24,17 @@ namespace fge::dsp::pvc
         float attackMs = 0.5f, lengthMs = 70.f, decayMs = 40.f;
         float tonal = 1.f, click = 0.5f, clickMs = 6.f, clickHz = 8000.f, verb = 0.12f;
         bool tonalOnly = false;
+        // TUBE model (owner 2026-11-14, from his PVC samples): 2 tube tones + a pipe comb, jump at the start, drop at the end, phaser, brightness
+        int model = 1; float tubeHz = 1120.f, comb = 0.3f, jumpSt = 6.f, dropSt = -12.f, dropMs = 100.f;
+        float phaser = 0.5f; int phMode = 0; float phRate = 4.f, phFb = 0.7f, brightHz = 7500.f;
         float key() const
         {
             return (float) source * 1.3f + pitchHz * 0.13f + resHz * 0.011f + resQ * 3.1f + resAmount * 17.f + (float) material * 5.7f + mix * 19.f + ringRatio * 7.3f
                    + comp * 23.f + driveDb * 1.9f + sat * 29.f + asym * 31.f + lowMidDb * 2.3f + midDb * 3.7f + highMidDb * 4.1f
                    + attackMs * 11.f + lengthMs * 0.37f + decayMs * 0.53f + tonal * 47.f + click * 37.f + clickMs * 5.3f + clickHz * 0.0071f
-                   + verb * 41.f + (tonalOnly ? 43.f : 0.f);
+                   + verb * 41.f + (tonalOnly ? 43.f : 0.f)
+                   + (float) model * 53.f + tubeHz * 0.017f + comb * 59.f + jumpSt * 6.1f + dropSt * 6.7f + dropMs * 0.29f
+                   + phaser * 61.f + (float) phMode * 67.f + phRate * 7.9f + phFb * 71.f + brightHz * 0.0013f;
         }
     };
 
@@ -53,6 +58,8 @@ namespace fge::dsp::pvc
             cooked = k;
             const int n = (int) outL.size();
             const int L = std::min (n, (int) ((s.attackMs + s.lengthMs + s.decayMs + 5.f) * 0.001f * (float) fs));
+            if (s.model == 1) tube (s, n, L);
+            else {
             // ---- SOURCE (monotone)
             uint32_t seed = 0x2545F491u;
             auto rnd = [&seed] { seed = seed * 1664525u + 1013904223u; return (float) (int32_t) seed * 4.6566129e-10f; };
@@ -113,6 +120,7 @@ namespace fge::dsp::pvc
                 const float x = a[(size_t) i] * g, y = x >= 0.f ? std::tanh (x) : std::tanh (x * neg);
                 a[(size_t) i] = (1.f - s.sat) * y + s.sat * std::tanh (2.f * y);
             }
+            }
             // ---- EQ after the distortion
             bell (a, 300.f, s.lowMidDb, 0.9f); bell (a, 1000.f, s.midDb, 0.9f); bell (a, 3000.f, s.highMidDb, 0.9f);
             // ---- SHAPE: attack, hold (PUNCH LENGTH), decay; then the lows out (the SUB PUNCH carries them)
@@ -126,7 +134,7 @@ namespace fge::dsp::pvc
                 a[(size_t) i] *= e;
             }
             highpass (a, 120.f);
-            pk = 1.0e-9f; for (int i = 0; i < n; ++i) pk = std::max (pk, std::abs (a[(size_t) i]));
+            float pk = 1.0e-9f; for (int i = 0; i < n; ++i) pk = std::max (pk, std::abs (a[(size_t) i]));
             for (int i = 0; i < n; ++i) a[(size_t) i] *= s.tonal / pk;
             // ---- CLICK (shared with EUPHORIC: a short distorted laser)
             std::fill (b.begin(), b.end(), 0.f);
@@ -170,6 +178,63 @@ namespace fge::dsp::pvc
         const float* left() const { return outL.data(); }
         const float* right() const { return outR.data(); }
     private:
+        // TUBE: the source + phaser + drive + brightness into a (the shape / EQ / click / room are shared with KLOENK)
+        void tube (const Settings& s, int n, int L)
+        {
+            const float endMs = s.attackMs + s.lengthMs;
+            double p1 = 0.0, p2 = 0.0, ps = 0.0;
+            for (int i = 0; i < n; ++i)
+            {
+                const float ms = (float) i * 1000.f / (float) fs;
+                float f = s.tubeHz * (1.f + (std::exp2 (s.jumpSt / 12.f) - 1.f) * std::exp (-ms / 6.f));       // the "ci" of "ciup"
+                const float u = std::clamp ((ms - (endMs - s.dropMs)) / std::max (1.f, s.dropMs), 0.f, 1.f);
+                f *= std::exp2 (s.dropSt * u * u / 12.f);                                                         // the fall at the end
+                a[(size_t) i] = ((float) std::sin (p1) + 0.6f * (float) std::sin (p2)) / 1.6f;                   // 2 tube tones (1 : 1.59)
+                b[(size_t) i] = (float) (2.0 * ps - 1.0);                                                         // the saw for the comb
+                c[(size_t) i] = f;
+                p1 += 6.283185307 * f / fs; p2 += 6.283185307 * f * 1.59 / fs; ps += f / fs; if (ps >= 1.0) ps -= 1.0;
+            }
+            // the pipe: a comb with NEGATIVE feedback at half the period (a closed pipe = odd harmonics), the delay follows the pitch
+            for (int i = 0; i < n; ++i)
+            {
+                const double j = (double) i - fs / std::max (50.f, c[(size_t) i]) / 2.0; const int j0 = (int) std::floor (j);
+                const float dl = j0 >= 0 ? b[(size_t) j0] : 0.f;               // (b already holds the comb output below j0 < i)
+                b[(size_t) i] = b[(size_t) i] - 0.6f * dl;
+            }
+            highpass (b, 300.f); lowpass (b, 4000.f);
+            float pa = 1.0e-9f, pb = 1.0e-9f;
+            for (int i = 0; i < L; ++i) { pa = std::max (pa, std::abs (a[(size_t) i])); pb = std::max (pb, std::abs (b[(size_t) i])); }
+            for (int i = 0; i < n; ++i) a[(size_t) i] = (1.f - s.comb) * a[(size_t) i] / pa + s.comb * b[(size_t) i] / pb;
+            // PHASER: 6 all-pass stages + feedback; SWEEP = one pass high -> low over the punch, LFO = moving
+            if (s.phaser > 0.f)
+            {
+                float z[6] {}, last = 0.f, ap = 0.f;
+                for (int i = 0; i < n; ++i)
+                {
+                    if ((i & 15) == 0)
+                    {
+                        const float ms = (float) i * 1000.f / (float) fs;
+                        const float pos = s.phMode == 0 ? std::clamp (1.f - ms / std::max (1.f, endMs), 0.f, 1.f)
+                                                        : 0.5f + 0.5f * (float) std::sin (6.283185307 * s.phRate * i / fs);
+                        const double fc = 800.0 * std::pow (6000.0 / 800.0, (double) pos), tn = std::tan (3.14159265 * fc / fs);
+                        ap = (float) ((tn - 1.0) / (tn + 1.0));
+                    }
+                    float v = a[(size_t) i] + s.phFb * last;
+                    for (auto& zz : z) { const float o = ap * v + zz; zz = v - ap * o; v = o; }
+                    last = v;
+                    a[(size_t) i] = (1.f - 0.5f * s.phaser) * a[(size_t) i] + 0.5f * s.phaser * v;
+                }
+            }
+            float pk = 1.0e-9f; for (int i = 0; i < L; ++i) pk = std::max (pk, std::abs (a[(size_t) i]));
+            const float g = std::pow (10.f, s.driveDb / 20.f) / pk;
+            for (int i = 0; i < n; ++i) a[(size_t) i] = std::tanh (g * a[(size_t) i]);
+            lowpass (a, s.brightHz); lowpass (a, s.brightHz);
+        }
+        void lowpass (std::vector<float>& x, float hz) const
+        {
+            const double w = 6.283185307 * std::min ((double) hz, fs * 0.45) / fs, al = std::sin (w) / (2.0 * 0.7071), c0 = std::cos (w);
+            biquad (x, (1 - c0) / 2, 1 - c0, (1 - c0) / 2, 1 + al, -2 * c0, 1 - al);
+        }
         static float rms (const std::vector<float>& x, int L)
         {
             double e = 0.0; for (int i = 0; i < L; ++i) e += (double) x[(size_t) i] * x[(size_t) i];

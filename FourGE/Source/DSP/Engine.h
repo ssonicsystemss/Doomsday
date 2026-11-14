@@ -14,7 +14,7 @@
 #include "Core/Generators.h"
 #include "Core/ShapedPunch.h"
 #include "Core/PvcPunch.h"
-#include "Tone/GatedTail.h"
+#include "Tone/PvcTail.h"
 #include "Env/KickEnvelopes.h"
 #include "Osc/OscTables.h"
 #include "Layers/LayerCook.h"
@@ -53,7 +53,7 @@ namespace fge
         dsp::room::Settings room;
         dsp::shaped::Settings shaped;             // SHAPED PUNCH (owner 2026-11-14): the rendered tonal layer + click + verb, read by the voices
         const float* shL = nullptr; const float* shR = nullptr; int shLen = 0; double shRate = 48000.0;
-        dsp::gated::Settings gated;               // TAIL ENGINE GATED (owner 2026-11-14, the PVC tail)
+        dsp::pvctail::Settings pvcTail;           // TAIL ENGINE PVC (owner 2026-11-14, the KLOENK tail)
         dsp::color::Settings color;               // TAIL COLOR after the tail's distortion (owner 2026-11-12)                 // the TAIL room before its distortion (EARLY, owner 2026-11-12)
         int tokNoteMode = 0;                      // 0 FIXED / 1 FOLLOW MIDI / 2 OFFSET (the played note + tokOffsetMul)
         float tokOffsetMul = 2.f, tokEndMs = 0.f, tokDecayDb = 0.f, tokBendSt = 0.f, tokGlideMs = 10.f;   // (owner 2026-11-10)
@@ -425,7 +425,7 @@ namespace fge
             limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
             muteG = 1.f;
             tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor); tailColor.reset();
-            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); gatedU.setRate (sampleRate * osFactor);
+            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor);
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -524,7 +524,7 @@ namespace fge
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
-            tailRoom->clear(); tokRoom->clear(); gatedU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
@@ -909,6 +909,9 @@ namespace fge
                         ps.comp = f[P::pvcComp]; ps.driveDb = f[P::pvcDrive]; ps.sat = f[P::pvcSat]; ps.asym = f[P::pvcAsym];
                         ps.lowMidDb = f[P::pvcLowMid]; ps.midDb = f[P::pvcMid]; ps.highMidDb = f[P::pvcHighMid];
                         ps.attackMs = f[P::pvcAttack]; ps.lengthMs = f[P::pvcLength]; ps.decayMs = f[P::pvcDecay];
+                        ps.model = f.idx (P::pvcModel); ps.tubeHz = f[P::pvcTubeHz]; ps.comb = f[P::pvcTubeComb]; ps.jumpSt = f[P::pvcJump];
+                        ps.dropSt = f[P::pvcDrop]; ps.dropMs = f[P::pvcDropTime]; ps.phaser = f[P::pvcPhaser]; ps.phMode = f.idx (P::pvcPhMode);
+                        ps.phRate = f[P::pvcPhRate]; ps.phFb = f[P::pvcPhFb]; ps.brightHz = f[P::pvcBright];
                         ps.tonal = sh.tonal; ps.click = sh.click; ps.clickMs = sh.clickMs; ps.clickHz = sh.clickHz; ps.verb = sh.verb; ps.tonalOnly = sh.tonalOnly;
                         pvcR->render (ps);
                         cfg.shL = pvcR->left(); cfg.shR = pvcR->right(); cfg.shLen = pvcR->length(); lenMs = pvcR->lengthMs();
@@ -923,12 +926,20 @@ namespace fge
                 }
             }
 
-            {                                                                       // TAIL ENGINE GATED (owner 2026-11-14)
-                auto& gt = cfg.gated;
-                gt.on = f.idx (P::tailEngine) == 1;
-                gt.comp = f[P::gtComp]; gt.mode = f.idx (P::gtGate); gt.gateMs = f[P::gtGateLen]; gt.depth = f[P::gtGateDepth];
-                gt.div = f.idx (P::gtGateDiv); gt.bpm = (float) tempo(); gt.filterHz = f[P::gtFilter]; gt.reso = f[P::gtReso];
-                gt.moveHz = f[P::gtMoveRate]; gt.moveDepth = f[P::gtMoveDepth];
+            {                                                                       // TAIL ENGINE PVC (owner 2026-11-14)
+                auto& pt = cfg.pvcTail;
+                pt.on = f.idx (P::tailEngine) == 1;
+                pt.source = f.idx (P::ptSource); pt.startSt = f[P::ptStart]; pt.holdMs = f[P::ptHold]; pt.dropMs = f[P::ptDropTime];
+                pt.rootSt = f[P::ptRoot]; pt.slideSt = f[P::ptSlide];
+                pt.resHz = f[P::ptResFreq]; pt.resQ = f[P::ptResQ]; pt.resAmt = f[P::ptResAmount];
+                pt.revSize = f[P::ptRevSize]; pt.revDecayMs = f[P::ptRevDecay]; pt.preMs = f[P::ptRevPre]; pt.highCut = f[P::ptRevCut]; pt.wet = f[P::ptRevWet];
+                pt.comp = f[P::gtComp]; pt.drive1Db = f[P::ptDrive1]; pt.clip = f[P::ptClip]; pt.drive2Db = f[P::ptDrive2]; pt.asym = f[P::ptAsym];
+                pt.gateMode = f.idx (P::gtGate); pt.curve = f.idx (P::ptGateCurve); pt.div = f.idx (P::gtGateDiv);
+                pt.gateMs = f[P::gtGateLen]; pt.depth = f[P::gtGateDepth]; pt.movement = f[P::ptMovement]; pt.bpm = (float) tempo();
+                pt.filterHz = f[P::gtFilter]; pt.reso = f[P::gtReso]; pt.moveHz = f[P::gtMoveRate]; pt.moveDepth = f[P::gtMoveDepth];
+                pt.low = f[P::ptLow]; pt.lowMid = f[P::ptLowMid]; pt.mid = f[P::ptMid]; pt.high = f[P::ptHigh];
+                pt.monoBelow = f[P::ptMonoBelow]; pt.width = f[P::ptWidth]; pt.side = f[P::ptSide];
+                pt.delayMs = f[P::ptDelay]; pt.attackMs = f[P::ptAttack]; pt.lengthMs = f[P::ptLength]; pt.fadeMs = f[P::ptFade];
             }
 
             // CORE MIXER: generator LEVEL x fader x mute / solo x polarity, constant-power pan
@@ -1085,8 +1096,9 @@ namespace fge
                 const bool roomHere = cfg.room.on && (c == 2 || (c == 0 && cfg.room.onTok));
                 auto* room = c == 0 ? tokRoom.get() : tailRoom.get();
                 if (roomHere) room->cook (cfg.room);
-                const bool colorHere = c == 2 && cfg.color.on;
-                const bool gatedHere = c == 2 && cfg.gated.on;
+                const bool colorHere = c == 2 && cfg.color.on && ! cfg.pvcTail.on;
+                const bool pvcHere = c == 2 && cfg.pvcTail.on;                 // TAIL ENGINE PVC: replaces the tail's source, its own reverb / drive / gate
+                const float noteNow = lastNoteHz * cfg.fineMul;
                 if (colorHere) tailColor.cook (cfg.color, cfg.keyTrack ? lastNoteHz * cfg.fineMul : cfg.endHz * cfg.fineMul, cfg.ks.rate);
                 float p = 0.f;
                 for (int i = 0; i < on; ++i)
@@ -1094,7 +1106,8 @@ namespace fge
                     const float u = (float) (i + 1) * inv;
                     const float gl = g0.first + (g1.first - g0.first) * u, gr = g0.second + (g1.second - g0.second) * u;
                     float yl, yr;
-                    if (wideTail)
+                    if (pvcHere) pvcU.process (cfg.pvcTail, b[1][i], msAt (i), noteNow, yl, yr);   // (the room after it = the reverb after the cut)
+                    else if (wideTail)
                     {
                         // lows of the plain centre + mids / highs of the detuned sides as mid / side (LR4: sums flat)
                         const float low = wl2.lp (wl1.lp (x[i], cfg.widthSplit), cfg.widthSplit);
@@ -1103,12 +1116,11 @@ namespace fge
                         yl = low + m + sd; yr = low + m - sd;
                     }
                     else { yl = x[i]; yr = x[i]; }
-                    yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i];                    // module 04: layers on this part's bus
+                    if (! pvcHere) { yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i]; }  // module 04: layers on this part's bus
                     if (roomHere) room->process (cfg.room, yl, yr, juce::jlimit (0.f, 1.f, (cfg.ks.lengthMs - msAt (i)) / 40.f));               // TAIL ROOM: before everything that distorts the tail
                     if (m6 && cfg.m06.at (c + 1, 0)) m06St->process (cfg.m06, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 BEFORE
                     if (m7 && cfg.tone.at (c + 1, 0)) toneSt->process (cfg.tone, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 BEFORE
                     if (m8 && cfg.dyn.at (c + 1, 0)) dynSt->process (cfg.dyn, c + 1, 0, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 BEFORE
-                    if (gatedHere) gatedU.preComp (cfg.gated, yl, yr);                 // GATED: the pre-comp before the distortion
                     if (distOn[(size_t) c + 1])                                       // module 05: the GROUP distortion (pre fader)
                     {
                         const auto mc = modCtx (i);
@@ -1116,7 +1128,6 @@ namespace fge
                         yr = distChain[(size_t) (c + 1) * 2 + 1].process (cfg.dist, c + 1, yr, mc, cfg.ks.rate);
                     }
                     if (colorHere) tailColor.process (yl, yr);                        // TAIL COLOR: after the tail's distortion
-                    if (gatedHere) gatedU.process (cfg.gated, yl, yr, msAt (i));       // GATED: moving filter + gate
                     if (m6 && cfg.m06.at (c + 1, 1)) m06St->process (cfg.m06, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 AFTER
                     if (m7 && cfg.tone.at (c + 1, 1)) toneSt->process (cfg.tone, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 AFTER
                     if (m8 && cfg.dyn.at (c + 1, 1)) dynSt->process (cfg.dyn, c + 1, 1, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 AFTER
@@ -1294,7 +1305,7 @@ namespace fge
         std::unique_ptr<dsp::room::Room> tokRoom = std::make_unique<dsp::room::Room>();     // TOK + TAIL: the same room on the punch bus
         std::unique_ptr<dsp::shaped::Renderer> shapedR = std::make_unique<dsp::shaped::Renderer>();
         std::unique_ptr<dsp::pvc::Renderer> pvcR = std::make_unique<dsp::pvc::Renderer>();          // PVC punch (owner 2026-11-14)
-        dsp::gated::Unit gatedU;   // SHAPED PUNCH (owner 2026-11-14)
+        dsp::pvctail::Unit pvcU;   // SHAPED PUNCH (owner 2026-11-14)
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};
         float* const* curBus = nullptr;

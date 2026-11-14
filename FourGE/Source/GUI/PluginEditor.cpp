@@ -161,6 +161,15 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                      { "pvc_low_mid", "LOW MID" }, { "pvc_mid", "MID" }, { "pvc_high_mid", "HIGH MID" },
                      { "pvc_attack", "ATTACK" }, { "pvc_length", "LENGTH" }, { "pvc_decay", "DECAY" } })
                 d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);                                                // 3rd row: the TUBE model (owner 2026-11-14, from his samples)
+            d.push_back (combo ("pvc_model"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "pvc_tube_hz", "TUBE HZ" }, { "pvc_tube_comb", "TONES/COMB" }, { "pvc_jump", "JUMP" }, { "pvc_drop", "DROP" }, { "pvc_drop_time", "DROP TIME" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (combo ("pvc_ph_mode"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "pvc_phaser", "PHASER" }, { "pvc_ph_rate", "PH RATE" }, { "pvc_ph_fb", "PH FEEDBK" }, { "pvc_bright", "BRIGHT" } })
+                d.push_back (knob (id, lab, col));
             // 4th tab: SUB PUNCH (own wave / pitch envelope / delay / decay), the BLEND of the whole punch engine, the FX (Neroz 2026)
             d.push_back (&detailPageMark);
             d.push_back (combo ("psh_sub_wave"));
@@ -202,16 +211,34 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (knob ("tail_color_harm", "HARMONIC", col));
             d.push_back (knob ("tail_color_q", "COLOR Q", col));
             d.push_back (combo ("tail_color_track"));
-            d.push_back (&detailPageMark);                                        // 3rd tab: TAIL ENGINE GATED (the PVC tail, owner 2026-11-14)
+            d.push_back (&detailPageMark);                                        // 3rd tab: TAIL ENGINE PVC - source / pitch / resonance / reverb (owner 2026-11-14)
             d.push_back (combo ("tail_engine"));
+            d.push_back (combo ("pt_source"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "pt_start", "START" }, { "pt_hold", "HOLD" }, { "pt_drop_time", "DROP TIME" }, { "pt_root", "ROOT" }, { "pt_slide", "SLIDE" }, { "pt_delay", "TAIL START" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "pt_res_freq", "RES FREQ" }, { "pt_res_q", "RES Q" }, { "pt_res_amount", "RES AMOUNT" },
+                     { "pt_rev_size", "REV SIZE" }, { "pt_rev_decay", "REV DECAY" }, { "pt_rev_pre", "PRE-DELAY" }, { "pt_rev_cut", "HIGH CUT" }, { "pt_rev_wet", "WET" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (&detailPageMark);                                        // 4th tab: TAIL ENGINE PVC - gate / distortion / spectrum / stereo / final shape
             d.push_back (combo ("gt_gate"));
+            d.push_back (combo ("pt_gate_curve"));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "gt_gate_len", "GATE LENGTH" }, { "gt_gate_depth", "GATE DEPTH" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (combo ("gt_gate_div"));
+            d.push_back (knob ("pt_movement", "MOVEMENT", col));
             d.push_back (nullptr);
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
-                     { "gt_comp", "PRE-COMP" }, { "tail_drive", "DISTORTION" }, { "gt_filter", "FILTER" }, { "gt_reso", "RESONANCE" },
-                     { "gt_move_rate", "MOVE RATE" }, { "gt_move_depth", "MOVEMENT" } })
+                     { "gt_comp", "PRE-COMP" }, { "pt_drive1", "DRIVE 1" }, { "pt_clip", "CLIP" }, { "pt_drive2", "DRIVE 2" }, { "pt_asym", "ASYM" },
+                     { "gt_filter", "FILTER" }, { "gt_reso", "RESONANCE" }, { "gt_move_rate", "MOVE RATE" }, { "gt_move_depth", "MOVE DEPTH" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "pt_low", "LOW" }, { "pt_low_mid", "LOW MID" }, { "pt_mid", "MID" }, { "pt_high", "HIGH" },
+                     { "pt_mono_below", "MONO BELOW" }, { "pt_width", "WIDTH" }, { "pt_side", "SIDE" },
+                     { "pt_attack", "ATTACK" }, { "pt_length", "LENGTH" }, { "pt_fade", "FADE" } })
                 d.push_back (knob (id, lab, col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
@@ -456,7 +483,7 @@ void GeCanvas::layoutDetail()
     {
         detTab[t].setVisible (tabs && t < nTabs && pageIdx == 0);
         static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND" };
-        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "GATED", "" };
+        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE" };
         static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
                                          "EUPHORIC model (punch mode EUPHORIC): a broadband source -> mid boost -> asymmetric distortion -> tape stop -> volume shaper.",
                                          "PVC model (punch mode PVC, the KLOENK): source -> resonance / ring mod / flanger / comb -> blend -> compressor -> distortion -> EQ -> shape. Monotone.",
@@ -465,7 +492,8 @@ void GeCanvas::layoutDetail()
         detTab[t].setTooltip (selected == 0 ? punchTips[t]
                                             : (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
                                                : t == 1 ? "TAIL ROOM (a room BEFORE the tail's distortion - the early / euphoric crackle) and TAIL COLOR (the EQ AFTER it: which harmonics stay)."
-                                                        : "TAIL ENGINE GATED (the PVC tail): a pre-comp before the distortion, a moving resonant filter, the gate (END / PATTERN in time with the song)."));
+                                                        : t == 2 ? "TAIL ENGINE PVC (the KLOENK tail): the source (kick BODY / sine / saw / hybrid), its pitch and resonance, and the REVERB the tail is made of."
+                                                                 : "TAIL ENGINE PVC: the GATE, the distortion stages (drive 1 -> clip -> gate -> drive 2), the spectrum balance, mono low / stereo high, the final shape."));
         const int tw = 108;
         int right = detailArea.getRight() - 14; for (int u = nTabs - 1; u > t; --u) right -= 112;
         detTab[t].setBounds (right - tw, detailArea.getY() + 6, tw, 22);
@@ -646,9 +674,24 @@ void GeCanvas::updateEnabled()
         for (int i = 0; i < P::count; ++i)
             if (String (def (i).id).startsWith ("pvc_")) en (def (i).id, pvc);
         en ("pvc_ring_ratio", pvc && (int) raw (proc, P::pvcMaterial) == 0);
-        const bool gtd = (int) raw (proc, P::tailEngine) == 1;
-        for (auto* id : { "gt_gate", "gt_gate_len", "gt_comp", "gt_filter", "gt_reso", "gt_move_rate", "gt_move_depth" }) en (id, gtd);
-        for (auto* id : { "gt_gate_depth", "gt_gate_div" }) en (id, gtd && (int) raw (proc, P::gtGate) == 1);
+        const bool tube = pvc && (int) raw (proc, P::pvcModel) == 1;               // PVC: KLOENK vs TUBE (owner 2026-11-14)
+        for (auto* id : { "pvc_source", "pvc_pitch", "pvc_res_freq", "pvc_res_q", "pvc_res_amount", "pvc_material", "pvc_mix", "pvc_ring_ratio", "pvc_comp", "pvc_sat", "pvc_asym" })
+            if (tube) en (id, false);
+        for (auto* id : { "pvc_tube_hz", "pvc_tube_comb", "pvc_jump", "pvc_drop", "pvc_drop_time", "pvc_phaser", "pvc_ph_mode", "pvc_ph_rate", "pvc_ph_fb", "pvc_bright" }) en (id, tube);
+        en ("pvc_drop_time", tube && raw (proc, P::pvcDrop) < -0.01f);
+        en ("pvc_ph_mode", tube && raw (proc, P::pvcPhaser) > 0.001f); en ("pvc_ph_fb", tube && raw (proc, P::pvcPhaser) > 0.001f);
+        en ("pvc_ph_rate", tube && raw (proc, P::pvcPhaser) > 0.001f && (int) raw (proc, P::pvcPhMode) == 1);
+        const bool gtd = (int) raw (proc, P::tailEngine) == 1;                     // TAIL ENGINE PVC
+        for (auto* id : { "gt_gate", "gt_gate_len", "gt_gate_depth", "gt_comp", "gt_filter", "gt_reso", "gt_move_rate", "gt_move_depth" }) en (id, gtd);
+        for (int i = 0; i < P::count; ++i)
+            if (String (def (i).id).startsWith ("pt_")) en (def (i).id, gtd);
+        const bool osc = gtd && (int) raw (proc, P::ptSource) != 0;
+        for (auto* id : { "pt_start", "pt_hold", "pt_drop_time", "pt_root", "pt_slide" }) en (id, osc);
+        en ("pt_res_q", gtd && raw (proc, P::ptResAmount) > 0.001f); en ("pt_res_freq", gtd && raw (proc, P::ptResAmount) > 0.001f);
+        for (auto* id : { "pt_rev_size", "pt_rev_decay", "pt_rev_pre" }) en (id, gtd && raw (proc, P::ptRevWet) > 0.001f);
+        en ("pt_side", gtd && raw (proc, P::ptRevWet) > 0.001f);
+        const int gm = (int) raw (proc, P::gtGate);
+        en ("gt_gate_div", gtd && gm != 0); en ("pt_movement", gtd && gm != 0);
         for (auto* id : { "punch_source", "punch_attack", "punch_decay", "punch_sustain", "punch_release", "punch_tone", "punch_mix", "punch_glide", "punch_transient", "punch_pitch", "punch_length", "punch_drive", "punch_phase", "punch_transient_len", "punch_transient_tone" })
             if (shp) en (id, false);
     }

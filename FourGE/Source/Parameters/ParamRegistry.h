@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -429,7 +429,51 @@ namespace fge
     F (gtFilter,       "gt_filter",            "Gated Filter",         Unit::Hz,  80.f, 12000.f, 2000.f, 1500.f, FNone) \
     F (gtReso,         "gt_reso",              "Gated Resonance",      Unit::None, 0.5f, 10.f, 2.f, 2.f, FNone) \
     F (gtMoveRate,     "gt_move_rate",         "Gated Movement Rate",  Unit::Hz,  0.2f, 30.f, 6.f, 6.f, FNone) \
-    F (gtMoveDepth,    "gt_move_depth",        "Gated Movement Depth", Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone)
+    F (gtMoveDepth,    "gt_move_depth",        "Gated Movement Depth", Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
+    /* owner 2026-11-14 (from his 2 PVC samples): PVC PUNCH model TUBE = 2 tube tones + a pipe comb, a pitch jump at the start ("ciup"), a drop at the end, a phaser, brightness */ \
+    C (pvcModel,       "pvc_model",            "PVC Model",            pvcModels, 1, FNone) \
+    F (pvcTubeHz,      "pvc_tube_hz",          "PVC Tube Pitch",       Unit::Hz,  200.f, 2500.f, 1120.f, 900.f, FNone) \
+    F (pvcTubeComb,    "pvc_tube_comb",        "PVC Tube Comb",        Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
+    F (pvcJump,        "pvc_jump",             "PVC Start Jump",       Unit::Semi, 0.f, 24.f, 6.f, 0.f, FNone) \
+    F (pvcDrop,        "pvc_drop",             "PVC End Drop",         Unit::Semi, -36.f, 0.f, -12.f, 0.f, FNone) \
+    F (pvcDropTime,    "pvc_drop_time",        "PVC Drop Time",        Unit::Ms,  5.f, 200.f, 100.f, 60.f, FNone) \
+    F (pvcPhaser,      "pvc_phaser",           "PVC Phaser",           Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    C (pvcPhMode,      "pvc_ph_mode",          "PVC Phaser Mode",      pvcPhModes, 0, FNone) \
+    F (pvcPhRate,      "pvc_ph_rate",          "PVC Phaser Rate",      Unit::Hz,  0.5f, 20.f, 4.f, 4.f, FNone) \
+    F (pvcPhFb,        "pvc_ph_fb",            "PVC Phaser Feedback",  Unit::Pct, 0.f, 0.9f, 0.7f, 0.f, FNone) \
+    F (pvcBright,      "pvc_bright",           "PVC Brightness",       Unit::Hz,  1500.f, 16000.f, 7500.f, 6000.f, FNone) \
+    /* owner 2026-11-14: TAIL ENGINE PVC (his spec): SOURCE (+ pitch, resonance) -> REVERB (the material) -> HIGH CUT -> DRIVE 1 -> CLIP -> GATE -> DRIVE 2 -> SPECTRUM -> MONO LOW / STEREO HIGH -> FINAL SHAPE */ \
+    C (ptSource,       "pt_source",            "PVC Tail Source",      ptSources, 0, FNone) \
+    F (ptStart,        "pt_start",             "PVC Tail Start Pitch", Unit::Semi, 0.f, 36.f, 7.f, 0.f, FNone) \
+    F (ptHold,         "pt_hold",              "PVC Tail Pitch Hold",  Unit::Ms,  0.f, 200.f, 0.f, 40.f, FNone) \
+    F (ptDropTime,     "pt_drop_time",         "PVC Tail Drop Time",   Unit::Ms,  2.f, 300.f, 30.f, 40.f, FNone) \
+    F (ptRoot,         "pt_root",              "PVC Tail Root",        Unit::Semi, -24.f, 24.f, 0.f, 0.f, FNone) \
+    F (ptSlide,        "pt_slide",             "PVC Tail Slide",       Unit::Semi, -24.f, 0.f, 0.f, 0.f, FNone) \
+    F (ptResFreq,      "pt_res_freq",          "PVC Tail Res Freq",    Unit::Hz,  40.f, 2000.f, 300.f, 300.f, FNone) \
+    F (ptResQ,         "pt_res_q",             "PVC Tail Res Q",       Unit::None, 0.5f, 20.f, 4.f, 4.f, FNone) \
+    F (ptResAmount,    "pt_res_amount",        "PVC Tail Res Amount",  Unit::Pct, 0.f, 1.f, 0.f, 0.f, FNone) \
+    F (ptRevSize,      "pt_rev_size",          "PVC Tail Reverb Size", Unit::Pct, 0.3f, 2.f, 1.f, 1.f, FNone) \
+    F (ptRevDecay,     "pt_rev_decay",         "PVC Tail Reverb Decay", Unit::Ms, 100.f, 4000.f, 1200.f, 1000.f, FNone) \
+    F (ptRevPre,       "pt_rev_pre",           "PVC Tail Pre-delay",   Unit::Ms,  0.f, 100.f, 0.f, 20.f, FNone) \
+    F (ptRevCut,       "pt_rev_cut",           "PVC Tail High Cut",    Unit::Hz,  60.f, 8000.f, 450.f, 400.f, FNone) \
+    F (ptRevWet,       "pt_rev_wet",           "PVC Tail Reverb Wet",  Unit::Pct, 0.f, 1.f, 1.f, 0.f, FNone) \
+    F (ptDrive1,       "pt_drive1",            "PVC Tail Drive 1",     Unit::Db,  0.f, 30.f, 18.f, 0.f, FNone) \
+    F (ptClip,         "pt_clip",              "PVC Tail Clip",        Unit::Pct, 0.f, 1.f, 0.7f, 0.f, FNone) \
+    F (ptDrive2,       "pt_drive2",            "PVC Tail Drive 2",     Unit::Db,  0.f, 30.f, 16.f, 0.f, FNone) \
+    F (ptAsym,         "pt_asym",              "PVC Tail Asymmetry",   Unit::Pct, 0.f, 1.f, 0.2f, 0.f, FNone) \
+    C (ptGateCurve,    "pt_gate_curve",        "PVC Tail Gate Curve",  ptGateCurves, 0, FNone) \
+    F (ptMovement,     "pt_movement",          "PVC Tail Movement",    Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (ptLow,          "pt_low",               "PVC Tail Low",         Unit::Db,  -12.f, 12.f, 0.f, 0.f, FNone) \
+    F (ptLowMid,       "pt_low_mid",           "PVC Tail Low Mid",     Unit::Db,  -12.f, 12.f, 0.f, 0.f, FNone) \
+    F (ptMid,          "pt_mid",               "PVC Tail Mid",         Unit::Db,  -12.f, 12.f, 0.f, 0.f, FNone) \
+    F (ptHigh,         "pt_high",              "PVC Tail High",        Unit::Db,  -12.f, 12.f, 0.f, 0.f, FNone) \
+    F (ptMonoBelow,    "pt_mono_below",        "PVC Tail Mono Below",  Unit::Hz,  60.f, 400.f, 150.f, 150.f, FNone) \
+    F (ptWidth,        "pt_width",             "PVC Tail Width",       Unit::Pct, 0.f, 1.f, 0.8f, 0.f, FNone) \
+    F (ptSide,         "pt_side",              "PVC Tail Side Amount", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (ptDelay,        "pt_delay",             "PVC Tail Start",       Unit::Ms,  0.f, 400.f, 170.f, 150.f, FNone) \
+    F (ptAttack,       "pt_attack",            "PVC Tail Attack",      Unit::Ms,  0.f, 50.f, 6.f, 10.f, FNone) \
+    F (ptLength,       "pt_length",            "PVC Tail Length",      Unit::Ms,  40.f, 1000.f, 330.f, 300.f, FNone) \
+    F (ptFade,         "pt_fade",              "PVC Tail Fade",        Unit::Ms,  1.f, 100.f, 5.f, 10.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

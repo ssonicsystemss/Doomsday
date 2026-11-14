@@ -99,8 +99,12 @@ namespace fge
         const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE", "HYBRID" }; return a; }
         const juce::StringArray& pvcSources()   { static const juce::StringArray a { "SAW", "NOISE", "SNARE", "HYBRID" }; return a; }
         const juce::StringArray& pvcMaterials() { static const juce::StringArray a { "RING MOD", "FLANGER", "COMB" }; return a; }
-        const juce::StringArray& tailEngines()  { static const juce::StringArray a { "CLASSIC", "GATED" }; return a; }
-        const juce::StringArray& gtGateModes()  { static const juce::StringArray a { "GATE END", "GATE PATTERN" }; return a; }
+        const juce::StringArray& tailEngines()  { static const juce::StringArray a { "CLASSIC", "PVC" }; return a; }
+        const juce::StringArray& gtGateModes()  { static const juce::StringArray a { "SINGLE", "PULSE", "MOVEMENT" }; return a; }
+        const juce::StringArray& pvcModels()    { static const juce::StringArray a { "KLOENK", "TUBE" }; return a; }
+        const juce::StringArray& pvcPhModes()   { static const juce::StringArray a { "SWEEP", "LFO" }; return a; }
+        const juce::StringArray& ptSources()    { static const juce::StringArray a { "KICK BODY", "SINE", "SAW", "HYBRID" }; return a; }
+        const juce::StringArray& ptGateCurves() { static const juce::StringArray a { "HARD", "SOFT", "EXPONENTIAL", "STEPS" }; return a; }
         const juce::StringArray& gtGateDivs()   { static const juce::StringArray a { "1/8", "1/16", "1/32" }; return a; }
         const juce::StringArray& pshSubWaves() { static const juce::StringArray a { "SINE", "TRIANGLE" }; return a; }
         const juce::StringArray& colorTracks() { static const juce::StringArray a { "HZ", "KEY TRACK" }; return a; }
@@ -284,16 +288,58 @@ namespace fge
             case pvcAttack:    return "PVC SHAPE: the attack of the punch (ms).";
             case pvcLength:    return "PVC SHAPE: how long the punch holds (ms).";
             case pvcDecay:     return "PVC SHAPE: how fast it falls after that (ms).";
-            case tailEngine:   return "TAIL ENGINE: CLASSIC (the tonal tail) or GATED (the PVC tail: a heavy gated bass with a moving resonant filter).";
-            case gtComp:       return "GATED: a compressor BEFORE the tail's distortion (even, dense saturation).";
-            case gtGate:       return "GATED: GATE END = full level, then one hard cut; GATE PATTERN = chopped in time with the song (the old gated kick).";
-            case gtGateLen:    return "GATED: where the tail is cut (ms).";
-            case gtGateDepth:  return "GATED PATTERN: how deep the chops go.";
-            case gtGateDiv:    return "GATED PATTERN: the chop rate, synced to the song's tempo.";
-            case gtFilter:     return "GATED: the tail's resonant low-pass after the distortion.";
-            case gtReso:       return "GATED: the filter's resonance.";
-            case gtMoveRate:   return "GATED MOVEMENT: how fast the filter moves (Hz).";
-            case gtMoveDepth:  return "GATED MOVEMENT: how far the filter moves.";
+            case tailEngine:   return "TAIL ENGINE: CLASSIC (the tonal tail) or PVC (the KLOENK tail: a source - by default the kick BODY - into a REVERB, high cut, drive, clip, gate, drive again; low end mono, highs wide).";
+            case gtComp:       return "PVC TAIL PRE-COMP: evens the reverb out BEFORE DRIVE 1 (a dense, even distortion).";
+            case gtGate:       return "PVC TAIL GATE: SINGLE = one shape (CURVE over GATE LENGTH); PULSE = chopped in time with the song (RATE); MOVEMENT = irregular steps (the same on every hit).";
+            case gtGateLen:    return "PVC TAIL GATE LENGTH: how long the gate shape takes (ms from the tail start).";
+            case gtGateDepth:  return "PVC TAIL GATE DEPTH: how far the gate goes down (100 % = silence after GATE LENGTH).";
+            case gtGateDiv:    return "PVC TAIL GATE RATE: the PULSE / MOVEMENT step, synced to the song's tempo.";
+            case gtFilter:     return "PVC TAIL FILTER: a resonant low-pass after DRIVE 2 (moves with MOVE RATE / MOVE DEPTH).";
+            case gtReso:       return "PVC TAIL FILTER: the resonance.";
+            case gtMoveRate:   return "PVC TAIL FILTER: how fast it moves (Hz).";
+            case gtMoveDepth:  return "PVC TAIL FILTER: how far it moves.";
+            case pvcModel:     return "PVC model: KLOENK (resonance / ring / flanger / comb -> blend -> compressor) or TUBE (from the owner's samples: 2 tube tones + a pipe comb, a pitch jump at the start, a drop at the end, a phaser).";
+            case pvcTubeHz:    return "TUBE: the pitch of the tube (Hz).";
+            case pvcTubeComb:  return "TUBE: the 2 tube tones <-> the pipe comb (more = more plastic, hollow).";
+            case pvcJump:      return "TUBE: how far above the pitch it starts (the 'ci' of 'ciup', semitones).";
+            case pvcDrop:      return "TUBE: how far the pitch falls at the end of the punch (semitones).";
+            case pvcDropTime:  return "TUBE: how long that fall takes (ms before the end of LENGTH).";
+            case pvcPhaser:    return "TUBE: the phaser amount.";
+            case pvcPhMode:    return "TUBE PHASER: SWEEP = one pass from high to low over the punch; LFO = a moving phaser (RATE).";
+            case pvcPhRate:    return "TUBE PHASER: the LFO rate (Hz).";
+            case pvcPhFb:      return "TUBE PHASER: feedback (a deeper, more resonant phaser).";
+            case pvcBright:    return "TUBE: brightness - the low-pass after the drive (Hz).";
+            case ptSource:     return "PVC TAIL SOURCE: KICK BODY (the body of this kick - plays the note, also with its fader down), SINE, SAW or HYBRID (body + sine).";
+            case ptStart:      return "PVC TAIL PITCH (SINE / SAW / HYBRID): how far above the root it starts (semitones).";
+            case ptHold:       return "PVC TAIL PITCH: how long it holds the start pitch (ms).";
+            case ptDropTime:   return "PVC TAIL PITCH: how long the drop to the root takes (ms).";
+            case ptRoot:       return "PVC TAIL ROOT: the note of the tail against the played note (semitones).";
+            case ptSlide:      return "PVC TAIL SLIDE: a slow fall after the root, until the end of the tail (semitones).";
+            case ptResFreq:    return "PVC TAIL RESONANCE: the frequency of a resonant peak on the source.";
+            case ptResQ:       return "PVC TAIL RESONANCE: Q.";
+            case ptResAmount:  return "PVC TAIL RESONANCE: amount.";
+            case ptRevSize:    return "PVC TAIL REVERB: size (the reverb is the MATERIAL of the tail, not an effect at the end).";
+            case ptRevDecay:   return "PVC TAIL REVERB: decay (ms).";
+            case ptRevPre:     return "PVC TAIL REVERB: pre-delay (ms).";
+            case ptRevCut:     return "PVC TAIL HIGH CUT: the low-pass right after the reverb - what stays is the bass that gets distorted.";
+            case ptRevWet:     return "PVC TAIL REVERB: wet (100 % = only the reverb, the tutorial way).";
+            case ptDrive1:     return "PVC TAIL DRIVE 1: the first, soft distortion stage (dB).";
+            case ptClip:       return "PVC TAIL CLIP: a hard clip after DRIVE 1.";
+            case ptDrive2:     return "PVC TAIL DRIVE 2: the distortion AFTER the gate (dB).";
+            case ptAsym:       return "PVC TAIL ASYMMETRY: of DRIVE 2 (more even harmonics, a rougher growl).";
+            case ptGateCurve:  return "PVC TAIL GATE CURVE: HARD (full, then down at GATE LENGTH), SOFT, EXPONENTIAL or STEPS (down in steps).";
+            case ptMovement:   return "PVC TAIL MOVEMENT: how deep PULSE / MOVEMENT go.";
+            case ptLow:        return "PVC TAIL SPECTRUM LOW: the weight (~40-120 Hz).";
+            case ptLowMid:     return "PVC TAIL SPECTRUM LOW MID: the pipe (~150-500 Hz) - down against a muddy rumble.";
+            case ptMid:        return "PVC TAIL SPECTRUM MID: the growl (~0.5-2 kHz).";
+            case ptHigh:       return "PVC TAIL SPECTRUM HIGH: the distortion fizz (2 kHz +).";
+            case ptMonoBelow:  return "PVC TAIL STEREO: everything below this stays mono.";
+            case ptWidth:      return "PVC TAIL STEREO: the width of the highs (opens up over the tail).";
+            case ptSide:       return "PVC TAIL STEREO: the reverb on the sides only (highs).";
+            case ptDelay:      return "PVC TAIL START: when the tail comes in (ms after the hit) - usually at the end of the punch.";
+            case ptAttack:     return "PVC TAIL FINAL SHAPE: attack (ms).";
+            case ptLength:     return "PVC TAIL FINAL SHAPE: length from the start (ms).";
+            case ptFade:       return "PVC TAIL FINAL SHAPE: the fade at the end (ms).";
             case pshTonalOnly: return "LAB: only the tonal layer (no CLICK, no SUB) - to design the character on its own.";
             case punchNoteMode:return "TOK note: FIXED = the tok plays PITCH on every MIDI note (e.g. always G); FOLLOW MIDI = it moves with the played note (keeping its distance to the tail note); OFFSET = the played note + NOTE OFFSET semitones.";
             case punchOverlap: return "The hand-over TOK -> BODY + TAIL: an equal-power crossfade this long (the tail starts from the tok note, in phase). ~20 ms = no audible seam, shorter = a harder cut.";

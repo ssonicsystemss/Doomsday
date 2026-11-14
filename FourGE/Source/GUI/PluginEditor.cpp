@@ -66,6 +66,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         fge::pagernd::randomizeIds (proc, ids, "tab");
     };
     addChildComponent (detDice);
+    liveSpec = std::make_unique<fge::gui::LiveSpecView> (proc);
+    addChildComponent (*liveSpec);
     // module 17: the navigation + the interface settings
     uiSet = fge::ui::Settings::load();
     fge::gui::setTheme (uiSet.theme);
@@ -531,6 +533,16 @@ void GeCanvas::layoutDetail()
         if (dynamic_cast<ComboBox*> (d[k]) != nullptr) { d[k]->setBounds (x + i * 76, y + 22, 150, 26); i += 2; continue; }
         d[k]->setBounds (x + i * 76, y, 74, Knob::heightFor (40));
         ++i;
+    }
+    // LIVE SPECTRUM next to the EQ knobs of the tab (owner 2026-11-14): TAIL ROOM / COLOR, PUNCH EUPHORIC
+    if (liveSpec != nullptr)
+    {
+        std::vector<fge::gui::LiveSpecView::Marker> m;
+        if (selected == 2 && detailPage == 1) m = { { "tail_color_freq", "COLOR HZ" }, { "tail_color_harm", "HARMONIC", true } };
+        if (selected == 0 && detailPage == 1) m = { { "psh_mid_freq", "MID FREQ" }, { "psh_low_cut", "LOW CUT" } };
+        liveSpec->setMarkers (m);
+        liveSpec->setVisible (pageIdx == 0 && ! m.empty());
+        liveSpec->setBounds (detailArea.getRight() - 14 - 230, y0 + Knob::heightFor (40) + 6, 230, Knob::heightFor (40));
     }
 }
 

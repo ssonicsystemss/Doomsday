@@ -9,6 +9,7 @@
 //   AUTO LENGTH, OUT meter). Drop a WAV / .4gp anywhere, right-click any knob, Ctrl+Z / Y, Ctrl+left / right, GUI scale (SETTINGS).
 //  GUI only: reads parameters through the APVTS, renders on its own threads, the settings file = Presets/UiSettings.h.
 // =====================================================================
+#include "LiveSpecView.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "DoomsdayFlat.h"
 #include "DoomsdayUI.h"
@@ -167,7 +168,8 @@ private:
     juce::TextButton lengthBtn;
     juce::Slider rndStrength { juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox };   // RANDOMIZE STRENGTH (owner 2026-11-14)
     juce::Label rndLabel { {}, "RND POWER" };
-    juce::TextButton detDice { "RANDOMIZE" };                                                       // the dice of the visible PUNCH / TAIL tab
+    juce::TextButton detDice { "RANDOMIZE" };
+    std::unique_ptr<fge::gui::LiveSpecView> liveSpec;                                              // LIVE SPECTRUM on the EQ tabs (TAIL COLOR, MID FREQ ...)                                                       // the dice of the visible PUNCH / TAIL tab
     juce::Component::SafePointer<juce::CallOutBox> lengthBox;
     juce::String styleMsg;
     juce::uint32 styleMsgTime = 0;

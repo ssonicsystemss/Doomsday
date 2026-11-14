@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -391,7 +391,45 @@ namespace fge
     F (pshSub,         "psh_sub",              "Shaped Sub",           Unit::Pct, 0.f, 1.5f, 0.9f, 0.f, FNone) \
     F (pshSubDelay,    "psh_sub_delay",        "Shaped Sub Delay",     Unit::Ms,  0.f, 80.f, 25.f, 0.f, FNone) \
     F (pshVerb,        "psh_verb",             "Shaped Reverb",        Unit::Pct, 0.f, 0.6f, 0.12f, 0.f, FNone) \
-    B (pshTonalOnly,   "psh_tonal_only",       "Shaped Tonal Only",    false, FNone)
+    B (pshTonalOnly,   "psh_tonal_only",       "Shaped Tonal Only",    false, FNone) \
+    /* owner 2026-11-14: the PUNCH ENGINE = TONAL + CLICK + SUB PUNCH (+ BODY / TAIL) with its own blend */ \
+    F (pshTonal,       "psh_tonal",            "Shaped Tonal Level",   Unit::Pct, 0.f, 1.5f, 1.f, 0.f, FNone) \
+    F (pshClickLen,    "psh_click_len",        "Shaped Click Length",  Unit::Ms,  1.f, 30.f, 6.f, 0.f, FNone) \
+    F (pshClickTone,   "psh_click_tone",       "Shaped Click Tone",    Unit::Hz,  1500.f, 16000.f, 8000.f, 6000.f, FNone) \
+    C (pshSubWave,     "psh_sub_wave",         "Shaped Sub Wave",      pshSubWaves, 0, FNone) \
+    F (pshSubStart,    "psh_sub_start",        "Shaped Sub Start",     Unit::Semi, 0.f, 36.f, 14.f, 0.f, FNone) \
+    F (pshSubDrop,     "psh_sub_drop",         "Shaped Sub Drop",      Unit::Ms,  2.f, 200.f, 20.f, 30.f, FNone) \
+    F (pshSubDecay,    "psh_sub_decay",        "Shaped Sub Decay",     Unit::Ms,  60.f, 800.f, 300.f, 300.f, FNone) \
+    /* owner 2026-11-14: the PVC model of the PUNCH ENGINE (KLOENK) - source -> resonance / ring / flanger / comb -> blend -> comp -> drive -> EQ -> shaper */ \
+    C (pvcSource,      "pvc_source",           "PVC Source",           pvcSources, 0, FNone) \
+    F (pvcPitch,       "pvc_pitch",            "PVC Pitch",            Unit::Hz,  60.f, 600.f, 150.f, 150.f, FNone) \
+    F (pvcResFreq,     "pvc_res_freq",         "PVC Resonance Freq",   Unit::Hz,  150.f, 2500.f, 1200.f, 800.f, FNone) \
+    F (pvcResQ,        "pvc_res_q",            "PVC Resonance Q",      Unit::None, 1.f, 30.f, 8.f, 8.f, FNone) \
+    F (pvcResAmount,   "pvc_res_amount",       "PVC Resonance Amount", Unit::Pct, 0.f, 1.f, 0.7f, 0.f, FNone) \
+    C (pvcMaterial,    "pvc_material",         "PVC Material",         pvcMaterials, 1, FNone) \
+    F (pvcMix,         "pvc_mix",              "PVC Blend",            Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (pvcRingRatio,   "pvc_ring_ratio",       "PVC Ring Ratio",       Unit::None, 0.25f, 8.f, 2.f, 2.f, FNone) \
+    F (pvcComp,        "pvc_comp",             "PVC Compressor",       Unit::Pct, 0.f, 1.f, 0.6f, 0.f, FNone) \
+    F (pvcDrive,       "pvc_drive",            "PVC Drive",            Unit::Db,  0.f, 40.f, 20.f, 0.f, FNone) \
+    F (pvcSat,         "pvc_sat",              "PVC Saturation",       Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
+    F (pvcAsym,        "pvc_asym",             "PVC Asymmetry",        Unit::Pct, 0.f, 1.f, 0.4f, 0.f, FNone) \
+    F (pvcLowMid,      "pvc_low_mid",          "PVC Low Mid",          Unit::Db,  -12.f, 12.f, 0.f, 0.f, FNone) \
+    F (pvcMid,         "pvc_mid",              "PVC Mid",              Unit::Db,  -12.f, 12.f, 3.f, 0.f, FNone) \
+    F (pvcHighMid,     "pvc_high_mid",         "PVC High Mid",         Unit::Db,  -12.f, 12.f, 0.f, 0.f, FNone) \
+    F (pvcAttack,      "pvc_attack",           "PVC Attack",           Unit::Ms,  0.f, 10.f, 0.5f, 0.f, FNone) \
+    F (pvcLength,      "pvc_length",           "PVC Punch Length",     Unit::Ms,  10.f, 300.f, 70.f, 80.f, FNone) \
+    F (pvcDecay,       "pvc_decay",            "PVC Decay",            Unit::Ms,  5.f, 300.f, 40.f, 50.f, FNone) \
+    /* owner 2026-11-14: TAIL ENGINE GATED (the PVC tail: gated bass, pre-comp, moving resonant filter, gate END / PATTERN) */ \
+    C (tailEngine,     "tail_engine",          "Tail Engine",          tailEngines, 0, FNone) \
+    F (gtComp,         "gt_comp",              "Gated Pre-Comp",       Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    C (gtGate,         "gt_gate",              "Gated Gate Mode",      gtGateModes, 0, FNone) \
+    F (gtGateLen,      "gt_gate_len",          "Gated Gate Length",    Unit::Ms,  40.f, 1000.f, 380.f, 380.f, FNone) \
+    F (gtGateDepth,    "gt_gate_depth",        "Gated Gate Depth",     Unit::Pct, 0.f, 1.f, 0.9f, 0.f, FNone) \
+    C (gtGateDiv,      "gt_gate_div",          "Gated Gate Rate",      gtGateDivs, 1, FNone) \
+    F (gtFilter,       "gt_filter",            "Gated Filter",         Unit::Hz,  80.f, 12000.f, 2000.f, 1500.f, FNone) \
+    F (gtReso,         "gt_reso",              "Gated Resonance",      Unit::None, 0.5f, 10.f, 2.f, 2.f, FNone) \
+    F (gtMoveRate,     "gt_move_rate",         "Gated Movement Rate",  Unit::Hz,  0.2f, 30.f, 6.f, 6.f, FNone) \
+    F (gtMoveDepth,    "gt_move_depth",        "Gated Movement Depth", Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

@@ -42,7 +42,7 @@ public:
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
     void selectPart (int);
-    void tailTab (int t) { detailPage = juce::jlimit (0, 1, t); layoutDetail(); repaint(); }
+    void tailTab (int t) { detailPage = juce::jlimit (0, 3, t); layoutDetail(); repaint(); }
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
@@ -156,7 +156,7 @@ private:
     void applyTooltips();
     juce::ComboBox tokNote;                                          // TOK NOTE: sets START to a note (owner 2026-11-09)
     juce::Component detailPageMark;                                 // (a marker in a part's detail list: the items after it = the 2nd tab)
-    juce::TextButton detTab[2];                                      // TAIL detail tabs: TONE / ROOM + COLOR (owner 2026-11-12)
+    juce::TextButton detTab[4];                                      // TAIL detail tabs: TONE / ROOM + COLOR (owner 2026-11-12)
     int detailPage = 0;
     void syncTokNote();
 public:

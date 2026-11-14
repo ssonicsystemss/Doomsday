@@ -13,6 +13,8 @@
 #include <juce_dsp/juce_dsp.h>
 #include "Core/Generators.h"
 #include "Core/ShapedPunch.h"
+#include "Core/PvcPunch.h"
+#include "Tone/GatedTail.h"
 #include "Env/KickEnvelopes.h"
 #include "Osc/OscTables.h"
 #include "Layers/LayerCook.h"
@@ -51,6 +53,7 @@ namespace fge
         dsp::room::Settings room;
         dsp::shaped::Settings shaped;             // SHAPED PUNCH (owner 2026-11-14): the rendered tonal layer + click + verb, read by the voices
         const float* shL = nullptr; const float* shR = nullptr; int shLen = 0; double shRate = 48000.0;
+        dsp::gated::Settings gated;               // TAIL ENGINE GATED (owner 2026-11-14, the PVC tail)
         dsp::color::Settings color;               // TAIL COLOR after the tail's distortion (owner 2026-11-12)                 // the TAIL room before its distortion (EARLY, owner 2026-11-12)
         int tokNoteMode = 0;                      // 0 FIXED / 1 FOLLOW MIDI / 2 OFFSET (the played note + tokOffsetMul)
         float tokOffsetMul = 2.f, tokEndMs = 0.f, tokDecayDb = 0.f, tokBendSt = 0.f, tokGlideMs = 10.f;   // (owner 2026-11-10)
@@ -290,11 +293,13 @@ namespace fge
                     }
                     if (! cfg.shaped.tonalOnly && cfg.shaped.sub > 0.f)
                     {
-                        const float d = cfg.shaped.subDelayMs;
+                        const float d = cfg.shaped.subDelayMs, en = juce::jmax (d + 30.f, cfg.shaped.subDecayMs), hold = d + 15.f + 0.7f * (en - d - 15.f);
                         const float e = ms < d ? 0.2f * ms / juce::jmax (0.5f, d) : ms < d + 15.f ? 0.2f + 0.8f * (ms - d) / 15.f
-                                      : ms < 220.f ? 1.f - 0.2f * (ms - d - 15.f) / juce::jmax (1.f, 205.f - d) : juce::jmax (0.f, 0.8f * (1.f - (ms - 220.f) / 80.f));
-                        const float hz = noteHz * cfg.fineMul * (1.f + 1.2f * std::exp (-ms / 20.f));
-                        const float sv = std::sin (shSubPh) * e * cfg.shaped.sub;
+                                      : ms < hold ? 1.f - 0.2f * (ms - d - 15.f) / juce::jmax (1.f, hold - d - 15.f) : juce::jmax (0.f, 0.8f * (1.f - (ms - hold) / juce::jmax (1.f, en - hold)));
+                        const float up = std::exp2 (cfg.shaped.subStartSt / 12.f) - 1.f;      // SUB PUNCH: its own pitch envelope
+                        const float hz = noteHz * cfg.fineMul * (1.f + up * std::exp (-ms / juce::jmax (1.f, cfg.shaped.subDropMs)));
+                        const float wv = cfg.shaped.subWave == 1 ? 0.6366198f * std::asin (std::sin (shSubPh)) : std::sin (shSubPh);
+                        const float sv = wv * e * cfg.shaped.sub;
                         shSubPh += 6.2831853f * hz * (float) dt; if (shSubPh > 6.2831853f) shSubPh -= 6.2831853f;
                         sl += sv; sr += sv;
                     }
@@ -420,7 +425,7 @@ namespace fge
             limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
             muteG = 1.f;
             tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor); tailColor.reset();
-            shapedR->prepare (sampleRate);
+            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); gatedU.setRate (sampleRate * osFactor);
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -519,7 +524,7 @@ namespace fge
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
-            tailRoom->clear(); tokRoom->clear(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            tailRoom->clear(); tokRoom->clear(); gatedU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
@@ -884,7 +889,8 @@ namespace fge
             // SHAPED PUNCH (owner 2026-11-14): a broadband source -> mid boost -> distortion -> tape stop -> shaper; rendered once per change
             {
                 auto& sh = cfg.shaped;
-                sh.on = f.idx (P::punchMode) == 2;
+                const int pm = f.idx (P::punchMode);                                  // 2 EUPHORIC (shaped), 3 PVC (owner 2026-11-14)
+                sh.on = pm == 2 || pm == 3;
                 if (sh.on)
                 {
                     sh.source = f.idx (P::pshSource); sh.transposeSt = f[P::pshTranspose]; sh.midHz = f[P::pshMidFreq]; sh.midDb = f[P::pshMidGain];
@@ -892,10 +898,37 @@ namespace fge
                     sh.spikeMs = f[P::pshSpike]; sh.body = f[P::pshBody]; sh.bodyMs = f[P::pshBodyMs]; sh.endMs = f[P::pshEnd];
                     sh.lowCutHz = f[P::pshLowCut]; sh.click = f[P::pshClick]; sh.verb = f[P::pshVerb];
                     sh.sub = f[P::pshSub]; sh.subDelayMs = f[P::pshSubDelay]; sh.tonalOnly = f.on (P::pshTonalOnly);
-                    shapedR->render (sh);
-                    cfg.shL = shapedR->left(); cfg.shR = shapedR->right(); cfg.shLen = shapedR->length(); cfg.shRate = sr;
-                    cfg.partEnd[PPunch] = juce::jmax (shapedR->lengthMs(), sh.tonalOnly || sh.sub <= 0.f ? 0.f : 300.f);
+                    sh.tonal = f[P::pshTonal]; sh.clickMs = f[P::pshClickLen]; sh.clickHz = f[P::pshClickTone];
+                    sh.subWave = f.idx (P::pshSubWave); sh.subStartSt = f[P::pshSubStart]; sh.subDropMs = f[P::pshSubDrop]; sh.subDecayMs = f[P::pshSubDecay];
+                    float lenMs = 0.f;
+                    if (pm == 3)
+                    {
+                        dsp::pvc::Settings ps;
+                        ps.source = f.idx (P::pvcSource); ps.pitchHz = f[P::pvcPitch]; ps.resHz = f[P::pvcResFreq]; ps.resQ = f[P::pvcResQ];
+                        ps.resAmount = f[P::pvcResAmount]; ps.material = f.idx (P::pvcMaterial); ps.mix = f[P::pvcMix]; ps.ringRatio = f[P::pvcRingRatio];
+                        ps.comp = f[P::pvcComp]; ps.driveDb = f[P::pvcDrive]; ps.sat = f[P::pvcSat]; ps.asym = f[P::pvcAsym];
+                        ps.lowMidDb = f[P::pvcLowMid]; ps.midDb = f[P::pvcMid]; ps.highMidDb = f[P::pvcHighMid];
+                        ps.attackMs = f[P::pvcAttack]; ps.lengthMs = f[P::pvcLength]; ps.decayMs = f[P::pvcDecay];
+                        ps.tonal = sh.tonal; ps.click = sh.click; ps.clickMs = sh.clickMs; ps.clickHz = sh.clickHz; ps.verb = sh.verb; ps.tonalOnly = sh.tonalOnly;
+                        pvcR->render (ps);
+                        cfg.shL = pvcR->left(); cfg.shR = pvcR->right(); cfg.shLen = pvcR->length(); lenMs = pvcR->lengthMs();
+                    }
+                    else
+                    {
+                        shapedR->render (sh);
+                        cfg.shL = shapedR->left(); cfg.shR = shapedR->right(); cfg.shLen = shapedR->length(); lenMs = shapedR->lengthMs();
+                    }
+                    cfg.shRate = sr;
+                    cfg.partEnd[PPunch] = juce::jmax (lenMs, sh.tonalOnly || sh.sub <= 0.f ? 0.f : juce::jmax (sh.subDelayMs + 30.f, sh.subDecayMs));
                 }
+            }
+
+            {                                                                       // TAIL ENGINE GATED (owner 2026-11-14)
+                auto& gt = cfg.gated;
+                gt.on = f.idx (P::tailEngine) == 1;
+                gt.comp = f[P::gtComp]; gt.mode = f.idx (P::gtGate); gt.gateMs = f[P::gtGateLen]; gt.depth = f[P::gtGateDepth];
+                gt.div = f.idx (P::gtGateDiv); gt.bpm = (float) tempo(); gt.filterHz = f[P::gtFilter]; gt.reso = f[P::gtReso];
+                gt.moveHz = f[P::gtMoveRate]; gt.moveDepth = f[P::gtMoveDepth];
             }
 
             // CORE MIXER: generator LEVEL x fader x mute / solo x polarity, constant-power pan
@@ -1053,6 +1086,7 @@ namespace fge
                 auto* room = c == 0 ? tokRoom.get() : tailRoom.get();
                 if (roomHere) room->cook (cfg.room);
                 const bool colorHere = c == 2 && cfg.color.on;
+                const bool gatedHere = c == 2 && cfg.gated.on;
                 if (colorHere) tailColor.cook (cfg.color, cfg.keyTrack ? lastNoteHz * cfg.fineMul : cfg.endHz * cfg.fineMul, cfg.ks.rate);
                 float p = 0.f;
                 for (int i = 0; i < on; ++i)
@@ -1074,6 +1108,7 @@ namespace fge
                     if (m6 && cfg.m06.at (c + 1, 0)) m06St->process (cfg.m06, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 BEFORE
                     if (m7 && cfg.tone.at (c + 1, 0)) toneSt->process (cfg.tone, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 BEFORE
                     if (m8 && cfg.dyn.at (c + 1, 0)) dynSt->process (cfg.dyn, c + 1, 0, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 BEFORE
+                    if (gatedHere) gatedU.preComp (cfg.gated, yl, yr);                 // GATED: the pre-comp before the distortion
                     if (distOn[(size_t) c + 1])                                       // module 05: the GROUP distortion (pre fader)
                     {
                         const auto mc = modCtx (i);
@@ -1081,6 +1116,7 @@ namespace fge
                         yr = distChain[(size_t) (c + 1) * 2 + 1].process (cfg.dist, c + 1, yr, mc, cfg.ks.rate);
                     }
                     if (colorHere) tailColor.process (yl, yr);                        // TAIL COLOR: after the tail's distortion
+                    if (gatedHere) gatedU.process (cfg.gated, yl, yr, msAt (i));       // GATED: moving filter + gate
                     if (m6 && cfg.m06.at (c + 1, 1)) m06St->process (cfg.m06, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 AFTER
                     if (m7 && cfg.tone.at (c + 1, 1)) toneSt->process (cfg.tone, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 AFTER
                     if (m8 && cfg.dyn.at (c + 1, 1)) dynSt->process (cfg.dyn, c + 1, 1, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 AFTER
@@ -1256,7 +1292,9 @@ namespace fge
         std::unique_ptr<dsp::room::Room> tailRoom = std::make_unique<dsp::room::Room>();
         dsp::color::TailColor tailColor;
         std::unique_ptr<dsp::room::Room> tokRoom = std::make_unique<dsp::room::Room>();     // TOK + TAIL: the same room on the punch bus
-        std::unique_ptr<dsp::shaped::Renderer> shapedR = std::make_unique<dsp::shaped::Renderer>();   // SHAPED PUNCH (owner 2026-11-14)
+        std::unique_ptr<dsp::shaped::Renderer> shapedR = std::make_unique<dsp::shaped::Renderer>();
+        std::unique_ptr<dsp::pvc::Renderer> pvcR = std::make_unique<dsp::pvc::Renderer>();          // PVC punch (owner 2026-11-14)
+        dsp::gated::Unit gatedU;   // SHAPED PUNCH (owner 2026-11-14)
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};
         float* const* curBus = nullptr;

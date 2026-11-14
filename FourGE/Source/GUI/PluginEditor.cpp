@@ -89,7 +89,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             proc.setParamInUndoStep ("punch_pitch", 440.f * std::exp2 ((float) (m - 69) / 12.f));
         };
         addAndMakeVisible (tokNote);
-        for (int t = 0; t < 2; ++t)
+        for (int t = 0; t < 4; ++t)
         {
             detTab[t].setButtonText (t == 0 ? "TONE" : "ROOM / COLOR"); detTab[t].setClickingTogglesState (false);
             detTab[t].setTooltip (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -110,7 +110,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                              toggle (("mix_" + s + "_mute").toRawUTF8(), "MUTE", Toggle::Chip, c.silver), toggle (("mix_" + s + "_solo").toRawUTF8(), "SOLO", Toggle::Chip, col) };
         auto& d = detail[(size_t) i];
         if (i == 0) { d.push_back (seg ("punch_source", { "SINE", "TRI", "SAW", "SQUARE", "NOISE", "CLICK" }, col));
-                      d.push_back (seg ("punch_mode", { "PUNCH", "TOK", "SHAPED" }, col));
+                      d.push_back (seg ("punch_mode", { "PUNCH", "TOK", "EUPH", "PVC" }, col));
                       d.push_back (seg ("punch_note_mode", { "FIXED", "FOLLOW MIDI", "OFFSET" }, col)); }
         if (i == 1) d.push_back (seg ("body_source", { "SINE", "TRI", "SAW", "SQUARE", "NOISE" }, col));
         if (i == 2) { d.push_back (seg ("tail_source", { "SINE", "TRI", "SAW", "SQUARE", "PULSE", "NOISE" }, col));
@@ -132,6 +132,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                      { "punch_tok_decay", "TOK DECAY" }, { "punch_note_offset", "NOTE OFFSET" },
                      { "punch_transient", "TRANSIENT" }, { "punch_transient_len", "TR LENGTH" }, { "punch_transient_tone", "TR TONE" } })
                 d.push_back (knob (id, lab, col));
+            d.push_back (knob ("punch_phase", "PHASE", col));                      // (on the 1st tab, before the SHAPED page)
             // 2nd tab: the SHAPED PUNCH (owner 2026-11-14) - source / character / tape stop / shaper / click / sub / verb
             d.push_back (&detailPageMark);
             d.push_back (combo ("psh_source"));
@@ -141,13 +142,38 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
-                     { "psh_spike", "SPIKE" }, { "psh_body", "BODY" }, { "psh_body_ms", "BODY TIME" }, { "psh_end", "END" },
-                     { "psh_click", "CLICK" }, { "psh_sub", "SUB" }, { "psh_sub_delay", "SUB DELAY" }, { "psh_verb", "REVERB" } })
+                     { "psh_spike", "SPIKE" }, { "psh_body", "SHAPE BODY" }, { "psh_body_ms", "BODY TIME" }, { "psh_end", "END" },
+                     { "psh_verb", "ROOM" }, { "psh_click_len", "CLICK LEN" }, { "psh_click_tone", "CLICK TONE" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (toggle ("psh_tonal_only", "TONAL ONLY", Toggle::Chip, col));
+            // 3rd tab: the PVC model (owner 2026-11-14, KLOENK): source / resonance / material / blend, then dynamics / EQ / shape
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("pvc_source"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "pvc_pitch", "PITCH" }, { "pvc_res_freq", "RESONANCE" }, { "pvc_res_q", "RES Q" }, { "pvc_res_amount", "RES AMOUNT" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (combo ("pvc_material"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "pvc_mix", "BLEND" }, { "pvc_ring_ratio", "RING RATIO" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "pvc_comp", "COMP" }, { "pvc_drive", "DRIVE" }, { "pvc_sat", "SATURATION" }, { "pvc_asym", "ASYM" },
+                     { "pvc_low_mid", "LOW MID" }, { "pvc_mid", "MID" }, { "pvc_high_mid", "HIGH MID" },
+                     { "pvc_attack", "ATTACK" }, { "pvc_length", "LENGTH" }, { "pvc_decay", "DECAY" } })
+                d.push_back (knob (id, lab, col));
+            // 4th tab: SUB PUNCH (own wave / pitch envelope / delay / decay), the BLEND of the whole punch engine, the FX (Neroz 2026)
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("psh_sub_wave"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "psh_sub_start", "SUB START" }, { "psh_sub_drop", "SUB DROP" }, { "psh_sub_delay", "SUB DELAY" }, { "psh_sub_decay", "SUB DECAY" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "psh_tonal", "TONAL" }, { "psh_click", "CLICK" }, { "psh_sub", "SUB" }, { "body_level", "BODY" }, { "tail_level", "TAIL" } })
+                d.push_back (knob (id, lab, col));
         }
         if (i == 3) d.push_back (knob ("sub_amp_env_delay", "START", col));      // SUB START: its own time, may enter under the tok
-        d.push_back (knob ((s + "_phase").toRawUTF8(), "PHASE", col));
+        if (i != 0) d.push_back (knob ((s + "_phase").toRawUTF8(), "PHASE", col));
         if (i == 2)
         {
             // sound pass: UNISON / WIDTH, the cuts and the mid bell, STAGE 2
@@ -176,6 +202,17 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (knob ("tail_color_harm", "HARMONIC", col));
             d.push_back (knob ("tail_color_q", "COLOR Q", col));
             d.push_back (combo ("tail_color_track"));
+            d.push_back (&detailPageMark);                                        // 3rd tab: TAIL ENGINE GATED (the PVC tail, owner 2026-11-14)
+            d.push_back (combo ("tail_engine"));
+            d.push_back (combo ("gt_gate"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "gt_gate_len", "GATE LENGTH" }, { "gt_gate_depth", "GATE DEPTH" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (combo ("gt_gate_div"));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "gt_comp", "PRE-COMP" }, { "tail_drive", "DISTORTION" }, { "gt_filter", "FILTER" }, { "gt_reso", "RESONANCE" },
+                     { "gt_move_rate", "MOVE RATE" }, { "gt_move_depth", "MOVEMENT" } })
+                d.push_back (knob (id, lab, col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };
@@ -262,7 +299,12 @@ ComboBox* GeCanvas::combo (const char* id)
     comboAtt.push_back (std::make_unique<AudioProcessorValueTreeState::ComboBoxAttachment> (proc.apvts, id, *cb));
     auto* raw = cb.get(); addAndMakeVisible (raw); byId.insert ({ id, raw }); owned.push_back (std::move (cb)); return raw;
 }
-Component* GeCanvas::findControl (const String& id) { auto it = byId.find (id); return it == byId.end() ? nullptr : it->second; }
+Component* GeCanvas::findControl (const String& id)                     // (a param may have 2 controls, e.g. BODY / TAIL in the punch BLEND: the visible one first)
+{
+    auto range = byId.equal_range (id);
+    for (auto it = range.first; it != range.second; ++it) if (it->second->isVisible()) return it->second;
+    return range.first == range.second ? nullptr : range.first->second;
+}
 
 void GeCanvas::selectPart (int i)
 {
@@ -407,23 +449,33 @@ void GeCanvas::layoutDetail()
     if (selected == 0) tokNote.setBounds (x + 775, y + 1, 70, 24);
     y += 36;
     // a 2nd tab (TAIL: ROOM / COLOR): the items after the marker share the rows of the first tab, one tab shown at a time
-    const bool tabs = std::find (d.begin(), d.end(), &detailPageMark) != d.end();
-    for (int t = 0; t < 2; ++t)
+    const int nTabs = 1 + (int) std::count (d.begin(), d.end(), &detailPageMark);
+    const bool tabs = nTabs > 1;
+    detailPage = juce::jlimit (0, nTabs - 1, detailPage);
+    for (int t = 0; t < 4; ++t)
     {
-        detTab[t].setVisible (tabs && pageIdx == 0);
-        detTab[t].setButtonText (selected == 0 ? (t == 0 ? "PUNCH / TOK" : "SHAPED") : (t == 0 ? "TONE" : "ROOM / COLOR"));
-        detTab[t].setTooltip (selected == 0 ? (t == 0 ? "The classic PUNCH / TOK generator (a waveform with a pitch glide)."
-                                                      : "SHAPED PUNCH (punch mode SHAPED): a broadband source -> mid boost -> distortion -> tape stop -> volume shaper + click + delayed sub.")
+        detTab[t].setVisible (tabs && t < nTabs && pageIdx == 0);
+        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND" };
+        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "GATED", "" };
+        static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
+                                         "EUPHORIC model (punch mode EUPHORIC): a broadband source -> mid boost -> asymmetric distortion -> tape stop -> volume shaper.",
+                                         "PVC model (punch mode PVC, the KLOENK): source -> resonance / ring mod / flanger / comb -> blend -> compressor -> distortion -> EQ -> shape. Monotone.",
+                                         "The shared part of the PUNCH ENGINE: the SUB PUNCH (own wave / pitch / delay / decay) and the BLEND (tonal / click / sub / body / tail)." };
+        detTab[t].setButtonText (selected == 0 ? punchTabs[t] : tailTabs[t]);
+        detTab[t].setTooltip (selected == 0 ? punchTips[t]
                                             : (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
-                                                      : "TAIL ROOM (a room BEFORE the tail's distortion - the early / euphoric crackle) and TAIL COLOR (the EQ AFTER it: which harmonics stay)."));
-        detTab[t].setBounds (detailArea.getRight() - 14 - (2 - t) * 112, detailArea.getY() + 6, 108, 22);
+                                               : t == 1 ? "TAIL ROOM (a room BEFORE the tail's distortion - the early / euphoric crackle) and TAIL COLOR (the EQ AFTER it: which harmonics stay)."
+                                                        : "TAIL ENGINE GATED (the PVC tail): a pre-comp before the distortion, a moving resonant filter, the gate (END / PATTERN in time with the song)."));
+        const int tw = 108;
+        int right = detailArea.getRight() - 14; for (int u = nTabs - 1; u > t; --u) right -= 112;
+        detTab[t].setBounds (right - tw, detailArea.getY() + 6, tw, 22);
         detTab[t].setColour (TextButton::buttonColourId, t == detailPage ? palette().red.withAlpha (0.5f) : palette().control);
     }
     const int y0 = y;
     int tab = 0;
     for (int i = 0; k < d.size(); ++k)
     {
-        if (d[k] == &detailPageMark) { tab = 1; y = y0; i = 0; continue; }
+        if (d[k] == &detailPageMark) { ++tab; y = y0; i = 0; continue; }
         if (d[k] == nullptr) { y += Knob::heightFor (40) + 6; i = 0; continue; }       // row break
         if (tabs) d[k]->setVisible (pageIdx == 0 && tab == detailPage);
         if (dynamic_cast<ComboBox*> (d[k]) != nullptr) { d[k]->setBounds (x + i * 76, y + 22, 150, 26); i += 2; continue; }
@@ -580,11 +632,23 @@ void GeCanvas::updateEnabled()
     const int nMode = (int) raw (proc, P::punchNoteMode);
     en ("punch_note_offset", tok && nMode == 2);
     {
-        const bool shp = (int) raw (proc, P::punchMode) == 2, solo = raw (proc, P::pshTonalOnly) > 0.5f;
+        const bool shp = (int) raw (proc, P::punchMode) >= 2, solo = raw (proc, P::pshTonalOnly) > 0.5f;
         for (auto* id : { "psh_source", "psh_transpose", "psh_mid_freq", "psh_mid_gain", "psh_drive", "psh_asym", "psh_tape", "psh_spike", "psh_body",
                           "psh_body_ms", "psh_end", "psh_low_cut", "psh_verb", "psh_tonal_only" }) en (id, shp);
         en ("psh_tape_start", shp && raw (proc, P::pshTape) > 0.001f);
-        en ("psh_click", shp && ! solo); en ("psh_sub", shp && ! solo); en ("psh_sub_delay", shp && ! solo && raw (proc, P::pshSub) > 0.001f);
+        en ("psh_click", shp && ! solo); en ("psh_sub", shp && ! solo); en ("psh_tonal", shp);
+        const bool ck = shp && ! solo && raw (proc, P::pshClick) > 0.001f, sb = shp && ! solo && raw (proc, P::pshSub) > 0.001f;
+        for (auto* id : { "psh_click_len", "psh_click_tone" }) en (id, ck);
+        for (auto* id : { "psh_sub_delay", "psh_sub_wave", "psh_sub_start", "psh_sub_drop", "psh_sub_decay" }) en (id, sb);
+        const bool pvc = (int) raw (proc, P::punchMode) == 3, eup = (int) raw (proc, P::punchMode) == 2;
+        for (auto* id : { "psh_source", "psh_transpose", "psh_mid_freq", "psh_mid_gain", "psh_drive", "psh_asym", "psh_tape", "psh_tape_start",
+                          "psh_spike", "psh_body", "psh_body_ms", "psh_end", "psh_low_cut" }) en (id, eup);
+        for (int i = 0; i < P::count; ++i)
+            if (String (def (i).id).startsWith ("pvc_")) en (def (i).id, pvc);
+        en ("pvc_ring_ratio", pvc && (int) raw (proc, P::pvcMaterial) == 0);
+        const bool gtd = (int) raw (proc, P::tailEngine) == 1;
+        for (auto* id : { "gt_gate", "gt_gate_len", "gt_comp", "gt_filter", "gt_reso", "gt_move_rate", "gt_move_depth" }) en (id, gtd);
+        for (auto* id : { "gt_gate_depth", "gt_gate_div" }) en (id, gtd && (int) raw (proc, P::gtGate) == 1);
         for (auto* id : { "punch_source", "punch_attack", "punch_decay", "punch_sustain", "punch_release", "punch_tone", "punch_mix", "punch_glide", "punch_transient", "punch_pitch", "punch_length", "punch_drive", "punch_phase", "punch_transient_len", "punch_transient_tone" })
             if (shp) en (id, false);
     }

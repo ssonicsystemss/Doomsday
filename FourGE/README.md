@@ -85,6 +85,12 @@ wyżej KRAAASH); KEY TRACK = podbicie jedzie z nutą (HARMONIC × nuta), więc b
 **WYGLĄD SMOKE** (liquid glass, właściciel 2026-11-14): przydymione półprzezroczyste panele na delikatnych czerwono-szarych poświatach, domyślny.
 SETTINGS → LOOK: FLAT (dawny płaski) / SMOKE. Makieta: projekt „4GE Liquid Glass”.
 
+**PUNCH ENGINE – modele** (właściciel 2026-11-14): PUNCH MODE = PUNCH / TOK / **EUPH** (EUPHORIC, dawny SHAPED: szerokie źródło → MID → przester → tape stop)
+/ **PVC** (KLOENK: źródło SAW / NOISE / SNARE / HYBRID → RESONANCE 150 Hz–2,5 kHz (domyślnie 1,2 kHz) → MATERIAL RING MOD / FLANGER (domyślny) / COMB
+→ BLEND z czystym → kompresor → przester + saturacja → EQ low-mid / mid / high-mid → ATTACK / LENGTH / DECAY; monotonny, bez zjazdu).
+Wspólne: CLICK, SUB PUNCH, BLEND (zakładka SUB / BLEND). **TAIL ENGINE** = CLASSIC / **GATED** (ogon PVC, zakładka GATED karty TAIL):
+PRE-COMP przed przesterem, filtr z rezonansem i MOVEMENT, GATE END (jedno ostre cięcie) / PATTERN (siekanie 1/8–1/32 w tempie utworu).
+
 **SHAPED PUNCH** (PUNCH MODE = SHAPED, druga zakładka karty PUNCH, właściciel 2026-11-14 „mamy to”) – charakter punchu NIE z sinusa:
 szerokopasmowe źródło (SNARE / NOISE, TRANSPOSE – klasycznie werbel +14 st) → podbicie środka (MID FREQ płynnie, MID GAIN) → przester
 asymetryczny (DRIVE, ASYM) → TAPE STOP (punch zwalnia i opada pod koniec; TAPE START) → VOLUME SHAPER (SPIKE, BODY, BODY TIME, END) →

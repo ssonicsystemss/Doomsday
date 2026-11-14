@@ -463,3 +463,12 @@ Rebelion, Vertile, Krowdexx, Aversion, Thyron; 150–155 BPM; „albo kochasz, a
 - widmo ogona: dominuje fundament, 150–500 Hz drugie, wysoka góra stała przez cały kick (bez gaśnięcia).
 Wniosek dla 4GE: ZAAG = tok ~450 Hz → ogon sinus / kwadrat w maksymalny HARD clip (kwadrat), unison + szerokość, MASTER CLIP + LIMITER
 LOUD do crest ~2 dB, ogon na pełnej długości bitu (sustain 1), sub w ogonie (bez osobnego suba).
+
+## PVC / KLOENK kick (2026-11-14, research właściciela + nasz prototyp)
+Charakter **punchu**: hollow / plastic / woody („uderzenie w pustą rurę”), „KLOENK”; rozwinięcie gated kicków: **monotone punch → heavy gated
+bass tail**. Tutorial On Point Samples (2024, darmowy FLP): Serum, transient shaper, kompresor (przed przesterem = gęsty, saw-like przester),
+distortion, EQ, **ring mod na filtrze zmiksowany z czystym** (ten blend = crunchy kloenk; harmoniczne wzmacniają się zależnie od nuty i FM),
+flanger, LFO Tool (gate), reverb. Społeczność: podbicie 200–400 Hz przed obróbką = „plastic / digital” (eksperyment, nie reguła).
+Aktualne: PVC Kick Tutorial, Xelora (Serum 2, rawstyle PVC), packi „new gen kick pvc”. Fizyka: nieharmoniczne składowe (ring) + stały
+rezonans przedmiotu (comb / flanger) = ucho słyszy materiał, nie syntezator. Nasz test (właściciel): rezonans ~**1200 Hz** najlepszy
+(z 150–2500), materiał **FLANGER** i RING z blendem 80 %. → 4GE: PUNCH MODE PVC + TAIL ENGINE GATED (`DSP/Core/PvcPunch.h`, `DSP/Tone/GatedTail.h`).

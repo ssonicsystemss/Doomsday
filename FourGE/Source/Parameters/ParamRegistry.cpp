@@ -94,9 +94,15 @@ namespace fge
         const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
         const juce::StringArray& lenSyncs()       { static const juce::StringArray a { "OFF", "1/4 BEAT", "1/2 BEAT", "1 BEAT", "2 BEATS" }; return a; }
         const juce::StringArray& tokModes()       { static const juce::StringArray a { "FOLLOW MIDI", "FIXED" }; return a; }
-        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK", "SHAPED" }; return a; }
+        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK", "EUPHORIC", "PVC" }; return a; }
         const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "OFFSET" }; return a; }
-        const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE" }; return a; }
+        const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE", "HYBRID" }; return a; }
+        const juce::StringArray& pvcSources()   { static const juce::StringArray a { "SAW", "NOISE", "SNARE", "HYBRID" }; return a; }
+        const juce::StringArray& pvcMaterials() { static const juce::StringArray a { "RING MOD", "FLANGER", "COMB" }; return a; }
+        const juce::StringArray& tailEngines()  { static const juce::StringArray a { "CLASSIC", "GATED" }; return a; }
+        const juce::StringArray& gtGateModes()  { static const juce::StringArray a { "GATE END", "GATE PATTERN" }; return a; }
+        const juce::StringArray& gtGateDivs()   { static const juce::StringArray a { "1/8", "1/16", "1/32" }; return a; }
+        const juce::StringArray& pshSubWaves() { static const juce::StringArray a { "SINE", "TRIANGLE" }; return a; }
         const juce::StringArray& colorTracks() { static const juce::StringArray a { "HZ", "KEY TRACK" }; return a; }
         const juce::StringArray& roomInputs() { static const juce::StringArray a { "TAIL", "TOK + TAIL" }; return a; }
         const juce::StringArray& tailStartModes() { static const juce::StringArray a { "AFTER TOK", "INDEPENDENT" }; return a; }
@@ -236,7 +242,7 @@ namespace fge
             case peMode:       return "Shape of the pitch movement from START to END.";
             case peStart:      return "Where the tail pitch starts (held for HOLD, then the drop to the note). Type a note (\"G4\"). The tok = PUNCH in TOK mode.";
             case punchMode:    return "TOK: the PUNCH is the tok - TRANSIENT + TOK CORE on one note for its LENGTH, then the TAIL starts (PUNCH / TOK -> TAIL). PUNCH: the classic short punch that glides into the kick, the tail from the hit.";
-            case pshSource:    return "SHAPED PUNCH source: a BROADBAND sound the EQ + distortion turn into the character (a sine has nothing to shape). SNARE = noise + a short body, NOISE = white noise.";
+            case pshSource:    return "SHAPED PUNCH source: a BROADBAND sound the EQ + distortion turn into the character (a sine has nothing to shape). SNARE = noise + a short body, NOISE = white noise, HYBRID = both.";
             case pshTranspose: return "Transposes the SNARE / NOISE source (shorter and higher up). The classic: a snare +14 semitones.";
             case pshMidFreq:   return "CHARACTER: the mid boost BEFORE the distortion - this band is driven into the ceiling. ~700 Hz woody, ~1 kHz default, ~1.6 kHz sharp.";
             case pshMidGain:   return "CHARACTER: how much the mid band is boosted before the distortion.";
@@ -253,6 +259,41 @@ namespace fge
             case pshSub:       return "SUB of the punch: a mono sine on the played note under the punch.";
             case pshSubDelay:  return "SUB of the punch enters a little LATER: first the transient, then the push in the chest.";
             case pshVerb:      return "A very short stereo reverb on the shaped punch (a little - for stereo).";
+            case pshTonal:     return "BLEND: the level of the TONAL layer (the shaped punch itself) against its CLICK and SUB.";
+            case pshClickLen:  return "CLICK: how long the transient lasts (ms).";
+            case pshClickTone: return "CLICK: its character - where the laser starts (low = a knock, high = a tick).";
+            case pshSubWave:   return "SUB PUNCH: SINE (clean) or TRIANGLE (a little more mid).";
+            case pshSubStart:  return "SUB PUNCH: its own pitch envelope - how far above the note it starts (semitones).";
+            case pshSubDrop:   return "SUB PUNCH: how fast it falls to the note (ms).";
+            case pshSubDecay:  return "SUB PUNCH: its own decay - where it has faded out (ms).";
+            case pvcSource:    return "PVC source: SAW (a monotone saw at PITCH), NOISE, SNARE or HYBRID (saw + noise).";
+            case pvcPitch:     return "PVC: the pitch of the saw source - the punch stays on it (monotone, no pitch drop: KLOENK, KLOENK).";
+            case pvcResFreq:   return "PVC RESONANCE: where the 'tube' rings (150 Hz - 2.5 kHz) - find where the hit sounds most like plastic.";
+            case pvcResQ:      return "PVC RESONANCE: how narrow / ringing the tube is.";
+            case pvcResAmount: return "PVC RESONANCE: how much of the source goes through the tube before the material.";
+            case pvcMaterial:  return "PVC MATERIAL: RING MOD (metallic, inharmonic), FLANGER (a moving comb = a hollow pipe), COMB (a fixed pipe).";
+            case pvcMix:       return "PVC BLEND: the clean source against the resonance / material - the main PVC control (the crunchy KLOENK is the mix).";
+            case pvcRingRatio: return "PVC RING MOD: its frequency = PITCH x RATIO (the harmonics line up differently per ratio).";
+            case pvcComp:      return "PVC: a compressor BEFORE the distortion - an even, dense, saw-like saturation.";
+            case pvcDrive:     return "PVC: the distortion after the compressor.";
+            case pvcSat:       return "PVC: a softer saturation mixed in after the drive (rounder edges).";
+            case pvcAsym:      return "PVC: how one-sided the distortion is (more even harmonics).";
+            case pvcLowMid:    return "PVC EQ after the distortion: low-mid (~300 Hz) - boxy / plastic.";
+            case pvcMid:       return "PVC EQ after the distortion: mid (~1 kHz).";
+            case pvcHighMid:   return "PVC EQ after the distortion: high-mid (~3 kHz) - the attack.";
+            case pvcAttack:    return "PVC SHAPE: the attack of the punch (ms).";
+            case pvcLength:    return "PVC SHAPE: how long the punch holds (ms).";
+            case pvcDecay:     return "PVC SHAPE: how fast it falls after that (ms).";
+            case tailEngine:   return "TAIL ENGINE: CLASSIC (the tonal tail) or GATED (the PVC tail: a heavy gated bass with a moving resonant filter).";
+            case gtComp:       return "GATED: a compressor BEFORE the tail's distortion (even, dense saturation).";
+            case gtGate:       return "GATED: GATE END = full level, then one hard cut; GATE PATTERN = chopped in time with the song (the old gated kick).";
+            case gtGateLen:    return "GATED: where the tail is cut (ms).";
+            case gtGateDepth:  return "GATED PATTERN: how deep the chops go.";
+            case gtGateDiv:    return "GATED PATTERN: the chop rate, synced to the song's tempo.";
+            case gtFilter:     return "GATED: the tail's resonant low-pass after the distortion.";
+            case gtReso:       return "GATED: the filter's resonance.";
+            case gtMoveRate:   return "GATED MOVEMENT: how fast the filter moves (Hz).";
+            case gtMoveDepth:  return "GATED MOVEMENT: how far the filter moves.";
             case pshTonalOnly: return "LAB: only the tonal layer (no CLICK, no SUB) - to design the character on its own.";
             case punchNoteMode:return "TOK note: FIXED = the tok plays PITCH on every MIDI note (e.g. always G); FOLLOW MIDI = it moves with the played note (keeping its distance to the tail note); OFFSET = the played note + NOTE OFFSET semitones.";
             case punchOverlap: return "The hand-over TOK -> BODY + TAIL: an equal-power crossfade this long (the tail starts from the tok note, in phase). ~20 ms = no audible seam, shorter = a harder cut.";

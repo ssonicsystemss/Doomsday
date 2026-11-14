@@ -220,6 +220,25 @@ int main (int argc, char** argv)
         ge->canvas.showPage (0); ge->canvas.selectPart (0);
         { PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
           FileOutputStream os (File (argv[1]).getChildFile ("page00_punch.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); } }
+        {                                                                                   // PUNCH: the SHAPED tab (punch mode SHAPED)
+            if (auto* pm = p.apvts.getParameter ("punch_mode")) pm->setValueNotifyingHost (pm->convertTo0to1 (2.f));
+            ge->canvas.selectPart (0); ge->canvas.tailTab (1);
+            for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+            PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os (File (argv[1]).getChildFile ("page00_shaped.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            if (auto* pm = p.apvts.getParameter ("punch_mode")) pm->setValueNotifyingHost (pm->convertTo0to1 (3.f));   // + the PVC tab
+            ge->canvas.tailTab (2);
+            for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+            { auto im = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+              FileOutputStream o2 (File (argv[1]).getChildFile ("page00_pvc.png")); if (o2.openedOk()) { o2.setPosition (0); o2.truncate(); png.writeImageToStream (im, o2); } }
+            if (auto* te = p.apvts.getParameter ("tail_engine")) te->setValueNotifyingHost (te->convertTo0to1 (1.f));    // + the GATED tail tab
+            ge->canvas.selectPart (2); ge->canvas.tailTab (2);
+            for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+            { auto im = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+              FileOutputStream o2 (File (argv[1]).getChildFile ("page00_gated.png")); if (o2.openedOk()) { o2.setPosition (0); o2.truncate(); png.writeImageToStream (im, o2); } }
+            if (auto* te = p.apvts.getParameter ("tail_engine")) te->setValueNotifyingHost (te->convertTo0to1 (0.f));
+            if (auto* pm = p.apvts.getParameter ("punch_mode")) pm->setValueNotifyingHost (pm->convertTo0to1 (0.f));
+        }
         for (int t = 0; t < 2; ++t)                                                         // TAIL: the TONE and ROOM / COLOR tabs
         {
             ge->canvas.selectPart (2); ge->canvas.tailTab (t);
@@ -1067,7 +1086,11 @@ int main (int argc, char** argv)
                 if (sid == "mod_movement") route (mo::SLfo1);
                 if (sid.startsWith ("len_follow_")) set2 ("core_length", 1200.f);
                 if (sid == "pe_start_mode") set2 ("pe_end", 30.f);
-                if (sid.startsWith ("psh_")) set2 ("punch_mode", 2.f);                                           // SHAPED PUNCH (owner 2026-11-14)
+                if (sid.startsWith ("psh_")) set2 ("punch_mode", 2.f);
+                if (sid.startsWith ("pvc_")) set2 ("punch_mode", 3.f);                                          // PVC (owner 2026-11-14)
+                if (sid == "pvc_ring_ratio") set2 ("pvc_material", 0.f);
+                if (sid.startsWith ("gt_")) set2 ("tail_engine", 1.f);                                          // TAIL ENGINE GATED
+                if (sid == "gt_gate_depth" || sid == "gt_gate_div") set2 ("gt_gate", 1.f);                                           // SHAPED PUNCH (owner 2026-11-14)
                 if (sid == "punch_note_mode" || sid == "punch_overlap") { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); }
                 if (sid == "punch_tok_decay" || sid == "punch_tok_bend" || sid == "tail_start_mode" || sid == "tail_start" || sid == "punch_note_offset")
                     { set2 ("punch_mode", 1.f); set2 ("pe_end", 30.f); set2 ("punch_length", 110.f); set2 ("punch_sustain", 1.f); }

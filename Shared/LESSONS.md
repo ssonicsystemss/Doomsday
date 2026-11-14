@@ -424,3 +424,8 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   (krzywa 24 %, -13.6 st) przez drive 63 % (trzask = początek ogona), trzy warstwy prawie równo. Efekty „między H2 i H3”, najlepszy
   wariant BODY 1250 Hz / 50 % / -4 dB, 7. harmoniczna. Lekcja: gdy szukanie brzmienia kręci się w kółko, poprosić właściciela o jego
   własne ustawienia / preset zamiast zgadywać dalej.
+- **4GE – trzask euphoric: źródło, nie obróbka (owner, 2026-11-14 „no kurwa mamy to”)** – dni prób na SINUSIE (zjazdy 1–8 kHz,
+  przester soft / hard / asym, crunch z ruchomym EQ) dawały „piep” albo goły przester. Pomiar 100 kicków FHSP: 1–8 kHz w połowie szum,
+  uderzenie trzyma ~650 Hz, bas od ~54 ms. Rozwiązanie (Eternize): warstwa tonalna z SZEROKOPASMOWEGO źródła (werbel +14 st / szum) →
+  podbicie środka → przester → tape stop → volume shaper; click i opóźniony sub osobno = PUNCH MODE SHAPED. Lekcja: gdy obróbka nic
+  nie daje, zmienić ŹRÓDŁO; i mierzyć wzorce w strefach czasowych zanim się zgaduje. Punch ginął pod ogonem → +4 dB, ogon / body attack 20 / 15 ms.

@@ -281,6 +281,15 @@ lim1_mode 2
 punch_pitch 415.30
 punch_length 140
 punch_level -10
+preset MODERN - Shaped Saw
+style 4
+body_length 370
+tail_length 500
+core_auto_length 1
+lim1_on 1
+lim1_mode 2
+tail_source 2
+tail_drive 0.5
 preset RAW - Screamer Main
 style 2
 ref /mnt/user-data/attachments/58b64e7f-1af8-5704-b9cc-8cf07f46953c/c4bf170d-OPS_HS_FREE1_KICK_G.wav

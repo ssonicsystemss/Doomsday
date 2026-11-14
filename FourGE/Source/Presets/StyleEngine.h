@@ -105,7 +105,8 @@ namespace fge::style
             // Effects = "between H2 and H3": SOFT -> WAVEFOLD on the tail, TAIL COLOR the 6th harmonic (KEY TRACK, "GRRRAAANG"), a small room
             // before the drive, a light clip. Everything else stays INIT (the owner's base).
             Template { { { "punch_mode", 2 },                     // SHAPED PUNCH (owner 2026-11-14 "mamy to"): P1 = mid 1 kHz, the psh_ defaults
-                         { "punch_level", -5.8f }, { "punch_pitch", 231 }, { "punch_length", 91 }, { "punch_drive", 0.67f },
+                         { "punch_level", -1.8f }, { "tail_attack", 20 }, { "body_attack", 15 },   // L3 (2026-11-14: the punch got lost under the tail)
+                         { "punch_pitch", 231 }, { "punch_length", 91 }, { "punch_drive", 0.67f },
                          { "body_level", -4 }, { "body_pitch", 1250 }, { "body_drive", 0.5f },   // "Crunch Body" = "jest git" (2026-11-13)
                          { "tail_level", -4.4f }, { "tail_drive", 0.63f },
                          { "pe_start", 760 }, { "pe_end", 20.3f }, { "pe_time", 161 }, { "pe_curve", 0.24f }, { "pe_amount", -13.6f },

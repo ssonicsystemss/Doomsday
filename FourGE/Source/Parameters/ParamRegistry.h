@@ -475,7 +475,32 @@ namespace fge
     F (ptLength,       "pt_length",            "PVC Tail Length",      Unit::Ms,  40.f, 1000.f, 330.f, 300.f, FNone) \
     F (ptFade,         "pt_fade",              "PVC Tail Fade",        Unit::Ms,  1.f, 100.f, 5.f, 10.f, FNone) \
     /* owner 2026-11-14 (zaag: "tail mocno drapiący i narastający"; OPS zaag kicks: the highs rise ~6 dB over the tail) */ \
-    F (ptGrow,         "pt_grow",              "Tail Drive Grow",      Unit::Db,  0.f, 24.f, 0.f, 0.f, FNone)
+    F (ptGrow,         "pt_grow",              "Tail Drive Grow",      Unit::Db,  0.f, 24.f, 0.f, 0.f, FNone) \
+    /* owner 2026-11-14: TAIL ENGINE ZAAG (OPS zaag kicks + his picks: one huge bass from 0 ms, PIEP then TRASK, a reverb on the punch) */ \
+    F (zgStart, "zg_start", "Zaag Start Pitch", Unit::Semi, 0.f, 36.f, 14.f, 0.f, FNone) \
+    F (zgDrop, "zg_drop", "Zaag Drop", Unit::Ms, 3.f, 150.f, 22.f, 25.f, FNone) \
+    F (zgSaw, "zg_saw", "Zaag Saw", Unit::Pct, 0.f, 1.f, 0.35f, 0.f, FNone) \
+    F (zgDrive, "zg_drive", "Zaag Drive", Unit::Db, 0.f, 40.f, 28.f, 0.f, FNone) \
+    F (zgDirt, "zg_dirt", "Zaag Dirt", Unit::Pct, 0.f, 0.3f, 0.06f, 0.f, FNone) \
+    F (zgDirtTone, "zg_dirt_tone", "Zaag Dirt Tone", Unit::Hz, 1000.f, 12000.f, 5000.f, 5000.f, FNone) \
+    F (zgSub, "zg_sub", "Zaag Sub", Unit::Pct, 0.f, 2.f, 1.2f, 0.f, FNone) \
+    F (zgPress, "zg_press", "Zaag Press", Unit::Pct, 0.5f, 5.f, 3.f, 0.f, FNone) \
+    F (zgWidth, "zg_width", "Zaag Width", Unit::Pct, 0.f, 2.f, 0.6f, 0.f, FNone) \
+    F (zgClick, "zg_click", "Zaag Click", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (zgPiep, "zg_piep", "Zaag Piep", Unit::Pct, 0.f, 1.f, 0.6f, 0.f, FNone) \
+    F (zgPiepHz, "zg_piep_hz", "Zaag Piep Pitch", Unit::Hz, 300.f, 4000.f, 1400.f, 1400.f, FNone) \
+    F (zgPiepMs, "zg_piep_ms", "Zaag Piep Length", Unit::Ms, 3.f, 80.f, 15.f, 15.f, FNone) \
+    F (zgTrask, "zg_trask", "Zaag Trask", Unit::Pct, 0.f, 1.f, 0.7f, 0.f, FNone) \
+    F (zgTraskDelay, "zg_trask_delay", "Zaag Trask Delay", Unit::Ms, 0.f, 60.f, 15.f, 15.f, FNone) \
+    F (zgTraskMs, "zg_trask_ms", "Zaag Trask Length", Unit::Ms, 5.f, 120.f, 40.f, 40.f, FNone) \
+    F (zgVerb, "zg_verb", "Zaag Punch Verb", Unit::Pct, 0.f, 4.f, 2.f, 0.f, FNone) \
+    F (zgVerbDecay, "zg_verb_decay", "Zaag Verb Decay", Unit::Ms, 200.f, 4000.f, 1600.f, 1200.f, FNone) \
+    F (zgVerbSize, "zg_verb_size", "Zaag Verb Size", Unit::Pct, 0.3f, 2.f, 1.2f, 1.f, FNone) \
+    F (zgVerbSend, "zg_verb_send", "Zaag Verb Send", Unit::Ms, 10.f, 200.f, 80.f, 60.f, FNone) \
+    F (zgVerbPre, "zg_verb_pre", "Zaag Verb Pre-delay", Unit::Ms, 0.f, 60.f, 0.f, 20.f, FNone) \
+    F (zgVerbGate, "zg_verb_gate", "Zaag Verb Gate", Unit::Ms, 0.f, 400.f, 0.f, 150.f, FNone) \
+    F (zgVerbDamp, "zg_verb_damp", "Zaag Verb Brightness", Unit::Hz, 1000.f, 12000.f, 4500.f, 4500.f, FNone) \
+    F (zgVerbLowCut, "zg_verb_low_cut", "Zaag Verb Low Cut", Unit::Hz, 100.f, 2000.f, 400.f, 400.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

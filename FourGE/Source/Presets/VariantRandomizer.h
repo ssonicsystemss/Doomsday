@@ -14,9 +14,9 @@
 
 namespace fge::variant
 {
-    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, Pvc, NumStyles };
+    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, Pvc, Zaag, NumStyles };
     enum Area { APunch = 0, ABody, ATail, ASub, APitch, ADrive, AScreech, NumAreas };
-    inline const juce::StringArray& styleNames() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "PVC" }; return a; }
+    inline const juce::StringArray& styleNames() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "PVC", "ZAAG" }; return a; }
     inline const juce::StringArray& areaNames()  { static const juce::StringArray a { "PUNCH", "BODY", "TAIL", "SUB", "PITCH", "DRIVE", "SCREECH" }; return a; }
     inline const juce::StringArray& scopeNames() { static const juce::StringArray a { "FULL KICK", "PUNCH", "BODY", "TAIL", "SUB", "PITCH", "DRIVE", "SCREECH" }; return a; }
 
@@ -80,6 +80,27 @@ namespace fge::variant
         }();
         return x;
     }
+    // ---- ZAAG (owner 2026-11-14): around his picks (O2 = piep then trask; punch reverb V2 gated / V4 hall + pre-delay / V5 send 30)
+    inline const Table& zaagTable()
+    {
+        static const Table x = []
+        {
+            Table t;
+            t[APunch]   = { { "punch_level", 0, 0, { -60 } }, { "zg_piep", 0.4f, 0.8f }, { "zg_piep_hz", 1000, 2000 }, { "zg_piep_ms", 10, 22 },
+                            { "zg_trask", 0.5f, 0.9f }, { "zg_trask_delay", 12, 20 }, { "zg_trask_ms", 25, 50 }, { "zg_click", 0.3f, 0.7f },
+                            { "zg_verb", 1.5f, 3 }, { "zg_verb_decay", 1500, 2600 }, { "zg_verb_size", 1.1f, 1.6f }, { "zg_verb_send", 0, 0, { 30, 60, 80, 80 } },
+                            { "zg_verb_pre", 0, 25 }, { "zg_verb_gate", 0, 0, { 0, 0, 170 } }, { "zg_verb_damp", 4500, 9500 }, { "zg_verb_low_cut", 400, 900 } };
+            t[ABody]    = { { "body_level", 0, 0, { -60 } } };
+            t[ATail]    = { { "tail_engine", 0, 0, { 2 } }, { "zg_saw", 0.2f, 0.6f }, { "zg_drive", 24, 34 }, { "zg_dirt", 0.04f, 0.12f }, { "zg_dirt_tone", 4000, 7000 },
+                            { "zg_press", 2.5f, 3.5f }, { "zg_width", 0.4f, 0.9f } };
+            t[ASub]     = { { "sub_level", 0, 0, { -60 } }, { "zg_sub", 0.9f, 1.4f } };
+            t[APitch]   = { { "zg_start", 10, 18 }, { "zg_drop", 12, 35 } };
+            t[ADrive]   = { { "master_clip_drive", 2, 3 } };
+            t[AScreech] = { { "scr_on", 0, 0, { 0 } } };
+            return t;
+        }();
+        return x;
+    }
     inline const Table& table (int style)
     {
         static const std::array<Table, NumStyles> t = []
@@ -132,6 +153,7 @@ namespace fge::variant
             x[Experimental][AScreech] = { { "scr_on", 0, 0, { 0, 1 } }, { "scr_level", -18, -4 } };
             x[Euphoric] = euphoricTable();
             x[Pvc] = pvcTable();
+            x[Zaag] = zaagTable();
             return x;
         }();
         return t[(size_t) juce::jlimit (0, NumStyles - 1, style)];

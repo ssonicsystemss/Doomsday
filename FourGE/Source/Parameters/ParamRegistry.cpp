@@ -99,7 +99,7 @@ namespace fge
         const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE", "HYBRID" }; return a; }
         const juce::StringArray& pvcSources()   { static const juce::StringArray a { "SAW", "NOISE", "SNARE", "HYBRID" }; return a; }
         const juce::StringArray& pvcMaterials() { static const juce::StringArray a { "RING MOD", "FLANGER", "COMB" }; return a; }
-        const juce::StringArray& tailEngines()  { static const juce::StringArray a { "CLASSIC", "PVC" }; return a; }
+        const juce::StringArray& tailEngines()  { static const juce::StringArray a { "CLASSIC", "PVC", "ZAAG" }; return a; }
         const juce::StringArray& gtGateModes()  { static const juce::StringArray a { "SINGLE", "PULSE", "MOVEMENT" }; return a; }
         const juce::StringArray& pvcModels()    { static const juce::StringArray a { "KLOENK", "TUBE" }; return a; }
         const juce::StringArray& pvcPhModes()   { static const juce::StringArray a { "SWEEP", "LFO" }; return a; }
@@ -341,6 +341,30 @@ namespace fge
             case ptLength:     return "PVC TAIL FINAL SHAPE: length from the start (ms).";
             case ptFade:       return "PVC TAIL FINAL SHAPE: the fade at the end (ms).";
             case ptGrow:       return "TAIL GROW: DRIVE 1 starts this much lower and rises to its value over the tail - the tail gets rougher and brighter as it goes (zaag).";
+            case zgStart: return "ZAAG: how far above the note the bass starts (semitones) - it falls to the note in DROP.";
+            case zgDrop: return "ZAAG: how fast the bass falls to the note (ms).";
+            case zgSaw: return "ZAAG: sine <-> saw before the drive.";
+            case zgDrive: return "ZAAG: the huge drive (square, full scale).";
+            case zgDirt: return "ZAAG: noise mixed BEFORE the drive - the dirt (different left / right = width).";
+            case zgDirtTone: return "ZAAG: how bright the dirt is.";
+            case zgSub: return "ZAAG: a clean sine on the note under it (the weight, mono).";
+            case zgPress: return "ZAAG PRESS: how hard the whole kick is pressed to full scale (the wall).";
+            case zgWidth: return "ZAAG: the width of the highs (the lows stay mono).";
+            case zgClick: return "ZAAG: a 2 ms noise click at the very start.";
+            case zgPiep: return "ZAAG PIEP: a short tonal pip FIRST (falls to half its pitch).";
+            case zgPiepHz: return "ZAAG PIEP: its pitch (Hz).";
+            case zgPiepMs: return "ZAAG PIEP: its length (ms).";
+            case zgTrask: return "ZAAG TRASK: the crunch AFTER the piep (the falling saw x3, hard, 700 Hz - 3.5 kHz).";
+            case zgTraskDelay: return "ZAAG TRASK: when it comes in (ms) - after the piep.";
+            case zgTraskMs: return "ZAAG TRASK: its length (ms).";
+            case zgVerb: return "ZAAG PUNCH REVERB: a reverb on the start of the kick only (no lows) - the space.";
+            case zgVerbDecay: return "ZAAG PUNCH REVERB: decay (ms).";
+            case zgVerbSize: return "ZAAG PUNCH REVERB: size.";
+            case zgVerbSend: return "ZAAG PUNCH REVERB: how much of the start goes in (ms; 30 = only the piep and the trask).";
+            case zgVerbPre: return "ZAAG PUNCH REVERB: pre-delay (ms) - a cleaner punch.";
+            case zgVerbGate: return "ZAAG PUNCH REVERB: GATED reverb - cut after this (ms; 0 = off).";
+            case zgVerbDamp: return "ZAAG PUNCH REVERB: brightness (damping).";
+            case zgVerbLowCut: return "ZAAG PUNCH REVERB: the low cut of what goes in.";
             case pshTonalOnly: return "LAB: only the tonal layer (no CLICK, no SUB) - to design the character on its own.";
             case punchNoteMode:return "TOK note: FIXED = the tok plays PITCH on every MIDI note (e.g. always G); FOLLOW MIDI = it moves with the played note (keeping its distance to the tail note); OFFSET = the played note + NOTE OFFSET semitones.";
             case punchOverlap: return "The hand-over TOK -> BODY + TAIL: an equal-power crossfade this long (the tail starts from the tok note, in phase). ~20 ms = no audible seam, shorter = a harder cut.";

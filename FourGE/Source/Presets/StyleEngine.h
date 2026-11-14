@@ -14,8 +14,8 @@
 
 namespace fge::style
 {
-    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, Pvc, NumStyles };     // (EUPHORIC appended: saved projects keep their ids)
-    inline const juce::StringArray& names() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "PVC" }; return a; }
+    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, Pvc, Zaag, NumStyles };     // (EUPHORIC appended: saved projects keep their ids)
+    inline const juce::StringArray& names() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "PVC", "ZAAG" }; return a; }
     inline const char* description (int s)
     {
         static const char* d[NumStyles] {
@@ -26,7 +26,9 @@ namespace fge::style
             "Euphoric 2009-12 (Wildstylez, Headhunterz, Brennan Heart, Noisecontrollers): a low driven punch (the hit), a high long BODY (the crunch), "
             "a tail that falls fast from ~760 Hz through the drive (the crack), soft -> wavefold, the 6th harmonic coloured, a small room.",
             "PVC / KLOENK (owner 2026-11-14, from his PVC samples): a plastic TUBE punch (~1 kHz, 'ciup', phaser), then a gated tail made of a REVERB "
-            "(high cut -> drive -> clip -> gate -> drive), low end mono, highs wide." };
+            "(high cut -> drive -> clip -> gate -> drive), low end mono, highs wide.",
+            "ZAAG (owner 2026-11-14, from the OPS zaag kicks): one huge distorted bass from 0 ms pressed to full scale, the PIEP then the TRASK, "
+            "a reverb on the punch, the highs wide, the lows mono." };
         return d[juce::jlimit (0, NumStyles - 1, s)];
     }
     inline int indexOf (const juce::String& id) { for (int i = 0; i < P::count; ++i) if (id == def (i).id) return i; return -1; }
@@ -37,7 +39,7 @@ namespace fge::style
         if (id.startsWith ("punch_")) return false;                    // PUNCH / TOK: the tok's own length / envelope is its character, not the kick length
         if (id.startsWith ("tail_room")) return false;                 // the TAIL ROOM decay is its character (it never makes the kick longer)
         if (id.startsWith ("noise")) return false;
-        if (id.startsWith ("pvc_") || id.startsWith ("pt_")) return false;   // PVC punch length / tail length = the PVC character (owner 2026-11-14)                     // a noise layer's decay / length is its character (EUPHORIC's grain), not the kick length
+        if (id.startsWith ("pvc_") || id.startsWith ("pt_") || id.startsWith ("zg_")) return false;   // PVC punch length / tail length = the PVC character (owner 2026-11-14)                     // a noise layer's decay / length is its character (EUPHORIC's grain), not the kick length
         return id == "core_length" || id == "core_auto_length" || id.endsWith ("_length") || id.endsWith ("_decay") || id.endsWith ("_release")
                || id.endsWith ("_sustain") || id.contains ("_length_") || id.endsWith ("_hold");
     }
@@ -45,7 +47,7 @@ namespace fge::style
     {
         const juce::String id (def (i).id);
         if (isLength (id)) return false;
-        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
+        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_", "zg_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
         if (id.startsWith ("dist")) return true;                         // the whole distortion pool (dist1..16 + dist_ globals)
         return id == "master_clip_drive";
     }
@@ -126,6 +128,10 @@ namespace fge::style
                          { "pt_drive1", 17 }, { "pt_clip", 0.6f }, { "pt_drive2", 13 }, { "pt_asym", 0.15f }, { "pt_gate_curve", 2 },
                          { "gt_gate_len", 260 }, { "gt_gate_depth", 0.5f }, { "pt_low_mid", -1.5f }, { "pt_high", 2 }, { "pt_width", 0.9f },
                          { "pt_delay", 175 }, { "pt_length", 320 }, { "master_clip_drive", 3 } },
+                       {} },
+            // ZAAG (owner 2026-11-14): TAIL ENGINE ZAAG = the whole kick (the punch / body / sub generators silent), defaults = his O2 (piep then trask) + punch reverb
+            Template { { { "tail_engine", 2 }, { "tail_level", 0 }, { "punch_level", -60 }, { "body_level", -60 }, { "sub_level", -60 },
+                         { "zg_verb_pre", 25 }, { "zg_verb_damp", 9000 }, { "zg_verb_size", 1.6f }, { "zg_verb_decay", 2000 }, { "zg_verb_low_cut", 700 } },
                        {} },
         };
         return t[(size_t) juce::jlimit (0, NumStyles - 1, s)];

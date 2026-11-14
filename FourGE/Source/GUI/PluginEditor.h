@@ -43,7 +43,7 @@ public:
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
     void selectPart (int);
-    void tailTab (int t) { detailPage = juce::jlimit (0, 3, t); layoutDetail(); repaint(); }
+    void tailTab (int t) { detailPage = juce::jlimit (0, 4, t); layoutDetail(); repaint(); }
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
@@ -148,7 +148,7 @@ private:
     fge::ui::Settings uiSet;
     fge::gui::NavBar nav;
     // STYLE / LENGTH = drop-down lists (owner 2026-11-12); STYLE is listed in time order, the ids stay (EUPHORIC = 4, appended)
-    fge::gui::ChoiceDrop styleStrip { { "EARLY  2004-08", "EUPHORIC  2009-12", "MODERN", "RAW", "EXPERIMENTAL", "PVC" }, { 0, 4, 1, 2, 3, 5 } },
+    fge::gui::ChoiceDrop styleStrip { { "EARLY  2004-08", "EUPHORIC  2009-12", "MODERN", "RAW", "EXPERIMENTAL", "PVC", "ZAAG" }, { 0, 4, 1, 2, 3, 5, 6 } },
                          lengthStrip { { "SHORT", "MEDIUM", "LONG", "EXTRA LONG" } };
     juce::String infoText;
     juce::Rectangle<int> infoArea, globalArea;
@@ -157,7 +157,7 @@ private:
     void applyTooltips();
     juce::ComboBox tokNote;                                          // TOK NOTE: sets START to a note (owner 2026-11-09)
     juce::Component detailPageMark;                                 // (a marker in a part's detail list: the items after it = the 2nd tab)
-    juce::TextButton detTab[4];                                      // TAIL detail tabs: TONE / ROOM + COLOR (owner 2026-11-12)
+    juce::TextButton detTab[5];                                      // TAIL detail tabs: TONE / ROOM + COLOR (owner 2026-11-12)
     int detailPage = 0;
     void syncTokNote();
 public:

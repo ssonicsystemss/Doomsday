@@ -110,7 +110,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             proc.setParamInUndoStep ("punch_pitch", 440.f * std::exp2 ((float) (m - 69) / 12.f));
         };
         addAndMakeVisible (tokNote);
-        for (int t = 0; t < 4; ++t)
+        for (int t = 0; t < 5; ++t)
         {
             detTab[t].setButtonText (t == 0 ? "TONE" : "ROOM / COLOR"); detTab[t].setClickingTogglesState (false);
             detTab[t].setTooltip (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -260,6 +260,22 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                      { "pt_low", "LOW" }, { "pt_low_mid", "LOW MID" }, { "pt_mid", "MID" }, { "pt_high", "HIGH" },
                      { "pt_mono_below", "MONO BELOW" }, { "pt_width", "WIDTH" }, { "pt_side", "SIDE" },
                      { "pt_attack", "ATTACK" }, { "pt_length", "LENGTH" }, { "pt_fade", "FADE" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (&detailPageMark);                                        // 5th tab: TAIL ENGINE ZAAG (owner 2026-11-14)
+            d.push_back (combo ("tail_engine"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "zg_start", "START" }, { "zg_drop", "DROP" }, { "zg_saw", "SAW" }, { "zg_drive", "DRIVE" }, { "zg_dirt", "DIRT" }, { "zg_dirt_tone", "DIRT TONE" },
+                     { "zg_sub", "SUB" }, { "zg_press", "PRESS" }, { "zg_width", "WIDTH" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "zg_click", "CLICK" }, { "zg_piep", "PIEP" }, { "zg_piep_hz", "PIEP HZ" }, { "zg_piep_ms", "PIEP LEN" },
+                     { "zg_trask", "TRASK" }, { "zg_trask_delay", "TRASK AT" }, { "zg_trask_ms", "TRASK LEN" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "zg_verb", "PUNCH VERB" }, { "zg_verb_decay", "DECAY" }, { "zg_verb_size", "SIZE" }, { "zg_verb_send", "SEND" }, { "zg_verb_pre", "PRE-DELAY" },
+                     { "zg_verb_gate", "GATE" }, { "zg_verb_damp", "BRIGHT" }, { "zg_verb_low_cut", "LOW CUT" } })
                 d.push_back (knob (id, lab, col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
@@ -501,24 +517,25 @@ void GeCanvas::layoutDetail()
     const int nTabs = 1 + (int) std::count (d.begin(), d.end(), &detailPageMark);
     const bool tabs = nTabs > 1;
     detailPage = juce::jlimit (0, nTabs - 1, detailPage);
-    for (int t = 0; t < 4; ++t)
+    for (int t = 0; t < 5; ++t)
     {
         detTab[t].setVisible (tabs && t < nTabs && pageIdx == 0);
         detDice.setVisible (pageIdx == 0);
-        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND" };
-        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE" };
+        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "" };
+        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG" };
         static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
                                          "EUPHORIC model (punch mode EUPHORIC): a broadband source -> mid boost -> asymmetric distortion -> tape stop -> volume shaper.",
                                          "PVC model (punch mode PVC, the KLOENK): source -> resonance / ring mod / flanger / comb -> blend -> compressor -> distortion -> EQ -> shape. Monotone.",
-                                         "The shared part of the PUNCH ENGINE: the SUB PUNCH (own wave / pitch / delay / decay) and the BLEND (tonal / click / sub / body / tail)." };
+                                         "The shared part of the PUNCH ENGINE: the SUB PUNCH (own wave / pitch / delay / decay) and the BLEND (tonal / click / sub / body / tail).", "" };
         detTab[t].setButtonText (selected == 0 ? punchTabs[t] : tailTabs[t]);
         detTab[t].setTooltip (selected == 0 ? punchTips[t]
                                             : (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
                                                : t == 1 ? "TAIL ROOM (a room BEFORE the tail's distortion - the early / euphoric crackle) and TAIL COLOR (the EQ AFTER it: which harmonics stay)."
                                                         : t == 2 ? "TAIL ENGINE PVC (the KLOENK tail): the source (kick BODY / sine / saw / hybrid), its pitch and resonance, and the REVERB the tail is made of."
-                                                                 : "TAIL ENGINE PVC: the GATE, the distortion stages (drive 1 -> clip -> gate -> drive 2), the spectrum balance, mono low / stereo high, the final shape."));
-        const int tw = 108;
-        int right = detailArea.getRight() - 14; for (int u = nTabs - 1; u > t; --u) right -= 112;
+                                                                 : t == 3 ? "TAIL ENGINE PVC: the GATE, the distortion stages (drive 1 -> clip -> gate -> drive 2), the spectrum balance, mono low / stereo high, the final shape."
+                                                                          : "TAIL ENGINE ZAAG: the whole kick as one huge distorted bass from 0 ms, the PIEP then the TRASK, a reverb on the punch, PRESS."));
+        const int tw = nTabs > 4 ? 96 : 108, step = tw + 4;
+        int right = detailArea.getRight() - 14; for (int u = nTabs - 1; u > t; --u) right -= step;
         detTab[t].setBounds (right - tw, detailArea.getY() + 6, tw, 22);
         if (t == 0) detDice.setBounds (right - tw - 100, detailArea.getY() + 6, 92, 22);
         detTab[t].setColour (TextButton::buttonColourId, t == detailPage ? palette().red.withAlpha (0.5f) : palette().control);
@@ -715,6 +732,13 @@ void GeCanvas::updateEnabled()
         en ("pvc_drop_time", tube && raw (proc, P::pvcDrop) < -0.01f);
         en ("pvc_ph_mode", tube && raw (proc, P::pvcPhaser) > 0.001f); en ("pvc_ph_fb", tube && raw (proc, P::pvcPhaser) > 0.001f);
         en ("pvc_ph_rate", tube && raw (proc, P::pvcPhaser) > 0.001f && (int) raw (proc, P::pvcPhMode) == 1);
+        const bool zg = (int) raw (proc, P::tailEngine) == 2;                      // TAIL ENGINE ZAAG
+        for (int i = 0; i < P::count; ++i)
+            if (String (def (i).id).startsWith ("zg_")) en (def (i).id, zg);
+        for (auto* id : { "zg_piep_hz", "zg_piep_ms" }) en (id, zg && raw (proc, P::zgPiep) > 0.001f);
+        for (auto* id : { "zg_trask_delay", "zg_trask_ms" }) en (id, zg && raw (proc, P::zgTrask) > 0.001f);
+        for (auto* id : { "zg_verb_decay", "zg_verb_size", "zg_verb_send", "zg_verb_pre", "zg_verb_gate", "zg_verb_damp", "zg_verb_low_cut" }) en (id, zg && raw (proc, P::zgVerb) > 0.001f);
+        en ("zg_dirt_tone", zg && raw (proc, P::zgDirt) > 0.001f);
         const bool gtd = (int) raw (proc, P::tailEngine) == 1;                     // TAIL ENGINE PVC
         for (auto* id : { "gt_gate", "gt_gate_len", "gt_gate_depth", "gt_comp", "gt_filter", "gt_reso", "gt_move_rate", "gt_move_depth" }) en (id, gtd);
         for (int i = 0; i < P::count; ++i)

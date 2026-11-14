@@ -1097,7 +1097,9 @@ int main (int argc, char** argv)
                 if (sid == "pvc_ring_ratio") set2 ("pvc_material", 0.f);
                 if (sid.startsWith ("gt_")) set2 ("tail_engine", 1.f);                                          // TAIL ENGINE GATED
                 if (sid == "gt_gate_div") set2 ("gt_gate", 1.f);
-                if (sid.startsWith ("pt_")) set2 ("tail_engine", 1.f);                                          // TAIL ENGINE PVC (owner 2026-11-14)
+                if (sid.startsWith ("pt_")) set2 ("tail_engine", 1.f);
+                if (sid.startsWith ("zg_")) set2 ("tail_engine", 2.f);                                          // TAIL ENGINE ZAAG
+                if (sid == "zg_piep_hz" || sid == "zg_piep_ms") set2 ("zg_piep", 0.8f);                                          // TAIL ENGINE PVC (owner 2026-11-14)
                 if (sid == "pt_movement") set2 ("gt_gate", 1.f);
                 if (sid == "pt_start" || sid == "pt_hold" || sid == "pt_drop_time" || sid == "pt_root" || sid == "pt_slide") set2 ("pt_source", 1.f);
                 if (sid == "pt_res_freq" || sid == "pt_res_q") set2 ("pt_res_amount", 0.7f);
@@ -3232,9 +3234,9 @@ int main (int argc, char** argv)
                                                                                                                           : v >= def (i).min - 1e-3f && v <= def (i).max + 1e-3f);
                     if (i < 0 || ! fs::inScope (i) || ! range) { ok = false; bad << fs::names()[st] << ":" << id << " "; }
                 }
-            const int want[6][3] { { fge::dsp::dist::Soft, fge::dsp::dist::Tube, -1 }, { fge::dsp::dist::Hard, fge::dsp::dist::Soft, fge::dsp::dist::Digital },
+            const int want[7][3] { { fge::dsp::dist::Soft, fge::dsp::dist::Tube, -1 }, { fge::dsp::dist::Hard, fge::dsp::dist::Soft, fge::dsp::dist::Digital },
                                    { fge::dsp::dist::Asym, fge::dsp::dist::Hard, fge::dsp::dist::Wavefold }, { fge::dsp::dist::Wavefold, fge::dsp::dist::Rectifier, fge::dsp::dist::Custom },
-                                   { fge::dsp::dist::Soft, fge::dsp::dist::Wavefold, -1 }, { -1, -1, -1 } };          // EUPHORIC; PVC = no pool chain (its own stages): saturation -> waveshaping (owner 2026-11-12)
+                                   { fge::dsp::dist::Soft, fge::dsp::dist::Wavefold, -1 }, { -1, -1, -1 }, { -1, -1, -1 } };          // EUPHORIC; PVC / ZAAG = no pool chain (their own stages): saturation -> waveshaping (owner 2026-11-12)
             for (int st = 0; st < fs::NumStyles; ++st)
             {
                 GeProcessor p; fs::apply (p, st, false);
@@ -4506,8 +4508,8 @@ int main (int argc, char** argv)
             ss.onPick (fge::style::Raw);
             const bool styled = p.currentStyle() == fge::style::Raw;
             p.undo.undo(); p.forgetTouched();
-            check (std::abs (len1 - 750.f) < 1.f && std::abs (len2 - len0) < 1.f && styled && ss.count() == 6,
-                   "M17 TOP BAR: STYLE (6, a drop-down) and LENGTH (a drop-down) apply with one pick (one undo each)", String (len0, 0) + " -> " + String (len1, 0) + " -> " + String (len2, 0));
+            check (std::abs (len1 - 750.f) < 1.f && std::abs (len2 - len0) < 1.f && styled && ss.count() == 7,
+                   "M17 TOP BAR: STYLE (7, a drop-down) and LENGTH (a drop-down) apply with one pick (one undo each)", String (len0, 0) + " -> " + String (len1, 0) + " -> " + String (len2, 0));
         {   // LIVE SPECTRUM (owner 2026-11-14): the output tap -> dB per log bin; a full-scale 1 kHz sine peaks at ~0 dB near 1 kHz
             auto tap = std::make_unique<fge::dsp::live::Tap>(); fge::dsp::live::Analyser an; std::vector<float> db;
             std::vector<float> x (2048); double ph = 0.0;

@@ -2,6 +2,7 @@
 #include <regex>
 #include "../Presets/StyleEngine.h"
 #include "../Presets/LengthEngine.h"
+#include "../Presets/PageRandomizer.h"
 #include "DoomsdayBrand.h"
 
 using namespace juce;
@@ -47,6 +48,24 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                           "independent of the STYLE.");
     lengthBtn.onClick = [this] { openLengthPanel(); };
     addAndMakeVisible (lengthBtn);
+    // RANDOMIZE STRENGTH (owner 2026-11-14): how much RANDOMIZE (and every page dice) changes - 5 % a small variation, 100 % something new
+    rndStrength.setRange (5.0, 100.0, 1.0);
+    rndStrength.setValue (fge::pagernd::strength (proc) * 100.0, juce::dontSendNotification);
+    rndStrength.setTooltip ("RANDOMIZE STRENGTH: how much RANDOMIZE (and the RANDOMIZE button of every page / tab) changes. Low = a small variation of your kick, 100 % = something new in the style.");
+    rndStrength.setColour (juce::Slider::rotarySliderFillColourId, palette().red);
+    rndStrength.onValueChange = [this] { fge::pagernd::setStrength (proc, (float) rndStrength.getValue() / 100.f); rndLabel.setText ("RND " + juce::String ((int) rndStrength.getValue()) + " %", juce::dontSendNotification); };
+    rndLabel.setText ("RND " + juce::String ((int) rndStrength.getValue()) + " %", juce::dontSendNotification);
+    rndLabel.setJustificationType (juce::Justification::centred); rndLabel.setFont (juce::FontOptions (11.f));
+    addAndMakeVisible (rndStrength); addAndMakeVisible (rndLabel);
+    detDice.setTooltip ("RANDOMIZE this tab only (its visible knobs; the engine / mode switches stay). Strength = RND POWER in the top bar. One undo step, the level stays.");
+    detDice.onClick = [this]
+    {
+        std::set<juce::Component*> mine (detail[(size_t) selected].begin(), detail[(size_t) selected].end());
+        juce::StringArray ids;
+        for (auto& [id, c] : byId) if (mine.count (c) > 0 && c->isShowing() && c->isEnabled()) ids.addIfNotAlreadyThere (id);
+        fge::pagernd::randomizeIds (proc, ids, "tab");
+    };
+    addChildComponent (detDice);
     // module 17: the navigation + the interface settings
     uiSet = fge::ui::Settings::load();
     fge::gui::setTheme (uiSet.theme);
@@ -393,6 +412,7 @@ void GeCanvas::resized()
     styleStrip.setBounds (300, 28, 220, 30);
     lengthStrip.setBounds (540, 28, 170, 30);
     lengthBtn.setBounds (722, 28, 210, 30);
+    rndStrength.setBounds (W - 16 - 300 - 64, 8, 56, 56); rndLabel.setBounds (W - 16 - 300 - 74, 64, 76, 16);
     infoArea = { 300, 66, W - 16 - 300 - 300 - 14, 26 };
     // the navigation (left)
     nav.setBounds (16, Y0, navW - 16, CH);
@@ -482,6 +502,7 @@ void GeCanvas::layoutDetail()
     for (int t = 0; t < 4; ++t)
     {
         detTab[t].setVisible (tabs && t < nTabs && pageIdx == 0);
+        detDice.setVisible (pageIdx == 0);
         static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND" };
         static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE" };
         static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
@@ -497,6 +518,7 @@ void GeCanvas::layoutDetail()
         const int tw = 108;
         int right = detailArea.getRight() - 14; for (int u = nTabs - 1; u > t; --u) right -= 112;
         detTab[t].setBounds (right - tw, detailArea.getY() + 6, tw, 22);
+        if (t == 0) detDice.setBounds (right - tw - 100, detailArea.getY() + 6, 92, 22);
         detTab[t].setColour (TextButton::buttonColourId, t == detailPage ? palette().red.withAlpha (0.5f) : palette().control);
     }
     const int y0 = y;

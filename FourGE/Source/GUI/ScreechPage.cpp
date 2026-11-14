@@ -1,5 +1,6 @@
 #include "ScreechPage.h"
 #include "Palette.h"
+#include "../Presets/PageRandomizer.h"
 
 using namespace juce;
 
@@ -71,7 +72,7 @@ namespace fge::gui
         presetBtn.onClick = [this] { showPresetMenu(); };
         saveBtn.onClick = [this] { saveFile(); }; loadBtn.onClick = [this] { loadFile(); };
         abBtn.onClick = [this] { compare.toggle (proc); abBtn.setButtonText (compare.onB ? "B (A / B)" : "A (A / B)"); };
-        randBtn.onClick = [this] { m06t::randomize (proc, locks(), Random::getSystemRandom().nextInt (99999), 0.6f); };
+        randBtn.onClick = [this] { m06t::randomize (proc, locks(), Random::getSystemRandom().nextInt (99999), fge::pagernd::strength (proc)); };
         copyBtn.onClick = [this] { if (tabIdx == TFilters) clipFilter = m06t::filterToXml (proc, fltSel); else if (tabIdx == TResonance) clipRes = m06t::resToXml (proc, resSel); };
         pasteBtn.onClick = [this]
         {

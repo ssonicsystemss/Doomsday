@@ -1,5 +1,6 @@
 #include "EqPage.h"
 #include "Palette.h"
+#include "../Presets/PageRandomizer.h"
 
 using namespace juce;
 
@@ -69,7 +70,7 @@ namespace fge::gui
         presetBtn.onClick = [this] { showPresetMenu(); };
         saveBtn.onClick = [this] { saveFile(); }; loadBtn.onClick = [this] { loadFile(); };
         abBtn.onClick = [this] { compare.toggle (proc); abBtn.setButtonText (compare.onB ? "A / [B]" : "[A] / B"); };
-        randBtn.onClick = [this] { m07t::randomize (proc, locks(), (int) Time::getMillisecondCounter(), 0.6f); };
+        randBtn.onClick = [this] { m07t::randomize (proc, locks(), (int) Time::getMillisecondCounter(), fge::pagernd::strength (proc)); };
         copyBtn.onClick = [this] { clip = m07t::bandToXml (proc, bandSel); };
         pasteBtn.onClick = [this] { if (clip) m07t::pasteBand (proc, bandSel, *clip); };
         dupBtn.onClick = [this] { const int k = m07t::duplicateBand (proc, bandSel); if (k >= 0) selectBand (k); };

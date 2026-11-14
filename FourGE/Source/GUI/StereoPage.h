@@ -48,7 +48,7 @@ namespace fge::gui
         doomsday::flat::FlatLookAndFeel& lnf;
         int sel = 2;
         std::array<juce::TextButton, 7> tabBtn;
-        juce::TextButton monoBtn { "MONO AUDITION" };
+        juce::TextButton monoBtn { "MONO AUDITION" }, randBtn { "RANDOMIZE" };
         std::unique_ptr<doomsday::flat::Toggle> lockTgl;
         std::vector<std::unique_ptr<juce::Component>> ctl;
         std::map<juce::Component*, std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAtt;

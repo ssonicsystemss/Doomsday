@@ -60,7 +60,7 @@ namespace fge::gui
         std::array<int, NumTabs> selOf {};
         std::array<juce::TextButton, NumTabs> tabBtn;
         std::array<juce::TextButton, 5> selBtn;
-        juce::TextButton presetBtn { "PRESETS" }, saveBtn { "SAVE" }, loadBtn { "LOAD" }, abBtn { "[A] / B" },
+        juce::TextButton randBtn { "RANDOMIZE" }, presetBtn { "PRESETS" }, saveBtn { "SAVE" }, loadBtn { "LOAD" }, abBtn { "[A] / B" },
                          copyBtn { "COPY" }, pasteBtn { "PASTE" }, resetBtn { "RESET" }, maxBtn { "RESET MAX" };
         std::vector<std::unique_ptr<juce::Component>> ctl;
         std::map<juce::Component*, std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAtt;

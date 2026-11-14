@@ -1,5 +1,6 @@
 #include "DistPage.h"
 #include "Palette.h"
+#include "../Presets/PageRandomizer.h"
 
 using namespace juce;
 
@@ -212,6 +213,9 @@ namespace fge::gui
         downBtn.onClick = [this] { if (stageSel >= 0) distt::move (proc, stageSel, 1); };
         delBtn.onClick = [this] { if (stageSel >= 0) { distt::remove (proc, stageSel); stageSel = -1; } };
         presetBtn.onClick = [this] { showPresetMenu(); };
+        randBtn.setTooltip ("RANDOMIZE this chain: the stages' knobs (sometimes the type) and maybe a NEW random stage - more at a higher RANDOMIZE STRENGTH (top bar). One undo step, the level stays.");
+        randBtn.onClick = [this] { fge::pagernd::randomizeDist (proc, locSel); };
+        addAndMakeVisible (randBtn);
         saveBtn.onClick = [this] { saveFile(); }; loadBtn.onClick = [this] { loadFile(); };
         freezeBtn.setClickingTogglesState (true);
         freezeBtn.onClick = [this] { haveFrozen = freezeBtn.getToggleState(); if (haveFrozen) frozen = shown; repaint (specArea); };
@@ -472,7 +476,7 @@ namespace fge::gui
         for (auto* b : { &addBtn, &dupBtn, &copyBtn }) { b->setBounds (bx, 446, 78, 24); bx += 81; }
         bx = 0;
         for (auto* b : { &pasteBtn, &upBtn, &downBtn, &delBtn }) { b->setBounds (bx, 474, 58, 24); bx += 61; }
-        presetBtn.setBounds (0, 508, 84, 26); saveBtn.setBounds (88, 508, 74, 26); loadBtn.setBounds (166, 508, 74, 26);
+        presetBtn.setBounds (0, 508, 84, 26); saveBtn.setBounds (88, 508, 74, 26); loadBtn.setBounds (166, 508, 74, 26); randBtn.setBounds (248, 508, 100, 26);
         stageArea = { 256, 36, w - 256, 264 };
         transferArea = { 256, 334, 350, h - 334 };
         waveArea = { 616, 334, 300, h - 334 };

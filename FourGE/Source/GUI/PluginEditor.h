@@ -165,6 +165,9 @@ private:
     void typeValue (doomsday::flat::Knob&);
     int pageBeforePresets = 0;
     juce::TextButton lengthBtn;
+    juce::Slider rndStrength { juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox };   // RANDOMIZE STRENGTH (owner 2026-11-14)
+    juce::Label rndLabel { {}, "RND POWER" };
+    juce::TextButton detDice { "RANDOMIZE" };                                                       // the dice of the visible PUNCH / TAIL tab
     juce::Component::SafePointer<juce::CallOutBox> lengthBox;
     juce::String styleMsg;
     juce::uint32 styleMsgTime = 0;

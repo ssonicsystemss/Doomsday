@@ -1,5 +1,6 @@
 #include "DynPage.h"
 #include "Palette.h"
+#include "../Presets/PageRandomizer.h"
 
 using namespace juce;
 
@@ -76,6 +77,9 @@ namespace fge::gui
         resetBtn.onClick = [this] { if (kind() >= 0) m08t::resetProc (proc, kind(), sel); };
         maxBtn.onClick = [this] { proc.getEngine().resetMeterMax(); };
         for (Component* c : std::initializer_list<Component*> { &presetBtn, &saveBtn, &loadBtn, &abBtn, &copyBtn, &pasteBtn, &resetBtn, &maxBtn }) addAndMakeVisible (c);
+        randBtn.setTooltip ("RANDOMIZE this page only (the strength = the RANDOMIZE STRENGTH knob in the top bar). One undo step, the level stays.");
+        randBtn.onClick = [this] { fge::pagernd::randomizeIds (proc, visibleIds(), "dynamics"); };
+        addAndMakeVisible (randBtn);
         addChildComponent (clipEd);
         clipEd.onChange = [this] (const dsp::dist::CurveData& c, bool newStep)
         {
@@ -347,7 +351,7 @@ namespace fge::gui
     {
         const int w = getWidth(), h = getHeight();
         for (int i = 0; i < NumTabs; ++i) tabBtn[(size_t) i].setBounds (i * 112, 0, 108, 26);
-        abBtn.setBounds (w - 84, 0, 84, 26); loadBtn.setBounds (w - 148, 0, 60, 26); saveBtn.setBounds (w - 212, 0, 60, 26); presetBtn.setBounds (w - 300, 0, 84, 26);
+        abBtn.setBounds (w - 84, 0, 84, 26); loadBtn.setBounds (w - 148, 0, 60, 26); saveBtn.setBounds (w - 212, 0, 60, 26); presetBtn.setBounds (w - 300, 0, 84, 26); randBtn.setBounds (w - 400, 0, 96, 26);
         for (int i = 0; i < 5; ++i) selBtn[(size_t) i].setBounds (i * 84, 32, 80, 22);
         copyBtn.setBounds (w - 3 * 76, 32, 72, 22); pasteBtn.setBounds (w - 2 * 76, 32, 72, 22); resetBtn.setBounds (w - 76, 32, 72, 22);
         curveArea = { w - 330, 66, 330, 270 };

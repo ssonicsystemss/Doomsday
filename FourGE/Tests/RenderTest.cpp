@@ -10,6 +10,7 @@
 #include "../Source/Presets/M08Tools.h"
 #include "../Source/Presets/ModState.h"
 #include "../Source/Presets/VariantRandomizer.h"
+#include "../Source/Presets/PageRandomizer.h"
 #include "../Source/Presets/StyleEngine.h"
 #include "../Source/Presets/LengthEngine.h"
 #include "../Source/Presets/AnalysisTools.h"
@@ -4506,6 +4507,22 @@ int main (int argc, char** argv)
             p.undo.undo(); p.forgetTouched();
             check (std::abs (len1 - 750.f) < 1.f && std::abs (len2 - len0) < 1.f && styled && ss.count() == 6,
                    "M17 TOP BAR: STYLE (6, a drop-down) and LENGTH (a drop-down) apply with one pick (one undo each)", String (len0, 0) + " -> " + String (len1, 0) + " -> " + String (len2, 0));
+        {   // PAGE RANDOMIZE (owner 2026-11-14): a dice per page / tab with the one RND POWER; the style switches stay; DIST may add a stage; one undo step
+            GeProcessor q; fge::pagernd::setStrength (q, 1.f);
+            auto raw = [] (GeProcessor& pp, const char* id) { return pp.apvts.getRawParameterValue (id)->load(); };
+            const float d0 = raw (q, "pt_drive1"), c0 = raw (q, "pt_rev_cut");
+            fge::pagernd::randomizeIds (q, { "pt_drive1", "pt_rev_cut", "tail_engine", "punch_mode" }, "test");
+            const bool moved = (raw (q, "pt_drive1") != d0 || raw (q, "pt_rev_cut") != c0) && (int) raw (q, "tail_engine") == 0 && (int) raw (q, "punch_mode") == 0;
+            auto count = [&] { int n = 0; for (int k = 0; k < 16; ++k) { const String pre = "dist" + String (k + 1) + "_";
+                               if (raw (q, (pre + "on").toRawUTF8()) > 0.5f && (int) raw (q, (pre + "location").toRawUTF8()) == fge::dsp::dist::LocTail) ++n; } return n; };
+            const int n0 = count();
+            fge::pagernd::randomizeDist (q, fge::dsp::dist::LocTail);
+            const int n1 = count();
+            q.undo.undo();
+            const int n2 = count();
+            check (moved && n1 == n0 + 1 && n2 == n0, "PAGE RANDOMIZE: moves the tab's knobs, never the engine / mode switches; the DIST dice adds a random stage; one undo step",
+                   String (n0) + " -> " + String (n1) + " -> " + String (n2) + (moved ? "" : " not moved / switch flipped!"));
+        }
             // the INFO LINE: name, value, range, default, what it does; a page line when nothing is under the mouse
             const String inf = cv.infoFor (cv.findControl ("pe_time")), infT = cv.infoFor (cv.findControl ("core_phase_reset"));
             check (inf.contains ("=") && inf.contains ("default") && inf.contains ("..") && inf.contains (fge::tooltip (P::peTime).substring (0, 20))

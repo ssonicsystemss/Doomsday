@@ -79,7 +79,7 @@ namespace fge::gui
         std::vector<juce::TextButton*> rowBtns;
         std::vector<std::unique_ptr<juce::TextButton>> rows;
         juce::TextButton addBtn { "ADD" }, dupBtn { "DUPLICATE" }, copyBtn { "COPY" }, pasteBtn { "PASTE" }, upBtn { "UP" }, downBtn { "DOWN" }, delBtn { "DELETE" },
-                         presetBtn { "PRESETS" }, saveBtn { "SAVE" }, loadBtn { "LOAD" }, freezeBtn { "FREEZE" };
+                         presetBtn { "PRESETS" }, saveBtn { "SAVE" }, loadBtn { "LOAD" }, freezeBtn { "FREEZE" }, randBtn { "RANDOMIZE" };
         juce::ComboBox rangeBox, channelBox;
         std::vector<std::unique_ptr<juce::Component>> stageCtl, fixedCtl;
         std::map<juce::Component*, std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAtt;

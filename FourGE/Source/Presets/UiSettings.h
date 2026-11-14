@@ -15,6 +15,7 @@ namespace fge::ui
         bool infoLine = true;
         int startPage = 0;            // -1 = the last page used
         int lastPage = 0;
+        int theme = 1;                // 0 FLAT, 1 SMOKE (liquid glass, owner 2026-11-14)
 
         static juce::File defaultFile()
         {
@@ -34,6 +35,7 @@ namespace fge::ui
                 s.infoLine = xml->getBoolAttribute ("infoLine", true);
                 s.startPage = juce::jlimit (-1, 14, xml->getIntAttribute ("startPage", 0));
                 s.lastPage = juce::jlimit (0, 14, xml->getIntAttribute ("lastPage", 0));
+                s.theme = juce::jlimit (0, 1, xml->getIntAttribute ("theme", 1));
             }
             return s;
         }
@@ -41,7 +43,7 @@ namespace fge::ui
         {
             juce::XmlElement x ("FGE_INTERFACE");
             x.setAttribute ("scale", scale); x.setAttribute ("tooltips", tooltips); x.setAttribute ("infoLine", infoLine);
-            x.setAttribute ("startPage", startPage); x.setAttribute ("lastPage", lastPage);
+            x.setAttribute ("startPage", startPage); x.setAttribute ("lastPage", lastPage); x.setAttribute ("theme", theme);
             return f.getParentDirectory().createDirectory() && x.writeTo (f);
         }
         // the editor scale for a screen area (FIT = the largest of the list that leaves room for the host around it, never above 100 %)

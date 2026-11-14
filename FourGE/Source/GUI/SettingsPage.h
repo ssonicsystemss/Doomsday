@@ -21,6 +21,10 @@ namespace fge::gui
             size->tipFor = [] (int i) { return i == 0 ? juce::String ("FIT: the largest size that fits your screen (never above 100 %)") : "The whole window at " + fge::ui::Settings::scaleName (fge::ui::Settings::scales()[i]); };
             size->onPick = [this] (int i) { st.scale = fge::ui::Settings::scales()[i]; changed(); };
             addAndMakeVisible (*size);
+            theme = std::make_unique<ChoiceStrip> (juce::StringArray { "FLAT", "SMOKE" });
+            theme->tipFor = [] (int i) { return i == 0 ? juce::String ("FLAT: the original black industrial look") : juce::String ("SMOKE: liquid glass - smoked translucent panels over soft glows"); };
+            theme->onPick = [this] (int i) { st.theme = i; setTheme (i); changed(); if (auto* t = getTopLevelComponent()) t->repaint(); };
+            addAndMakeVisible (*theme);
             for (auto* b : { &tips, &info }) { b->setClickingTogglesState (true); addAndMakeVisible (b); }
             tips.setTooltip ("The pop-up tooltip windows (after ~0.6 s over a control).");
             info.setTooltip ("The line under the top bar: name, value, range, default, modulation and what the control under the mouse does.");
@@ -38,6 +42,7 @@ namespace fge::gui
         {
             int idx = 0; for (int i = 0; i < fge::ui::Settings::scales().size(); ++i) if (std::abs (fge::ui::Settings::scales()[i] - st.scale) < 0.01f) idx = i;
             size->setLit (idx);
+            theme->setLit (st.theme);
             tips.setToggleState (st.tooltips, juce::dontSendNotification); tips.setButtonText (st.tooltips ? "TOOLTIPS: ON" : "TOOLTIPS: OFF");
             info.setToggleState (st.infoLine, juce::dontSendNotification); info.setButtonText (st.infoLine ? "INFO LINE: ON" : "INFO LINE: OFF");
             start.setSelectedId (st.startPage < 0 ? 1 : st.startPage + 2, juce::dontSendNotification);
@@ -46,13 +51,14 @@ namespace fge::gui
         void paint (juce::Graphics& g) override
         {
             const auto& c = palette();
-            g.setColour (c.panel); g.fillRoundedRectangle (getLocalBounds().toFloat(), 6.f);
+            glassPanel (g, getLocalBounds().toFloat(), 6.f);
             auto title = [&] (int x, int y, const juce::String& t)
             { g.setColour (c.red); g.fillRect (x, y + 3, 3, 12); g.setColour (c.silver.withAlpha (0.8f)); g.setFont (juce::FontOptions (11.5f, juce::Font::bold)); g.drawText (t, x + 9, y, 400, 18, juce::Justification::left); };
             title (20, 16, "INTERFACE");
             g.setColour (c.textDim); g.setFont (juce::FontOptions (11.f));
             g.drawText ("SIZE", 20, 48, 120, 16, juce::Justification::left);
             g.drawText ("OPEN ON", 20, 150, 120, 16, juce::Justification::left);
+            g.drawText ("LOOK", 330, 150, 120, 16, juce::Justification::left);
             g.drawFittedText ("The window can also be dragged bigger / smaller at its corner - the size is remembered (for every project).",
                               20, 104, 560, 32, juce::Justification::topLeft, 2);
             title (640, 16, "MOUSE & KEYBOARD");
@@ -95,13 +101,14 @@ namespace fge::gui
             size->setBounds (20, 68, 560, 28);
             tips.setBounds (20, 200, 170, 28); info.setBounds (200, 200, 170, 28);
             start.setBounds (20, 168, 260, 24);
+            theme->setBounds (330, 168, 250, 24);
         }
         juce::String version;
         ChoiceStrip& sizeStrip() { return *size; }
     private:
         void changed() { sync(); if (onChanged) onChanged(); }
         fge::ui::Settings& st;
-        std::unique_ptr<ChoiceStrip> size;
+        std::unique_ptr<ChoiceStrip> size, theme;
         juce::TextButton tips, info;
         juce::ComboBox start;
     };

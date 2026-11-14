@@ -25,6 +25,7 @@ doomsday::ui::Theme GeCanvas::makeTheme()
 
 GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
 {
+    fge::gui::setTheme (fge::ui::Settings::load().theme);                   // the look before any control takes its colours
     setLookAndFeel (&lnf);
     presetBar.setLookAndFeel (&stageLnf);
     const auto& c = palette();
@@ -48,6 +49,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     addAndMakeVisible (lengthBtn);
     // module 17: the navigation + the interface settings
     uiSet = fge::ui::Settings::load();
+    fge::gui::setTheme (uiSet.theme);
     nav.onSelect = [this] (int pg) { showPage (pg); };
     nav.isActive = [this] (int pg) { return pageActive (pg); };
     addAndMakeVisible (nav);
@@ -433,10 +435,18 @@ void GeCanvas::layoutDetail()
 void GeCanvas::paint (Graphics& g)
 {
     const auto& c = palette();
-    g.fillAll (c.ground);
-    // top bar
-    g.setColour (c.panel.darker (0.25f)); g.fillRect (0, 0, W, 96);
-    g.setColour (c.grid); g.drawHorizontalLine (96, 0.f, (float) W);
+    if (c.glass)                                                            // SMOKE: glows behind smoked glass (owner 2026-11-14)
+    {
+        fge::gui::glassBackground (g, getLocalBounds().toFloat());
+        fge::gui::glassPanel (g, Rectangle<float> (6.f, 6.f, (float) W - 12.f, 86.f), 14.f);
+    }
+    else
+    {
+        g.fillAll (c.ground);
+        // top bar
+        g.setColour (c.panel.darker (0.25f)); g.fillRect (0, 0, W, 96);
+        g.setColour (c.grid); g.drawHorizontalLine (96, 0.f, (float) W);
+    }
     doomsday::brand::drawHeaderBadge (g, 1.f, 0.55f);
     const float tx = doomsday::brand::headerTextX (1.f);
     g.setColour (c.silver); g.setFont (lnf.font (30.f, doomsday::flat::Bold, 0.12f));
@@ -460,7 +470,7 @@ void GeCanvas::paint (Graphics& g)
     // panels
     auto panel = [&] (Rectangle<int> r, const String& title, Colour dot)
     {
-        g.setColour (c.panel); g.fillRoundedRectangle (r.toFloat(), 6.f);
+        fge::gui::glassPanel (g, r.toFloat(), 6.f);
         if (title.isNotEmpty())
         {
             g.setColour (dot); g.fillRect (r.getX() + 12, r.getY() + 12, 3, 12);

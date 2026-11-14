@@ -82,6 +82,9 @@ Najkrótsze możliwe wejście to 0,15 ms, a wyjście 3 ms, więc nie ma klików 
 przez przester (trzask = pitch drop + nieliniowość, nie osobny klik), tonalne BODY, tail SINE → SOFT → WAVEFOLD → **TAIL COLOR** → lekki clip, szum + pokój tylko jako ziarno.
 **TAIL COLOR** (karta TAIL, zakładka ROOM / COLOR): EQ PO przesterze taila – wybiera, które harmoniczne zostają (nisko BOOOM, ~300–600 Hz GRRRAAANG,
 wyżej KRAAASH); KEY TRACK = podbicie jedzie z nutą (HARMONIC × nuta), więc barwa jest ta sama na każdej nucie linii basowej.
+**WYGLĄD SMOKE** (liquid glass, właściciel 2026-11-14): przydymione półprzezroczyste panele na delikatnych czerwono-szarych poświatach, domyślny.
+SETTINGS → LOOK: FLAT (dawny płaski) / SMOKE. Makieta: projekt „4GE Liquid Glass”.
+
 **SHAPED PUNCH** (PUNCH MODE = SHAPED, druga zakładka karty PUNCH, właściciel 2026-11-14 „mamy to”) – charakter punchu NIE z sinusa:
 szerokopasmowe źródło (SNARE / NOISE, TRANSPOSE – klasycznie werbel +14 st) → podbicie środka (MID FREQ płynnie, MID GAIN) → przester
 asymetryczny (DRIVE, ASYM) → TAPE STOP (punch zwalnia i opada pod koniec; TAPE START) → VOLUME SHAPER (SPIKE, BODY, BODY TIME, END) →

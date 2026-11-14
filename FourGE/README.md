@@ -413,3 +413,8 @@ Dalej: **MATCH - Festival Drive / Buzz Saw / Short Tonal** (pierwsze dopasowania
 
 ## Co dalej
 Wszystkie 17 modułów są gotowe – teraz szlif brzmienia i presetów według Twoich uwag z odsłuchu.
+
+### PVC (2026-11-14, z Twoich 2 sampli PVC)
+- **PVC PUNCH → model TUBE**: dwa tony rury + comb (rura PVC), skok na starcie („ciup”), spadek na końcu (DROP / DROP TIME), PHASER (SWEEP / LFO), BRIGHT. Stary KLOENK zostaje jako drugi model.
+- **TAIL ENGINE → PVC** (zakładki PVC SOURCE / PVC SHAPE): źródło KICK BODY / SINE / SAW / HYBRID → REVERB (materiał ogona) → HIGH CUT → DRIVE 1 → CLIP → GATE (SINGLE / PULSE / MOVEMENT, krzywe HARD / SOFT / EXP / STEPS) → DRIVE 2 → SPECTRUM (LOW / LOW MID / MID / HIGH) → dół mono, góra szeroka → FINAL SHAPE.
+- Presety: **PVC - Tube Exp / Tube Steps / Tube Pulse**.

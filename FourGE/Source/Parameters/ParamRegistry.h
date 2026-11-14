@@ -423,7 +423,7 @@ namespace fge
     C (tailEngine,     "tail_engine",          "Tail Engine",          tailEngines, 0, FNone) \
     F (gtComp,         "gt_comp",              "Gated Pre-Comp",       Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
     C (gtGate,         "gt_gate",              "Gated Gate Mode",      gtGateModes, 0, FNone) \
-    F (gtGateLen,      "gt_gate_len",          "Gated Gate Length",    Unit::Ms,  40.f, 1000.f, 380.f, 380.f, FNone) \
+    F (gtGateLen,      "gt_gate_len",          "Gated Gate Length",    Unit::Ms,  40.f, 1000.f, 260.f, 260.f, FNone) \
     F (gtGateDepth,    "gt_gate_depth",        "Gated Gate Depth",     Unit::Pct, 0.f, 1.f, 0.9f, 0.f, FNone) \
     C (gtGateDiv,      "gt_gate_div",          "Gated Gate Rate",      gtGateDivs, 1, FNone) \
     F (gtFilter,       "gt_filter",            "Gated Filter",         Unit::Hz,  80.f, 12000.f, 2000.f, 1500.f, FNone) \

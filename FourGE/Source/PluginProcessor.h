@@ -10,6 +10,7 @@
 #include "Presets/SamplePool.h"
 #include "Presets/Export.h"
 #include "DSP/Meter/MasterMeter.h"
+#include "DSP/Analysis/LiveTap.h"
 
 namespace fge { inline constexpr const char* versionText = "0.6"; }      // keep in step with CMakeLists.txt
 
@@ -136,6 +137,7 @@ public:
     int relinkSamples (const juce::File& folder);
     // module 11: the output's stereo analyzer (GUI reads it) and MONO AUDITION (a listening switch - not saved, not a parameter)
     fge::dsp::spatial::Analyzer analyzer;
+    fge::dsp::live::Tap liveTap;                 // the LIVE SPECTRUM on the EQ pages (owner 2026-11-14): the real output while playing
     std::atomic<bool> monoAudition { false };
     // module 12: MASTER METERS (peak / true peak / RMS / LUFS / DC), the render SEED, EXPORT (settings in the state child EXPORT)
     fge::dsp::meter::LiveMeter meter;

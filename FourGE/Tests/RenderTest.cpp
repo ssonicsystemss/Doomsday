@@ -11,6 +11,7 @@
 #include "../Source/Presets/ModState.h"
 #include "../Source/Presets/VariantRandomizer.h"
 #include "../Source/Presets/PageRandomizer.h"
+#include "../Source/DSP/Analysis/LiveTap.h"
 #include "../Source/Presets/StyleEngine.h"
 #include "../Source/Presets/LengthEngine.h"
 #include "../Source/Presets/AnalysisTools.h"
@@ -4507,6 +4508,16 @@ int main (int argc, char** argv)
             p.undo.undo(); p.forgetTouched();
             check (std::abs (len1 - 750.f) < 1.f && std::abs (len2 - len0) < 1.f && styled && ss.count() == 6,
                    "M17 TOP BAR: STYLE (6, a drop-down) and LENGTH (a drop-down) apply with one pick (one undo each)", String (len0, 0) + " -> " + String (len1, 0) + " -> " + String (len2, 0));
+        {   // LIVE SPECTRUM (owner 2026-11-14): the output tap -> dB per log bin; a full-scale 1 kHz sine peaks at ~0 dB near 1 kHz
+            auto tap = std::make_unique<fge::dsp::live::Tap>(); fge::dsp::live::Analyser an; std::vector<float> db;
+            std::vector<float> x (2048); double ph = 0.0;
+            for (int blk = 0; blk < 4; ++blk) { for (auto& v : x) { v = (float) std::sin (ph); ph += 6.283185307 * 1000.0 / 48000.0; } tap->push (x.data(), nullptr, (int) x.size(), 48000.0); }
+            an.compute (*tap, 240, db);
+            int pk = 0; for (int k = 1; k < (int) db.size(); ++k) if (db[(size_t) k] > db[(size_t) pk]) pk = k;
+            const float hz = 20.f * std::pow (1000.f, (float) pk / 239.f);
+            check (hz > 900.f && hz < 1100.f && db[(size_t) pk] > -3.f && db[(size_t) pk] < 1.f && db[10] < -40.f, "LIVE SPECTRUM: the output tap shows a 1 kHz sine at ~0 dB near 1 kHz",
+                   String (hz, 0) + " Hz " + String (db[(size_t) pk], 1) + " dB");
+        }
         {   // PAGE RANDOMIZE (owner 2026-11-14): a dice per page / tab with the one RND POWER; the style switches stay; DIST may add a stage; one undo step
             GeProcessor q; fge::pagernd::setStrength (q, 1.f);
             auto raw = [] (GeProcessor& pp, const char* id) { return pp.apvts.getRawParameterValue (id)->load(); };

@@ -80,6 +80,7 @@ namespace fge::gui
         EqScope scope;
         EqScope::Result shown;
         std::vector<float> avgPost, holdPost;
+        fge::dsp::live::Analyser liveAn; std::vector<float> liveNow, liveShow; std::int64_t livePushed = -1; int liveIdle = 99;   // LIVE SPECTRUM (the output while playing)
         m07t::Compare compare;
         std::unique_ptr<juce::XmlElement> clip;
         std::unique_ptr<juce::FileChooser> chooser;

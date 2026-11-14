@@ -88,7 +88,7 @@ namespace fge::gui
         abBtn.setButtonText ("[A] / B");
         scope.onReady = [this] { adoptScope(); };
         showTab (TParametric);
-        startTimerHz (15);
+        startTimerHz (25);
     }
     EqPage::~EqPage() { stopTimer(); comboAtt.clear(); }
 
@@ -301,6 +301,18 @@ namespace fge::gui
         }
         pasteBtn.setEnabled (clip != nullptr);
         updateEnabled();
+        {   // LIVE SPECTRUM (owner 2026-11-14): the real output while the kick plays in the DAW; it falls and hides when the audio stops
+            const auto np = proc.liveTap.pushed.load (std::memory_order_relaxed);
+            liveIdle = np != livePushed ? 0 : liveIdle + 1; livePushed = np;
+            if (liveIdle < 8)
+            {
+                liveAn.compute (proc.liveTap, EqScope::bins, liveNow);
+                if (liveShow.size() != liveNow.size()) liveShow = liveNow;
+                for (size_t k = 0; k < liveNow.size(); ++k) liveShow[k] = liveNow[k] > liveShow[k] ? liveNow[k] : liveShow[k] - 3.f;   // fast up, ~45 dB/s down
+                repaint();
+            }
+            else if (! liveShow.empty()) { liveShow.clear(); repaint(); }
+        }
         const auto& f = proc.frame();
         const int loc = viewLoc(), ff = fftBox.getSelectedId();
         if (loc != lastLoc || bandSel != lastBandAsk || ff != lastFft || proc.shapesVersion() != lastShapes || proc.distDataVersion() != lastDist
@@ -457,6 +469,19 @@ namespace fge::gui
           if (tabIdx == TParametric || tabIdx == TDynamic) { g.setColour (c.textDim); g.drawText ((db > 0 ? "+" : "") + String ((int) db), (int) gr.getX() + 2, (int) y - 10, 30, 10, Justification::left); } }
         const int loc = viewLoc();
         const auto lc = locCol (loc);
+        if (! liveShow.empty())                                                  // LIVE (the output while playing): under the render's lines
+        {
+            Path p, f;
+            for (int k = 0; k < (int) liveShow.size(); ++k)
+            {
+                const float x = toGraph (EqScope::binHz (k), 0).x, y = gr.getY() + gr.getHeight() * jlimit (0.f, 1.f, -liveShow[(size_t) k] / 90.f);
+                k == 0 ? p.startNewSubPath (x, y) : p.lineTo (x, y);
+            }
+            f = p; f.lineTo (gr.getRight(), gr.getBottom()); f.lineTo (gr.getX(), gr.getBottom()); f.closeSubPath();
+            g.setColour (c.silver.withAlpha (0.10f)); g.fillPath (f);
+            g.setColour (c.silver.withAlpha (0.55f)); g.strokePath (p, PathStrokeType (1.2f));
+            g.setColour (c.silver.withAlpha (0.7f)); g.drawText ("LIVE (output)", (int) gr.getRight() - 96, (int) gr.getY() + 2, 92, 12, Justification::right);
+        }
         if (shown.valid && shown.loc == loc)
         {
             // analyzer: 0 dBFS at the top, 90 dB down to the bottom

@@ -102,6 +102,7 @@ void GeProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     if (const auto sd = seedWanted.load (std::memory_order_relaxed); sd != engine.seed()) engine.setSeed (sd);   // module 12: the preset SEED
     engine.process (buffer, midi, f);
     meter.push (buffer.getReadPointer (0), buffer.getNumChannels() > 1 ? buffer.getReadPointer (1) : nullptr, buffer.getNumSamples());   // module 12: MASTER METERS
+    liveTap.push (buffer.getReadPointer (0), buffer.getNumChannels() > 1 ? buffer.getReadPointer (1) : nullptr, buffer.getNumSamples(), getSampleRate() > 0 ? getSampleRate() : 44100.0);
     samplePool.audioClock.fetch_add (buffer.getNumSamples());
     samplePool.mixPreview (buffer);                                     // the browser's PREVIEW (not a slot)
     // module 11: the stereo analyzer sees the real output; MONO AUDITION only changes what you hear (never the preset)

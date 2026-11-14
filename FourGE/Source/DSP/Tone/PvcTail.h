@@ -23,7 +23,7 @@ namespace fge::dsp::pvctail
         float revSize = 1.f, revDecayMs = 1200.f, preMs = 0.f, highCut = 450.f, wet = 1.f;
         float comp = 0.5f, drive1Db = 18.f, clip = 0.7f, drive2Db = 16.f, asym = 0.2f;
         int gateMode = 0, curve = 0, div = 1;                 // SINGLE / PULSE / MOVEMENT; HARD / SOFT / EXP / STEPS; 1/8 1/16 1/32
-        float gateMs = 380.f, depth = 0.9f, movement = 0.5f, bpm = 150.f;
+        float gateMs = 260.f, depth = 0.9f, movement = 0.5f, bpm = 150.f;
         float filterHz = 2000.f, reso = 2.f, moveHz = 6.f, moveDepth = 0.3f;
         float low = 0.f, lowMid = 0.f, mid = 0.f, high = 0.f;
         float monoBelow = 150.f, width = 0.8f, side = 0.5f;

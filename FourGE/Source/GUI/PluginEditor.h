@@ -172,6 +172,18 @@ private:
     std::unique_ptr<fge::gui::LiveSpecView> liveSpec;
     juce::ComboBox* punchType = nullptr; juce::ComboBox* tailType = nullptr;                       // PUNCH TYPE / TAIL TYPE (ARCHITECTURE.md): only the picked type's tabs show
     int shownPunchType = -1, shownTailType = -1;
+    // MAIN OVERVIEW (ARCHITECTURE.md step 3, owner's sketch): PUNCH | TAIL side by side (TYPE + its key knobs + ALL PARAMETERS),
+    // a strip CLICK / SUB PUNCH / BODY / SCREECH / MIX, MASTER; ALL PARAMETERS (or a click on a part) = the full detail view
+    bool overview = true;
+    std::array<std::vector<juce::Component*>, 3> ovPunch, ovTail;
+    std::array<std::vector<juce::Component*>, 5> ovStrip;
+    std::vector<juce::Component*> ovMaster;
+    juce::TextButton ovAllP { "ALL PARAMETERS" }, ovAllT { "ALL PARAMETERS" }, ovBack { "< OVERVIEW" }, ovDiceP { "RANDOMIZE" }, ovDiceT { "RANDOMIZE" };
+    juce::Rectangle<int> ovPArea, ovTArea, ovMasterArea;
+    std::array<juce::Rectangle<int>, 5> ovStripArea;
+    int punchTypeIdx() const; int tailTypeIdx() const;
+    void layoutOverview();
+    void applyOverview();
     std::vector<int> allowedTabs() const;                                              // LIVE SPECTRUM on the EQ tabs (TAIL COLOR, MID FREQ ...)                                                       // the dice of the visible PUNCH / TAIL tab
     juce::Component::SafePointer<juce::CallOutBox> lengthBox;
     juce::String styleMsg;

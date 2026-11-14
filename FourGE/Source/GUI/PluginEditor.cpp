@@ -71,6 +71,44 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     tailType->setTooltip ("TAIL TYPE: the mechanism that makes the tail (CLASSIC / PVC / ZAAG) - only its controls are shown below.");
     liveSpec = std::make_unique<fge::gui::LiveSpecView> (proc);
     addChildComponent (*liveSpec);
+    {   // MAIN OVERVIEW (ARCHITECTURE.md): the key knobs of each TYPE, with their owner in the name
+        const auto& pc = palette();
+        using L = std::initializer_list<std::pair<const char*, const char*>>;
+        auto mk = [&] (std::vector<Component*>& v, L l, Colour col, int d) { for (auto [id, lab] : l) { auto* k = knob (id, lab, col, d); k->setVisible (false); v.push_back (k); } };
+        mk (ovPunch[0], { { "punch_level", "PUNCH LEVEL" }, { "punch_pitch", "PUNCH PITCH" }, { "punch_length", "PUNCH LENGTH" }, { "punch_drive", "PUNCH DRIVE" },
+                          { "punch_tone", "PUNCH TONE" }, { "punch_glide", "PUNCH GLIDE" }, { "punch_tok_decay", "TOK DECAY" }, { "punch_tok_bend", "TOK BEND" },
+                          { "punch_transient", "TRANSIENT" }, { "punch_attack", "ATTACK" }, { "punch_decay", "DECAY" }, { "punch_mix", "PUNCH MIX" } }, pc.part[0], 40);
+        mk (ovPunch[1], { { "psh_transpose", "TRANSPOSE" }, { "psh_mid_freq", "MID FREQ" }, { "psh_mid_gain", "MID GAIN" }, { "psh_drive", "PUNCH DRIVE" },
+                          { "psh_asym", "ASYMMETRY" }, { "psh_tape", "TAPE STOP" }, { "psh_spike", "SPIKE" }, { "psh_body", "SHAPE BODY" },
+                          { "psh_end", "LENGTH" }, { "psh_low_cut", "LOW CUT" }, { "psh_verb", "ROOM" }, { "punch_level", "PUNCH LEVEL" } }, pc.part[0], 40);
+        mk (ovPunch[2], { { "pvc_tube_hz", "TUBE HZ" }, { "pvc_tube_comb", "TONES/COMB" }, { "pvc_jump", "JUMP" }, { "pvc_drop", "DROP" },
+                          { "pvc_phaser", "PHASER" }, { "pvc_bright", "BRIGHT" }, { "pvc_drive", "PUNCH DRIVE" }, { "pvc_mid", "MID" },
+                          { "pvc_length", "LENGTH" }, { "pvc_decay", "DECAY" }, { "pvc_low_mid", "LOW MID" }, { "punch_level", "PUNCH LEVEL" } }, pc.part[0], 40);
+        mk (ovTail[0], { { "tail_level", "TAIL LEVEL" }, { "tail_length", "TAIL LENGTH" }, { "tail_drive", "TAIL DRIVE" }, { "tail_tone", "TAIL TONE" },
+                         { "tail_st2_drive", "STAGE 2 DRIVE" }, { "tail_mid_hz", "MID FREQ" }, { "tail_mid_gain", "MID GAIN" }, { "tail_color_gain", "COLOR" },
+                         { "tail_room", "ROOM" }, { "tail_width", "WIDTH" }, { "tail_low_cut", "LOW CUT" }, { "tail_high_cut", "HIGH CUT" } }, pc.part[2], 40);
+        mk (ovTail[1], { { "pt_rev_size", "REV SIZE" }, { "pt_rev_decay", "REV DECAY" }, { "pt_rev_cut", "HIGH CUT" }, { "pt_drive1", "TAIL DRIVE 1" },
+                         { "pt_clip", "CLIP" }, { "gt_gate_len", "GATE LENGTH" }, { "gt_gate_depth", "GATE DEPTH" }, { "pt_drive2", "TAIL DRIVE 2" },
+                         { "pt_low_mid", "LOW MID" }, { "pt_width", "WIDTH" }, { "pt_grow", "GROW" }, { "pt_length", "LENGTH" } }, pc.part[2], 40);
+        mk (ovTail[2], { { "zg_start", "PITCH START" }, { "zg_drop", "DROP" }, { "zg_saw", "SAW" }, { "zg_drive", "TAIL DRIVE" },
+                         { "zg_dirt", "DIRT" }, { "zg_sub", "SUB" }, { "zg_press", "SQUASH" }, { "zg_width", "WIDTH" },
+                         { "zg_piep", "PIEP" }, { "zg_trask", "TRASK" }, { "zg_verb", "PUNCH VERB" }, { "zg_verb_decay", "VERB DECAY" } }, pc.part[2], 40);
+        mk (ovStrip[0], { { "psh_click", "LEVEL" }, { "psh_click_len", "LENGTH" }, { "psh_click_tone", "TONE" } }, pc.silver, 30);
+        mk (ovStrip[1], { { "psh_sub", "LEVEL" }, { "psh_sub_delay", "DELAY" }, { "psh_sub_decay", "DECAY" } }, pc.part[3], 30);
+        mk (ovStrip[2], { { "body_level", "LEVEL" }, { "body_pitch", "PITCH" }, { "body_length", "LENGTH" } }, pc.part[1], 30);
+        mk (ovStrip[3], { { "scr_level", "LEVEL" }, { "scr_base_hz", "FREQ" }, { "scr_fb_drive", "SCREECH DRIVE" } }, pc.red, 30);
+        mk (ovStrip[4], { { "mix_punch_level", "PUNCH" }, { "mix_body_level", "BODY" }, { "mix_tail_level", "TAIL" }, { "mix_sub_level", "SUB" } }, pc.silver, 30);
+        mk (ovMaster, { { "master_clip_drive", "MASTER CLIP" }, { "master_clip_soft", "SOFT" }, { "core_master", "OUTPUT" } }, pc.red, 30);
+        ovAllP.onClick = [this] { selectPart (0); };
+        ovAllT.onClick = [this] { selectPart (2); };
+        ovBack.onClick = [this] { overview = true; showPage (0); };
+        auto ids = [this] (const std::vector<Component*>& v) { StringArray a; for (auto& [id, c] : byId) if (std::find (v.begin(), v.end(), c) != v.end() && c->isEnabled()) a.addIfNotAlreadyThere (id); return a; };
+        ovDiceP.onClick = [this, ids] { fge::pagernd::randomizeIds (proc, ids (ovPunch[(size_t) punchTypeIdx()]), "punch"); };
+        ovDiceT.onClick = [this, ids] { fge::pagernd::randomizeIds (proc, ids (ovTail[(size_t) tailTypeIdx()]), "tail"); };
+        for (auto* b : { &ovAllP, &ovAllT, &ovDiceP, &ovDiceT }) b->setTooltip (b == &ovAllP || b == &ovAllT ? "Every parameter of this part (the full view with its tabs)." : "RANDOMIZE these knobs (strength = RND POWER).");
+        ovBack.setTooltip ("Back to the overview: PUNCH | TAIL, the strip, MASTER.");
+        for (auto* b : { &ovAllP, &ovAllT, &ovBack, &ovDiceP, &ovDiceT }) addChildComponent (b);
+    }
     // module 17: the navigation + the interface settings
     uiSet = fge::ui::Settings::load();
     fge::gui::setTheme (uiSet.theme);
@@ -333,7 +371,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     wave.onScreechStart = [this] (float ms, bool first) { if (first) proc.undo.beginNewTransaction ("Screech start"); proc.setParamInUndoStep ("scr_start", ms); };
     applyTooltips();
     setWantsKeyboardFocus (true);
-    selectPart (2);
+    selectPart (2); overview = true; applyOverview();               // (start on the MAIN OVERVIEW)
     showPage (uiSet.startPage < 0 ? uiSet.lastPage : uiSet.startPage);
     updateEnabled();
     startTimerHz (30);
@@ -371,8 +409,62 @@ Component* GeCanvas::findControl (const String& id)                     // (a pa
     return range.first == range.second ? nullptr : range.first->second;
 }
 
+int GeCanvas::punchTypeIdx() const { const int m = (int) raw (proc, P::punchMode); return m <= 1 ? 0 : m == 2 ? 1 : 2; }
+int GeCanvas::tailTypeIdx() const  { return jlimit (0, 2, (int) raw (proc, P::tailEngine)); }
+void GeCanvas::applyOverview()                                                      // MAIN: the overview or the full detail view
+{
+    const bool main = pageIdx == 0, ov = main && overview;
+    for (int p = 0; p < 4; ++p)
+    {
+        for (auto* c : card[(size_t) p]) c->setVisible (main && ! ov);
+        for (auto* c : mixer[(size_t) p]) c->setVisible (main && ! ov);
+        if (ov) for (auto* c : detail[(size_t) p]) if (c != nullptr && c != &detailPageMark) c->setVisible (false);
+    }
+    for (auto* c : masterRow) c->setVisible (main && ! ov);
+    if (ov) { for (auto& t : detTab) t.setVisible (false); detDice.setVisible (false); if (liveSpec != nullptr) liveSpec->setVisible (false); tokNote.setVisible (false); }
+    for (int t = 0; t < 3; ++t)
+    {
+        for (auto* c : ovPunch[(size_t) t]) c->setVisible (ov && t == punchTypeIdx());
+        for (auto* c : ovTail[(size_t) t]) c->setVisible (ov && t == tailTypeIdx());
+    }
+    for (auto& v : ovStrip) for (auto* c : v) c->setVisible (ov);
+    for (auto* c : ovMaster) c->setVisible (ov);
+    for (auto* b : { &ovAllP, &ovAllT, &ovDiceP, &ovDiceT }) b->setVisible (ov);
+    ovBack.setVisible (main && ! overview);
+    if (ov) { punchType->setVisible (true); tailType->setVisible (true); layoutOverview(); }
+}
+void GeCanvas::layoutOverview()
+{
+    const int pw = (CW - 12) / 2;
+    ovPArea = { X0, Y0 + 234, pw, 300 };
+    ovTArea = { X0 + pw + 12, Y0 + 234, pw, 300 };
+    auto grid = [] (const std::vector<Component*>& v, Rectangle<int> a, int cols, int d)
+    {
+        const int cw = (a.getWidth() - 20) / cols;
+        for (size_t i = 0; i < v.size(); ++i)
+            v[i]->setBounds (a.getX() + 10 + (int) (i % (size_t) cols) * cw, a.getY() + 74 + (int) (i / (size_t) cols) * (Knob::heightFor (d) + 14), cw - 4, Knob::heightFor (d));
+    };
+    for (int t = 0; t < 3; ++t) { grid (ovPunch[(size_t) t], ovPArea, 6, 40); grid (ovTail[(size_t) t], ovTArea, 6, 40); }
+    for (auto [a, cb, all, dice] : { std::make_tuple (ovPArea, punchType, &ovAllP, &ovDiceP), std::make_tuple (ovTArea, tailType, &ovAllT, &ovDiceT) })
+    {
+        cb->setBounds (a.getX() + 110, a.getY() + 4, 160, 24);
+        all->setBounds (a.getRight() - 14 - 130, a.getY() + 5, 130, 22);
+        dice->setBounds (a.getRight() - 14 - 130 - 100, a.getY() + 5, 92, 22);
+    }
+    const int sw = (CW - 4 * 10) / 5;
+    for (int i = 0; i < 5; ++i)
+    {
+        ovStripArea[(size_t) i] = { X0 + i * (sw + 10), Y0 + 542, sw, 96 };
+        const auto& v = ovStrip[(size_t) i];
+        const int kw = (sw - 16) / (int) v.size();
+        for (size_t k = 0; k < v.size(); ++k) v[k]->setBounds (ovStripArea[(size_t) i].getX() + 8 + (int) k * kw, ovStripArea[(size_t) i].getY() + 24, kw - 2, Knob::heightFor (30));
+    }
+    ovMasterArea = { X0, Y0 + 646, CW, 72 };
+    for (size_t k = 0; k < ovMaster.size(); ++k) ovMaster[k]->setBounds (ovMasterArea.getX() + 130 + (int) k * 110, ovMasterArea.getY() + 2, 100, Knob::heightFor (30));
+}
 void GeCanvas::selectPart (int i)
 {
+    overview = false; applyOverview();
     selected = jlimit (0, 3, i);
     for (int p = 0; p < 4; ++p) for (auto* c : detail[(size_t) p]) if (c != nullptr && c != &detailPageMark) c->setVisible (p == selected && pageIdx == 0);
     tokNote.setVisible (pageIdx == 0 && selected == 0);
@@ -413,12 +505,21 @@ void GeCanvas::showPage (int i)
     wave.setVisible (kick);
     nav.setCurrent (pageIdx);
     if (pageIdx != uiSet.lastPage && pageIdx != 12) { uiSet.lastPage = pageIdx; if (isShowing()) uiSet.save(); }
+    applyOverview();
     repaint();
 }
 
 void GeCanvas::mouseDown (const MouseEvent& e)
 {
     if (pageIdx != 0) return;
+    if (overview)
+    {   // the strip: BODY / SUB PUNCH open their full view
+        if (ovStripArea[2].contains (e.getPosition())) selectPart (1);
+        else if (ovStripArea[1].contains (e.getPosition())) { selectPart (0); detailPage = 3; layoutDetail(); repaint(); }
+        else if (ovStripArea[0].contains (e.getPosition())) { selectPart (0); detailPage = 3; layoutDetail(); repaint(); }
+        else if (ovStripArea[3].contains (e.getPosition())) showPage (5);
+        return;
+    }
     for (int i = 0; i < 4; ++i)
         if (cardArea[(size_t) i].contains (e.getPosition())) { selectPart (i); return; }
 }
@@ -485,6 +586,8 @@ void GeCanvas::resized()
         mixMeterArea[(size_t) i] = { mx + mw - 16, mixerArea.getY() + 44, 6, 132 };
     }
     layoutDetail();
+    ovBack.setBounds (X0 + CW - 150, Y0 + 98, 140, 22);
+    applyOverview();
     const Rectangle<int> pageArea (X0, Y0, CW, CH);
     if (envPage != nullptr) envPage->setBounds (pageArea.withTrimmedTop (234));
     for (Component* pg : { (Component*) oscPage.get(), (Component*) layerPage.get(), (Component*) distortionPage.get(), (Component*) eqPg.get(), (Component*) dynPg.get(),
@@ -523,13 +626,13 @@ void GeCanvas::layoutDetail()
     const bool tabs = nAll > 1;
     {   // the TYPE list in the header
         auto* tb = selected == 0 ? punchType : selected == 2 ? tailType : nullptr;
-        for (auto* c : { punchType, tailType }) if (c != nullptr) c->setVisible (pageIdx == 0 && c == tb);
+        for (auto* c : { punchType, tailType }) if (c != nullptr) c->setVisible ((pageIdx == 0 && ! overview) && c == tb);
         if (tb != nullptr) tb->setBounds (detailArea.getRight() - 14 - nTabs * 112 - 100 - 160, detailArea.getY() + 5, 150, 24);
     }
     for (int t = 0; t < 5; ++t)
     {
-        detTab[t].setVisible (tabs && isAllowed (t) && nTabs > 1 && pageIdx == 0);
-        detDice.setVisible (pageIdx == 0);
+        detTab[t].setVisible (tabs && isAllowed (t) && nTabs > 1 && (pageIdx == 0 && ! overview));
+        detDice.setVisible ((pageIdx == 0 && ! overview));
         static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "" };
         static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG" };
         static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
@@ -555,7 +658,7 @@ void GeCanvas::layoutDetail()
     {
         if (d[k] == &detailPageMark) { ++tab; y = y0; i = 0; continue; }
         if (d[k] == nullptr) { y += Knob::heightFor (40) + 6; i = 0; continue; }       // row break
-        if (tabs) d[k]->setVisible (pageIdx == 0 && tab == detailPage);
+        if (tabs) d[k]->setVisible ((pageIdx == 0 && ! overview) && tab == detailPage);
         if (dynamic_cast<ComboBox*> (d[k]) != nullptr) { d[k]->setBounds (x + i * 76, y + 22, 150, 26); i += 2; continue; }
         d[k]->setBounds (x + i * 76, y, 74, Knob::heightFor (40));
         ++i;
@@ -567,7 +670,7 @@ void GeCanvas::layoutDetail()
         if (selected == 2 && detailPage == 1) m = { { "tail_color_freq", "COLOR HZ" }, { "tail_color_harm", "HARMONIC", true } };
         if (selected == 0 && detailPage == 1) m = { { "psh_mid_freq", "MID FREQ" }, { "psh_low_cut", "LOW CUT" } };
         liveSpec->setMarkers (m);
-        liveSpec->setVisible (pageIdx == 0 && ! m.empty());
+        liveSpec->setVisible ((pageIdx == 0 && ! overview) && ! m.empty());
         liveSpec->setBounds (detailArea.getRight() - 14 - 230, y0 + Knob::heightFor (40) + 6, 230, Knob::heightFor (40));
     }
 }
@@ -636,7 +739,26 @@ void GeCanvas::paint (Graphics& g)
         g.setColour (c.red); g.drawText (">", h, Justification::centred);
     }
     panel (globalArea, "", c.red);
-    if (pageIdx == 0) paintMain (g, panel);
+    if (pageIdx == 0 && overview)
+    {   // MAIN OVERVIEW (ARCHITECTURE.md)
+        const auto& c = palette();
+        panel (ovPArea, "PUNCH", c.part[0]); panel (ovTArea, "TAIL", c.part[2]);
+        g.setColour (c.textDim); g.setFont (lnf.font (10.f, doomsday::flat::Medium));
+        static const char* pChain[] { "PUNCH / TOK: a waveform with a pitch glide (+ the tok)", "EUPHORIC: source -> mid boost -> drive -> tape stop -> shape -> low cut",
+                                      "PVC: tube / kloenk -> phaser -> drive -> shape" };
+        static const char* tChain[] { "CLASSIC: sine / triangle -> pitch drop -> body -> distortion -> harmonics -> decay",
+                                      "PVC: source -> REVERB -> high cut -> drive -> clip -> GATE -> drive -> spectrum -> stereo",
+                                      "ZAAG: one huge bass from 0 ms -> drive -> squash; piep -> trask; punch reverb" };
+        g.drawText (pChain[punchTypeIdx()], ovPArea.getX() + 14, ovPArea.getY() + 40, ovPArea.getWidth() - 28, 20, Justification::left);
+        g.drawText (tChain[tailTypeIdx()], ovTArea.getX() + 14, ovTArea.getY() + 40, ovTArea.getWidth() - 28, 20, Justification::left);
+        g.drawText ("TYPE", ovPArea.getX() + 76, ovPArea.getY() + 8, 34, 16, Justification::left);
+        g.drawText ("TYPE", ovTArea.getX() + 76, ovTArea.getY() + 8, 34, 16, Justification::left);
+        static const char* sn[] { "CLICK", "SUB PUNCH", "BODY", "SCREECH", "MIX" };
+        const Colour sc[] { c.silver, c.part[3], c.part[1], c.red, c.silver };
+        for (int i = 0; i < 5; ++i) panel (ovStripArea[(size_t) i], sn[i], sc[i]);
+        panel (ovMasterArea, "MASTER", c.red);
+    }
+    else if (pageIdx == 0) paintMain (g, panel);
     // output meter
     {
         const float m = jlimit (0.f, 1.f, (Decibels::gainToDecibels (outMeter, -60.f) + 60.f) / 66.f);
@@ -797,7 +919,7 @@ void GeCanvas::timerCallback()
 {
     {   // the TYPE changed (a click, undo, a preset): show its tabs
         const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine);
-        if (pm != shownPunchType || te != shownTailType) { shownPunchType = pm; shownTailType = te; layoutDetail(); repaint(); }
+        if (pm != shownPunchType || te != shownTailType) { shownPunchType = pm; shownTailType = te; layoutDetail(); applyOverview(); repaint(); }
     }
     presetBar.refresh();
     syncTokNote();

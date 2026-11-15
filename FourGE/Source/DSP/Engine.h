@@ -957,6 +957,7 @@ namespace fge
                 zp.on = f.idx (P::punchMode) == 4;
                 zp.click = f[P::zgClick]; zp.piep = f[P::zgPiep]; zp.piepHz = f[P::zgPiepHz]; zp.piepMs = f[P::zgPiepMs];
                 zp.trask = f[P::zgTrask]; zp.traskDelay = f[P::zgTraskDelay]; zp.traskMs = f[P::zgTraskMs]; zp.traskTone = f[P::zgTraskTone];
+                zp.pup = f[P::zgPup]; zp.pupHz = f[P::zgPupHz]; zp.pupMs = f[P::zgPupMs]; zp.pupOct = f[P::zgPupOct]; zp.pupDrive = f[P::zgPupDrive];
                 zp.thump = f[P::zgThump]; zp.thumpHz = f[P::zgThumpHz]; zp.thumpMs = f[P::zgThumpMs]; zp.thumpDriveDb = f[P::zgThumpDrive];
                 zp.verb = f[P::zgVerb]; zp.verbDecayMs = f[P::zgVerbDecay]; zp.verbSize = f[P::zgVerbSize]; zp.sendMs = f[P::zgVerbSend]; zp.preMs = f[P::zgVerbPre];
                 zp.gateMs = f[P::zgVerbGate]; zp.dampHz = f[P::zgVerbDamp]; zp.verbLowCut = f[P::zgVerbLowCut];

@@ -129,9 +129,15 @@ namespace fge::style
                          { "gt_gate_len", 260 }, { "gt_gate_depth", 0.5f }, { "pt_low_mid", -1.5f }, { "pt_high", 2 }, { "pt_width", 0.9f },
                          { "pt_delay", 175 }, { "pt_length", 320 }, { "master_clip_drive", 3 } },
                        {} },
-            // ZAAG (owner 2026-11-14): TAIL ENGINE ZAAG = the whole kick (the punch / body / sub generators silent), defaults = his O2 (piep then trask) + punch reverb
+            // ZAAG (owner 2026-11-15): TAIL ENGINE ZAAG = the whole kick (the punch / body / sub generators silent); the values = his favourite X7
+            // (RESONANT, hard sharp saw, high sweep + a little reopen; PUNCH: click + heavy THUMP + the scratchy PUP with the punch reverb)
             Template { { { "punch_mode", 4 }, { "tail_engine", 2 }, { "tail_level", 0 }, { "body_level", -60 }, { "sub_level", -60 },    // a STYLE only picks the TYPES (+ values)
-                         { "zg_verb_pre", 25 }, { "zg_verb_damp", 9000 }, { "zg_verb_size", 1.6f }, { "zg_verb_decay", 2000 }, { "zg_verb_low_cut", 700 },
+                         { "zg_variant", 1 }, { "zg_s3_type", 1 }, { "zg_start", 16 }, { "zg_drop", 140 }, { "zg_sw_plateau", 12 }, { "zg_sw_start", 30 }, { "zg_sw_reopen", 0.3f },
+                         { "zg_resonance", 0.7f }, { "zg_sawb_level", 0.6f }, { "zg_low_ctrl", 0.3f }, { "zg_final_tone", 1 }, { "zg_s1_curve", 1 },
+                         { "zg_grit", 0.85f }, { "zg_drive", 20 }, { "zg_zaag", 0.7f }, { "zg_character", 0.68f }, { "zg_crush", 0.78f }, { "zg_dirt", 0.2f }, { "zg_movement", 0.62f },
+                         { "zg_click", 1 }, { "zg_thump", 1.5f }, { "zg_thump_hz", 170 }, { "zg_thump_ms", 90 }, { "zg_thump_drive", 30 },
+                         { "zg_pup", 6 }, { "zg_piep", 1 }, { "zg_piep_hz", 1000 }, { "zg_piep_ms", 30 }, { "zg_trask", 1 }, { "zg_trask_delay", 8 }, { "zg_trask_ms", 45 }, { "zg_trask_tone", 6000 },
+                         { "zg_verb", 2.5f }, { "zg_verb_decay", 1600 }, { "zg_verb_size", 1.4f }, { "zg_verb_send", 60 }, { "zg_verb_damp", 9000 }, { "zg_verb_low_cut", 600 },
                          { "master_clip_drive", 4 } },    // MASTER: the final waveshaper squeezes the kick to 0 dB (oversampled; not the only level control)
                        {} },
         };

@@ -270,7 +270,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
-                     { "zg_trask", "TRASK" }, { "zg_trask_delay", "TRASK AT" }, { "zg_trask_ms", "TRASK LEN" }, { "zg_trask_tone", "TRASK TONE" } })
+                     { "zg_trask", "TRASK" }, { "zg_trask_delay", "TRASK AT" }, { "zg_trask_ms", "TRASK LEN" }, { "zg_trask_tone", "TRASK TONE" },
+                     { "zg_pup", "PUP" }, { "zg_pup_hz", "PUP HZ" }, { "zg_pup_ms", "PUP LEN" }, { "zg_pup_oct", "PUP DIVE" }, { "zg_pup_drive", "PUP DRIVE" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
@@ -942,12 +943,13 @@ void GeCanvas::updateEnabled()
         en ("pvc_ph_mode", tube && raw (proc, P::pvcPhaser) > 0.001f); en ("pvc_ph_fb", tube && raw (proc, P::pvcPhaser) > 0.001f);
         en ("pvc_ph_rate", tube && raw (proc, P::pvcPhaser) > 0.001f && (int) raw (proc, P::pvcPhMode) == 1);
         const bool zg = (int) raw (proc, P::tailEngine) == 2, zp = (int) raw (proc, P::punchMode) == 4;   // TAIL TYPE ZAAG / PUNCH TYPE ZAAG (rule 0)
-        auto isPunchZ = [] (const String& id) { return id.startsWith ("zg_click") || id.startsWith ("zg_piep") || id.startsWith ("zg_trask") || id.startsWith ("zg_verb") || id.startsWith ("zg_thump"); };
+        auto isPunchZ = [] (const String& id) { return id.startsWith ("zg_click") || id.startsWith ("zg_piep") || id.startsWith ("zg_trask") || id.startsWith ("zg_verb") || id.startsWith ("zg_thump") || id.startsWith ("zg_pup"); };
         for (int i = 0; i < P::count; ++i)
             if (const String id (def (i).id); id.startsWith ("zg_")) en (id, isPunchZ (id) ? zp : zg);
         for (auto* id : { "zg_piep_hz", "zg_piep_ms" }) en (id, zp && raw (proc, P::zgPiep) > 0.001f);
         for (auto* id : { "zg_trask_delay", "zg_trask_ms", "zg_trask_tone" }) en (id, zp && raw (proc, P::zgTrask) > 0.001f);
         for (auto* id : { "zg_thump_hz", "zg_thump_ms", "zg_thump_drive" }) en (id, zp && raw (proc, P::zgThump) > 0.001f);
+        for (auto* id : { "zg_pup_hz", "zg_pup_ms", "zg_pup_oct", "zg_pup_drive" }) en (id, zp && raw (proc, P::zgPup) > 0.001f);
         for (auto* id : { "zg_verb_decay", "zg_verb_size", "zg_verb_send", "zg_verb_pre", "zg_verb_gate", "zg_verb_damp", "zg_verb_low_cut" }) en (id, zp && raw (proc, P::zgVerb) > 0.001f);
         for (auto* id : { "zg_rsn_freq", "zg_rsn_reso", "zg_rsn_width", "zg_rsn_pos", "zg_rsn_mode" }) en (id, zg && raw (proc, P::zgRsnMix) > 0.001f);
         en ("zg_side_boost_hz", zg && raw (proc, P::zgSideBoost) > 0.01f);

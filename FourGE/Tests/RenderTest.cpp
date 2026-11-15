@@ -1115,12 +1115,13 @@ int main (int argc, char** argv)
                 if (sid.startsWith ("pt_")) set2 ("tail_engine", 1.f);
                 if (sid.startsWith ("zg_"))                                                                       // ZAAG: the punch params need PUNCH TYPE ZAAG, the rest TAIL TYPE ZAAG
                 {
-                    if (sid.startsWith ("zg_click") || sid.startsWith ("zg_piep") || sid.startsWith ("zg_trask") || sid.startsWith ("zg_verb") || sid.startsWith ("zg_thump")) set2 ("punch_mode", 4.f);
+                    if (sid.startsWith ("zg_click") || sid.startsWith ("zg_piep") || sid.startsWith ("zg_trask") || sid.startsWith ("zg_verb") || sid.startsWith ("zg_thump") || sid.startsWith ("zg_pup")) set2 ("punch_mode", 4.f);
                     if (sid == "zg_thump_hz" || sid == "zg_thump_ms" || sid == "zg_thump_drive") set2 ("zg_thump", 1.f);
                     else set2 ("tail_engine", 2.f);
                 }
                 if (sid == "zg_piep_hz" || sid == "zg_piep_ms") set2 ("zg_piep", 0.8f);
                 if (sid == "zg_length") set2 ("zg_len_follow", 0.f);
+                if (sid.startsWith ("zg_pup_")) set2 ("zg_pup", 1.5f);
                 if (sid == "zg_side_boost_hz") set2 ("zg_side_boost", 9.f);                                 // ZAAG ENGINE (ZAAG_ENGINE.md)
                 if (sid == "zg_sw_reopen" || sid == "zg_sw_end" || sid == "zg_sw_hold") set2 ("zg_peak", 15.f);                                          // TAIL ENGINE PVC (owner 2026-11-14)
                 if (sid == "pt_movement") set2 ("gt_gate", 1.f);

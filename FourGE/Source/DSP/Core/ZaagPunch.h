@@ -16,6 +16,7 @@ namespace fge::dsp::zaagpunch
         bool on = false;
         float click = 0.5f, piep = 0.6f, piepHz = 1400.f, piepMs = 15.f;
         float trask = 0.7f, traskDelay = 15.f, traskMs = 40.f, traskTone = 3500.f;
+        float pup = 0.f, pupHz = 1000.f, pupMs = 30.f, pupOct = 2.f, pupDrive = 1.f;    // PUP (owner 2026-11-15): a raw-style saw click diving down
         float thump = 0.f, thumpHz = 300.f, thumpMs = 50.f, thumpDriveDb = 12.f;
         float verb = 2.f, verbDecayMs = 1600.f, verbSize = 1.2f, sendMs = 80.f, preMs = 0.f, gateMs = 0.f, dampHz = 4500.f, verbLowCut = 400.f;
     };
@@ -24,7 +25,7 @@ namespace fge::dsp::zaagpunch
     {
     public:
         void prepare (double rate) { fs = rate; rev.prepare (rate, 2.0, 70.0); reset(); }
-        void reset() { rev.reset(); php = 0.0; pht = 0.0; phk = 0.0; blk = 0; seed = 0x2468ace1u; for (auto* b : { &ck, &tb1, &tb2, &vh1, &vh2 }) b->clear(); }
+        void reset() { rev.reset(); php = 0.0; pht = 0.0; phk = 0.0; php2 = 0.0; blk = 0; seed = 0x2468ace1u; for (auto* b : { &ck, &tb1, &tb2, &vh1, &vh2 }) b->clear(); }
         void process (const Settings& s, float ms, float noteHz, float& outL, float& outR)
         {
             if (blk-- <= 0)
@@ -52,6 +53,19 @@ namespace fge::dsp::zaagpunch
                 if (e > 0.f) top += s.trask * 0.5f * tb2.tick (tb1.tick (std::tanh (40.f * ((float) (2.0 * pht - 1.0) + 0.3f * noise())))) * e;
                 pht += hz / fs; if (pht >= 1.0) pht -= 1.0;
             }
+            if (s.pup > 0.f && ms < s.pupMs + 3.f)                                  // PUP: a saw diving PUP OCT octaves over its length, driven hard ("pup", raw style)
+            {
+                const float len = std::max (1.f, s.pupMs), u = std::min (1.f, ms / len);
+                const double f = std::clamp ((double) s.pupHz * std::exp2 (-s.pupOct * u), 20.0, fs * 0.4);
+                const double dt = f / fs;
+                double p = php2; php2 += dt; if (php2 >= 1.0) php2 -= 1.0;
+                float x = (float) (2.0 * p - 1.0);
+                if (p < dt) { const double t = p / dt; x -= (float) (t + t - t * t - 1.0); }                 // polyBLEP
+                else if (p > 1.0 - dt) { const double t = (p - 1.0) / dt; x -= (float) (t * t + t + t + 1.0); }
+                const float env = std::min (1.f, ms / 0.08f) * std::exp (-5.f * ms / len) * std::clamp ((len + 3.f - ms) / 3.f, 0.f, 1.f);
+                const float gd = 1.f + s.pupDrive * 16.f;
+                top += s.pup * std::tanh (0.8f * x * env * gd) / std::tanh (gd);
+            }
             float body = 0.f;
             if (s.thump > 0.f && ms < s.thumpMs * 1.5f)                             // THUMP: the hit (a driven body falling to the note)
             {
@@ -73,7 +87,7 @@ namespace fge::dsp::zaagpunch
         }
     private:
         float noise() { seed = seed * 1664525u + 1013904223u; return (float) (int32_t) seed * (1.f / 2147483648.f) * 1.7f; }
-        double fs = 48000.0, php = 0.0, pht = 0.0, phk = 0.0;
+        double fs = 48000.0, php = 0.0, pht = 0.0, phk = 0.0, php2 = 0.0;
         int blk = 0;
         uint32_t seed = 0x2468ace1u;
         fdn::Fdn rev;

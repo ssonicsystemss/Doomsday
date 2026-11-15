@@ -3776,3 +3776,8 @@ zg_side_cut
 zg_side_boost_hz
 zg_side_boost
 zg_hverb
+zg_pup
+zg_pup_hz
+zg_pup_ms
+zg_pup_oct
+zg_pup_drive

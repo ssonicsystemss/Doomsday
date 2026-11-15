@@ -586,7 +586,13 @@ namespace fge
     F (zgSideCut, "zg_side_cut", "Zaag Side Low Cut", Unit::Hz, 80.f, 600.f, 180.f, 200.f, FNone) \
     F (zgSideBoostHz, "zg_side_boost_hz", "Zaag Side Boost Freq", Unit::Hz, 800.f, 10000.f, 3000.f, 3000.f, FNone) \
     F (zgSideBoost, "zg_side_boost", "Zaag Side Boost", Unit::Db, 0.f, 12.f, 0.f, 0.f, FNone) \
-    F (zgHverb, "zg_hverb", "Zaag High Reverb", Unit::Pct, 0.f, 1.f, 0.2f, 0.f, FNone)
+    F (zgHverb, "zg_hverb", "Zaag High Reverb", Unit::Pct, 0.f, 1.f, 0.2f, 0.f, FNone) \
+    /* PUP (owner 2026-11-15): the raw-style "pup" in PUNCH TYPE ZAAG - a driven saw diving down, through the punch reverb + master clip */ \
+    F (zgPup, "zg_pup", "Punch Pup (Zaag)", Unit::Pct, 0.f, 8.f, 0.f, 0.f, FNone) \
+    F (zgPupHz, "zg_pup_hz", "Punch Pup Pitch (Zaag)", Unit::Hz, 200.f, 6000.f, 1000.f, 1000.f, FNone) \
+    F (zgPupMs, "zg_pup_ms", "Punch Pup Length (Zaag)", Unit::Ms, 4.f, 80.f, 30.f, 25.f, FNone) \
+    F (zgPupOct, "zg_pup_oct", "Punch Pup Dive (Zaag)", Unit::None, 0.f, 4.f, 2.f, 2.f, FNone) \
+    F (zgPupDrive, "zg_pup_drive", "Punch Pup Drive (Zaag)", Unit::Pct, 0.f, 1.f, 1.f, 0.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

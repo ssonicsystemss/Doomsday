@@ -42,6 +42,19 @@ CLASSIC (the tutorial chain) · RESONANT (+6 dB / narrower sweep, reopens) · BO
 tail, a sharper pitch hit) · AGGRESSIVE (+6 dB drive, character pushed towards the type, harder crush). Recipe constants in
 `ZaagTail.h::cook`. Later: FAKEDROP, LONG, CLEAN, INDUSTRIAL.
 
+## PUNCH TYPE ZAAG (ZaagPunch.h)
+
+CLICK (2 ms) · PIEP (a pip falling to half) · TRASK (falling saw x3, 700 Hz – TRASK TONE) · **PUP** (owner 2026-11-15: the raw-style
+click – a driven saw diving PUP DIVE octaves over PUP LENGTH, "pup" at 1 kHz; `zg_pup / _hz / _ms / _oct / _drive`) · THUMP (a
+driven low hit falling to the note) · PUNCH REVERB on the click / piep / trask / pup (send, pre-delay, gate, brightness, low cut).
+Everything goes through the MASTER clip (unlike the TRANSIENT module on the MASTER BUS, which bypasses it).
+
+## Factory presets (owner's picks, 2026-11-15, 155 BPM rounds)
+
+ZAAG - Resonant Laser (= X7, his favourite = the ZAAG style default) · ZAAG - Hard Saw (A1) · ZAAG - Zero Square (A2) ·
+ZAAG - Laser (A5) · ZAAG - Classic Wave (W5) · ZAAG - Resonant Phaser (N2 between "dirtier" and "more movement").
+Level: MASTER CLIP + SAFETY CLIP (not LIMITER 1: a loud PUP makes the limiter duck the whole hit and kill the low start).
+
 ## Rules
 
 - Not FL names (Destructor / Hammer Classic / Wide Cabinet) – own names.

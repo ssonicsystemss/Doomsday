@@ -450,6 +450,11 @@ namespace fge
             case zgSideCut: return "ZAAG SIDE LOW CUT: below this the side channel is cut (24 dB / oct) - the lows always mono.";
             case zgSideBoostHz: return "ZAAG SIDE BOOST FREQ: a band boosted on the side channel only - the stereo exactly there.";
             case zgSideBoost: return "ZAAG SIDE BOOST: how much (dB, side only).";
+            case zgPup: return "ZAAG PUP: the raw-style click - a driven saw that dives down (\"pup\"); it goes into the punch reverb and the master clip.";
+            case zgPupHz: return "ZAAG PUP PITCH: where the pup starts (1 kHz = \"pup\", 4 kHz = \"tjiu\").";
+            case zgPupMs: return "ZAAG PUP LENGTH: how long the pup is (and how long it dives).";
+            case zgPupOct: return "ZAAG PUP DIVE: how many octaves the pup falls over its length.";
+            case zgPupDrive: return "ZAAG PUP DRIVE: how scratchy the pup is.";
             case zgHverb: return "ZAAG HIGH REVERB: a reverb on the top band only (above 2.5 kHz), the low end stays dry.";
             case zgThump: return "ZAAG THUMP: the hit at the start - a short driven body falling from THUMP HZ to the note.";
             case zgThumpHz: return "ZAAG THUMP: where it starts (Hz).";

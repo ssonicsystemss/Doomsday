@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -477,30 +477,76 @@ namespace fge
     /* owner 2026-11-14 (zaag: "tail mocno drapiący i narastający"; OPS zaag kicks: the highs rise ~6 dB over the tail) */ \
     F (ptGrow,         "pt_grow",              "Tail Drive Grow",      Unit::Db,  0.f, 24.f, 0.f, 0.f, FNone) \
     /* owner 2026-11-14: TAIL ENGINE ZAAG (OPS zaag kicks + his picks: one huge bass from 0 ms, PIEP then TRASK, a reverb on the punch) */ \
-    F (zgStart, "zg_start", "Zaag Start Pitch", Unit::Semi, 0.f, 36.f, 14.f, 0.f, FNone) \
-    F (zgDrop, "zg_drop", "Zaag Drop", Unit::Ms, 3.f, 150.f, 22.f, 25.f, FNone) \
-    F (zgSaw, "zg_saw", "Zaag Saw", Unit::Pct, 0.f, 1.f, 0.35f, 0.f, FNone) \
+    F (zgStart, "zg_start", "Tail Pitch Start (Zaag)", Unit::Semi, 0.f, 36.f, 14.f, 0.f, FNone) \
+    F (zgDrop, "zg_drop", "Tail Drop Time (Zaag)", Unit::Ms, 3.f, 300.f, 90.f, 80.f, FNone) \
+    F (zgSaw, "zg_saw", "Tail Saw A (Zaag)", Unit::Pct, 0.f, 1.f, 0.15f, 0.f, FNone) \
     F (zgDrive, "zg_drive", "Tail Drive (Zaag)", Unit::Db, 0.f, 40.f, 28.f, 0.f, FNone) \
-    F (zgDirt, "zg_dirt", "Zaag Dirt", Unit::Pct, 0.f, 0.3f, 0.06f, 0.f, FNone) \
-    F (zgDirtTone, "zg_dirt_tone", "Zaag Dirt Tone", Unit::Hz, 1000.f, 12000.f, 5000.f, 5000.f, FNone) \
-    F (zgSub, "zg_sub", "Zaag Sub", Unit::Pct, 0.f, 2.f, 1.2f, 0.f, FNone) \
-    F (zgPress, "zg_press", "Zaag Press", Unit::Pct, 0.5f, 5.f, 3.f, 0.f, FNone) \
-    F (zgWidth, "zg_width", "Zaag Width", Unit::Pct, 0.f, 2.f, 0.6f, 0.f, FNone) \
-    F (zgClick, "zg_click", "Zaag Click", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
-    F (zgPiep, "zg_piep", "Zaag Piep", Unit::Pct, 0.f, 1.f, 0.6f, 0.f, FNone) \
-    F (zgPiepHz, "zg_piep_hz", "Zaag Piep Pitch", Unit::Hz, 300.f, 4000.f, 1400.f, 1400.f, FNone) \
-    F (zgPiepMs, "zg_piep_ms", "Zaag Piep Length", Unit::Ms, 3.f, 80.f, 15.f, 15.f, FNone) \
-    F (zgTrask, "zg_trask", "Zaag Trask", Unit::Pct, 0.f, 1.f, 0.7f, 0.f, FNone) \
-    F (zgTraskDelay, "zg_trask_delay", "Zaag Trask Delay", Unit::Ms, 0.f, 60.f, 15.f, 15.f, FNone) \
-    F (zgTraskMs, "zg_trask_ms", "Zaag Trask Length", Unit::Ms, 5.f, 120.f, 40.f, 40.f, FNone) \
-    F (zgVerb, "zg_verb", "Zaag Punch Verb", Unit::Pct, 0.f, 4.f, 2.f, 0.f, FNone) \
-    F (zgVerbDecay, "zg_verb_decay", "Zaag Verb Decay", Unit::Ms, 200.f, 4000.f, 1600.f, 1200.f, FNone) \
-    F (zgVerbSize, "zg_verb_size", "Zaag Verb Size", Unit::Pct, 0.3f, 2.f, 1.2f, 1.f, FNone) \
-    F (zgVerbSend, "zg_verb_send", "Zaag Verb Send", Unit::Ms, 10.f, 200.f, 80.f, 60.f, FNone) \
-    F (zgVerbPre, "zg_verb_pre", "Zaag Verb Pre-delay", Unit::Ms, 0.f, 60.f, 0.f, 20.f, FNone) \
-    F (zgVerbGate, "zg_verb_gate", "Zaag Verb Gate", Unit::Ms, 0.f, 400.f, 0.f, 150.f, FNone) \
-    F (zgVerbDamp, "zg_verb_damp", "Zaag Verb Brightness", Unit::Hz, 1000.f, 12000.f, 4500.f, 4500.f, FNone) \
-    F (zgVerbLowCut, "zg_verb_low_cut", "Zaag Verb Low Cut", Unit::Hz, 100.f, 2000.f, 400.f, 400.f, FNone)
+    F (zgDirt, "zg_dirt", "Tail Dirt (Zaag)", Unit::Pct, 0.f, 0.3f, 0.09f, 0.f, FNone) \
+    F (zgDirtTone, "zg_dirt_tone", "Tail Dirt Tone (Zaag)", Unit::Hz, 1000.f, 12000.f, 9000.f, 5000.f, FNone) \
+    F (zgSub, "zg_sub", "Tail Sub Amount (Zaag)", Unit::Pct, 0.f, 2.f, 1.6f, 0.f, FNone) \
+    F (zgPress, "zg_press", "Tail Clip (Zaag)", Unit::Pct, 0.5f, 5.f, 3.f, 0.f, FNone) \
+    F (zgWidth, "zg_width", "Tail Width (Zaag)", Unit::Pct, 0.f, 2.f, 1.2f, 0.f, FNone) \
+    F (zgClick, "zg_click", "Punch Click (Zaag)", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (zgPiep, "zg_piep", "Punch Piep (Zaag)", Unit::Pct, 0.f, 1.f, 0.6f, 0.f, FNone) \
+    F (zgPiepHz, "zg_piep_hz", "Punch Piep Pitch (Zaag)", Unit::Hz, 300.f, 4000.f, 1400.f, 1400.f, FNone) \
+    F (zgPiepMs, "zg_piep_ms", "Punch Piep Length (Zaag)", Unit::Ms, 3.f, 80.f, 15.f, 15.f, FNone) \
+    F (zgTrask, "zg_trask", "Punch Trask (Zaag)", Unit::Pct, 0.f, 1.f, 0.7f, 0.f, FNone) \
+    F (zgTraskDelay, "zg_trask_delay", "Punch Trask Delay (Zaag)", Unit::Ms, 0.f, 60.f, 15.f, 15.f, FNone) \
+    F (zgTraskMs, "zg_trask_ms", "Punch Trask Length (Zaag)", Unit::Ms, 5.f, 120.f, 40.f, 40.f, FNone) \
+    F (zgVerb, "zg_verb", "Punch Reverb (Zaag)", Unit::Pct, 0.f, 4.f, 2.f, 0.f, FNone) \
+    F (zgVerbDecay, "zg_verb_decay", "Punch Reverb Decay (Zaag)", Unit::Ms, 200.f, 4000.f, 1600.f, 1200.f, FNone) \
+    F (zgVerbSize, "zg_verb_size", "Punch Reverb Size (Zaag)", Unit::Pct, 0.3f, 2.f, 1.2f, 1.f, FNone) \
+    F (zgVerbSend, "zg_verb_send", "Punch Reverb Send (Zaag)", Unit::Ms, 10.f, 200.f, 80.f, 60.f, FNone) \
+    F (zgVerbPre, "zg_verb_pre", "Punch Reverb Pre-delay (Zaag)", Unit::Ms, 0.f, 60.f, 0.f, 20.f, FNone) \
+    F (zgVerbGate, "zg_verb_gate", "Punch Reverb Gate (Zaag)", Unit::Ms, 0.f, 400.f, 0.f, 150.f, FNone) \
+    F (zgVerbDamp, "zg_verb_damp", "Punch Reverb Brightness (Zaag)", Unit::Hz, 1000.f, 12000.f, 4500.f, 4500.f, FNone) \
+    F (zgVerbLowCut, "zg_verb_low_cut", "Punch Reverb Low Cut (Zaag)", Unit::Hz, 100.f, 2000.f, 400.f, 400.f, FNone) \
+    /* owner 2026-11-15: the ZAAG TAIL rebuilt per his spec (2 saws, pitch, 3 serial stages, squash + soft clip, filter movement, sub support, shape, macros) */ \
+    C (zgSawbOct, "zg_sawb_oct", "Tail Saw B Octave (Zaag)", zgOcts, 1, FNone) \
+    F (zgSawbDetune, "zg_sawb_detune", "Tail Saw B Detune (Zaag)", Unit::None, 0.f, 50.f, 7.f, 10.f, FNone) \
+    F (zgSawbLevel, "zg_sawb_level", "Tail Saw B Level (Zaag)", Unit::Pct, 0.f, 1.f, 0.4f, 0.f, FNone) \
+    F (zgCurve, "zg_curve", "Tail Pitch Curve (Zaag)", Unit::Pct, 0.f, 1.f, 0.6f, 0.f, FNone) \
+    F (zgRoot, "zg_root", "Tail Root (Zaag)", Unit::Semi, -24.f, 24.f, 0.f, 0.f, FNone) \
+    F (zgLowCtrl, "zg_low_ctrl", "Tail Low Control (Zaag)", Unit::Pct, 0.f, 1.f, 0.6f, 0.f, FNone) \
+    F (zgS1Fund, "zg_s1_fund", "Tail Stage 1 Fundamental (Zaag)", Unit::Db, 0.f, 12.f, 4.f, 0.f, FNone) \
+    F (zgS1MidHz, "zg_s1_mid_hz", "Tail Stage 1 Mid Freq (Zaag)", Unit::Hz, 200.f, 4000.f, 800.f, 800.f, FNone) \
+    F (zgS1Mid, "zg_s1_mid", "Tail Stage 1 Mid (Zaag)", Unit::Db, -6.f, 12.f, 3.f, 0.f, FNone) \
+    F (zgS1LowCut, "zg_s1_low_cut", "Tail Stage 1 Low Cut (Zaag)", Unit::Hz, 10.f, 300.f, 10.f, 60.f, FNone) \
+    F (zgS1Drive, "zg_s1_drive", "Tail Stage 1 Drive (Zaag)", Unit::Db, 0.f, 24.f, 8.f, 0.f, FNone) \
+    F (zgS1Asym, "zg_s1_asym", "Tail Stage 1 Asymmetry (Zaag)", Unit::Pct, 0.f, 1.f, 0.f, 0.f, FNone) \
+    F (zgS1Curve, "zg_s1_curve", "Tail Stage 1 Curve (Zaag)", Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
+    F (zgS2Low, "zg_s2_low", "Tail Stage 2 Low (Zaag)", Unit::Db, -12.f, 12.f, 0.f, 0.f, FNone) \
+    F (zgS2LowMid, "zg_s2_low_mid", "Tail Stage 2 Low Mid (Zaag)", Unit::Db, -12.f, 12.f, 0.f, 0.f, FNone) \
+    F (zgS2Mid, "zg_s2_mid", "Tail Stage 2 Mid (Zaag)", Unit::Db, -12.f, 12.f, 0.f, 0.f, FNone) \
+    F (zgS2HiMid, "zg_s2_hi_mid", "Tail Stage 2 High Mid (Zaag)", Unit::Db, -12.f, 12.f, 0.f, 0.f, FNone) \
+    F (zgS2Drive, "zg_s2_drive", "Tail Stage 2 Drive (Zaag)", Unit::Db, 0.f, 30.f, 12.f, 0.f, FNone) \
+    F (zgS3Asym, "zg_s3_asym", "Tail Stage 3 Asymmetry (Zaag)", Unit::Pct, 0.f, 1.f, 0.f, 0.f, FNone) \
+    F (zgBits, "zg_bits", "Tail Bit Reduction (Zaag)", Unit::Pct, 0.f, 0.2f, 0.f, 0.f, FNone) \
+    F (zgFold, "zg_fold", "Tail Fold (Zaag)", Unit::Pct, 0.f, 1.f, 0.f, 0.f, FNone) \
+    F (zgSquash, "zg_squash", "Tail Squash (Zaag)", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (zgFinalTone, "zg_final_tone", "Tail Final EQ Tilt (Zaag)", Unit::None, -1.f, 1.f, 0.f, 0.f, FNone) \
+    F (zgKnee, "zg_knee", "Tail Clip Knee (Zaag)", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    C (zgFltType, "zg_flt_type", "Tail Filter Type (Zaag)", zgFltTypes, 0, FNone) \
+    F (zgFltStart, "zg_flt_start", "Tail Filter Start (Zaag)", Unit::Hz, 200.f, 20000.f, 1500.f, 3000.f, FNone) \
+    F (zgFltEnd, "zg_flt_end", "Tail Filter End (Zaag)", Unit::Hz, 200.f, 20000.f, 14000.f, 3000.f, FNone) \
+    F (zgFltTime, "zg_flt_time", "Tail Filter Time (Zaag)", Unit::Ms, 20.f, 800.f, 250.f, 250.f, FNone) \
+    F (zgFltCurve, "zg_flt_curve", "Tail Filter Curve (Zaag)", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (zgFltReso, "zg_flt_reso", "Tail Filter Resonance (Zaag)", Unit::None, 0.5f, 10.f, 1.f, 2.f, FNone) \
+    F (zgFltLfo, "zg_flt_lfo", "Tail Filter LFO (Zaag)", Unit::Pct, 0.f, 1.f, 0.f, 0.f, FNone) \
+    F (zgFltLfoRate, "zg_flt_lfo_rate", "Tail Filter LFO Rate (Zaag)", Unit::Hz, 0.5f, 20.f, 5.f, 5.f, FNone) \
+    C (zgSubSrc, "zg_sub_src", "Tail Sub Source (Zaag)", zgSubSrcs, 1, FNone) \
+    F (zgSubFreq, "zg_sub_freq", "Tail Sub Freq (Zaag)", Unit::Hz, 60.f, 300.f, 120.f, 150.f, FNone) \
+    F (zgSubDecay, "zg_sub_decay", "Tail Sub Decay (Zaag)", Unit::Ms, 50.f, 2000.f, 2000.f, 400.f, FNone) \
+    F (zgCharacter, "zg_character", "Tail Character (Zaag)", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (zgGrit, "zg_grit", "Tail Grit (Zaag)", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (zgTone, "zg_tone", "Tail Tone (Zaag)", Unit::None, -1.f, 1.f, 0.f, 0.f, FNone) \
+    F (zgFocus, "zg_focus", "Tail Focus (Zaag)", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    B (zgLenFollow, "zg_len_follow", "Tail Length Follows Kick (Zaag)", true, FNone) \
+    F (zgLength, "zg_length", "Tail Length (Zaag)", Unit::Ms, 100.f, 600.f, 400.f, 350.f, FNone) \
+    F (zgAttack, "zg_attack", "Tail Attack (Zaag)", Unit::Ms, 0.f, 30.f, 1.f, 5.f, FNone) \
+    F (zgBody, "zg_body", "Tail Body (Zaag)", Unit::Pct, 0.f, 1.f, 0.7f, 0.f, FNone) \
+    F (zgDecay, "zg_decay", "Tail Decay (Zaag)", Unit::Pct, 0.f, 1.f, 0.4f, 0.f, FNone) \
+    F (zgFade, "zg_fade", "Tail Fade (Zaag)", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

@@ -54,6 +54,11 @@ Kick timeline (every engine respects it):
 
 ## 4. Rules for new work
 
+0. **ENGINES NEVER MIX (owner 2026-11-15).** Every PUNCH TYPE and TAIL TYPE is its own DSP file with its own parameters;
+   no engine reads another engine's parameters or sound, no engine includes another engine's header (shared helpers like
+   the biquad live in a neutral file). Punch things (click, piep, trask, punch reverb) live ONLY in PUNCH TYPEs, tail things
+   ONLY in TAIL TYPEs. Switching a TYPE turns the previous engine off completely. A STYLE only picks a PUNCH TYPE + TAIL TYPE.
+
 1. A new technique = a new TYPE (or SUBTYPE) inside PUNCH or TAIL, or a block inside CHARACTER – never a free-floating module.
 2. Parameter names carry their OWNER in the GUI label / name: PUNCH DRIVE, TAIL DRIVE, SCREECH DRIVE, MASTER DRIVE –
    never five knobs called "DRIVE". (Parameter IDs are frozen – only labels / names change.)

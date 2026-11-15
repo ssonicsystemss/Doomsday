@@ -27,8 +27,8 @@ namespace fge::style
             "a tail that falls fast from ~760 Hz through the drive (the crack), soft -> wavefold, the 6th harmonic coloured, a small room.",
             "PVC / KLOENK (owner 2026-11-14, from his PVC samples): a plastic TUBE punch (~1 kHz, 'ciup', phaser), then a gated tail made of a REVERB "
             "(high cut -> drive -> clip -> gate -> drive), low end mono, highs wide.",
-            "ZAAG (owner 2026-11-14, from the OPS zaag kicks): one huge distorted bass from 0 ms pressed to full scale, the PIEP then the TRASK, "
-            "a reverb on the punch, the highs wide, the lows mono." };
+            "ZAAG (owner 2026-11-14 / 15): PUNCH TYPE ZAAG (piep -> trask, punch reverb) + TAIL TYPE ZAAG (2 saws -> 3 serial EQ / waveshaper stages -> "
+            "squash + soft clip -> filter movement -> sub support -> shape)." };
         return d[juce::jlimit (0, NumStyles - 1, s)];
     }
     inline int indexOf (const juce::String& id) { for (int i = 0; i < P::count; ++i) if (id == def (i).id) return i; return -1; }
@@ -130,7 +130,7 @@ namespace fge::style
                          { "pt_delay", 175 }, { "pt_length", 320 }, { "master_clip_drive", 3 } },
                        {} },
             // ZAAG (owner 2026-11-14): TAIL ENGINE ZAAG = the whole kick (the punch / body / sub generators silent), defaults = his O2 (piep then trask) + punch reverb
-            Template { { { "tail_engine", 2 }, { "tail_level", 0 }, { "punch_level", -60 }, { "body_level", -60 }, { "sub_level", -60 },
+            Template { { { "punch_mode", 4 }, { "tail_engine", 2 }, { "tail_level", 0 }, { "body_level", -60 }, { "sub_level", -60 },    // a STYLE only picks the TYPES (+ values)
                          { "zg_verb_pre", 25 }, { "zg_verb_damp", 9000 }, { "zg_verb_size", 1.6f }, { "zg_verb_decay", 2000 }, { "zg_verb_low_cut", 700 } },
                        {} },
         };

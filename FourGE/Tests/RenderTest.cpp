@@ -1098,8 +1098,14 @@ int main (int argc, char** argv)
                 if (sid.startsWith ("gt_")) set2 ("tail_engine", 1.f);                                          // TAIL ENGINE GATED
                 if (sid == "gt_gate_div") set2 ("gt_gate", 1.f);
                 if (sid.startsWith ("pt_")) set2 ("tail_engine", 1.f);
-                if (sid.startsWith ("zg_")) set2 ("tail_engine", 2.f);                                          // TAIL ENGINE ZAAG
-                if (sid == "zg_piep_hz" || sid == "zg_piep_ms") set2 ("zg_piep", 0.8f);                                          // TAIL ENGINE PVC (owner 2026-11-14)
+                if (sid.startsWith ("zg_"))                                                                       // ZAAG: the punch params need PUNCH TYPE ZAAG, the rest TAIL TYPE ZAAG
+                {
+                    if (sid.startsWith ("zg_click") || sid.startsWith ("zg_piep") || sid.startsWith ("zg_trask") || sid.startsWith ("zg_verb")) set2 ("punch_mode", 4.f);
+                    else set2 ("tail_engine", 2.f);
+                }
+                if (sid == "zg_piep_hz" || sid == "zg_piep_ms") set2 ("zg_piep", 0.8f);
+                if (sid == "zg_flt_lfo_rate") set2 ("zg_flt_lfo", 0.5f);
+                if (sid == "zg_length") set2 ("zg_len_follow", 0.f);                                          // TAIL ENGINE PVC (owner 2026-11-14)
                 if (sid == "pt_movement") set2 ("gt_gate", 1.f);
                 if (sid == "pt_start" || sid == "pt_hold" || sid == "pt_drop_time" || sid == "pt_root" || sid == "pt_slide") set2 ("pt_source", 1.f);
                 if (sid == "pt_res_freq" || sid == "pt_res_q") set2 ("pt_res_amount", 0.7f);

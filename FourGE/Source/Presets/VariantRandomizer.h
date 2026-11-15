@@ -86,15 +86,18 @@ namespace fge::variant
         static const Table x = []
         {
             Table t;
-            t[APunch]   = { { "punch_level", 0, 0, { -60 } }, { "zg_piep", 0.4f, 0.8f }, { "zg_piep_hz", 1000, 2000 }, { "zg_piep_ms", 10, 22 },
+            t[APunch]   = { { "punch_mode", 0, 0, { 4 } }, { "zg_piep", 0.4f, 0.8f }, { "zg_piep_hz", 1000, 2000 }, { "zg_piep_ms", 10, 22 },
                             { "zg_trask", 0.5f, 0.9f }, { "zg_trask_delay", 12, 20 }, { "zg_trask_ms", 25, 50 }, { "zg_click", 0.3f, 0.7f },
                             { "zg_verb", 1.5f, 3 }, { "zg_verb_decay", 1500, 2600 }, { "zg_verb_size", 1.1f, 1.6f }, { "zg_verb_send", 0, 0, { 30, 60, 80, 80 } },
                             { "zg_verb_pre", 0, 25 }, { "zg_verb_gate", 0, 0, { 0, 0, 170 } }, { "zg_verb_damp", 4500, 9500 }, { "zg_verb_low_cut", 400, 900 } };
             t[ABody]    = { { "body_level", 0, 0, { -60 } } };
-            t[ATail]    = { { "tail_engine", 0, 0, { 2 } }, { "zg_saw", 0.2f, 0.6f }, { "zg_drive", 24, 34 }, { "zg_dirt", 0.04f, 0.12f }, { "zg_dirt_tone", 4000, 7000 },
-                            { "zg_press", 2.5f, 3.5f }, { "zg_width", 0.4f, 0.9f } };
-            t[ASub]     = { { "sub_level", 0, 0, { -60 } }, { "zg_sub", 0.9f, 1.4f } };
-            t[APitch]   = { { "zg_start", 10, 18 }, { "zg_drop", 12, 35 } };
+            t[ATail]    = { { "tail_engine", 0, 0, { 2 } }, { "zg_character", 0.3f, 0.85f }, { "zg_grit", 0.35f, 0.75f }, { "zg_tone", -0.4f, 0.5f }, { "zg_focus", 0.2f, 0.7f },
+                            { "zg_squash", 0.3f, 0.8f }, { "zg_sawb_level", 0.2f, 0.7f }, { "zg_sawb_oct", 0, 0, { 1, 2, 2 } }, { "zg_sawb_detune", 3, 15 },
+                            { "zg_s2_mid", -2, 4 }, { "zg_s2_hi_mid", -3, 5 }, { "zg_dirt", 0.03f, 0.1f }, { "zg_width", 0.4f, 0.9f },
+                            { "zg_flt_start", 8000, 16000 }, { "zg_flt_end", 1500, 6000 }, { "zg_flt_time", 150, 400 }, { "zg_flt_reso", 0.7f, 2.5f },
+                            { "zg_body", 0.5f, 0.85f }, { "zg_decay", 0.2f, 0.6f } };            // (EXPERIMENTAL bits / fold: never)
+            t[ASub]     = { { "sub_level", 0, 0, { -60 } }, { "zg_sub", 1.2f, 1.8f }, { "zg_sub_src", 0, 0, { 1, 1, 2 } } };
+            t[APitch]   = { { "zg_start", 7, 24 }, { "zg_drop", 40, 130 }, { "zg_curve", 0.3f, 0.8f } };
             t[ADrive]   = { { "master_clip_drive", 2, 3 } };
             t[AScreech] = { { "scr_on", 0, 0, { 0 } } };
             return t;

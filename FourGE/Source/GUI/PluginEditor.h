@@ -43,7 +43,7 @@ public:
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
     void selectPart (int);
-    void tailTab (int t) { detailPage = juce::jlimit (0, 4, t); layoutDetail(); repaint(); }
+    void tailTab (int t) { detailPage = juce::jlimit (0, 5, t); layoutDetail(); repaint(); }
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
@@ -157,7 +157,8 @@ private:
     void applyTooltips();
     juce::ComboBox tokNote;                                          // TOK NOTE: sets START to a note (owner 2026-11-09)
     juce::Component detailPageMark;                                 // (a marker in a part's detail list: the items after it = the 2nd tab)
-    juce::TextButton detTab[5];                                      // TAIL detail tabs: TONE / ROOM + COLOR (owner 2026-11-12)
+    juce::TextButton detTab[6];
+    juce::TextButton zgClassicBtn { "CLASSIC ZAAG" }, zgModernBtn { "MODERN ZAAG" };   // ZAAG MODE: sets the start values (one undo)                                      // TAIL detail tabs: TONE / ROOM + COLOR (owner 2026-11-12)
     int detailPage = 0;
     void syncTokNote();
 public:
@@ -175,7 +176,8 @@ private:
     // MAIN OVERVIEW (ARCHITECTURE.md step 3, owner's sketch): PUNCH | TAIL side by side (TYPE + its key knobs + ALL PARAMETERS),
     // a strip CLICK / SUB PUNCH / BODY / SCREECH / MIX, MASTER; ALL PARAMETERS (or a click on a part) = the full detail view
     bool overview = true;
-    std::array<std::vector<juce::Component*>, 3> ovPunch, ovTail;
+    std::array<std::vector<juce::Component*>, 4> ovPunch;
+    std::array<std::vector<juce::Component*>, 3> ovTail;
     std::array<std::vector<juce::Component*>, 5> ovStrip;
     std::vector<juce::Component*> ovMaster;
     juce::TextButton ovAllP { "ALL PARAMETERS" }, ovAllT { "ALL PARAMETERS" }, ovBack { "< OVERVIEW" }, ovDiceP { "RANDOMIZE" }, ovDiceT { "RANDOMIZE" };

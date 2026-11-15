@@ -16,6 +16,7 @@
 #include "Core/PvcPunch.h"
 #include "Tone/PvcTail.h"
 #include "Tone/ZaagTail.h"
+#include "Core/ZaagPunch.h"
 #include "Env/KickEnvelopes.h"
 #include "Osc/OscTables.h"
 #include "Layers/LayerCook.h"
@@ -55,7 +56,8 @@ namespace fge
         dsp::shaped::Settings shaped;             // SHAPED PUNCH (owner 2026-11-14): the rendered tonal layer + click + verb, read by the voices
         const float* shL = nullptr; const float* shR = nullptr; int shLen = 0; double shRate = 48000.0;
         dsp::pvctail::Settings pvcTail;           // TAIL ENGINE PVC (owner 2026-11-14, the KLOENK tail)
-        dsp::zaag::Settings zaag;                 // TAIL ENGINE ZAAG (owner 2026-11-14)
+        dsp::zaag::Settings zaag;                 // TAIL TYPE ZAAG (owner 2026-11-14 / 15)
+        dsp::zaagpunch::Settings zpunch;          // PUNCH TYPE ZAAG (ARCHITECTURE.md rule 0: the punch lives in the PUNCH ENGINE)
         dsp::color::Settings color;               // TAIL COLOR after the tail's distortion (owner 2026-11-12)                 // the TAIL room before its distortion (EARLY, owner 2026-11-12)
         int tokNoteMode = 0;                      // 0 FIXED / 1 FOLLOW MIDI / 2 OFFSET (the played note + tokOffsetMul)
         float tokOffsetMul = 2.f, tokEndMs = 0.f, tokDecayDb = 0.f, tokBendSt = 0.f, tokGlideMs = 10.f;   // (owner 2026-11-10)
@@ -427,7 +429,7 @@ namespace fge
             limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
             muteG = 1.f;
             tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor); tailColor.reset();
-            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor); zaagU.prepare (sampleRate * osFactor);
+            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor); zaagU.prepare (sampleRate * osFactor); zpU.prepare (sampleRate * osFactor);
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -526,7 +528,7 @@ namespace fge
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
-            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); zpU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
@@ -698,7 +700,7 @@ namespace fge
             ks.dcTail = (float) std::exp (-juce::MathConstants<double>::twoPi * 10.0 / rate);
             ks.avgC = (float) (1.0 - std::exp (-juce::MathConstants<double>::twoPi * 8.0 / rate));
             ks.lengthMs = kickLengthMs (f, tempo());                          // module 14: the LENGTH knob or LENGTH SYNC
-            cfg.zaag.lengthMs = ks.lengthMs;                                  // (ZAAG ends with the kick)
+            cfg.zaag.lengthMs = f.on (P::zgLenFollow) ? ks.lengthMs : juce::jmin (ks.lengthMs, f[P::zgLength]);   // ZAAG LENGTH: follows the kick (never ends between kicks)
             ks.phaseReset = f.on (P::corePhaseRst);
             ks.velSens = f[P::coreVelocity];
             cfg.keyTrack = f.on (P::coreKeyTrack);
@@ -934,11 +936,24 @@ namespace fge
                 pt.on = f.idx (P::tailEngine) == 1;
                 auto& z = cfg.zaag;                                                 // TAIL ENGINE ZAAG
                 z.on = f.idx (P::tailEngine) == 2;
-                z.startSt = f[P::zgStart]; z.dropMs = f[P::zgDrop]; z.saw = f[P::zgSaw]; z.driveDb = f[P::zgDrive]; z.dirt = f[P::zgDirt]; z.dirtHz = f[P::zgDirtTone];
-                z.sub = f[P::zgSub]; z.press = f[P::zgPress]; z.width = f[P::zgWidth]; z.click = f[P::zgClick];
-                z.piep = f[P::zgPiep]; z.piepHz = f[P::zgPiepHz]; z.piepMs = f[P::zgPiepMs]; z.trask = f[P::zgTrask]; z.traskDelay = f[P::zgTraskDelay]; z.traskMs = f[P::zgTraskMs];
-                z.verb = f[P::zgVerb]; z.verbDecayMs = f[P::zgVerbDecay]; z.verbSize = f[P::zgVerbSize]; z.sendMs = f[P::zgVerbSend]; z.preMs = f[P::zgVerbPre];
-                z.gateMs = f[P::zgVerbGate]; z.dampHz = f[P::zgVerbDamp]; z.verbLowCut = f[P::zgVerbLowCut];
+                z.saw = f[P::zgSaw]; z.sawbOct = f.idx (P::zgSawbOct) - 1; z.sawbDetune = f[P::zgSawbDetune]; z.sawbLevel = f[P::zgSawbLevel];
+                z.startSt = f[P::zgStart]; z.dropMs = f[P::zgDrop]; z.curve = f[P::zgCurve]; z.rootSt = f[P::zgRoot]; z.lowCtrl = f[P::zgLowCtrl];
+                z.s1Fund = f[P::zgS1Fund]; z.s1MidHz = f[P::zgS1MidHz]; z.s1Mid = f[P::zgS1Mid]; z.s1LowCut = f[P::zgS1LowCut]; z.s1Drive = f[P::zgS1Drive];
+                z.s1Asym = f[P::zgS1Asym]; z.s1Curve = f[P::zgS1Curve];
+                z.s2Low = f[P::zgS2Low]; z.s2LowMid = f[P::zgS2LowMid]; z.s2Mid = f[P::zgS2Mid]; z.s2HiMid = f[P::zgS2HiMid]; z.s2Drive = f[P::zgS2Drive];
+                z.driveDb = f[P::zgDrive]; z.s3Asym = f[P::zgS3Asym]; z.bits = f[P::zgBits]; z.fold = f[P::zgFold]; z.dirt = f[P::zgDirt]; z.dirtHz = f[P::zgDirtTone];
+                z.squash = f[P::zgSquash]; z.finalTone = f[P::zgFinalTone]; z.press = f[P::zgPress]; z.knee = f[P::zgKnee];
+                z.fltType = f.idx (P::zgFltType); z.fltStart = f[P::zgFltStart]; z.fltEnd = f[P::zgFltEnd]; z.fltTime = f[P::zgFltTime]; z.fltCurve = f[P::zgFltCurve];
+                z.fltReso = f[P::zgFltReso]; z.fltLfo = f[P::zgFltLfo]; z.fltLfoHz = f[P::zgFltLfoRate];
+                z.subSrc = f.idx (P::zgSubSrc); z.sub = f[P::zgSub]; z.subFreq = f[P::zgSubFreq]; z.subDecay = f[P::zgSubDecay];
+                z.character = f[P::zgCharacter]; z.grit = f[P::zgGrit]; z.tone = f[P::zgTone]; z.focus = f[P::zgFocus]; z.width = f[P::zgWidth];
+                z.attackMs = f[P::zgAttack]; z.body = f[P::zgBody]; z.decay = f[P::zgDecay]; z.fade = f[P::zgFade];
+                auto& zp = cfg.zpunch;                                              // PUNCH TYPE ZAAG
+                zp.on = f.idx (P::punchMode) == 4;
+                zp.click = f[P::zgClick]; zp.piep = f[P::zgPiep]; zp.piepHz = f[P::zgPiepHz]; zp.piepMs = f[P::zgPiepMs];
+                zp.trask = f[P::zgTrask]; zp.traskDelay = f[P::zgTraskDelay]; zp.traskMs = f[P::zgTraskMs];
+                zp.verb = f[P::zgVerb]; zp.verbDecayMs = f[P::zgVerbDecay]; zp.verbSize = f[P::zgVerbSize]; zp.sendMs = f[P::zgVerbSend]; zp.preMs = f[P::zgVerbPre];
+                zp.gateMs = f[P::zgVerbGate]; zp.dampHz = f[P::zgVerbDamp]; zp.verbLowCut = f[P::zgVerbLowCut];
                 pt.source = f.idx (P::ptSource); pt.startSt = f[P::ptStart]; pt.holdMs = f[P::ptHold]; pt.dropMs = f[P::ptDropTime];
                 pt.rootSt = f[P::ptRoot]; pt.slideSt = f[P::ptSlide];
                 pt.resHz = f[P::ptResFreq]; pt.resQ = f[P::ptResQ]; pt.resAmt = f[P::ptResAmount];
@@ -1103,11 +1118,11 @@ namespace fge
                 const auto g0 = gainNow[(size_t) c], g1 = gainTarget[(size_t) c];
                 const float* x = b[c];
                 const bool wideTail = c == 2 && cfg.wide;
-                const bool roomHere = cfg.room.on && (c == 2 || (c == 0 && cfg.room.onTok));
+                const bool roomHere = cfg.room.on && ((c == 2 && ! cfg.zaag.on && ! cfg.pvcTail.on) || (c == 0 && cfg.room.onTok && ! cfg.zpunch.on));   // (the classic room: not on the engine parts)
                 auto* room = c == 0 ? tokRoom.get() : tailRoom.get();
                 if (roomHere) room->cook (cfg.room);
                 const bool colorHere = c == 2 && cfg.color.on && ! cfg.pvcTail.on && ! cfg.zaag.on;
-                const bool pvcHere = c == 2 && (cfg.pvcTail.on || cfg.zaag.on);                 // TAIL ENGINE PVC: replaces the tail's source, its own reverb / drive / gate
+                const bool pvcHere = (c == 2 && (cfg.pvcTail.on || cfg.zaag.on)) || (c == 0 && cfg.zpunch.on);   // an ENGINE replaces the part's source (rule 0: one engine per part)
                 const float noteNow = lastNoteHz * cfg.fineMul;
                 if (colorHere) tailColor.cook (cfg.color, cfg.keyTrack ? lastNoteHz * cfg.fineMul : cfg.endHz * cfg.fineMul, cfg.ks.rate);
                 float p = 0.f;
@@ -1116,7 +1131,8 @@ namespace fge
                     const float u = (float) (i + 1) * inv;
                     const float gl = g0.first + (g1.first - g0.first) * u, gr = g0.second + (g1.second - g0.second) * u;
                     float yl, yr;
-                    if (pvcHere && cfg.zaag.on) zaagU.process (cfg.zaag, msAt (i), noteNow, yl, yr);              // ZAAG: the whole kick
+                    if (pvcHere && c == 0) zpU.process (cfg.zpunch, msAt (i), noteNow, yl, yr);                  // PUNCH TYPE ZAAG
+                    else if (pvcHere && cfg.zaag.on) zaagU.process (cfg.zaag, msAt (i), noteNow, yl, yr);         // TAIL TYPE ZAAG
                     else if (pvcHere) pvcU.process (cfg.pvcTail, b[1][i], msAt (i), noteNow, yl, yr);   // (the room after it = the reverb after the cut)
                     else if (wideTail)
                     {
@@ -1317,7 +1333,8 @@ namespace fge
         std::unique_ptr<dsp::shaped::Renderer> shapedR = std::make_unique<dsp::shaped::Renderer>();
         std::unique_ptr<dsp::pvc::Renderer> pvcR = std::make_unique<dsp::pvc::Renderer>();          // PVC punch (owner 2026-11-14)
         dsp::pvctail::Unit pvcU;
-        dsp::zaag::Unit zaagU;   // SHAPED PUNCH (owner 2026-11-14)
+        dsp::zaag::Unit zaagU;
+        dsp::zaagpunch::Unit zpU;
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};
         float* const* curBus = nullptr;

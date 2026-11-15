@@ -94,7 +94,7 @@ namespace fge
         const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
         const juce::StringArray& lenSyncs()       { static const juce::StringArray a { "OFF", "1/4 BEAT", "1/2 BEAT", "1 BEAT", "2 BEATS" }; return a; }
         const juce::StringArray& tokModes()       { static const juce::StringArray a { "FOLLOW MIDI", "FIXED" }; return a; }
-        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK", "EUPHORIC", "PVC" }; return a; }
+        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK", "EUPHORIC", "PVC", "ZAAG" }; return a; }
         const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "OFFSET" }; return a; }
         const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE", "HYBRID" }; return a; }
         const juce::StringArray& pvcSources()   { static const juce::StringArray a { "SAW", "NOISE", "SNARE", "HYBRID" }; return a; }
@@ -104,6 +104,9 @@ namespace fge
         const juce::StringArray& pvcModels()    { static const juce::StringArray a { "KLOENK", "TUBE" }; return a; }
         const juce::StringArray& pvcPhModes()   { static const juce::StringArray a { "SWEEP", "LFO" }; return a; }
         const juce::StringArray& ptSources()    { static const juce::StringArray a { "KICK BODY", "SINE", "SAW", "HYBRID" }; return a; }
+        const juce::StringArray& zgOcts()       { static const juce::StringArray a { "-1 OCT", "SAME", "+1 OCT" }; return a; }
+        const juce::StringArray& zgFltTypes()   { static const juce::StringArray a { "LOWPASS", "BANDPASS" }; return a; }
+        const juce::StringArray& zgSubSrcs()    { static const juce::StringArray a { "SAW", "SINE", "DERIVED" }; return a; }
         const juce::StringArray& ptGateCurves() { static const juce::StringArray a { "HARD", "SOFT", "EXPONENTIAL", "STEPS" }; return a; }
         const juce::StringArray& gtGateDivs()   { static const juce::StringArray a { "1/8", "1/16", "1/32" }; return a; }
         const juce::StringArray& pshSubWaves() { static const juce::StringArray a { "SINE", "TRIANGLE" }; return a; }
@@ -341,14 +344,14 @@ namespace fge
             case ptLength:     return "PVC TAIL FINAL SHAPE: length from the start (ms).";
             case ptFade:       return "PVC TAIL FINAL SHAPE: the fade at the end (ms).";
             case ptGrow:       return "TAIL GROW: DRIVE 1 starts this much lower and rises to its value over the tail - the tail gets rougher and brighter as it goes (zaag).";
-            case zgStart: return "ZAAG: how far above the note the bass starts (semitones) - it falls to the note in DROP.";
-            case zgDrop: return "ZAAG: how fast the bass falls to the note (ms).";
-            case zgSaw: return "ZAAG: sine <-> saw before the drive.";
-            case zgDrive: return "ZAAG: the huge drive (square, full scale).";
+            case zgStart: return "ZAAG PITCH START: how far above the root the saw starts (semitones; CLASSIC zaag ~ +24, MODERN ~ +7).";
+            case zgDrop: return "ZAAG DROP TIME: how long the fall to the root takes (ms).";
+            case zgSaw: return "ZAAG SAW A: sine <-> saw.";
+            case zgDrive: return "ZAAG 03 DESTROY: the wall - the strongest drive.";
             case zgDirt: return "ZAAG: noise mixed BEFORE the drive - the dirt (different left / right = width).";
             case zgDirtTone: return "ZAAG: how bright the dirt is.";
             case zgSub: return "ZAAG: a clean sine on the note under it (the weight, mono).";
-            case zgPress: return "ZAAG PRESS: how hard the whole kick is pressed to full scale (the wall).";
+            case zgPress: return "ZAAG SOFT CLIPPER: how hard it is pressed (the wall).";
             case zgWidth: return "ZAAG: the width of the highs (the lows stay mono).";
             case zgClick: return "ZAAG: a 2 ms noise click at the very start.";
             case zgPiep: return "ZAAG PIEP: a short tonal pip FIRST (falls to half its pitch).";
@@ -365,6 +368,51 @@ namespace fge
             case zgVerbGate: return "ZAAG PUNCH REVERB: GATED reverb - cut after this (ms; 0 = off).";
             case zgVerbDamp: return "ZAAG PUNCH REVERB: brightness (damping).";
             case zgVerbLowCut: return "ZAAG PUNCH REVERB: the low cut of what goes in.";
+            case zgSawbOct: return "ZAAG SAW B: an octave down / the same / an octave up.";
+            case zgSawbDetune: return "ZAAG SAW B: a small detune (cents) - dense, not a big unison.";
+            case zgSawbLevel: return "ZAAG SAW B: its level.";
+            case zgCurve: return "ZAAG PITCH: the shape of the drop (0 = straight, 100 % = fast at the start).";
+            case zgRoot: return "ZAAG ROOT: the note of the tail against the played note (semitones).";
+            case zgLowCtrl: return "ZAAG LOW CONTROL: how much low end goes into the distortion stages (less = a steadier sub).";
+            case zgS1Fund: return "ZAAG 01 GENERATE: boost the fundamental (follows the note).";
+            case zgS1MidHz: return "ZAAG 01 GENERATE: the mid boost frequency.";
+            case zgS1Mid: return "ZAAG 01 GENERATE: the mid boost.";
+            case zgS1LowCut: return "ZAAG 01 GENERATE: an optional low cut (10 Hz = off).";
+            case zgS1Drive: return "ZAAG 01 GENERATE: the first waveshaper (richer harmonics, not the aggression yet).";
+            case zgS1Asym: return "ZAAG 01 GENERATE: asymmetry (even harmonics).";
+            case zgS1Curve: return "ZAAG 01 GENERATE: the curve (soft tanh -> a harder knee).";
+            case zgS2Low: return "ZAAG 02 CHARACTER: LOW = the weight.";
+            case zgS2LowMid: return "ZAAG 02 CHARACTER: LOW-MID = the mass.";
+            case zgS2Mid: return "ZAAG 02 CHARACTER: MID = the zaag growl.";
+            case zgS2HiMid: return "ZAAG 02 CHARACTER: HIGH-MID = the aggression.";
+            case zgS2Drive: return "ZAAG 02 CHARACTER: the second waveshaper.";
+            case zgS3Asym: return "ZAAG 03 DESTROY: asymmetry.";
+            case zgBits: return "ZAAG 03 DESTROY - EXPERIMENTAL: bit reduction (never randomized on).";
+            case zgFold: return "ZAAG 03 DESTROY - EXPERIMENTAL: wavefold (never randomized on).";
+            case zgSquash: return "ZAAG SQUASH: more low end into the soft clipper - a denser tail, fewer sticking-out transients, more energy in the middle.";
+            case zgFinalTone: return "ZAAG FINAL EQ: darker / brighter before the soft clipper.";
+            case zgKnee: return "ZAAG SOFT CLIPPER: the knee (gentle -> almost hard, never a sharp cut).";
+            case zgFltType: return "ZAAG FILTER MOVEMENT: low-pass or band-pass after the distortion.";
+            case zgFltStart: return "ZAAG FILTER MOVEMENT: where the filter starts.";
+            case zgFltEnd: return "ZAAG FILTER MOVEMENT: where it ends (lower = AAARRR...OOOW, higher = it opens).";
+            case zgFltTime: return "ZAAG FILTER MOVEMENT: how long the move takes.";
+            case zgFltCurve: return "ZAAG FILTER MOVEMENT: the curve of the move.";
+            case zgFltReso: return "ZAAG FILTER MOVEMENT: resonance.";
+            case zgFltLfo: return "ZAAG FILTER MOVEMENT: an LFO on top (the tail lives).";
+            case zgFltLfoRate: return "ZAAG FILTER MOVEMENT: the LFO rate.";
+            case zgSubSrc: return "ZAAG SUB SUPPORT: SAW (the raw saw low end), SINE, or DERIVED (the processed low end) - mono.";
+            case zgSubFreq: return "ZAAG SUB SUPPORT: the split between the sub and the rest.";
+            case zgSubDecay: return "ZAAG SUB SUPPORT: how fast the sub dies in the tail.";
+            case zgCharacter: return "ZAAG CHARACTER: CLEAN -> MILD SAW -> RAW -> HARSH -> LASER (drives, the EQ balance, asymmetry, focus, clip - at once).";
+            case zgGrit: return "ZAAG GRIT: all the distortion stages together.";
+            case zgTone: return "ZAAG TONE: every EQ an octave down (dark) / up (bright).";
+            case zgFocus: return "ZAAG FOCUS: how narrow the EQs pick the harmonics (dense <-> a singing tail).";
+            case zgLenFollow: return "ZAAG LENGTH: follow the kick length (LENGTH / SYNC) - it never ends between kicks.";
+            case zgLength: return "ZAAG LENGTH (when it does not follow the kick).";
+            case zgAttack: return "ZAAG SHAPE: attack.";
+            case zgBody: return "ZAAG SHAPE: how long it holds full level (of the length).";
+            case zgDecay: return "ZAAG SHAPE: how deep it goes down after the body.";
+            case zgFade: return "ZAAG SHAPE: the fade curve.";
             case pshTonalOnly: return "LAB: only the tonal layer (no CLICK, no SUB) - to design the character on its own.";
             case punchNoteMode:return "TOK note: FIXED = the tok plays PITCH on every MIDI note (e.g. always G); FOLLOW MIDI = it moves with the played note (keeping its distance to the tail note); OFFSET = the played note + NOTE OFFSET semitones.";
             case punchOverlap: return "The hand-over TOK -> BODY + TAIL: an equal-power crossfade this long (the tail starts from the tok note, in phase). ~20 ms = no audible seam, shorter = a harder cut.";

@@ -676,9 +676,11 @@ void GeCanvas::layoutDetail()
     if (d.empty()) return;
     int y = detailArea.getY() + 32, x = detailArea.getX() + 14;
     size_t k = 0;
-    // segmented rows (source, character)
+    // segmented rows (source, character) - the CLASSIC generator's: shown only with the CLASSIC type (ARCHITECTURE.md: only the picked TYPE's controls)
+    const bool classicSegs = selected == 0 ? (int) raw (proc, P::punchMode) <= 1 : selected == 2 ? (int) raw (proc, P::tailEngine) == 0 : true;
     while (k < d.size() && dynamic_cast<Seg*> (d[k]) != nullptr)
     {
+        d[k]->setVisible ((pageIdx == 0 && ! overview) && classicSegs);
         if (selected == 0)                                   // PUNCH / TOK: SOURCE | PUNCH / TOK | FIXED / FOLLOW MIDI + TOK NOTE
         {
             const int xs[3] { 0, 345, 495 }, ws[3] { 330, 140, 270 };
@@ -689,7 +691,7 @@ void GeCanvas::layoutDetail()
         d[k]->setBounds (x + (int) k * 420, y, jmin (400, items * 62), 26);
         ++k;
     }
-    if (selected == 0) tokNote.setBounds (x + 775, y + 1, 70, 24);
+    if (selected == 0) { tokNote.setBounds (x + 775, y + 1, 70, 24); tokNote.setVisible ((pageIdx == 0 && ! overview) && classicSegs); }
     y += 36;
     // a 2nd tab (TAIL: ROOM / COLOR): the items after the marker share the rows of the first tab, one tab shown at a time
     const int nAll = 1 + (int) std::count (d.begin(), d.end(), &detailPageMark);
@@ -735,6 +737,7 @@ void GeCanvas::layoutDetail()
     {
         if (d[k] == &detailPageMark) { ++tab; y = y0; i = 0; continue; }
         if (d[k] == nullptr) { y += Knob::heightFor (40) + 6; i = 0; continue; }       // row break
+        if (hiddenByVariant (d[k])) { d[k]->setVisible (false); continue; }               // (the row closes up)
         if (tabs) d[k]->setVisible ((pageIdx == 0 && ! overview) && tab == detailPage);
         if (dynamic_cast<ComboBox*> (d[k]) != nullptr || dynamic_cast<TextButton*> (d[k]) != nullptr) { d[k]->setBounds (x + i * 76, y + 22, 150, 26); i += 2; continue; }
         if (dynamic_cast<Toggle*> (d[k]) != nullptr) { d[k]->setBounds (x + i * 76, y + 24, 130, 22); i += 2; continue; }
@@ -1000,11 +1003,30 @@ std::vector<int> GeCanvas::allowedTabs() const                                //
     }
     return { 0, 1, 2, 3, 4, 5, 6 };
 }
+bool GeCanvas::hiddenByVariant (Component* c) const
+{
+    // ZAAG VARIANT (owner 2026-11-15): each variant shows only its own knobs. Everything still works underneath (presets, automation);
+    // RESONANT shows the whole sweep + resonator, the others hide what they do not use.
+    if (selected != 2 || (int) raw (proc, P::tailEngine) != 2) return false;
+    static const std::vector<const char*> hide[4] {
+        { "zg_sw_reopen", "zg_sw_hold", "zg_rsn_reso", "zg_rsn_width", "zg_rsn_pos" },             // CLASSIC: the tutorial chain, a simple resonator
+        {},                                                                                         // RESONANT: everything
+        { "zg_sw_reopen", "zg_sw_end", "zg_rsn_pos", "zg_s3_preamp" },                             // BOUNCE: the movement, not the sweep's tail
+        { "zg_sw_reopen", "zg_sw_hold", "zg_rsn_width", "zg_peak_q" } };                           // AGGRESSIVE: the distortion, not the resonance
+    const int v = juce::jlimit (0, 3, (int) raw (proc, P::zgVariant));
+    for (auto* id : hide[v])
+    {
+        auto r = byId.equal_range (id);
+        for (auto it = r.first; it != r.second; ++it) if (it->second == c) return true;
+    }
+    return false;
+}
 void GeCanvas::timerCallback()
 {
     {   // the TYPE changed (a click, undo, a preset): show its tabs
-        const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine);
-        if (pm != shownPunchType || te != shownTailType) { shownPunchType = pm; shownTailType = te; layoutDetail(); applyOverview(); repaint(); }
+        const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine), zv = (int) raw (proc, P::zgVariant);
+        if (pm != shownPunchType || te != shownTailType || zv != shownZgVariant)
+        { shownPunchType = pm; shownTailType = te; shownZgVariant = zv; layoutDetail(); applyOverview(); repaint(); }
     }
     presetBar.refresh();
     syncTokNote();

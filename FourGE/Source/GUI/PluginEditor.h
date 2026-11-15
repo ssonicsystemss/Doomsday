@@ -180,7 +180,8 @@ private:
     juce::TextButton detDice { "RANDOMIZE" };
     std::unique_ptr<fge::gui::LiveSpecView> liveSpec;
     juce::ComboBox* punchType = nullptr; juce::ComboBox* tailType = nullptr;                       // PUNCH TYPE / TAIL TYPE (ARCHITECTURE.md): only the picked type's tabs show
-    int shownPunchType = -1, shownTailType = -1;
+    int shownPunchType = -1, shownTailType = -1, shownZgVariant = -1;
+    bool hiddenByVariant (juce::Component* c) const;    // ZAAG VARIANT: each variant shows only its knobs
     // MAIN OVERVIEW (ARCHITECTURE.md step 3, owner's sketch): PUNCH | TAIL side by side (TYPE + its key knobs + ALL PARAMETERS),
     // a strip CLICK / SUB PUNCH / BODY / SCREECH / MIX, MASTER; ALL PARAMETERS (or a click on a part) = the full detail view
     bool overview = true;

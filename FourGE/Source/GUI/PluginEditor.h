@@ -43,7 +43,7 @@ public:
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
     void selectPart (int);
-    void tailTab (int t) { detailPage = juce::jlimit (0, 5, t); layoutDetail(); repaint(); }
+    void tailTab (int t) { detailPage = juce::jlimit (0, 6, t); layoutDetail(); repaint(); }
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
@@ -157,8 +157,7 @@ private:
     void applyTooltips();
     juce::ComboBox tokNote;                                          // TOK NOTE: sets START to a note (owner 2026-11-09)
     juce::Component detailPageMark;                                 // (a marker in a part's detail list: the items after it = the 2nd tab)
-    juce::TextButton detTab[6];
-    juce::TextButton zgClassicBtn { "CLASSIC ZAAG" }, zgModernBtn { "MODERN ZAAG" };   // ZAAG MODE: sets the start values (one undo)                                      // TAIL detail tabs: TONE / ROOM + COLOR (owner 2026-11-12)
+    juce::TextButton detTab[7];
     int detailPage = 0;
     void syncTokNote();
 public:
@@ -167,6 +166,15 @@ private:
     void typeValue (doomsday::flat::Knob&);
     int pageBeforePresets = 0;
     juce::TextButton lengthBtn;
+    // LENGTH = a slider (owner 2026-11-15: any length, automatable); right-click = the SHORT / MEDIUM / LONG / EXTRA LONG shortcuts + the LENGTH panel
+    struct LengthSlider : juce::Slider
+    {
+        std::function<void()> onMenu;
+        void mouseDown (const juce::MouseEvent& e) override { if (e.mods.isPopupMenu() && onMenu) { onMenu(); return; } juce::Slider::mouseDown (e); }
+    };
+    LengthSlider lengthSlider;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lengthAtt;
+    juce::Component* kickEndTop = nullptr;                          // KICK END next to the LENGTH (a shorter note cuts, it never shortens)
     juce::Slider rndStrength { juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox };   // RANDOMIZE STRENGTH (owner 2026-11-14)
     juce::Label rndLabel { {}, "RND POWER" };
     juce::TextButton detDice { "RANDOMIZE" };

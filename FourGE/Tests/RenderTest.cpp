@@ -238,6 +238,14 @@ int main (int argc, char** argv)
             for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
             { auto im = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
               FileOutputStream o2 (File (argv[1]).getChildFile ("page00_pvctail.png")); if (o2.openedOk()) { o2.setPosition (0); o2.truncate(); png.writeImageToStream (im, o2); } }
+            if (auto* te = p.apvts.getParameter ("tail_engine")) te->setValueNotifyingHost (te->convertTo0to1 (2.f));    // + the ZAAG ENGINE tabs
+            for (int t : { 4, 5, 6 })
+            {
+                ge->canvas.selectPart (2); ge->canvas.tailTab (t);
+                for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+                auto im = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+                FileOutputStream o2 (File (argv[1]).getChildFile ("page00_zaag" + String (t - 3) + ".png")); if (o2.openedOk()) { o2.setPosition (0); o2.truncate(); png.writeImageToStream (im, o2); }
+            }
             ge->canvas.tailTab (3);
             for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
             { auto im = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
@@ -606,13 +614,14 @@ int main (int argc, char** argv)
         }
         check (minD > 1.5, "TAIL CHARACTER: 7 modes have 7 different harmonic profiles", "closest " + pair + " " + String (minD, 1) + " dB / harmonic");
     }
-    // ---------------------------------------------------------------- 14.7 MIDI Note On triggers, Note Off does not cut
+    // ---------------------------------------------------------------- 14.7 MIDI Note On triggers, Note Off does not cut (KICK END = LENGTH; NOTE is the default since 2026-11-15)
     {
         GeProcessor p;
+        p.apvts.getParameter ("core_note_cut")->setValueNotifyingHost (0.f);
         auto silent = hitProc (p, {}, 0.3);
         auto hit = hitProc (p, { { 100, MidiMessage::noteOn (1, G1, 1.f) } }, 0.6);
         auto off = hitProc (p, { { 100, MidiMessage::noteOn (1, G1, 1.f) }, { 2300, MidiMessage::noteOff (1, G1) } }, 0.6);
-        check (peak (silent) == 0.f && peak (hit) > 0.2f && diff (hit, off) < 1.0e-7, "14.7 Note On plays the kick, Note Off never cuts it",
+        check (peak (silent) == 0.f && peak (hit) > 0.2f && diff (hit, off) < 1.0e-7, "14.7 Note On plays the kick, Note Off never cuts it (KICK END = LENGTH)",
                "peak " + String (peak (hit), 2) + ", off diff " + String (diff (hit, off), 9));
         // velocity sensitivity
         setP (p, "core_velocity", 1.f);
@@ -708,6 +717,12 @@ int main (int argc, char** argv)
             if (id == P::bodyMix || id == P::punchMix) { a[id - 1] = b[id - 1] = 0.8f; }
             if (id == P::tailMix) { a[P::tailDrive] = b[P::tailDrive] = 0.8f; }
             if (id == P::corePhaseRst) { /* needs two kicks: checked below */ continue; }
+            bool retired = false;
+            // RETIRED by the ZAAG ENGINE (owner's tutorial 2026-11-15): kept for old projects, not on any page, no sound (ZAAG_ENGINE.md)
+            for (auto* r : { "zg_saw", "zg_sawb_oct", "zg_sawb_detune", "zg_s2_low", "zg_s2_low_mid", "zg_s2_mid", "zg_s2_hi_mid", "zg_bits", "zg_fold", "zg_tone", "zg_focus",
+                             "zg_flt_type", "zg_flt_start", "zg_flt_end", "zg_flt_time", "zg_flt_curve", "zg_flt_reso", "zg_flt_lfo", "zg_flt_lfo_rate" })
+                if (String (d.id) == r) { retired = true; break; }
+            if (retired) continue;
             if (id == P::coreVoice || id == P::coreVelocity) continue;                 // MIDI behaviour, checked above
             if (id == P::coreAutoLen) { a[P::coreLength] = b[P::coreLength] = 1200.f; }
             if (id == P::peEnd || id == P::subPitch) { a[P::coreKeyTrack] = b[P::coreKeyTrack] = 0.f; }
@@ -1100,12 +1115,14 @@ int main (int argc, char** argv)
                 if (sid.startsWith ("pt_")) set2 ("tail_engine", 1.f);
                 if (sid.startsWith ("zg_"))                                                                       // ZAAG: the punch params need PUNCH TYPE ZAAG, the rest TAIL TYPE ZAAG
                 {
-                    if (sid.startsWith ("zg_click") || sid.startsWith ("zg_piep") || sid.startsWith ("zg_trask") || sid.startsWith ("zg_verb")) set2 ("punch_mode", 4.f);
+                    if (sid.startsWith ("zg_click") || sid.startsWith ("zg_piep") || sid.startsWith ("zg_trask") || sid.startsWith ("zg_verb") || sid.startsWith ("zg_thump")) set2 ("punch_mode", 4.f);
+                    if (sid == "zg_thump_hz" || sid == "zg_thump_ms" || sid == "zg_thump_drive") set2 ("zg_thump", 1.f);
                     else set2 ("tail_engine", 2.f);
                 }
                 if (sid == "zg_piep_hz" || sid == "zg_piep_ms") set2 ("zg_piep", 0.8f);
-                if (sid == "zg_flt_lfo_rate") set2 ("zg_flt_lfo", 0.5f);
-                if (sid == "zg_length") set2 ("zg_len_follow", 0.f);                                          // TAIL ENGINE PVC (owner 2026-11-14)
+                if (sid == "zg_length") set2 ("zg_len_follow", 0.f);
+                if (sid == "zg_side_boost_hz") set2 ("zg_side_boost", 9.f);                                 // ZAAG ENGINE (ZAAG_ENGINE.md)
+                if (sid == "zg_sw_reopen" || sid == "zg_sw_end" || sid == "zg_sw_hold") set2 ("zg_peak", 15.f);                                          // TAIL ENGINE PVC (owner 2026-11-14)
                 if (sid == "pt_movement") set2 ("gt_gate", 1.f);
                 if (sid == "pt_start" || sid == "pt_hold" || sid == "pt_drop_time" || sid == "pt_root" || sid == "pt_slide") set2 ("pt_source", 1.f);
                 if (sid == "pt_res_freq" || sid == "pt_res_q") set2 ("pt_res_amount", 0.7f);
@@ -4525,6 +4542,69 @@ int main (int argc, char** argv)
             const float hz = 20.f * std::pow (1000.f, (float) pk / 239.f);
             check (hz > 900.f && hz < 1100.f && db[(size_t) pk] > -3.f && db[(size_t) pk] < 1.f && db[10] < -40.f, "LIVE SPECTRUM: the output tap shows a 1 kHz sine at ~0 dB near 1 kHz",
                    String (hz, 0) + " Hz " + String (db[(size_t) pk], 1) + " dB");
+        }
+        {   // ZAAG ENGINE (owner's tutorial 2026-11-15): a cascade (DIST 1 changes what DIST 3 gets), the lows never on the side,
+            // the movements scale with KICK LENGTH, and KICK END = NOTE cuts the engines too
+            namespace zg = fge::dsp::zaag;
+            const double fs = 176400.0;
+            auto run = [&] (zg::Settings st, float lenMs, std::vector<float>* L, std::vector<float>* R, float probeAt, float* shelf, float* sweep)
+            {
+                auto u = std::make_unique<zg::Unit>(); u->prepare (fs); st.on = true; st.lengthMs = lenMs;
+                const int n = (int) (lenMs * 0.001 * fs);
+                for (int i = 0; i < n; ++i)
+                {
+                    float l, r; const float ms = (float) (i * 1000.0 / fs);
+                    u->process (st, ms, 49.f, l, r);
+                    if (L != nullptr) { L->push_back (l); R->push_back (r); }
+                    if (shelf != nullptr && std::abs (ms - probeAt * lenMs) < 0.5f * (float) (1000.0 / fs) * 33.f) { *shelf = u->lastShelf(); *sweep = u->lastSweepHz(); }
+                }
+            };
+            // 1) cascade: DIST 1 off vs on changes the energy above 2 kHz at the output (it went through DIST 2 / 3 / clip)
+            auto hiRms = [&] (const std::vector<float>& x)
+            {
+                fge::dsp::bq::Biquad h1, h2; h1.hp (fs, 2000.0, 0.7071); h2.hp (fs, 2000.0, 0.7071); double q = 0;
+                for (float v : x) { const float y = h2.tick (h1.tick (v)); q += (double) y * y; }
+                return 10.0 * std::log10 (q / (double) std::max<size_t> (1, x.size()) + 1e-12);
+            };
+            zg::Settings a; a.d1Db = 0.f; a.d1Mix = 0.f; zg::Settings b; b.d1Db = 24.f;
+            std::vector<float> la, ra, lb, rb; run (a, 400.f, &la, &ra, 0, nullptr, nullptr); run (b, 400.f, &lb, &rb, 0, nullptr, nullptr);
+            const double dHi = std::abs (hiRms (la) - hiRms (lb));
+            check (dHi > 1.0, "ZAAG CASCADE: DIST 1 changes what the later stages make (the highs at the output move)", String (dHi, 1) + " dB");
+            // 2) lows mono: everything wide (width, stereo, resonator width, side boost) -> the side below 80 Hz stays ~ -45 dB under the mid
+            zg::Settings w; w.width = 2.f; w.stereo = 1.f; w.rsnWidth = 1.f; w.rsnMix = 1.f; w.sideBoost = 12.f; w.sideBoostHz = 800.f; w.hverb = 1.f; w.dirt = 0.3f;
+            std::vector<float> lw, rw; run (w, 400.f, &lw, &rw, 0, nullptr, nullptr);
+            fge::dsp::bq::Biquad mf[4], sf[4];                                      // (a steep 60 Hz low-pass: the allowed side above the cut must not leak into the measure)
+            for (auto* bb : { &mf[0], &mf[1], &mf[2], &mf[3], &sf[0], &sf[1], &sf[2], &sf[3] }) bb->lp (fs, 60.0, 0.7071);
+            double qm = 0, qs = 0;
+            for (size_t i = 0; i < lw.size(); ++i)
+            {
+                float mm = 0.5f * (lw[i] + rw[i]), sd = 0.5f * (lw[i] - rw[i]);
+                for (int k = 0; k < 4; ++k) { mm = mf[k].tick (mm); sd = sf[k].tick (sd); }
+                qm += mm * mm; qs += sd * sd;
+            }
+            const double sideLow = 10.0 * std::log10 ((qs + 1e-12) / (qm + 1e-12));
+            check (sideLow < -40.0, "ZAAG STEREO: the lows stay mono (side under 60 Hz) with every stereo control at max", String (sideLow, 1) + " dB");
+            // 3) KICK-LENGTH SYNC: at the same part of the kick the shelf and the sweep are the same at 120 ms and 220 ms
+            float sh1 = -1, sw1 = -1, sh2 = -2, sw2 = -2;
+            zg::Settings k; k.dropMs = 0.1f;                                     // (the pitch drop is the hit - in ms; out of the way here)
+            run (k, 120.f, nullptr, nullptr, 0.5f, &sh1, &sw1); run (k, 220.f, nullptr, nullptr, 0.5f, &sh2, &sw2);
+            check (std::abs (sh1 - sh2) < 0.03f && std::abs (sw1 - sw2) < 0.03f * std::max (sw1, 1.f),
+                   "ZAAG KICK-LENGTH SYNC: the moving shelf and the resonant sweep scale with KICK LENGTH (120 vs 220 ms)",
+                   String (sh1, 2) + " / " + String (sh2, 2) + ", " + String (sw1, 0) + " / " + String (sw2, 0) + " Hz");
+            // 4) KICK END = NOTE: a short note cuts PUNCH ZAAG + TAIL ZAAG (the engines, not only the classic voice)
+            GeProcessor q;
+            fge::style::apply (q, fge::style::Zaag, false);
+            q.apvts.getParameter ("core_note_cut")->setValueNotifyingHost (q.apvts.getParameter ("core_note_cut")->convertTo0to1 (1.f));
+            auto cut = renderKick (q.frame(), 31, 44100.0, 0.6, -1, 1.f, &q.shapes(), 0.0, 0.1, nullptr, &q.oscData(), &q.distData(), nullptr, &q.modAudioCopy());
+            float after = 0.f, before = 0.f;
+            for (int i = 0; i < cut.getNumSamples(); ++i)
+            {
+                const float v = std::abs (cut.getSample (0, i)), t = (float) i / 44100.f;
+                if (t > 0.13f && t < 0.3f) after = std::max (after, v);
+                if (t > 0.03f && t < 0.09f) before = std::max (before, v);
+            }
+            check (before > 0.1f && after < 0.02f, "KICK END = NOTE: a 100 ms note cuts the ZAAG engines (punch + tail) right after the note",
+                   String (before, 2) + " -> " + String (after, 3));
         }
         {   // PAGE RANDOMIZE (owner 2026-11-14): a dice per page / tab with the one RND POWER; the style switches stay; DIST may add a stage; one undo step
             GeProcessor q; fge::pagernd::setStrength (q, 1.f);

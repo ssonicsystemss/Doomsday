@@ -131,7 +131,8 @@ namespace fge::style
                        {} },
             // ZAAG (owner 2026-11-14): TAIL ENGINE ZAAG = the whole kick (the punch / body / sub generators silent), defaults = his O2 (piep then trask) + punch reverb
             Template { { { "punch_mode", 4 }, { "tail_engine", 2 }, { "tail_level", 0 }, { "body_level", -60 }, { "sub_level", -60 },    // a STYLE only picks the TYPES (+ values)
-                         { "zg_verb_pre", 25 }, { "zg_verb_damp", 9000 }, { "zg_verb_size", 1.6f }, { "zg_verb_decay", 2000 }, { "zg_verb_low_cut", 700 } },
+                         { "zg_verb_pre", 25 }, { "zg_verb_damp", 9000 }, { "zg_verb_size", 1.6f }, { "zg_verb_decay", 2000 }, { "zg_verb_low_cut", 700 },
+                         { "master_clip_drive", 4 } },    // MASTER: the final waveshaper squeezes the kick to 0 dB (oversampled; not the only level control)
                        {} },
         };
         return t[(size_t) juce::jlimit (0, NumStyles - 1, s)];

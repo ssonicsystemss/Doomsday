@@ -936,22 +936,28 @@ namespace fge
                 pt.on = f.idx (P::tailEngine) == 1;
                 auto& z = cfg.zaag;                                                 // TAIL ENGINE ZAAG
                 z.on = f.idx (P::tailEngine) == 2;
-                z.saw = f[P::zgSaw]; z.sawbOct = f.idx (P::zgSawbOct) - 1; z.sawbDetune = f[P::zgSawbDetune]; z.sawbLevel = f[P::zgSawbLevel];
-                z.startSt = f[P::zgStart]; z.dropMs = f[P::zgDrop]; z.curve = f[P::zgCurve]; z.rootSt = f[P::zgRoot]; z.lowCtrl = f[P::zgLowCtrl];
-                z.s1Fund = f[P::zgS1Fund]; z.s1MidHz = f[P::zgS1MidHz]; z.s1Mid = f[P::zgS1Mid]; z.s1LowCut = f[P::zgS1LowCut]; z.s1Drive = f[P::zgS1Drive];
-                z.s1Asym = f[P::zgS1Asym]; z.s1Curve = f[P::zgS1Curve];
-                z.s2Low = f[P::zgS2Low]; z.s2LowMid = f[P::zgS2LowMid]; z.s2Mid = f[P::zgS2Mid]; z.s2HiMid = f[P::zgS2HiMid]; z.s2Drive = f[P::zgS2Drive];
-                z.driveDb = f[P::zgDrive]; z.s3Asym = f[P::zgS3Asym]; z.bits = f[P::zgBits]; z.fold = f[P::zgFold]; z.dirt = f[P::zgDirt]; z.dirtHz = f[P::zgDirtTone];
-                z.squash = f[P::zgSquash]; z.finalTone = f[P::zgFinalTone]; z.press = f[P::zgPress]; z.knee = f[P::zgKnee];
-                z.fltType = f.idx (P::zgFltType); z.fltStart = f[P::zgFltStart]; z.fltEnd = f[P::zgFltEnd]; z.fltTime = f[P::zgFltTime]; z.fltCurve = f[P::zgFltCurve];
-                z.fltReso = f[P::zgFltReso]; z.fltLfo = f[P::zgFltLfo]; z.fltLfoHz = f[P::zgFltLfoRate];
+                z.variant = f.idx (P::zgVariant);
+                z.highSaw = f[P::zgSawbLevel]; z.startSt = f[P::zgStart]; z.dropMs = f[P::zgDrop]; z.curve = f[P::zgCurve]; z.rootSt = f[P::zgRoot];
+                z.lowCtrl = f[P::zgLowCtrl]; z.fundDb = f[P::zgS1Fund]; z.midHz = f[P::zgS1MidHz]; z.midDb = f[P::zgS1Mid]; z.lowCut = f[P::zgS1LowCut];
+                z.d1Db = f[P::zgS1Drive]; z.d1Asym = f[P::zgS1Asym]; z.d1Hard = f[P::zgS1Curve]; z.d1Mix = f[P::zgS1Mix];
+                z.shelfDb = f[P::zgEqmShelf]; z.motionDepth = f[P::zgEqmDepth]; z.motionTime = f[P::zgEqmTime]; z.d2Db = f[P::zgS2Drive];
+                z.swDb = f[P::zgPeak]; z.swQ = f[P::zgPeakQ]; z.swStart = f[P::zgSwStart]; z.swPlateau = f[P::zgSwPlateau]; z.swEnd = f[P::zgSwEnd];
+                z.swHold = f[P::zgSwHold]; z.swReopen = f[P::zgSwReopen];
+                z.rsnMode = f.idx (P::zgRsnMode); z.rsnPos = f.idx (P::zgRsnPos); z.rsnFreq = f[P::zgRsnFreq]; z.rsnReso = f[P::zgRsnReso];
+                z.rsnWidth = f[P::zgRsnWidth]; z.rsnMix = f[P::zgRsnMix];
+                z.d3Type = f.idx (P::zgS3Type); z.d3Db = f[P::zgDrive]; z.d3Preamp = f[P::zgS3Preamp]; z.d3Asym = f[P::zgS3Asym]; z.d3Mix = f[P::zgS3Mix];
+                z.distEnv = f[P::zgDistEnv]; z.dirt = f[P::zgDirt]; z.dirtHz = f[P::zgDirtTone];
+                z.subPush = f[P::zgSquash]; z.lmCut = f[P::zgLmCut]; z.highEnh = f[P::zgFinalTone]; z.press = f[P::zgPress]; z.knee = f[P::zgKnee];
+                z.sideCut = f[P::zgSideCut]; z.sideBoostHz = f[P::zgSideBoostHz]; z.sideBoost = f[P::zgSideBoost]; z.width = f[P::zgWidth]; z.hverb = f[P::zgHverb];
                 z.subSrc = f.idx (P::zgSubSrc); z.sub = f[P::zgSub]; z.subFreq = f[P::zgSubFreq]; z.subDecay = f[P::zgSubDecay];
-                z.character = f[P::zgCharacter]; z.grit = f[P::zgGrit]; z.tone = f[P::zgTone]; z.focus = f[P::zgFocus]; z.width = f[P::zgWidth];
+                z.zaag = f[P::zgZaag]; z.drive = f[P::zgGrit]; z.resonance = f[P::zgResonance]; z.movement = f[P::zgMovement]; z.bass = f[P::zgBass];
+                z.stereo = f[P::zgStereo]; z.crush = f[P::zgCrush]; z.character = f[P::zgCharacter];
                 z.attackMs = f[P::zgAttack]; z.body = f[P::zgBody]; z.decay = f[P::zgDecay]; z.fade = f[P::zgFade];
                 auto& zp = cfg.zpunch;                                              // PUNCH TYPE ZAAG
                 zp.on = f.idx (P::punchMode) == 4;
                 zp.click = f[P::zgClick]; zp.piep = f[P::zgPiep]; zp.piepHz = f[P::zgPiepHz]; zp.piepMs = f[P::zgPiepMs];
-                zp.trask = f[P::zgTrask]; zp.traskDelay = f[P::zgTraskDelay]; zp.traskMs = f[P::zgTraskMs];
+                zp.trask = f[P::zgTrask]; zp.traskDelay = f[P::zgTraskDelay]; zp.traskMs = f[P::zgTraskMs]; zp.traskTone = f[P::zgTraskTone];
+                zp.thump = f[P::zgThump]; zp.thumpHz = f[P::zgThumpHz]; zp.thumpMs = f[P::zgThumpMs]; zp.thumpDriveDb = f[P::zgThumpDrive];
                 zp.verb = f[P::zgVerb]; zp.verbDecayMs = f[P::zgVerbDecay]; zp.verbSize = f[P::zgVerbSize]; zp.sendMs = f[P::zgVerbSend]; zp.preMs = f[P::zgVerbPre];
                 zp.gateMs = f[P::zgVerbGate]; zp.dampHz = f[P::zgVerbDamp]; zp.verbLowCut = f[P::zgVerbLowCut];
                 pt.source = f.idx (P::ptSource); pt.startSt = f[P::ptStart]; pt.holdMs = f[P::ptHold]; pt.dropMs = f[P::ptDropTime];
@@ -1144,6 +1150,11 @@ namespace fge
                     }
                     else { yl = x[i]; yr = x[i]; }
                     if (! pvcHere) { yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i]; }  // module 04: layers on this part's bus
+                    if (pvcHere && cfg.noteCut && relMs >= 0.f)                                   // KICK END = NOTE: the engines stop with the note too (5 ms fade)
+                    {
+                        const float cg = juce::jlimit (0.f, 1.f, 1.f - (msAt (i) - relMs) / 5.f);
+                        yl *= cg; yr *= cg;
+                    }
                     if (roomHere) room->process (cfg.room, yl, yr, juce::jlimit (0.f, 1.f, (cfg.ks.lengthMs - msAt (i)) / 40.f));               // TAIL ROOM: before everything that distorts the tail
                     if (m6 && cfg.m06.at (c + 1, 0)) m06St->process (cfg.m06, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 BEFORE
                     if (m7 && cfg.tone.at (c + 1, 0)) toneSt->process (cfg.tone, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 BEFORE

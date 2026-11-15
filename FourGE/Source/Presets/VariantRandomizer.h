@@ -91,14 +91,14 @@ namespace fge::variant
                             { "zg_verb", 1.5f, 3 }, { "zg_verb_decay", 1500, 2600 }, { "zg_verb_size", 1.1f, 1.6f }, { "zg_verb_send", 0, 0, { 30, 60, 80, 80 } },
                             { "zg_verb_pre", 0, 25 }, { "zg_verb_gate", 0, 0, { 0, 0, 170 } }, { "zg_verb_damp", 4500, 9500 }, { "zg_verb_low_cut", 400, 900 } };
             t[ABody]    = { { "body_level", 0, 0, { -60 } } };
-            t[ATail]    = { { "tail_engine", 0, 0, { 2 } }, { "zg_character", 0.3f, 0.85f }, { "zg_grit", 0.35f, 0.75f }, { "zg_tone", -0.4f, 0.5f }, { "zg_focus", 0.2f, 0.7f },
-                            { "zg_squash", 0.3f, 0.8f }, { "zg_sawb_level", 0.2f, 0.7f }, { "zg_sawb_oct", 0, 0, { 1, 2, 2 } }, { "zg_sawb_detune", 3, 15 },
-                            { "zg_s2_mid", -2, 4 }, { "zg_s2_hi_mid", -3, 5 }, { "zg_dirt", 0.03f, 0.1f }, { "zg_width", 0.4f, 0.9f },
-                            { "zg_flt_start", 8000, 16000 }, { "zg_flt_end", 1500, 6000 }, { "zg_flt_time", 150, 400 }, { "zg_flt_reso", 0.7f, 2.5f },
-                            { "zg_body", 0.5f, 0.85f }, { "zg_decay", 0.2f, 0.6f } };            // (EXPERIMENTAL bits / fold: never)
-            t[ASub]     = { { "sub_level", 0, 0, { -60 } }, { "zg_sub", 1.2f, 1.8f }, { "zg_sub_src", 0, 0, { 1, 1, 2 } } };
-            t[APitch]   = { { "zg_start", 7, 24 }, { "zg_drop", 40, 130 }, { "zg_curve", 0.3f, 0.8f } };
-            t[ADrive]   = { { "master_clip_drive", 2, 3 } };
+            t[ATail]    = { { "tail_engine", 0, 0, { 2 } }, { "zg_variant", 0, 0, { 0, 0, 1, 2, 3 } }, { "zg_zaag", 0.35f, 0.75f }, { "zg_grit", 0.35f, 0.75f },
+                            { "zg_resonance", 0.3f, 0.75f }, { "zg_movement", 0.3f, 0.75f }, { "zg_bass", 0.35f, 0.65f }, { "zg_stereo", 0.35f, 0.7f },
+                            { "zg_crush", 0.3f, 0.7f }, { "zg_character", 0.3f, 0.8f }, { "zg_s3_type", 0, 0, { 0, 1, 1, 2, 4, 6 } },   // (FOLD / DIGITAL: never by itself)
+                            { "zg_sawb_level", 0.15f, 0.4f }, { "zg_squash", 0.1f, 0.4f }, { "zg_dirt", 0.05f, 0.15f }, { "zg_rsn_mode", 0, 0, { 0, 1, 2 } }, { "zg_rsn_mix", 0.1f, 0.4f },
+                            { "zg_sw_plateau", 4, 12 }, { "zg_sw_start", 10, 24 }, { "zg_eqm_time", 0.12f, 0.28f }, { "zg_body", 0.5f, 0.85f }, { "zg_decay", 0.2f, 0.6f } };
+            t[ASub]     = { { "sub_level", 0, 0, { -60 } }, { "zg_sub", 0.8f, 1.3f }, { "zg_sub_src", 0, 0, { 1, 1, 2 } } };
+            t[APitch]   = { { "zg_start", 8, 16 }, { "zg_drop", 60, 130 }, { "zg_curve", 0.3f, 0.8f } };
+            t[ADrive]   = { { "master_clip_drive", 3, 5 } };
             t[AScreech] = { { "scr_on", 0, 0, { 0 } } };
             return t;
         }();

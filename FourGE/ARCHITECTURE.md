@@ -46,7 +46,7 @@ Kick timeline (every engine respects it):
 ├── 03 TAIL ENGINE       TAIL TYPE (tail_engine)
 │   ├── CLASSIC          tail_*, body_* (body = its own part)
 │   ├── PVC              pt_*, gt_*
-│   └── ZAAG             zg_*   (rebuild in progress: 2 saws -> pitch -> EQ/waveshape x3 -> final EQ + SQUASH -> soft clip -> filter movement -> shape)
+│   └── ZAAG             zg_*   ZAAG ENGINE (owner's tutorial, FourGE/ZAAG_ENGINE.md): VARIANT CLASSIC / RESONANT / BOUNCE / AGGRESSIVE, 8 ZAAG macros
 ├── 04 CHARACTER / MOVE  screech (scr_*, m06 filters), resonance, filter movement, modulation (module 09)
 ├── 05 MIX / SPACE       core mixer (mix_*), layers (module 04), stereo (spc_*), room / reverb, EQ (m07)
 └── 06 MASTER            distortion pool (dist*, per location), dynamics (m08), clipper, limiter, output
@@ -58,6 +58,11 @@ Kick timeline (every engine respects it):
    no engine reads another engine's parameters or sound, no engine includes another engine's header (shared helpers like
    the biquad live in a neutral file). Punch things (click, piep, trask, punch reverb) live ONLY in PUNCH TYPEs, tail things
    ONLY in TAIL TYPEs. Switching a TYPE turns the previous engine off completely. A STYLE only picks a PUNCH TYPE + TAIL TYPE.
+
+0b. **First separate PUNCH and TAIL engines built on real sound-design methods, then the common interface** (owner 2026-11-15).
+   A TYPE may have VARIANTS (e.g. TAIL ZAAG → CLASSIC / RESONANT / BOUNCE / AGGRESSIVE) instead of 30 universal knobs.
+0c. **ZAAG = a chain of dependent nonlinear processes, not a distortion preset**: every stage changes the signal for the next, no level
+   matching in between; every movement in fractions of KICK LENGTH, never in ms; LOW → mono, HIGH → width (ZAAG_ENGINE.md).
 
 1. A new technique = a new TYPE (or SUBTYPE) inside PUNCH or TAIL, or a block inside CHARACTER – never a free-floating module.
 2. Parameter names carry their OWNER in the GUI label / name: PUNCH DRIVE, TAIL DRIVE, SCREECH DRIVE, MASTER DRIVE –
@@ -87,4 +92,5 @@ Kick timeline (every engine respects it):
 ## 6. Build order (2026-11-14)
 
 1. this file  2. PUNCH TYPE / TAIL TYPE drop-downs that SHOW only their type's controls  3. the main screen per the sketch
-4. owner names on labels  5. ZAAG tail rebuilt per the owner's spec (memory / Shared/RESEARCH.md)  6. TOK as its own layer before PUNCH
+4. owner names on labels  5. ZAAG ENGINE per the owner's tutorial (done 2026-11-15, ZAAG_ENGINE.md)  6. TOK as its own layer before PUNCH
+7. KICK LENGTH = a slider in the top bar (any length, automatable) + KICK END next to it (NOTE = a shorter note cuts, default)

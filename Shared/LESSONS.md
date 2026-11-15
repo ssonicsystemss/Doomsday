@@ -429,3 +429,12 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   uderzenie trzyma ~650 Hz, bas od ~54 ms. Rozwiązanie (Eternize): warstwa tonalna z SZEROKOPASMOWEGO źródła (werbel +14 st / szum) →
   podbicie środka → przester → tape stop → volume shaper; click i opóźniony sub osobno = PUNCH MODE SHAPED. Lekcja: gdy obróbka nic
   nie daje, zmienić ŹRÓDŁO; i mierzyć wzorce w strefach czasowych zanim się zgaduje. Punch ginął pod ogonem → +4 dB, ogon / body attack 20 / 15 ms.
+- **4GE – ZAAG: „nie brzmią jak zaag”, „w lepszą stronę ale to jeszcze nie to”, „brakuje jebnięcia na początku” (owner, 2026-11-15)** –
+  (1) przy przebudowie NIGDY nie zmieniać zatwierdzonego brzmienia: najpierw odtworzyć je 1:1 na nowym kodzie, potem zmieniać;
+  dopasowanie liczb (pasma / RMS) do referencji ≠ brzmienie. (2) „Jebnięcie” zaaga = DÓŁ (20–150 Hz) pełny od ~10 ms: start pitchu
+  +24 st (~200 Hz) dawał energię w 150–500 Hz = „pierdnięcie”; start +12 st + czysty sub od 0 ms + niski THUMP (130 Hz) = jak OPS.
+  (3) Kaskada: za duży drive / za gorący końcowy clip robi z każdego wejścia kwadrat na f0 – wtedy DIST 1 / 2 / 3 nic nie zmieniają
+  i góra jest ciemna (1/n); etapy mają pracować umiarkowanie, a test ZAAG CASCADE pilnuje, że DIST 1 zmienia wynik. (4) Wstawiając
+  kod do łańcucha `if / else if` w pętli części, nie rozrywać go – wstawka „if” przed `else if (wideTail)` nadpisywała wyjście
+  silnika ZAAG klasycznym ogonem (wszystkie renderingi identyczne). Sprawdzać: zmiana gałki silnika musi zmienić plik.
+

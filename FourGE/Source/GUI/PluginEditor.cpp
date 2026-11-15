@@ -43,7 +43,24 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     lengthStrip.tipFor = [] (int i) { return "LENGTH " + fge::length::names()[i] + ": " + String (roundToInt (fge::length::profileMs (i))) + " ms with AUTO LENGTH (the parts scale with it) - independent of the STYLE"; };
     lengthStrip.onPick = [this] (int i) { fge::length::applyProfile (proc, i); };
     lengthStrip.onMenu = [this] (int) { openLengthPanel(); };
-    addAndMakeVisible (lengthStrip);
+    addChildComponent (lengthStrip);                                     // (the profiles live in the slider's right-click menu now)
+    lengthSlider.setSliderStyle (Slider::LinearBar);
+    lengthSlider.setNumDecimalPlacesToDisplay (0);
+    lengthAtt = std::make_unique<AudioProcessorValueTreeState::SliderAttachment> (proc.apvts, "core_length", lengthSlider);
+    lengthSlider.setTooltip ("KICK LENGTH: any length (100 - 2500 ms), drag or type - automatable in FL (\"Length\"). Everything that moves in the kick "
+                             "(the ZAAG shelf / sweep / resonator / distortion envelope) scales with it. Right-click: SHORT / MEDIUM / LONG / EXTRA LONG, the LENGTH panel.");
+    lengthSlider.onMenu = [this]
+    {
+        PopupMenu m;
+        for (int i = 0; i < 4; ++i) m.addItem (i + 1, fge::length::names()[i] + "  (" + String (roundToInt (fge::length::profileMs (i))) + " ms)");
+        m.addSeparator(); m.addItem (10, "LENGTH PANEL (SYNC / AUTO / FOLLOW) ...");
+        m.showMenuAsync (PopupMenu::Options().withTargetComponent (&lengthSlider), [this] (int r)
+        {
+            if (r >= 1 && r <= 4) fge::length::applyProfile (proc, r - 1);
+            else if (r == 10) openLengthPanel();
+        });
+    };
+    addAndMakeVisible (lengthSlider);
     lengthBtn.setTooltip ("LENGTH: the exact length, LENGTH SYNC to the tempo, AUTO LENGTH and how much PUNCH / BODY / TAIL / SUB follow - "
                           "independent of the STYLE.");
     lengthBtn.onClick = [this] { openLengthPanel(); };
@@ -90,9 +107,9 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         mk (ovTail[1], { { "pt_rev_size", "REV SIZE" }, { "pt_rev_decay", "REV DECAY" }, { "pt_rev_cut", "HIGH CUT" }, { "pt_drive1", "TAIL DRIVE 1" },
                          { "pt_clip", "CLIP" }, { "gt_gate_len", "GATE LENGTH" }, { "gt_gate_depth", "GATE DEPTH" }, { "pt_drive2", "TAIL DRIVE 2" },
                          { "pt_low_mid", "LOW MID" }, { "pt_width", "WIDTH" }, { "pt_grow", "GROW" }, { "pt_length", "LENGTH" } }, pc.part[2], 40);
-        mk (ovTail[2], { { "zg_character", "CHARACTER" }, { "zg_grit", "GRIT" }, { "zg_tone", "TONE" }, { "zg_focus", "FOCUS" },
-                         { "zg_squash", "SQUASH" }, { "zg_sawb_level", "SAW B" }, { "zg_start", "PITCH START" }, { "zg_drop", "DROP TIME" },
-                         { "zg_flt_end", "FILTER END" }, { "zg_flt_time", "FILTER TIME" }, { "zg_sub", "SUB" }, { "zg_body", "BODY" } }, pc.part[2], 40);
+        mk (ovTail[2], { { "zg_zaag", "ZAAG" }, { "zg_grit", "ZAAG DRIVE" }, { "zg_resonance", "RESONANCE" }, { "zg_movement", "MOVEMENT" },
+                         { "zg_bass", "BASS" }, { "zg_stereo", "STEREO" }, { "zg_crush", "CRUSH" }, { "zg_character", "CHARACTER" },
+                         { "zg_start", "PITCH START" }, { "zg_drop", "DROP TIME" }, { "zg_sawb_level", "HIGH SAW" }, { "zg_sub", "SUB" } }, pc.part[2], 40);
         mk (ovPunch[3], { { "zg_click", "CLICK" }, { "zg_piep", "PIEP" }, { "zg_piep_hz", "PIEP HZ" }, { "zg_piep_ms", "PIEP LEN" },
                           { "zg_trask", "TRASK" }, { "zg_trask_delay", "TRASK AT" }, { "zg_trask_ms", "TRASK LEN" }, { "zg_verb", "PUNCH VERB" },
                           { "zg_verb_decay", "VERB DECAY" }, { "zg_verb_send", "VERB SEND" }, { "zg_verb_pre", "PRE-DELAY" }, { "zg_verb_gate", "VERB GATE" } }, pc.part[0], 40);
@@ -102,19 +119,6 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         mk (ovStrip[3], { { "scr_level", "LEVEL" }, { "scr_base_hz", "FREQ" }, { "scr_fb_drive", "SCREECH DRIVE" } }, pc.red, 30);
         mk (ovStrip[4], { { "mix_punch_level", "PUNCH" }, { "mix_body_level", "BODY" }, { "mix_tail_level", "TAIL" }, { "mix_sub_level", "SUB" } }, pc.silver, 30);
         mk (ovMaster, { { "master_clip_drive", "MASTER CLIP" }, { "master_clip_soft", "SOFT" }, { "core_master", "OUTPUT" } }, pc.red, 30);
-        // ZAAG MODE (owner's spec 7): start values, one undo step; every knob stays free after it
-        auto zMode = [this] (bool classic)
-        {
-            proc.undo.beginNewTransaction (classic ? "Classic zaag" : "Modern zaag");
-            for (auto [id, v] : classic ? std::initializer_list<std::pair<const char*, float>> { { "zg_start", 24.f }, { "zg_drop", 120.f }, { "zg_flt_start", 9000.f }, { "zg_flt_end", 4500.f }, { "zg_flt_time", 200.f }, { "zg_character", 0.45f } }
-                                        : std::initializer_list<std::pair<const char*, float>> { { "zg_start", 7.f }, { "zg_drop", 40.f }, { "zg_flt_start", 14000.f }, { "zg_flt_end", 1800.f }, { "zg_flt_time", 320.f }, { "zg_character", 0.6f } })
-                proc.setParamInUndoStep (id, v);
-        };
-        zgClassicBtn.onClick = [zMode] { zMode (true); };
-        zgModernBtn.onClick = [zMode] { zMode (false); };
-        zgClassicBtn.setTooltip ("CLASSIC ZAAG: a big pitch drop (+24 st -> root), more kick-like.");
-        zgModernBtn.setTooltip ("MODERN ZAAG: a small pitch drop (+7 st -> root), the character from the distortion / filter movement.");
-        addChildComponent (zgClassicBtn); addChildComponent (zgModernBtn);
         ovAllP.onClick = [this] { selectPart (0); };
         ovAllT.onClick = [this] { selectPart (2); };
         ovBack.onClick = [this] { overview = true; showPage (0); };
@@ -148,6 +152,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                toggle ("core_auto_length", "AUTO LENGTH", Toggle::Pill, c.red), toggle ("core_phase_reset", "PHASE RESET", Toggle::Pill, c.red),
                toggle ("core_key_track", "PITCH TRACKING", Toggle::Pill, c.red), seg ("core_voice_mode", { "CHOKE", "POLY" }, c.red),
                seg ("core_note_cut", { "LENGTH", "NOTE", "+FX" }, c.red) };
+    kickEndTop = seg ("core_note_cut", { "LENGTH", "NOTE", "+FX" }, c.red);
     // ---- pitch engine
     pitchRow = { seg ("pe_mode", { "CLASSIC", "FAST", "SLOW", "DOUBLE", "RISE", "STABLE" }, c.red),
                  knob ("pe_start", "START", c.part[2], 38), knob ("pe_end", "END", c.part[2], 38), knob ("pe_time", "TIME", c.part[2], 38),
@@ -167,7 +172,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             proc.setParamInUndoStep ("punch_pitch", 440.f * std::exp2 ((float) (m - 69) / 12.f));
         };
         addAndMakeVisible (tokNote);
-        for (int t = 0; t < 6; ++t)
+        for (int t = 0; t < 7; ++t)
         {
             detTab[t].setButtonText (t == 0 ? "TONE" : "ROOM / COLOR"); detTab[t].setClickingTogglesState (false);
             detTab[t].setTooltip (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -260,8 +265,12 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                 d.push_back (knob (id, lab, col));
             d.push_back (&detailPageMark);                                        // 5th tab: PUNCH TYPE ZAAG (owner 2026-11-15, rule 0: the punch lives here)
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
-                     { "zg_click", "CLICK" }, { "zg_piep", "PIEP" }, { "zg_piep_hz", "PIEP HZ" }, { "zg_piep_ms", "PIEP LEN" },
-                     { "zg_trask", "TRASK" }, { "zg_trask_delay", "TRASK AT" }, { "zg_trask_ms", "TRASK LEN" } })
+                     { "zg_thump", "THUMP" }, { "zg_thump_hz", "THUMP HZ" }, { "zg_thump_ms", "THUMP LEN" }, { "zg_thump_drive", "THUMP DRIVE" },
+                     { "zg_click", "CLICK" }, { "zg_piep", "PIEP" }, { "zg_piep_hz", "PIEP HZ" }, { "zg_piep_ms", "PIEP LEN" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "zg_trask", "TRASK" }, { "zg_trask_delay", "TRASK AT" }, { "zg_trask_ms", "TRASK LEN" }, { "zg_trask_tone", "TRASK TONE" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
@@ -328,34 +337,45 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                      { "pt_attack", "ATTACK" }, { "pt_length", "LENGTH" }, { "pt_fade", "FADE" } })
                 d.push_back (knob (id, lab, col));
             using LZ = std::initializer_list<std::pair<const char*, const char*>>;
-            d.push_back (&detailPageMark);                                        // 5th tab: TAIL TYPE ZAAG - source / pitch / the 3 stages (owner's spec 2026-11-14)
-            d.push_back (&zgClassicBtn); d.push_back (&zgModernBtn);
-            for (auto [id, lab] : LZ { { "zg_character", "CHARACTER" }, { "zg_grit", "GRIT" }, { "zg_tone", "TONE" }, { "zg_focus", "FOCUS" }, { "zg_squash", "SQUASH" } })
+            d.push_back (&detailPageMark);                                        // 5th tab: ZAAG ENGINE - variant, 8 macros, source / pitch, EQ1 -> DIST 1 -> EQ2 -> DIST 2 (ZAAG_ENGINE.md)
+            d.push_back (combo ("zg_variant"));
+            for (auto [id, lab] : LZ { { "zg_zaag", "ZAAG" }, { "zg_grit", "ZAAG DRIVE" }, { "zg_resonance", "RESONANCE" }, { "zg_movement", "MOVEMENT" },
+                                       { "zg_bass", "BASS" }, { "zg_stereo", "STEREO" }, { "zg_crush", "CRUSH" }, { "zg_character", "CHARACTER" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
-            d.push_back (combo ("zg_sawb_oct"));
-            for (auto [id, lab] : LZ { { "zg_saw", "SAW A" }, { "zg_sawb_level", "SAW B" }, { "zg_sawb_detune", "DETUNE" }, { "zg_start", "PITCH START" }, { "zg_drop", "DROP TIME" },
-                                       { "zg_curve", "CURVE" }, { "zg_root", "ROOT" }, { "zg_low_ctrl", "LOW CONTROL" } })
+            for (auto [id, lab] : LZ { { "zg_sawb_level", "HIGH SAW" }, { "zg_start", "PITCH START" }, { "zg_drop", "DROP TIME" }, { "zg_curve", "CURVE" }, { "zg_root", "ROOT" },
+                                       { "zg_low_ctrl", "LOW INTO DIST" }, { "zg_s1_fund", "FUND BOOST" }, { "zg_s1_mid_hz", "MID FREQ" }, { "zg_s1_mid", "MID BOOST" }, { "zg_s1_low_cut", "LOW CUT" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
-            for (auto [id, lab] : LZ { { "zg_s1_fund", "1 FUND" }, { "zg_s1_mid_hz", "1 MID HZ" }, { "zg_s1_mid", "1 MID" }, { "zg_s1_drive", "1 DRIVE" }, { "zg_s1_asym", "1 ASYM" },
-                                       { "zg_s2_low", "2 LOW" }, { "zg_s2_low_mid", "2 LOW MID" }, { "zg_s2_mid", "2 MID" }, { "zg_s2_hi_mid", "2 HIGH MID" }, { "zg_s2_drive", "2 DRIVE" } })
+            for (auto [id, lab] : LZ { { "zg_s1_drive", "DIST 1 DRIVE" }, { "zg_s1_curve", "DIST 1 HARD" }, { "zg_s1_asym", "DIST 1 ASYM" }, { "zg_s1_mix", "DIST 1 MIX" },
+                                       { "zg_eqm_shelf", "LOW SHELF" }, { "zg_eqm_depth", "MOTION DEPTH" }, { "zg_eqm_time", "MOTION TIMING" }, { "zg_s2_drive", "DIST 2 DRIVE" }, { "zg_dist_env", "DIST ENV" } })
                 d.push_back (knob (id, lab, col));
-            d.push_back (&detailPageMark);                                        // 6th tab: TAIL TYPE ZAAG - destroy / clip / filter movement / sub / shape
-            for (auto [id, lab] : LZ { { "zg_drive", "3 DESTROY" }, { "zg_s3_asym", "3 ASYM" }, { "zg_dirt", "DIRT" }, { "zg_dirt_tone", "DIRT TONE" }, { "zg_bits", "EXP BITS" }, { "zg_fold", "EXP FOLD" },
-                                       { "zg_s1_curve", "1 CURVE" }, { "zg_s1_low_cut", "1 LOW CUT" }, { "zg_final_tone", "FINAL EQ" }, { "zg_press", "CLIP" }, { "zg_knee", "KNEE" } })
+            d.push_back (&detailPageMark);                                        // 6th tab: ZAAG ENGINE - resonant sweep, ZAAG RESONATOR, DIST 3 (character) + dirt
+            for (auto [id, lab] : LZ { { "zg_peak", "SWEEP GAIN" }, { "zg_peak_q", "SWEEP Q" }, { "zg_sw_start", "SWEEP START" }, { "zg_sw_plateau", "PLATEAU" },
+                                       { "zg_sw_end", "SWEEP END" }, { "zg_sw_hold", "HOLD UNTIL" }, { "zg_sw_reopen", "REOPEN" } })
                 d.push_back (knob (id, lab, col));
+            d.push_back (combo ("zg_rsn_mode"));
             d.push_back (nullptr);
-            d.push_back (combo ("zg_flt_type"));
-            for (auto [id, lab] : LZ { { "zg_flt_start", "FLT START" }, { "zg_flt_end", "FLT END" }, { "zg_flt_time", "FLT TIME" }, { "zg_flt_curve", "FLT CURVE" }, { "zg_flt_reso", "RESO" },
-                                       { "zg_flt_lfo", "LFO" }, { "zg_flt_lfo_rate", "LFO RATE" }, { "zg_width", "WIDTH" } })
+            for (auto [id, lab] : LZ { { "zg_rsn_freq", "RSN FREQ" }, { "zg_rsn_reso", "RSN RESO" }, { "zg_rsn_width", "RSN WIDTH" }, { "zg_rsn_mix", "RSN MIX" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (combo ("zg_rsn_pos")); d.push_back (combo ("zg_s3_type"));
+            d.push_back (nullptr);
+            for (auto [id, lab] : LZ { { "zg_drive", "DIST 3 DRIVE" }, { "zg_s3_preamp", "PREAMP" }, { "zg_s3_asym", "DIST 3 ASYM" }, { "zg_s3_mix", "DIST 3 MIX" },
+                                       { "zg_dirt", "DIRT" }, { "zg_dirt_tone", "DIRT TONE" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (&detailPageMark);                                        // 7th tab: ZAAG ENGINE - EQ4 + soft clip, ZAAG STEREO, sub, tail shape
+            for (auto [id, lab] : LZ { { "zg_squash", "SUB PUSH" }, { "zg_lm_cut", "LOW-MID CUT" }, { "zg_final_tone", "HIGH ENHANCE" }, { "zg_press", "SOFT CLIP" }, { "zg_knee", "KNEE" },
+                                       { "zg_side_cut", "SIDE LOW CUT" }, { "zg_side_boost_hz", "SIDE BOOST HZ" }, { "zg_side_boost", "SIDE BOOST" }, { "zg_width", "WIDTH" }, { "zg_hverb", "HIGH VERB" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             d.push_back (combo ("zg_sub_src"));
             for (auto [id, lab] : LZ { { "zg_sub", "SUB" }, { "zg_sub_freq", "SUB FREQ" }, { "zg_sub_decay", "SUB DECAY" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (toggle ("zg_len_follow", "FOLLOW KICK", Toggle::Chip, col));
-            for (auto [id, lab] : LZ { { "zg_length", "LENGTH" }, { "zg_attack", "ATTACK" }, { "zg_body", "BODY" }, { "zg_decay", "DECAY" }, { "zg_fade", "FADE" } })
+            for (auto [id, lab] : LZ { { "zg_length", "LENGTH" }, { "zg_attack", "ATTACK" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : LZ { { "zg_body", "BODY" }, { "zg_decay", "DECAY" }, { "zg_fade", "FADE" } })
                 d.push_back (knob (id, lab, col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
@@ -582,7 +602,9 @@ void GeCanvas::resized()
     // top bar: STYLE, LENGTH (+ the ms panel), the INFO LINE under them
     styleStrip.setBounds (300, 28, 220, 30);
     lengthStrip.setBounds (540, 28, 170, 30);
-    lengthBtn.setBounds (722, 28, 210, 30);
+    lengthSlider.setBounds (540, 28, 170, 30);
+    lengthBtn.setBounds (720, 28, 120, 30);
+    if (kickEndTop != nullptr) kickEndTop->setBounds (852, 30, 190, 26);
     rndStrength.setBounds (W - 16 - 300 - 64, 8, 56, 56); rndLabel.setBounds (W - 16 - 300 - 74, 64, 76, 16);
     infoArea = { 300, 66, W - 16 - 300 - 300 - 14, 26 };
     // the navigation (left)
@@ -680,25 +702,26 @@ void GeCanvas::layoutDetail()
         for (auto* c : { punchType, tailType }) if (c != nullptr) c->setVisible ((pageIdx == 0 && ! overview) && c == tb);
         if (tb != nullptr) tb->setBounds (detailArea.getRight() - 14 - nTabs * 112 - 100 - 160, detailArea.getY() + 5, 150, 24);
     }
-    for (int t = 0; t < 6; ++t)
+    for (int t = 0; t < 7; ++t)
     {
         detTab[t].setVisible (tabs && isAllowed (t) && nTabs > 1 && (pageIdx == 0 && ! overview));
         detDice.setVisible ((pageIdx == 0 && ! overview));
-        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "" };
-        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG STAGES", "ZAAG SHAPE" };
+        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "", "" };
+        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG", "ZAAG SWEEP / FX", "ZAAG OUT" };
         static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
                                          "EUPHORIC model (punch mode EUPHORIC): a broadband source -> mid boost -> asymmetric distortion -> tape stop -> volume shaper.",
                                          "PVC model (punch mode PVC, the KLOENK): source -> resonance / ring mod / flanger / comb -> blend -> compressor -> distortion -> EQ -> shape. Monotone.",
                                          "The shared part of the PUNCH ENGINE: the SUB PUNCH (own wave / pitch / delay / decay) and the BLEND (tonal / click / sub / body / tail).",
-                                         "PUNCH TYPE ZAAG: a 2 ms click, the PIEP first, then the TRASK, and a reverb on them only.", "" };
+                                         "PUNCH TYPE ZAAG: a 2 ms click, the PIEP first, then the TRASK, and a reverb on them only.", "", "" };
         detTab[t].setButtonText (selected == 0 ? punchTabs[t] : tailTabs[t]);
         detTab[t].setTooltip (selected == 0 ? punchTips[t]
                                             : (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
                                                : t == 1 ? "TAIL ROOM (a room BEFORE the tail's distortion - the early / euphoric crackle) and TAIL COLOR (the EQ AFTER it: which harmonics stay)."
                                                         : t == 2 ? "TAIL ENGINE PVC (the KLOENK tail): the source (kick BODY / sine / saw / hybrid), its pitch and resonance, and the REVERB the tail is made of."
                                                                  : t == 3 ? "TAIL ENGINE PVC: the GATE, the distortion stages (drive 1 -> clip -> gate -> drive 2), the spectrum balance, mono low / stereo high, the final shape."
-                                                                          : t == 4 ? "TAIL TYPE ZAAG: the macros (CHARACTER / GRIT / TONE / FOCUS / SQUASH), saw A + saw B, the pitch, stages 01 GENERATE and 02 CHARACTER."
-                                                                                   : "TAIL TYPE ZAAG: 03 DESTROY, the soft clipper, FILTER MOVEMENT, SUB SUPPORT and the TAIL SHAPE."));
+                                                                          : t == 4 ? "ZAAG ENGINE: VARIANT + the 8 ZAAG macros, the source / pitch, EQ1 -> DIST 1 -> moving low shelf -> DIST 2 (a cascade: every stage feeds the next)."
+                                                                                   : t == 5 ? "ZAAG ENGINE: the resonant sweep (locked to the kick envelope), ZAAG RESONATOR (phaser / resonator / comb), DIST 3 = the main character (+ dirt)."
+                                                                                            : "ZAAG ENGINE: SUB PUSH / LOW-MID CUT / HIGH ENHANCE -> soft clip, ZAAG STEREO (the lows always mono), the sub, the tail shape."));
         const int tw = 108, step = tw + 4;
         int right = detailArea.getRight() - 14; for (int u = nAll - 1; u > t; --u) if (isAllowed (u)) right -= step;
         detTab[t].setBounds (right - tw, detailArea.getY() + 6, tw, 22);
@@ -755,6 +778,7 @@ void GeCanvas::paint (Graphics& g)
     g.setFont (lnf.font (10.f, doomsday::flat::Bold, 0.14f));
     g.drawText ("STYLE", styleStrip.getX(), 10, 100, 14, Justification::left);
     g.drawText ("LENGTH", lengthStrip.getX(), 10, 100, 14, Justification::left);
+    if (kickEndTop != nullptr) g.drawText ("KICK END", kickEndTop->getX(), 10, 100, 14, Justification::left);
     // the INFO LINE
     if (uiSet.infoLine)
     {
@@ -802,7 +826,7 @@ void GeCanvas::paint (Graphics& g)
                                       "PVC: tube / kloenk -> phaser -> drive -> shape", "ZAAG: click -> PIEP -> TRASK -> punch reverb" };
         static const char* tChain[] { "CLASSIC: sine / triangle -> pitch drop -> body -> distortion -> harmonics -> decay",
                                       "PVC: source -> REVERB -> high cut -> drive -> clip -> GATE -> drive -> spectrum -> stereo",
-                                      "ZAAG: saw A + B -> pitch -> EQ / shape x3 -> squash -> soft clip -> filter move -> sub -> shape" };
+                                      "ZAAG: saws -> pitch -> EQ1 / DIST 1 -> moving shelf / DIST 2 -> sweep -> resonator -> DIST 3 -> clip -> stereo -> sub" };
         g.drawText (pChain[punchTypeIdx()], ovPArea.getX() + 14, ovPArea.getY() + 40, ovPArea.getWidth() - 28, 20, Justification::left);
         g.drawText (tChain[tailTypeIdx()], ovTArea.getX() + 14, ovTArea.getY() + 40, ovTArea.getWidth() - 28, 20, Justification::left);
         g.drawText ("TYPE", ovPArea.getX() + 76, ovPArea.getY() + 8, 34, 16, Justification::left);
@@ -918,17 +942,16 @@ void GeCanvas::updateEnabled()
         en ("pvc_ph_mode", tube && raw (proc, P::pvcPhaser) > 0.001f); en ("pvc_ph_fb", tube && raw (proc, P::pvcPhaser) > 0.001f);
         en ("pvc_ph_rate", tube && raw (proc, P::pvcPhaser) > 0.001f && (int) raw (proc, P::pvcPhMode) == 1);
         const bool zg = (int) raw (proc, P::tailEngine) == 2, zp = (int) raw (proc, P::punchMode) == 4;   // TAIL TYPE ZAAG / PUNCH TYPE ZAAG (rule 0)
-        auto isPunchZ = [] (const String& id) { return id.startsWith ("zg_click") || id.startsWith ("zg_piep") || id.startsWith ("zg_trask") || id.startsWith ("zg_verb"); };
+        auto isPunchZ = [] (const String& id) { return id.startsWith ("zg_click") || id.startsWith ("zg_piep") || id.startsWith ("zg_trask") || id.startsWith ("zg_verb") || id.startsWith ("zg_thump"); };
         for (int i = 0; i < P::count; ++i)
             if (const String id (def (i).id); id.startsWith ("zg_")) en (id, isPunchZ (id) ? zp : zg);
         for (auto* id : { "zg_piep_hz", "zg_piep_ms" }) en (id, zp && raw (proc, P::zgPiep) > 0.001f);
-        for (auto* id : { "zg_trask_delay", "zg_trask_ms" }) en (id, zp && raw (proc, P::zgTrask) > 0.001f);
+        for (auto* id : { "zg_trask_delay", "zg_trask_ms", "zg_trask_tone" }) en (id, zp && raw (proc, P::zgTrask) > 0.001f);
+        for (auto* id : { "zg_thump_hz", "zg_thump_ms", "zg_thump_drive" }) en (id, zp && raw (proc, P::zgThump) > 0.001f);
         for (auto* id : { "zg_verb_decay", "zg_verb_size", "zg_verb_send", "zg_verb_pre", "zg_verb_gate", "zg_verb_damp", "zg_verb_low_cut" }) en (id, zp && raw (proc, P::zgVerb) > 0.001f);
-        en ("zg_dirt_tone", zg && raw (proc, P::zgDirt) > 0.001f);
-        en ("zg_sawb_detune", zg && raw (proc, P::zgSawbLevel) > 0.001f); en ("zg_sawb_oct", zg && raw (proc, P::zgSawbLevel) > 0.001f);
-        en ("zg_flt_lfo_rate", zg && raw (proc, P::zgFltLfo) > 0.001f);
+        for (auto* id : { "zg_rsn_freq", "zg_rsn_reso", "zg_rsn_width", "zg_rsn_pos", "zg_rsn_mode" }) en (id, zg && raw (proc, P::zgRsnMix) > 0.001f);
+        en ("zg_side_boost_hz", zg && raw (proc, P::zgSideBoost) > 0.01f);
         en ("zg_length", zg && raw (proc, P::zgLenFollow) < 0.5f);
-        zgClassicBtn.setEnabled (zg); zgModernBtn.setEnabled (zg);
         const bool gtd = (int) raw (proc, P::tailEngine) == 1;                     // TAIL ENGINE PVC
         for (auto* id : { "gt_gate", "gt_gate_len", "gt_gate_depth", "gt_comp", "gt_filter", "gt_reso", "gt_move_rate", "gt_move_depth" }) en (id, gtd);
         for (int i = 0; i < P::count; ++i)
@@ -970,10 +993,10 @@ std::vector<int> GeCanvas::allowedTabs() const                                //
     {
         const int e = (int) raw (proc, P::tailEngine);
         if (e == 1) return { 2, 3 };
-        if (e == 2) return { 4, 5 };
+        if (e == 2) return { 4, 5, 6 };
         return { 0, 1 };
     }
-    return { 0, 1, 2, 3, 4, 5 };
+    return { 0, 1, 2, 3, 4, 5, 6 };
 }
 void GeCanvas::timerCallback()
 {

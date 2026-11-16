@@ -34,15 +34,15 @@ namespace fge::dsp::raw
         // 01 source
         int osc1 = 1, osc2 = 3, noise = 2; float osc2Level = 0.5f, osc2St = 12.f, noiseLevel = 0.3f;
         // 02 pitch
-        float startSt = 24.f, dropMs = 70.f, curve = 0.6f, rootSt = 0.f;
+        float startSt = 36.f, dropMs = 160.f, curve = 0.25f, rootSt = 0.f;   // (defaults = a fit to FHSP 038, the owner's classic raw, 2026-11-16)
         // 04 stack (stage switches)
         bool preOn = true, d1On = true, shapeOn = true, d2On = true, bpOn = true, d3On = true, postOn = true, clipOn = true;
-        float lowCut = 30.f, preMidDb = 3.f;
-        int d1Type = 2, d2Type = 1, d3Type = 0; float d1Db = 30.f, d2Db = 14.f, d3Db = 12.f;
-        float growlHz = 450.f, growlDb = 8.f, growlQ = 2.f;
-        float postLowCut = 25.f, postHighDb = 0.f, clipHard = 0.3f;
+        float lowCut = 63.f, preMidDb = 2.4f;
+        int d1Type = 2, d2Type = 2, d3Type = 1; float d1Db = 28.5f, d2Db = 12.4f, d3Db = 18.8f;
+        float growlHz = 370.f, growlDb = 16.f, growlQ = 0.6f;
+        float postLowCut = 25.f, postHighDb = 9.f, clipHard = 0.1f;
         // 05 filter movement
-        int fltShape = 0, sync = 0; float fltStart = 1800.f, fltEnd = 600.f, fltMid = 1200.f, fltReso = 0.5f, fltSpeed = 0.8f, fltTimeMs = 250.f, fltCurve = 0.5f, fltMix = 0.7f;
+        int fltShape = 4, sync = 0; float fltStart = 4200.f, fltEnd = 340.f, fltMid = 1200.f, fltReso = 0.3f, fltSpeed = 0.76f, fltTimeMs = 250.f, fltCurve = 0.f, fltMix = 0.34f;
         float bodyEndMs = 120.f;                       // (SYNC TO BODY END)
         // 06 character + the shared TAIL macros (0.5 = neutral)
         float growl = 0.5f, crunch = 0.5f;
@@ -50,9 +50,9 @@ namespace fge::dsp::raw
         // reverb
         float verb = 0.08f, verbSize = 0.8f, verbDecay = 600.f, verbDamp = 7000.f, verbPre = 10.f, verbLowCut = 400.f;
         // sub + stereo
-        float sub = 0.8f, subHz = 110.f, width = 0.3f;
+        float sub = 0.f, subHz = 122.f, width = 0.3f;
         // 09 tail shape (length = KICK LENGTH)
-        float lengthMs = 400.f, attackMs = 2.f, body = 0.6f, decay = 0.5f, fade = 0.5f;
+        float lengthMs = 400.f, attackMs = 2.f, body = 0.61f, decay = 0.43f, fade = 0.98f;
     };
 
     // ---- the sweep position 0..1 -> a frequency between START / MID / END (log), by the movement shape (pure: the tests call it)
@@ -80,7 +80,7 @@ namespace fge::dsp::raw
         {
             p1 = p2 = 0.0; blk = 0; rev.reset(); seed = 0x2b7e1516u; chaosNow = 0.f; chaosT = 0.f;
             pk0 = pk1 = pk2 = 0.f; dly.fill (0.f); di = 0;
-            for (auto* b : { &pre1, &pre2, &dc1, &grl, &bp, &dc3, &post1, &post2, &lowA, &lowB, &hiA, &hiB, &sA, &sB, &vh1, &vh2, &nzl }) b->clear();
+            for (auto* b : { &pre1, &pre2, &dc1, &grl, &bp, &bp2, &dc3, &post1, &post2, &lowA, &lowB, &hiA, &hiB, &sA, &sB, &vh1, &vh2, &nzl }) b->clear();
         }
 
         void process (const Settings& s, float ms, float noteHz, float& outL, float& outR)
@@ -104,8 +104,8 @@ namespace fge::dsp::raw
             if (s.d1On) x = dc1.tick (stage (s.d1Type, x * g1));                                // DIST 1: aggressive, the main harmonics
             if (s.shapeOn) x = grl.tick (x);                                                    // SHAPING EQ: the GROWL bell
             if (s.d2On) x = stage (s.d2Type, x * g2);                                           // DIST 2: densifies
-            if (s.bpOn) x += fltMixNow * bpGain * bp.tick (x);                                  // BAND-PASS SWEEP as an EMPHASIS on the full stack (owner 2026-11-16: replacing
-                                                                                                //  the signal with a narrow resonant band-pass = an ACID squelch, not a raw growl)
+            if (s.bpOn) x += (bpGain * bp2.tick (bp.tick (x)) - x) * fltMixNow;                 // BAND-PASS SWEEP: a WIDE band whose UPPER edge moves (the raw tail opens /
+                                                                                                //  closes like FHSP 038), a low resonance - never a narrow 303 peak (owner: "acid")
             if (s.d3On) x = dc3.tick (stage (s.d3Type, x * g3) * d3Comp);                       // DIST 3: controlled, the final character
             if (s.postOn) x = post2.tick (post1.tick (x));                                      // POST-EQ: low cut + TONE shelf
             if (s.clipOn) x = clip (x * clipIn);                                                // SOFT CLIPPER (soft <-> hard)
@@ -208,9 +208,10 @@ namespace fge::dsp::raw
             const float mv = std::clamp (s.mMove * 2.f, 0.f, 2.f);                               // MOVEMENT: the depth of the sweep (0 = parked in the middle)
             const float centre = std::sqrt (std::max (20.f, s.fltStart) * std::max (20.f, s.fltEnd));
             sweepNow = std::clamp (std::exp (std::log (centre) + (std::log (std::max (20.f, f)) - std::log (centre)) * mv), 60.f, (float) fs * 0.4f);
-            const double q = std::clamp (0.6 + 3.4 * (double) s.fltReso * (1.0 + rs + 0.6 * gr), 0.5, 8.0);    // RESONANCE + GROWL (wide: a moving formant, never a 303 peak)
-            bp.bp (fs, sweepNow, q);
-            bpGain = 1.2f + 0.15f * (float) q;
+            const double q = std::clamp (0.6 + 1.6 * (double) s.fltReso * (1.0 + rs + 0.6 * gr), 0.5, 2.5);    // RESONANCE + GROWL (a soft edge, never a 303 peak)
+            bp.lp (fs, sweepNow, std::min (q, 2.5));                                          // the moving upper edge (low resonance)
+            bp2.hp (fs, 70.0, 0.7071);                                                          // the fixed lower edge (the band keeps the body)
+            bpGain = 1.f;
             fltMixNow = std::clamp (s.fltMix, 0.f, 1.f);
             // EQs
             pre1.hp (fs, std::max (10.f, s.lowCut), 0.7071);
@@ -241,7 +242,7 @@ namespace fge::dsp::raw
         float g1 = 1.f, g2 = 1.f, g3 = 1.f, d3Comp = 1.f, clipHardNow = 0.3f, clipIn = 1.f, bpGain = 1.f, fltMixNow = 0.6f, sweepNow = 1000.f;
         float subBlend = 0.8f, subSine = 0.8f, sideGain = 0.3f, verbNow = 0.f, verbSend = 0.f, chaosNow = 0.f, chaosT = 0.f, pk0 = 0.f, pk1 = 0.f, pk2 = 0.f;
         std::array<float, 256> dly {};
-        bq::Biquad pre1, pre2, dc1, grl, bp, dc3, post1, post2, lowA, lowB, hiA, hiB, sA, sB, vh1, vh2, nzl;
+        bq::Biquad pre1, pre2, dc1, grl, bp, bp2, dc3, post1, post2, lowA, lowB, hiA, hiB, sA, sB, vh1, vh2, nzl;
         fdn::Fdn rev;
     };
 }

@@ -711,11 +711,21 @@ void PresetBar::showSave()
         if (safe == nullptr || safe->dialog == nullptr) return;
         const auto name = safe->dialog->getTextEditorContents ("name");
         MessageManager::callAsync ([safe] { if (safe != nullptr) safe->dialog.reset(); });
-        if (result == 1)
+        if (result != 1) return;
+        auto doSave = [safe, name]
         {
+            if (safe == nullptr) return;
             if (safe->host.saveUserPresetAs (name)) safe->refreshList();
             else AlertWindow::showMessageBoxAsync (MessageBoxIconType::WarningIcon, "SAVE PRESET", "Could not save the preset.");
-        }
+        };
+        // a preset with this name already there -> ask before overwriting it (owner 2026-11-16)
+        const auto clean = File::createLegalFileName (name.trim());
+        bool exists = false;
+        for (auto& f : safe->host.userPresetFiles()) if (f.getFileNameWithoutExtension().equalsIgnoreCase (clean)) { exists = true; break; }
+        if (! exists) { doSave(); return; }
+        AlertWindow::showOkCancelBox (MessageBoxIconType::WarningIcon, "SAVE PRESET",
+                                      "A preset called \"" + clean + "\" already exists.\nOverwrite it?", "OVERWRITE", "CANCEL", safe.getComponent(),
+                                      ModalCallbackFunction::create ([doSave] (int ok) { if (ok == 1) doSave(); }));
     }), false);
 }
 

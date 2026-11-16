@@ -40,9 +40,11 @@ namespace fge::gui
             ask ("SAVE AS", "Name of the new user preset:", [this] (const String& n)
             {
                 if (n.trim().isEmpty()) return;
-                if (proc.userPresetFolder().getChildFile (File::createLegalFileName (n.trim()) + ".4gp").exists()) { msg = "a preset with this name exists - choose another name"; repaint(); return; }
-                msg = proc.saveUserPresetAs (n) ? "saved as " + proc.currentPresetName() : "could not save";
-                refresh();
+                auto doSave = [this, n] { msg = proc.saveUserPresetAs (n) ? "saved as " + proc.currentPresetName() : "could not save"; refresh(); };
+                const String clean = File::createLegalFileName (n.trim());
+                if (! proc.userPresetFolder().getChildFile (clean + ".4gp").exists()) { doSave(); return; }
+                AlertWindow::showOkCancelBox (MessageBoxIconType::WarningIcon, "SAVE AS", "A preset called \"" + clean + "\" already exists.\nOverwrite it?",
+                                              "OVERWRITE", "CANCEL", this, ModalCallbackFunction::create ([doSave] (int ok) { if (ok == 1) doSave(); }));   // (owner 2026-11-16)
             });
         };
         dupBtn.onClick = [this]

@@ -1,6 +1,6 @@
 # 4GE – TAIL TYPE RAW & EXPERIMENTAL (owner's spec, 2026-11-16) – collected verbatim in English
 
-Status: **RAW built** (`Source/DSP/Tone/RawTail.h`, params `rw_*`, shared TAIL macros `tl_*` (DRIVE / TONE / MOVEMENT / RESONANCE /
+Status: **RAW built** – defaults = a fit to FHSP 038 (the owner's classic raw, F1 ~930 ms; v3 "goes the right way"): the sweep is a WIDE band whose upper edge moves (CUSTOM 4.2 kHz → 1.2 kHz → 340 Hz, mix 0.34, Q ≤ 2.5 – never a narrow 303 peak), (`Source/DSP/Tone/RawTail.h`, params `rw_*`, shared TAIL macros `tl_*` (DRIVE / TONE / MOVEMENT / RESONANCE /
 DENSITY / SPACE / CHAOS / WIDTH, RAW mapping), tail tabs RAW STACK / RAW SWEEP / CHAR / RAW SPACE / OUT, acceptance tests RAW 1, 2, 5,
 6, 7, 8 + sweep in RenderTest; test 3 / 4 belong to EXPERIMENTAL). **EXPERIMENTAL built** (`Source/DSP/Tone/ExpTail.h`, params `ex_*` + `tl_*`, tabs EXP SOURCE / FX 1-2 … 7-8 (MOVE = swap with the slot before) / MOD / OUT, acceptance tests EXP 3-8). Not yet: RESAMPLING (listed as important for EXPERIMENTAL) - a later processor. Note: the classic group distortion (dist pool,
 e.g. the RAW style chain) still applies after any tail engine – pick TAIL TYPE RAW on INIT or clear the chain to hear the engine alone.

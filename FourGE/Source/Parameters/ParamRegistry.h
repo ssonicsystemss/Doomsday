@@ -635,42 +635,42 @@ namespace fge
     F (rwOsc2St, "rw_osc2_tune", "Raw Osc 2 Tune", Unit::Semi, -24.0f, 24.0f, 12.0f, 0.0f, FNone) \
     C (rwNoise, "rw_noise", "Raw Noise", rawNoises, 2, FNone) \
     F (rwNoiseLvl, "rw_noise_level", "Raw Noise Level", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
-    F (rwStart, "rw_start", "Raw Pitch Start", Unit::Semi, 0.0f, 48.0f, 24.0f, 0.0f, FNone) \
-    F (rwDrop, "rw_drop", "Raw Pitch Drop", Unit::Ms, 10.0f, 300.0f, 70.0f, 70.0f, FNone) \
-    F (rwCurve, "rw_curve", "Raw Pitch Curve", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (rwStart, "rw_start", "Raw Pitch Start", Unit::Semi, 0.0f, 48.0f, 36.0f, 0.0f, FNone) \
+    F (rwDrop, "rw_drop", "Raw Pitch Drop", Unit::Ms, 10.0f, 300.0f, 160.0f, 70.0f, FNone) \
+    F (rwCurve, "rw_curve", "Raw Pitch Curve", Unit::Pct, 0.0f, 1.0f, 0.25f, 0.0f, FNone) \
     F (rwRoot, "rw_root", "Raw Root", Unit::Semi, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
     B (rwPreOn, "rw_pre_on", "Raw Pre-EQ On", true, FNone) \
-    F (rwLowCut, "rw_low_cut", "Raw Pre Low Cut", Unit::Hz, 10.0f, 200.0f, 30.0f, 40.0f, FNone) \
-    F (rwPreMid, "rw_pre_mid", "Raw Pre Mid", Unit::Db, -12.0f, 12.0f, 3.0f, 0.0f, FNone) \
+    F (rwLowCut, "rw_low_cut", "Raw Pre Low Cut", Unit::Hz, 10.0f, 200.0f, 63.0f, 40.0f, FNone) \
+    F (rwPreMid, "rw_pre_mid", "Raw Pre Mid", Unit::Db, -12.0f, 12.0f, 2.4f, 0.0f, FNone) \
     B (rwD1On, "rw_d1_on", "Raw Dist 1 On", true, FNone) \
     C (rwD1Type, "rw_d1_type", "Raw Dist 1 Type", rawStages, 2, FNone) \
-    F (rwD1Db, "rw_d1_drive", "Raw Dist 1 Drive", Unit::Db, 0.0f, 48.0f, 30.0f, 0.0f, FNone) \
+    F (rwD1Db, "rw_d1_drive", "Raw Dist 1 Drive", Unit::Db, 0.0f, 48.0f, 28.5f, 0.0f, FNone) \
     B (rwShapeOn, "rw_shape_on", "Raw Shaping EQ On", true, FNone) \
-    F (rwGrowlHz, "rw_growl_hz", "Raw Growl Freq", Unit::Hz, 200.0f, 1200.0f, 450.0f, 450.0f, FNone) \
-    F (rwGrowlDb, "rw_growl_db", "Raw Growl Gain", Unit::Db, 0.0f, 18.0f, 8.0f, 0.0f, FNone) \
-    F (rwGrowlQ, "rw_growl_q", "Raw Growl Q", Unit::None, 0.5f, 8.0f, 2.0f, 2.0f, FNone) \
+    F (rwGrowlHz, "rw_growl_hz", "Raw Growl Freq", Unit::Hz, 200.0f, 1200.0f, 370.0f, 450.0f, FNone) \
+    F (rwGrowlDb, "rw_growl_db", "Raw Growl Gain", Unit::Db, 0.0f, 18.0f, 16.0f, 0.0f, FNone) \
+    F (rwGrowlQ, "rw_growl_q", "Raw Growl Q", Unit::None, 0.5f, 8.0f, 0.6f, 2.0f, FNone) \
     B (rwD2On, "rw_d2_on", "Raw Dist 2 On", true, FNone) \
-    C (rwD2Type, "rw_d2_type", "Raw Dist 2 Type", rawStages, 1, FNone) \
-    F (rwD2Db, "rw_d2_drive", "Raw Dist 2 Drive", Unit::Db, 0.0f, 36.0f, 14.0f, 0.0f, FNone) \
+    C (rwD2Type, "rw_d2_type", "Raw Dist 2 Type", rawStages, 2, FNone) \
+    F (rwD2Db, "rw_d2_drive", "Raw Dist 2 Drive", Unit::Db, 0.0f, 36.0f, 12.4f, 0.0f, FNone) \
     B (rwBpOn, "rw_bp_on", "Raw Band-Pass On", true, FNone) \
-    C (rwFltShape, "rw_flt_shape", "Raw Sweep Shape", rawFltShapes, 0, FNone) \
-    F (rwFltStart, "rw_flt_start", "Raw Filter Start", Unit::Hz, 200.0f, 8000.0f, 1800.0f, 1500.0f, FNone) \
-    F (rwFltEnd, "rw_flt_end", "Raw Filter End", Unit::Hz, 100.0f, 4000.0f, 600.0f, 600.0f, FNone) \
+    C (rwFltShape, "rw_flt_shape", "Raw Sweep Shape", rawFltShapes, 4, FNone) \
+    F (rwFltStart, "rw_flt_start", "Raw Filter Start", Unit::Hz, 200.0f, 8000.0f, 4200.0f, 1500.0f, FNone) \
+    F (rwFltEnd, "rw_flt_end", "Raw Filter End", Unit::Hz, 100.0f, 4000.0f, 340.0f, 600.0f, FNone) \
     F (rwFltMid, "rw_flt_mid", "Raw Filter Mid (Custom)", Unit::Hz, 100.0f, 8000.0f, 1200.0f, 1200.0f, FNone) \
-    F (rwFltReso, "rw_flt_reso", "Raw Filter Resonance", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
-    F (rwFltSpeed, "rw_flt_speed", "Raw Sweep Speed (Sync)", Unit::Pct, 0.05f, 1.0f, 0.8f, 0.0f, FNone) \
+    F (rwFltReso, "rw_flt_reso", "Raw Filter Resonance", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
+    F (rwFltSpeed, "rw_flt_speed", "Raw Sweep Speed (Sync)", Unit::Pct, 0.05f, 1.0f, 0.76f, 0.0f, FNone) \
     F (rwFltTime, "rw_flt_time", "Raw Sweep Time (Free)", Unit::Ms, 20.0f, 1000.0f, 250.0f, 250.0f, FNone) \
-    F (rwFltCurve, "rw_flt_curve", "Raw Sweep Curve", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
-    F (rwFltMix, "rw_flt_mix", "Raw Filter Mix", Unit::Pct, 0.0f, 1.0f, 0.7f, 0.0f, FNone) \
+    F (rwFltCurve, "rw_flt_curve", "Raw Sweep Curve", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (rwFltMix, "rw_flt_mix", "Raw Filter Mix", Unit::Pct, 0.0f, 1.0f, 0.34f, 0.0f, FNone) \
     C (rwSync, "rw_sync", "Raw Time Sync", tailSyncs, 0, FNone) \
     B (rwD3On, "rw_d3_on", "Raw Dist 3 On", true, FNone) \
-    C (rwD3Type, "rw_d3_type", "Raw Dist 3 Type", rawStages, 0, FNone) \
-    F (rwD3Db, "rw_d3_drive", "Raw Dist 3 Drive", Unit::Db, 0.0f, 24.0f, 12.0f, 0.0f, FNone) \
+    C (rwD3Type, "rw_d3_type", "Raw Dist 3 Type", rawStages, 1, FNone) \
+    F (rwD3Db, "rw_d3_drive", "Raw Dist 3 Drive", Unit::Db, 0.0f, 24.0f, 18.8f, 0.0f, FNone) \
     B (rwPostOn, "rw_post_on", "Raw Post-EQ On", true, FNone) \
     F (rwPostLowCut, "rw_post_low_cut", "Raw Post Low Cut", Unit::Hz, 10.0f, 120.0f, 25.0f, 30.0f, FNone) \
-    F (rwPostHigh, "rw_post_high", "Raw Post High", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (rwPostHigh, "rw_post_high", "Raw Post High", Unit::Db, -12.0f, 12.0f, 9.0f, 0.0f, FNone) \
     B (rwClipOn, "rw_clip_on", "Raw Clipper On", true, FNone) \
-    F (rwClipHard, "rw_clip_hard", "Raw Clipper Hardness", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
+    F (rwClipHard, "rw_clip_hard", "Raw Clipper Hardness", Unit::Pct, 0.0f, 1.0f, 0.1f, 0.0f, FNone) \
     F (rwGrowl, "rw_growl", "Raw Growl", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
     F (rwCrunch, "rw_crunch", "Raw Crunch", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
     F (rwVerb, "rw_verb", "Raw Reverb Mix", Unit::Pct, 0.0f, 0.5f, 0.08f, 0.0f, FNone) \
@@ -679,13 +679,13 @@ namespace fge
     F (rwVerbDamp, "rw_verb_damp", "Raw Reverb Damping", Unit::Hz, 2000.0f, 16000.0f, 7000.0f, 6000.0f, FNone) \
     F (rwVerbPre, "rw_verb_pre", "Raw Reverb Pre-Delay", Unit::Ms, 0.0f, 60.0f, 10.0f, 10.0f, FNone) \
     F (rwVerbLowCut, "rw_verb_low_cut", "Raw Reverb Low Cut", Unit::Hz, 100.0f, 2000.0f, 400.0f, 400.0f, FNone) \
-    F (rwSub, "rw_sub", "Raw Sub (Clean)", Unit::Pct, 0.0f, 1.5f, 0.8f, 0.0f, FNone) \
-    F (rwSubHz, "rw_sub_hz", "Raw Sub Freq", Unit::Hz, 40.0f, 250.0f, 110.0f, 110.0f, FNone) \
+    F (rwSub, "rw_sub", "Raw Sub (Clean)", Unit::Pct, 0.0f, 1.5f, 0.0f, 0.0f, FNone) \
+    F (rwSubHz, "rw_sub_hz", "Raw Sub Freq", Unit::Hz, 40.0f, 250.0f, 122.0f, 110.0f, FNone) \
     F (rwWidth, "rw_width", "Raw Width (Highs)", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
     F (rwAttack, "rw_attack", "Raw Tail Attack", Unit::Ms, 0.0f, 30.0f, 2.0f, 0.0f, FNone) \
-    F (rwBody, "rw_body", "Raw Tail Body", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
-    F (rwDecay, "rw_tail_decay", "Raw Tail Decay", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
-    F (rwFade, "rw_fade", "Raw Tail Fade", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (rwBody, "rw_body", "Raw Tail Body", Unit::Pct, 0.0f, 1.0f, 0.61f, 0.0f, FNone) \
+    F (rwDecay, "rw_tail_decay", "Raw Tail Decay", Unit::Pct, 0.0f, 1.0f, 0.43f, 0.0f, FNone) \
+    F (rwFade, "rw_fade", "Raw Tail Fade", Unit::Pct, 0.0f, 1.0f, 0.98f, 0.0f, FNone) \
     F (tlDrive, "tl_drive", "Tail Macro Drive", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \
     F (tlTone, "tl_tone", "Tail Macro Tone", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \
     F (tlMove, "tl_movement", "Tail Macro Movement", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \

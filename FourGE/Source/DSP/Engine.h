@@ -1300,6 +1300,8 @@ namespace fge
                     if (m7 && cfg.tone.at (c + 1, 1)) toneSt->process (cfg.tone, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 AFTER
                     if (m8 && cfg.dyn.at (c + 1, 1)) dynSt->process (cfg.dyn, c + 1, 1, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 AFTER
                     if (cfg.spc.t[(size_t) c].on) (*spcUnits)[(size_t) c].process (cfg.spc.t[(size_t) c], yl, yr);                   // module 11: the group's stereo
+                    if (! std::isfinite (yl) || ! std::isfinite (yr)) { yl = yr = 0.f; blewUp = true; }   // a filter / state that blew up: silence the
+                                                                                                                  //  sample now, reset the processing after the block (never stuck)
                     yl = yl * gl + front; yr = yr * gr + front;
                     L[i] = (c == 0 ? 0.f : L[i]) + yl;
                     R[i] = (c == 0 ? 0.f : R[i]) + yr;
@@ -1307,6 +1309,14 @@ namespace fge
                 }
                 pk[(size_t) c] = p;
                 gainNow[(size_t) c] = g1;
+            }
+            if (blewUp)                                                       // SAFETY (owner 2026-11-16 "the kick vanished, only the click stayed"): a NaN / inf
+            {                                                                 // in a group's processing would stay forever - clear every processing state
+                blewUp = false; blowUps.fetch_add (1);
+                for (auto& ch : distChain) ch.reset();
+                m06St->reset(); toneSt->reset(); dynSt->reset(); tailColor.reset(); tailRoom->clear(); tokRoom->clear();
+                for (auto& u : *spcUnits) u.reset();
+                for (int k = 0; k < on; ++k) { if (! std::isfinite (L[k])) L[k] = 0.f; if (! std::isfinite (R[k])) R[k] = 0.f; }
             }
             if (cfg.dist.globalPos == 1) globalChain (L, R, on);                                       // GLOBAL, after the clip (with the sub)
             if (busAny)                                                      // the MASTER bus: after the clip
@@ -1464,6 +1474,7 @@ namespace fge
         std::array<bool, 6> distOn {};
         int64_t sinceHitOs = (int64_t) 1 << 40;
         float msAt (int i) const { return sinceHitOs >= ((int64_t) 1 << 39) ? 1.0e9f : (float) ((double) (sinceHitOs + i) * 1000.0 / cfg.ks.rate); }
+        bool blewUp = false; std::atomic<int> blowUps { 0 };           // (SAFETY: how many times a state was rescued - tests / diagnostics)
         float sinceHitMs = 1.0e9f, pitchNormNow = 0.f, lastVelocity = 1.f, lastNoteHz = 49.f, relMs = -1.f;
         std::unique_ptr<dsp::m06::State> m06St = std::make_unique<dsp::m06::State>();   // module 06 at engine level (not the layers)
         std::unique_ptr<dsp::tone::State> toneSt = std::make_unique<dsp::tone::State>(); // module 07 at engine level (not the layers)

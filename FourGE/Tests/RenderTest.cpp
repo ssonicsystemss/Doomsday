@@ -279,7 +279,26 @@ int main (int argc, char** argv)
                     ev.push_back ({ (int) (sec * sr), e->message }); endS = std::max (endS, sec);
                 }
         std::stable_sort (ev.begin(), ev.end(), [] (auto& a, auto& b) { return a.first < b.first; });
-        auto out = hitProc (p, ev, endS + 1.0, sr);
+        if (const int loops = String (std::getenv ("FGE_LOOPS") ? std::getenv ("FGE_LOOPS") : "1").getIntValue(); loops > 1)   // (a stress run: the line looped)
+        {
+            const int len = (int) (std::ceil (endS * bpm / 60.0 / 4.0) * 4.0 * 60.0 / bpm * sr); const auto one = ev;
+            for (int l = 1; l < loops; ++l) for (auto e : one) { e.first += l * len; ev.push_back (e); }
+            endS = (double) (loops * len) / sr;
+        }
+        AudioBuffer<float> out;
+        if (std::getenv ("FGE_RANDBLOCK"))                                    // host-like: a random block size every call (FL changes it)
+        {
+            p.prepareToPlay (sr, 1024); Random rnd (7);
+            const int total = (int) ((endS + 1.0) * sr); out.setSize (2, total); out.clear();
+            for (int pos = 0; pos < total;)
+            {
+                const int nb = jmin (total - pos, 16 + rnd.nextInt (1009)); AudioBuffer<float> b (2, nb); b.clear(); MidiBuffer m;
+                for (auto& [at, msg] : ev) if (at >= pos && at < pos + nb) m.addEvent (msg, at - pos);
+                p.processBlock (b, m); for (int ch = 0; ch < 2; ++ch) out.copyFrom (ch, pos, b, ch, 0, nb); pos += nb;
+            }
+        }
+        else out = hitProc (p, ev, endS + 1.0, sr);
+        { int bad = 0; for (int ch = 0; ch < 2; ++ch) for (int i = 0; i < out.getNumSamples(); ++i) if (! std::isfinite (out.getSample (ch, i))) ++bad; if (bad) printf ("!! %d non-finite samples\n", bad); }
         writeWav (File (argv[1]), out, sr);
         printf ("rendered %d events, %.1f s at %.0f BPM\n", (int) ev.size(), endS + 1.0, bpm);
         return 0;

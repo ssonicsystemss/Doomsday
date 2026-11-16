@@ -37,6 +37,11 @@ TOK + PUNCH ──(ZAAG SEND zg_send, 0 = beside it)──► ZAAG PROCESSING (t
 CLICK → CLICK PROCESSING (drive / mix) → PUNCH BUS          (never through ZAAG: ZAAG would smear the transient)
 ```
 
+**ZAAG and the TOK (owner 2026-11-16):** no separate, mandatory TOK in ZAAG. ZAAG is the character of a processed TAIL, not
+a kind of attack; a full TOK on top of the ZAAG punch risks a double transient, piled-up energy, a clash with the TOK TYPE and
+losing control of the shared PUNCH ENGINE. Instead ZAAG SEND mixes the zaag into the existing TOK / PUNCH. The ZAAG style never
+switches the TOK on.
+
 The FRONT (TOK / CLICK / SUB PUNCH) has its own levels: not under the PUNCH fader / mute, not through the punch group's FX;
 it goes into the master clip with the rest. Every module defaults OFF (LEVEL -60 dB) so approved presets stay identical.
 

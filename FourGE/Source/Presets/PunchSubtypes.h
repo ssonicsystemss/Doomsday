@@ -5,8 +5,8 @@
 //     PUNCH FAMILY   EUPHORIC  CLASSIC / 2010-2012 / FESTIVAL     (punch_mode EUPHORIC, psh_*)
 //                    PVC       CLASSIC / KLOENK / MODERN          (punch_mode PVC, the KLOENK model, pvc_*)
 //  A profile = conceptual 0..1 values (the owner's PUNCH_PROFILE: attack shape, body, click, sub punch, drive, curve,
-//  resonance freq / Q / amount, harmonics, decay, stereo) mapped onto the family's parameters + the shared FRONT
-//  CLICK / SUB PUNCH. It NEVER changes the TOK (TOK TYPE etc. stay: KLOENK + WOOD TOK, MODERN + PUP TOK ...), the tail,
+//  resonance freq / Q / amount, harmonics, decay, stereo) mapped onto the family's parameters (its OWN click / sub); the global CLICK /
+//  SUB PUNCH go OFF in AUTO, the global TOK plays in AUTO. It NEVER changes the TOK TYPE / pitch (KLOENK + WOOD TOK, MODERN + PUP ...), the tail,
 //  the lengths or the style. One pick = one undo step. The values are a first guess - to be tuned by ear.
 //  Files / presets layer only (no DSP, no GUI). State property "punchSub" = the last picked profile (display only).
 // =====================================================================
@@ -35,10 +35,10 @@ namespace fge::punchsub
         static const Profile p[count] {
             { 0.45f, 0.75f, 0.35f, 0.45f, 0.70f, 0.25f, 0.30f, 0.35f, 0.30f, 0.20f, 0.40f, 0.50f, 0.00f, 0.3f },   // EUPHORIC CLASSIC: soft, round, tonal
             { 0.75f, 0.70f, 0.70f, 0.65f, 0.50f, 0.50f, 0.55f, 0.50f, 0.40f, 0.35f, 0.65f, 0.40f, 0.00f, 0.4f },   // 2010-2012: raw, mechanical, a clear TOK -> CLICK -> PUNCH
-            { 0.85f, 0.90f, 0.60f, 0.90f, 0.75f, 0.50f, 0.40f, 0.60f, 0.35f, 0.40f, 0.85f, 0.55f, 0.60f, 0.7f },   // FESTIVAL: big, wide (above ~250 Hz), controlled low
-            { 0.95f, 0.20f, 0.60f, 0.60f, 0.50f, 0.45f, 0.40f, 0.45f, 0.40f, 0.40f, 0.60f, 0.15f, 0.00f, 0.4f },   // PVC CLASSIC: short, dry, plastic "TOK -> K"
+            { 0.90f, 0.85f, 0.60f, 0.95f, 0.75f, 0.45f, 0.35f, 0.75f, 0.30f, 0.30f, 0.85f, 0.55f, 0.60f, 0.7f },   // FESTIVAL: its own bright, wide upper mid (~2.2 kHz) + a very clear attack, stereo above ~250 Hz, controlled low - not a louder CLASSIC
+            { 0.95f, 0.15f, 0.60f, 0.60f, 0.50f, 0.40f, 0.40f, 0.30f, 0.25f, 0.30f, 0.60f, 0.10f, 0.00f, 0.4f },   // PVC CLASSIC: short, dry, plastic "TOK -> K" - a LOWER (~560 Hz), wider, weaker resonance than KLOENK
             { 0.80f, 0.50f, 0.75f, 0.60f, 0.45f, 0.55f, 0.50f, 0.55f, 0.90f, 0.90f, 0.65f, 0.50f, 0.00f, 0.4f },   // KLOENK: one narrow resonant peak in the upper low-mid
-            { 1.00f, 0.75f, 0.65f, 0.50f, 0.70f, 0.75f, 0.35f, 0.60f, 0.50f, 0.45f, 0.90f, 0.40f, 0.25f, 0.9f } }; // MODERN: clean attack, dense harmonics, clean low
+            { 1.00f, 0.75f, 0.50f, 0.50f, 0.70f, 0.55f, 0.15f, 0.60f, 0.50f, 0.45f, 0.95f, 0.40f, 0.25f, 1.0f } }; // MODERN: a clean attack, a controlled punch, DENSE harmonics (saturation, not more drive), a clean low end
         return p[i < 0 ? 0 : i >= count ? count - 1 : i];
     }
 
@@ -48,22 +48,17 @@ namespace fge::punchsub
         std::vector<std::pair<const char*, float>> v;
         auto db = [] (float x) { return -24.f + 22.f * x; };                 // 0.35 -> -16 dB, 0.75 -> -7.5 dB
         v.push_back ({ "punch_mode", (float) family (i) });
-        // the shared FRONT: CLICK + SUB PUNCH (the TOK is never touched)
-        v.push_back ({ "clk_level", db (q.click) });
-        v.push_back ({ "clk_type", q.attack > 0.9f ? 1.f : q.click > 0.65f ? 1.f : 0.f });     // HARD / SOFT
-        v.push_back ({ "clk_tone", q.clickTone });
-        v.push_back ({ "clk_length", 14.f - 9.f * q.attack });
-        v.push_back ({ "clk_decay", 0.3f + 0.4f * (1.f - q.decay) });
-        v.push_back ({ "spk_level", db (q.subPunch) });
-        v.push_back ({ "spk_length", 35.f + 35.f * q.body });
-        v.push_back ({ "spk_drive", 0.1f + 0.4f * q.drive * (1.f - q.lowClean) });
-        v.push_back ({ "spk_tone", 0.5f - 0.3f * q.lowClean });
+        // THE FRONT (owner 2026-11-16): EUPHORIC / PVC have their own click + sub built into the model, so the GLOBAL CLICK and SUB PUNCH
+        // are switched OFF in AUTO (never the model's own); the global TOK plays in AUTO by the profile - its TYPE / pitch stay the user's
+        v.push_back ({ "clk_auto", 0.f }); v.push_back ({ "spk_auto", 0.f });
+        v.push_back ({ "tk_auto", 1.f });
+        v.push_back ({ "tk_level", -14.f + 6.f * q.attack });                // (a quieter tok under a soft attack)
         if (family (i) == 2)                                                 // EUPHORIC: psh_*
         {
             v.push_back ({ "psh_spike", 10.f - 8.f * q.attack });
             v.push_back ({ "psh_body", 0.35f + 0.55f * q.body });
             v.push_back ({ "psh_body_ms", 50.f + 70.f * q.body });
-            v.push_back ({ "psh_click", 0.4f * q.click });                   // (the model's own click stays under the FRONT CLICK)
+            v.push_back ({ "psh_click", q.click });                          // the model's OWN click
             v.push_back ({ "psh_click_tone", 4000.f + 10000.f * q.clickTone });
             v.push_back ({ "psh_sub", 0.4f + 0.8f * q.subPunch });
             v.push_back ({ "psh_drive", 8.f + 30.f * q.drive });

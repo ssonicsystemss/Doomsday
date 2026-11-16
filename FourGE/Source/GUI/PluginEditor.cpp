@@ -4,6 +4,7 @@
 #include "../Presets/LengthEngine.h"
 #include "../Presets/PageRandomizer.h"
 #include "../Presets/PunchSubtypes.h"
+#include "../DSP/Front/FrontProfiles.h"
 #include "DoomsdayBrand.h"
 
 using namespace juce;
@@ -181,7 +182,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             proc.setParamInUndoStep ("punch_pitch", 440.f * std::exp2 ((float) (m - 69) / 12.f));
         };
         addAndMakeVisible (tokNote);
-        for (int t = 0; t < 7; ++t)
+        for (int t = 0; t < 16; ++t)
         {
             detTab[t].setButtonText (t == 0 ? "TONE" : "ROOM / COLOR"); detTab[t].setClickingTogglesState (false);
             detTab[t].setTooltip (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -290,6 +291,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             // 6th tab: THE FRONT (owner 2026-11-16) - TOK (own layer before the punch), CLICK ("ts", never through ZAAG), SUB PUNCH (!= SUB);
             // shared by every PUNCH TYPE, so this tab is there with each of them
             d.push_back (&detailPageMark);
+            d.push_back (combo ("tk_mode"));
             d.push_back (combo ("tk_type"));
             d.push_back (combo ("tk_pitch_mode"));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
@@ -297,16 +299,37 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                      { "tk_length", "TOK LENGTH" }, { "tk_peak", "ATTACK" }, { "tk_fade", "DECAY" }, { "tk_tone", "TONE" }, { "tk_drive", "DRIVE" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
+            d.push_back (combo ("clk_mode"));
             d.push_back (combo ("clk_type"));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
                      { "clk_level", "CLICK LEVEL" }, { "clk_pitch", "CLICK PITCH" }, { "clk_length", "CLICK LEN" }, { "clk_decay", "CLICK DECAY" },
                      { "clk_tone", "CLICK TONE" }, { "clk_drive", "CLICK DRIVE" }, { "clk_mix", "CLICK MIX" } })
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
+            d.push_back (combo ("spk_mode"));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
                      { "spk_level", "SUB PUNCH" }, { "spk_start", "SP START HZ" }, { "spk_end", "SP END HZ" }, { "spk_delay", "SP DELAY" },
                      { "spk_length", "SP LENGTH" }, { "spk_drive", "SP DRIVE" }, { "spk_tone", "SP TONE" }, { "zg_send", "ZAAG SEND" } })
                 d.push_back (knob (id, lab, col));
+            // 7th tab: PUNCH TYPE CLASSIC (EARLY REWORK, owner 2026-11-16): source / pitch, spectrum + drive, shape
+            d.push_back (&detailPageMark);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cp_shape", "SHAPE" }, { "cp_trans", "TRANSIENT" }, { "cp_trans_ms", "TR LENGTH" }, { "cp_trans_hz", "TR FREQ" }, { "cp_res", "RESONANCE" },
+                     { "cp_res_hz", "RES FREQ" }, { "cp_res_q", "RES Q" }, { "cp_noise", "NOISE" }, { "cp_noise_hz", "NOISE FREQ" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cp_start", "START" }, { "cp_hit", "HIT" }, { "cp_drop", "DROP" }, { "cp_glide", "GLIDE" }, { "cp_curve", "CURVE" }, { "cp_end", "END" },
+                     { "cp_attack", "ATTACK" }, { "cp_hold", "HOLD" }, { "cp_decay", "DECAY" }, { "cp_decay_curve", "DEC CURVE" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cp_low_cut", "LOW CUT" }, { "cp_lowmid_hz", "LOW-MID HZ" }, { "cp_lowmid_db", "LOW-MID" }, { "cp_mid_hz", "MID HZ" }, { "cp_mid_db", "MID" },
+                     { "cp_sat", "SATURATION" }, { "cp_asym", "ASYM" }, { "cp_sat_decay", "SAT DECAY" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (combo ("cp_ws_type"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "cp_ws_drive", "SHAPER" }, { "cp_high_cut", "HIGH CUT" }, { "cp_trans_ctrl", "TR CONTROL" } })
+                d.push_back (knob (id, lab, col, 40, String (id) == "cp_trans_ctrl"));
         }
         if (i == 3) d.push_back (knob ("sub_amp_env_delay", "START", col));      // SUB START: its own time, may enter under the tok
         if (i != 0) d.push_back (knob ((s + "_phase").toRawUTF8(), "PHASE", col));
@@ -407,6 +430,108 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (nullptr);
             for (auto [id, lab] : LZ { { "zg_body", "BODY" }, { "zg_decay", "DECAY" }, { "zg_fade", "FADE" } })
                 d.push_back (knob (id, lab, col));
+            // 8th-10th tabs: TAIL TYPE RAW (owner 2026-11-16, TAIL_RAW_EXP.md) - source + the fixed stack / the sweep + character / space + out
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("rw_osc1")); d.push_back (combo ("rw_osc2"));
+            for (auto [id, lab] : LZ { { "rw_osc2_level", "OSC 2 LVL" }, { "rw_osc2_tune", "OSC 2 TUNE" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("rw_noise"));
+            for (auto [id, lab] : LZ { { "rw_noise_level", "NOISE LVL" }, { "rw_start", "PITCH START" }, { "rw_drop", "DROP" }, { "rw_curve", "CURVE" }, { "rw_root", "ROOT" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            d.push_back (toggle ("rw_pre_on", "PRE-EQ", Toggle::Chip, col));
+            for (auto [id, lab] : LZ { { "rw_low_cut", "LOW CUT" }, { "rw_pre_mid", "PRE MID" } }) d.push_back (knob (id, lab, col));
+            d.push_back (toggle ("rw_d1_on", "DIST 1", Toggle::Chip, col)); d.push_back (combo ("rw_d1_type"));
+            d.push_back (knob ("rw_d1_drive", "DIST 1 DRIVE", col));
+            d.push_back (toggle ("rw_shape_on", "SHAPING EQ", Toggle::Chip, col));
+            for (auto [id, lab] : LZ { { "rw_growl_hz", "GROWL HZ" }, { "rw_growl_db", "GROWL GAIN" }, { "rw_growl_q", "GROWL Q" } }) d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            d.push_back (toggle ("rw_d2_on", "DIST 2", Toggle::Chip, col)); d.push_back (combo ("rw_d2_type")); d.push_back (knob ("rw_d2_drive", "DIST 2 DRIVE", col));
+            d.push_back (toggle ("rw_d3_on", "DIST 3", Toggle::Chip, col)); d.push_back (combo ("rw_d3_type")); d.push_back (knob ("rw_d3_drive", "DIST 3 DRIVE", col));
+            d.push_back (toggle ("rw_post_on", "POST-EQ", Toggle::Chip, col));
+            for (auto [id, lab] : LZ { { "rw_post_low_cut", "POST CUT" }, { "rw_post_high", "POST HIGH" } }) d.push_back (knob (id, lab, col));
+            d.push_back (toggle ("rw_clip_on", "CLIPPER", Toggle::Chip, col)); d.push_back (knob ("rw_clip_hard", "HARDNESS", col));
+            d.push_back (&detailPageMark);
+            d.push_back (toggle ("rw_bp_on", "BAND-PASS", Toggle::Chip, col)); d.push_back (combo ("rw_flt_shape")); d.push_back (combo ("rw_sync"));
+            for (auto [id, lab] : LZ { { "rw_flt_start", "START" }, { "rw_flt_end", "END" }, { "rw_flt_mid", "MID" }, { "rw_flt_reso", "RESONANCE" },
+                                       { "rw_flt_speed", "SPEED" }, { "rw_flt_time", "TIME" }, { "rw_flt_curve", "CURVE" }, { "rw_flt_mix", "MIX" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : LZ { { "rw_growl", "GROWL" }, { "rw_crunch", "CRUNCH" }, { "tl_drive", "DRIVE" }, { "tl_tone", "TONE" }, { "tl_movement", "MOVEMENT" },
+                                       { "tl_resonance", "RESONANCE" }, { "tl_density", "DENSITY" }, { "tl_space", "SPACE" }, { "tl_chaos", "CHAOS" }, { "tl_width", "WIDTH" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (&detailPageMark);
+            for (auto [id, lab] : LZ { { "rw_verb", "REVERB" }, { "rw_verb_size", "SIZE" }, { "rw_verb_decay", "DECAY" }, { "rw_verb_damp", "DAMPING" },
+                                       { "rw_verb_pre", "PRE-DELAY" }, { "rw_verb_low_cut", "LOW CUT" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : LZ { { "rw_sub", "SUB" }, { "rw_sub_hz", "SUB HZ" }, { "rw_width", "WIDTH" }, { "rw_attack", "ATTACK" }, { "rw_body", "BODY" },
+                                       { "rw_tail_decay", "DECAY" }, { "rw_fade", "FADE" } })
+                d.push_back (knob (id, lab, col));
+            // 11th-16th tabs: TAIL TYPE EXPERIMENTAL (owner 2026-11-16) - source + pitch / the 8 FX slots (2 per tab, the slot order = the chain) / mod + out
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("ex_osc"));
+            for (auto [id, lab] : LZ { { "ex_wt_pos", "WT POS" }, { "ex_osc_level", "OSC LVL" }, { "ex_fm_level", "FM LVL" }, { "ex_fm_amount", "FM AMOUNT" }, { "ex_fm_ratio", "FM RATIO" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (combo ("ex_noise"));
+            for (auto [id, lab] : LZ { { "ex_noise_level", "NOISE LVL" }, { "ex_ring_ratio", "RING RATIO" } }) d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            d.push_back (combo ("ex_pitch_curve"));
+            for (auto [id, lab] : LZ { { "ex_start", "START" }, { "ex_end", "END" }, { "ex_mid", "MID" }, { "ex_range", "RANGE" }, { "ex_pitch_time", "TIME" },
+                                       { "ex_pitch_shape", "CURVE" }, { "ex_pm_rate", "MOD RATE" }, { "ex_pm_depth", "MOD DEPTH" }, { "ex_root", "ROOT" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("ex_s1_type"));
+            for (auto [id, lab] : LZ { { "ex_s1_mix", "S1 MIX" }, { "ex_s1_amount", "S1 AMOUNT" }, { "ex_s1_param", "S1 PARAM" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("ex_s1_mod")); d.push_back (knob ("ex_s1_depth", "S1 DEPTH", col, 40, true));
+            d.push_back (moveSlotButton (1));
+            d.push_back (nullptr);
+            d.push_back (combo ("ex_s2_type"));
+            for (auto [id, lab] : LZ { { "ex_s2_mix", "S2 MIX" }, { "ex_s2_amount", "S2 AMOUNT" }, { "ex_s2_param", "S2 PARAM" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("ex_s2_mod")); d.push_back (knob ("ex_s2_depth", "S2 DEPTH", col, 40, true));
+            d.push_back (moveSlotButton (2));
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("ex_s3_type"));
+            for (auto [id, lab] : LZ { { "ex_s3_mix", "S3 MIX" }, { "ex_s3_amount", "S3 AMOUNT" }, { "ex_s3_param", "S3 PARAM" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("ex_s3_mod")); d.push_back (knob ("ex_s3_depth", "S3 DEPTH", col, 40, true));
+            d.push_back (moveSlotButton (3));
+            d.push_back (nullptr);
+            d.push_back (combo ("ex_s4_type"));
+            for (auto [id, lab] : LZ { { "ex_s4_mix", "S4 MIX" }, { "ex_s4_amount", "S4 AMOUNT" }, { "ex_s4_param", "S4 PARAM" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("ex_s4_mod")); d.push_back (knob ("ex_s4_depth", "S4 DEPTH", col, 40, true));
+            d.push_back (moveSlotButton (4));
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("ex_s5_type"));
+            for (auto [id, lab] : LZ { { "ex_s5_mix", "S5 MIX" }, { "ex_s5_amount", "S5 AMOUNT" }, { "ex_s5_param", "S5 PARAM" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("ex_s5_mod")); d.push_back (knob ("ex_s5_depth", "S5 DEPTH", col, 40, true));
+            d.push_back (moveSlotButton (5));
+            d.push_back (nullptr);
+            d.push_back (combo ("ex_s6_type"));
+            for (auto [id, lab] : LZ { { "ex_s6_mix", "S6 MIX" }, { "ex_s6_amount", "S6 AMOUNT" }, { "ex_s6_param", "S6 PARAM" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("ex_s6_mod")); d.push_back (knob ("ex_s6_depth", "S6 DEPTH", col, 40, true));
+            d.push_back (moveSlotButton (6));
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("ex_s7_type"));
+            for (auto [id, lab] : LZ { { "ex_s7_mix", "S7 MIX" }, { "ex_s7_amount", "S7 AMOUNT" }, { "ex_s7_param", "S7 PARAM" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("ex_s7_mod")); d.push_back (knob ("ex_s7_depth", "S7 DEPTH", col, 40, true));
+            d.push_back (moveSlotButton (7));
+            d.push_back (nullptr);
+            d.push_back (combo ("ex_s8_type"));
+            for (auto [id, lab] : LZ { { "ex_s8_mix", "S8 MIX" }, { "ex_s8_amount", "S8 AMOUNT" }, { "ex_s8_param", "S8 PARAM" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("ex_s8_mod")); d.push_back (knob ("ex_s8_depth", "S8 DEPTH", col, 40, true));
+            d.push_back (moveSlotButton (8));
+            d.push_back (&detailPageMark);
+            for (auto [id, lab] : LZ { { "ex_lfo1_rate", "LFO 1" }, { "ex_lfo2_rate", "LFO 2" }, { "ex_rnd_rate", "RANDOM" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("ex_seed"));
+            for (auto [id, lab] : LZ { { "ex_curve_start", "CURVE A" }, { "ex_curve_mid", "CURVE B" }, { "ex_curve_end", "CURVE C" }, { "ex_fm_mod", "FM MOD" }, { "ex_fs_mod", "SHIFT MOD" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : LZ { { "tl_drive", "DRIVE" }, { "tl_tone", "TONE" }, { "tl_movement", "MOVEMENT" }, { "tl_resonance", "RESONANCE" },
+                                       { "tl_density", "DENSITY" }, { "tl_space", "SPACE" }, { "tl_chaos", "CHAOS" }, { "tl_width", "WIDTH" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : LZ { { "ex_sub", "SUB" }, { "ex_sub_hz", "SUB HZ" }, { "ex_width", "WIDTH" }, { "ex_drive", "OUT DRIVE" }, { "ex_attack", "ATTACK" },
+                                       { "ex_body", "BODY" }, { "ex_tail_decay", "DECAY" }, { "ex_fade", "FADE" } })
+                d.push_back (knob (id, lab, col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };
@@ -494,6 +619,23 @@ GeCanvas::Seg* GeCanvas::seg (const char* id, StringArray labels, Colour accent)
     auto s = std::make_unique<Seg> (proc.apvts, id, labels, accent);
     auto* raw = s.get(); addAndMakeVisible (raw); byId.insert ({ id, raw }); owned.push_back (std::move (s)); return raw;
 }
+TextButton* GeCanvas::moveSlotButton (int n)                                 // EXPERIMENTAL: MOVE slot n before slot n-1 (one undo step)
+{
+    auto b = std::make_unique<TextButton> (n == 1 ? "MOVE" : "< MOVE");
+    b->setTooltip (n == 1 ? "Slot 1 is the first in the chain." : "MOVE: swap this slot with the one before it (the order changes the sound: a shifter before a shaper is not a shaper before a shifter).");
+    b->setEnabled (n > 1);
+    b->onClick = [this, n]
+    {
+        proc.beginUndoStep ("Move slot");
+        for (auto* k : { "_type", "_mix", "_amount", "_param", "_mod", "_depth" })
+        {
+            const String a = "ex_s" + String (n) + k, c = "ex_s" + String (n - 1) + k;
+            const float va = proc.apvts.getRawParameterValue (a)->load(), vc = proc.apvts.getRawParameterValue (c)->load();
+            proc.setParamInUndoStep (a, vc); proc.setParamInUndoStep (c, va);
+        }
+    };
+    auto* raw = b.get(); addAndMakeVisible (raw); owned.push_back (std::move (b)); return raw;
+}
 ComboBox* GeCanvas::combo (const char* id)
 {
     auto cb = std::make_unique<ComboBox>();
@@ -509,7 +651,7 @@ Component* GeCanvas::findControl (const String& id)                     // (a pa
     return range.first == range.second ? nullptr : range.first->second;
 }
 
-int GeCanvas::punchTypeIdx() const { const int m = (int) raw (proc, P::punchMode); return m <= 1 ? 0 : m == 2 ? 1 : m == 3 ? 2 : 3; }
+int GeCanvas::punchTypeIdx() const { const int m = (int) raw (proc, P::punchMode); return m <= 1 || m == 5 ? 0 : m == 2 ? 1 : m == 3 ? 2 : 3; }
 int GeCanvas::tailTypeIdx() const  { return jlimit (0, 2, (int) raw (proc, P::tailEngine)); }
 void GeCanvas::applyOverview()                                                      // MAIN: the overview or the full detail view
 {
@@ -745,18 +887,18 @@ void GeCanvas::layoutDetail()
         punchSub.setVisible (sub);
         if (sub && tb != nullptr) punchSub.setBounds (tb->getX() - 128, detailArea.getY() + 5, 122, 24);
     }
-    for (int t = 0; t < 7; ++t)
+    for (int t = 0; t < 16; ++t)
     {
         detTab[t].setVisible (tabs && isAllowed (t) && nTabs > 1 && (pageIdx == 0 && ! overview));
         detDice.setVisible ((pageIdx == 0 && ! overview));
-        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "FRONT", "" };
-        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG", "ZAAG SWEEP / FX", "ZAAG OUT" };
+        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "FRONT", "CLASSIC", "", "", "", "", "", "", "", "", "" };
+        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG", "ZAAG SWEEP / FX", "ZAAG OUT", "RAW STACK", "RAW SWEEP / CHAR", "RAW SPACE / OUT", "EXP SOURCE", "EXP FX 1-2", "EXP FX 3-4", "EXP FX 5-6", "EXP FX 7-8", "EXP MOD / OUT" };
         static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
                                          "EUPHORIC model (punch mode EUPHORIC): a broadband source -> mid boost -> asymmetric distortion -> tape stop -> volume shaper.",
                                          "PVC model (punch mode PVC, the KLOENK): source -> resonance / ring mod / flanger / comb -> blend -> compressor -> distortion -> EQ -> shape. Monotone.",
                                          "The shared part of the PUNCH ENGINE: the SUB PUNCH (own wave / pitch / delay / decay) and the BLEND (tonal / click / sub / body / tail).",
                                          "PUNCH TYPE ZAAG: a 2 ms click, the PIEP first, then the TRASK, and a reverb on them only.",
-                                         "THE FRONT of the kick, with every PUNCH TYPE: TOK (its own layer before the punch, a fixed pitch), CLICK (the 'ts', straight to the punch bus, never through ZAAG) and SUB PUNCH (a short low hit, gone before the SUB). ZAAG SEND: TOK + PUNCH into the ZAAG tail cascade.", "" };
+                                         "THE FRONT of the kick, with every PUNCH TYPE: TOK (its own layer before the punch, a fixed pitch), CLICK (the 'ts', straight to the punch bus, never through ZAAG) and SUB PUNCH (a short low hit, gone before the SUB). ZAAG SEND: TOK + PUNCH into the ZAAG tail cascade.", "PUNCH TYPE CLASSIC (EARLY): the old, hard, short punch built from its attack - a hybrid source (tone + its own transient + a resonant low-mid + attack noise), a 3-stage pitch (start -> hit -> glide -> fundamental), pre-EQ -> saturation -> waveshaper -> post-EQ -> transient control.", "", "", "", "", "", "", "", "", "" };
         detTab[t].setButtonText (selected == 0 ? punchTabs[t] : tailTabs[t]);
         detTab[t].setTooltip (selected == 0 ? punchTips[t]
                                             : (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -765,7 +907,13 @@ void GeCanvas::layoutDetail()
                                                                  : t == 3 ? "TAIL ENGINE PVC: the GATE, the distortion stages (drive 1 -> clip -> gate -> drive 2), the spectrum balance, mono low / stereo high, the final shape."
                                                                           : t == 4 ? "ZAAG ENGINE: VARIANT + the 8 ZAAG macros, the source / pitch, EQ1 -> DIST 1 -> moving low shelf -> DIST 2 (a cascade: every stage feeds the next)."
                                                                                    : t == 5 ? "ZAAG ENGINE: the resonant sweep (locked to the kick envelope), ZAAG RESONATOR (phaser / resonator / comb), DIST 3 = the main character (+ dirt)."
-                                                                                            : "ZAAG ENGINE: SUB PUSH / LOW-MID CUT / HIGH ENHANCE -> soft clip, ZAAG STEREO (the lows always mono), the sub, the tail shape."));
+                                                                                            : t == 6 ? "ZAAG ENGINE: SUB PUSH / LOW-MID CUT / HIGH ENHANCE -> soft clip, ZAAG STEREO (the lows always mono), the sub, the tail shape."
+                                                                                                     : t == 7 ? "TAIL TYPE RAW: OSC 1 / OSC 2 / NOISE, the controlled pitch drop, and the fixed stack PRE-EQ -> DIST 1 -> SHAPING EQ (GROWL) -> DIST 2 -> (band-pass) -> DIST 3 -> POST-EQ -> CLIPPER (every stage on / off)."
+                                                                                                              : t == 8 ? "TAIL TYPE RAW: the resonant BAND-PASS SWEEP (DOWN / UP / DOWN-UP / UP-DOWN / CUSTOM; SYNC / FREE / BODY END) and the character: GROWL, CRUNCH + the 8 TAIL macros."
+                                                                                                                       : t == 9 ? "TAIL TYPE RAW: the subtle reverb (after the attack, no lows), the SUB (clean sine on the pitch, mono), the WIDTH of the highs, the tail shape."
+                                                                                                                                : t == 10 ? "TAIL TYPE EXPERIMENTAL: the OSCILLATOR (+ CUSTOM WAVETABLE), the real FM ENGINE, NOISE, the RING SOURCE, and the PITCH CURVE (8 shapes)."
+                                                                                                                                          : t == 15 ? "TAIL TYPE EXPERIMENTAL: LFO 1 / LFO 2 / RANDOM (FIXED SEED) / MANUAL CURVE, FM / SHIFT mod, the 8 TAIL macros, the SUB (lows mono), WIDTH, the tail shape."
+                                                                                                                                                    : "TAIL TYPE EXPERIMENTAL: the FX SLOTS - the slot order is the processing order (MOVE swaps a slot with the one before it). Each: TYPE, MIX, AMOUNT, PARAM, MOD SOURCE + DEPTH."));
         const int tw = 108, step = tw + 4;
         int right = detailArea.getRight() - 14; for (int u = nAll - 1; u > t; --u) if (isAllowed (u)) right -= step;
         detTab[t].setBounds (right - tw, detailArea.getY() + 6, tw, 22);
@@ -994,14 +1142,64 @@ void GeCanvas::updateEnabled()
         for (auto* id : { "zg_trask_delay", "zg_trask_ms", "zg_trask_tone" }) en (id, zp && raw (proc, P::zgTrask) > 0.001f);
         for (auto* id : { "zg_thump_hz", "zg_thump_ms", "zg_thump_drive" }) en (id, zp && raw (proc, P::zgThump) > 0.001f);
         for (auto* id : { "zg_pup_hz", "zg_pup_ms", "zg_pup_oct", "zg_pup_drive" }) en (id, zp && raw (proc, P::zgPup) > 0.001f);
-        for (auto [lv, pre] : std::initializer_list<std::pair<int, const char*>> { { P::tkLevel, "tk_" }, { P::clkLevel, "clk_" }, { P::spkLevel, "spk_" } })
-            for (int i = 0; i < P::count; ++i)                                     // THE FRONT: a module's knobs wake up with its LEVEL
-                if (const String id (def (i).id); id.startsWith (pre) && ! id.endsWith ("_level")) en (id, raw (proc, lv) > -59.9f);
+        for (auto [lv, pre, md, au] : std::initializer_list<std::tuple<int, const char*, int, int>> { { P::tkLevel, "tk_", P::tkMode, P::tkAuto },
+                                                                                                    { P::clkLevel, "clk_", P::clkMode, P::clkAuto }, { P::spkLevel, "spk_", P::spkMode, P::spkAuto } })
+        {   // THE FRONT: a module's knobs wake up when it plays (AUTO = the style's / preset's choice, ON, OFF) and has a LEVEL
+            const int m = (int) raw (proc, md);
+            const bool wants = md == P::tkMode || fge::dsp::front::profileFor ((int) raw (proc, P::punchMode)).globalInAuto;   // (AUTO: the PUNCH TYPE profile)
+            const bool plays = m == 1 || (m == 0 && raw (proc, au) > 0.5f && wants);
+            for (int i = 0; i < P::count; ++i)
+                if (const String id (def (i).id); id.startsWith (pre) && ! id.endsWith ("_mode") && ! id.endsWith ("_auto"))
+                    en (id, plays && (id.endsWith ("_level") || raw (proc, lv) > -59.9f));
+        }
         if (raw (proc, P::tkLevel) > -59.9f) en ("tk_tune", (int) raw (proc, P::tkPitchMode) != 1);   // FOLLOW MIDI: no PITCH
         for (auto* id : { "zg_verb_decay", "zg_verb_size", "zg_verb_send", "zg_verb_pre", "zg_verb_gate", "zg_verb_damp", "zg_verb_low_cut" }) en (id, zp && raw (proc, P::zgVerb) > 0.001f);
         for (auto* id : { "zg_rsn_freq", "zg_rsn_reso", "zg_rsn_width", "zg_rsn_pos", "zg_rsn_mode" }) en (id, zg && raw (proc, P::zgRsnMix) > 0.001f);
         en ("zg_side_boost_hz", zg && raw (proc, P::zgSideBoost) > 0.01f);
         en ("zg_length", zg && raw (proc, P::zgLenFollow) < 0.5f);
+        {   // TAIL TYPE RAW: its knobs live with RAW; a switched-off stage greys its own knobs
+            const bool rw = (int) raw (proc, P::tailEngine) == 3;
+            for (int i = 0; i < P::count; ++i)
+                if (const String id (def (i).id); id.startsWith ("rw_") || id.startsWith ("tl_")) en (id, rw);
+            auto stageEn = [&] (int sw, std::initializer_list<const char*> ids) { for (auto* id : ids) en (id, rw && raw (proc, sw) > 0.5f); };
+            stageEn (P::rwPreOn, { "rw_low_cut", "rw_pre_mid" });
+            stageEn (P::rwD1On, { "rw_d1_type", "rw_d1_drive" });
+            stageEn (P::rwShapeOn, { "rw_growl_hz", "rw_growl_db", "rw_growl_q" });
+            stageEn (P::rwD2On, { "rw_d2_type", "rw_d2_drive" });
+            stageEn (P::rwBpOn, { "rw_flt_shape", "rw_flt_start", "rw_flt_end", "rw_flt_mid", "rw_flt_reso", "rw_flt_speed", "rw_flt_time", "rw_flt_curve", "rw_flt_mix" });
+            stageEn (P::rwD3On, { "rw_d3_type", "rw_d3_drive" });
+            stageEn (P::rwPostOn, { "rw_post_low_cut", "rw_post_high" });
+            stageEn (P::rwClipOn, { "rw_clip_hard" });
+            const bool bpOn = rw && raw (proc, P::rwBpOn) > 0.5f; const int sy = (int) raw (proc, P::rwSync);
+            en ("rw_flt_mid", bpOn && (int) raw (proc, P::rwFltShape) == 4);
+            en ("rw_flt_time", bpOn && sy == 1); en ("rw_flt_speed", bpOn && sy != 1);
+            for (auto* id : { "rw_osc2_level", "rw_osc2_tune" }) en (id, rw && (int) raw (proc, P::rwOsc2) != 3);
+            en ("rw_noise_level", rw && (int) raw (proc, P::rwNoise) != 2);
+            for (auto* id : { "rw_verb_size", "rw_verb_decay", "rw_verb_damp", "rw_verb_pre", "rw_verb_low_cut" }) en (id, rw && raw (proc, P::rwVerb) > 0.001f);
+        }
+        {   // PUNCH TYPE CLASSIC (EARLY): its knobs live with it
+            const bool cp = (int) raw (proc, P::punchMode) == 5;
+            for (int i = 0; i < P::count; ++i) if (const String id (def (i).id); id.startsWith ("cp_")) en (id, cp);
+            for (auto* id : { "cp_trans_ms", "cp_trans_hz" }) en (id, cp && raw (proc, P::cpTrans) > 0.001f);
+            for (auto* id : { "cp_res_hz", "cp_res_q" }) en (id, cp && raw (proc, P::cpRes) > 0.001f);
+            en ("cp_noise_hz", cp && raw (proc, P::cpNoise) > 0.001f);
+        }
+        {   // TAIL TYPE EXPERIMENTAL: its knobs live with it; an OFF slot greys its controls
+            const bool ex = (int) raw (proc, P::tailEngine) == 4;
+            for (int i = 0; i < P::count; ++i)
+                if (const String id (def (i).id); id.startsWith ("ex_")) en (id, ex);
+            if ((int) raw (proc, P::tailEngine) == 4) for (int i = 0; i < P::count; ++i) if (String (def (i).id).startsWith ("tl_")) en (def (i).id, true);
+            for (int n = 1; n <= 8; ++n)
+            {
+                const bool on = ex && (int) proc.apvts.getRawParameterValue ("ex_s" + String (n) + "_type")->load() != 0;
+                for (auto* k : { "_mix", "_amount", "_param", "_mod" }) en ("ex_s" + String (n) + k, on);
+                en ("ex_s" + String (n) + "_depth", on && (int) proc.apvts.getRawParameterValue ("ex_s" + String (n) + "_mod")->load() != 0);
+            }
+            en ("ex_wt_pos", ex && (int) raw (proc, P::exOsc) == 4);
+            for (auto* id : { "ex_fm_amount", "ex_fm_ratio", "ex_fm_mod" }) en (id, ex && raw (proc, P::exFmLvl) > 0.001f);
+            en ("ex_noise", ex && raw (proc, P::exNoiseLvl) > 0.001f);
+            en ("ex_mid", ex && (int) raw (proc, P::exPCurve) == 7);
+        }
         const bool gtd = (int) raw (proc, P::tailEngine) == 1;                     // TAIL ENGINE PVC
         for (auto* id : { "gt_gate", "gt_gate_len", "gt_gate_depth", "gt_comp", "gt_filter", "gt_reso", "gt_move_rate", "gt_move_depth" }) en (id, gtd);
         for (int i = 0; i < P::count; ++i)
@@ -1037,6 +1235,7 @@ std::vector<int> GeCanvas::allowedTabs() const                                //
     {
         const int m = (int) raw (proc, P::punchMode);
         if (m == 4) return { 4, 5 };                                              // PUNCH TYPE ZAAG + THE FRONT
+        if (m == 5) return { 6, 5 };                                              // PUNCH TYPE CLASSIC (EARLY) + THE FRONT
         return { m <= 1 ? 0 : m == 2 ? 1 : 2, 3, 5 };                               // + SUB / BLEND + THE FRONT (TOK / CLICK / SUB PUNCH)
     }
     if (selected == 2)
@@ -1044,9 +1243,11 @@ std::vector<int> GeCanvas::allowedTabs() const                                //
         const int e = (int) raw (proc, P::tailEngine);
         if (e == 1) return { 2, 3 };
         if (e == 2) return { 4, 5, 6 };
+        if (e == 3) return { 7, 8, 9 };                                           // TAIL TYPE RAW
+        if (e == 4) return { 10, 11, 12, 13, 14, 15 };                            // TAIL TYPE EXPERIMENTAL
         return { 0, 1 };
     }
-    return { 0, 1, 2, 3, 4, 5, 6 };
+    return { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
 }
 bool GeCanvas::hiddenByVariant (Component* c) const
 {

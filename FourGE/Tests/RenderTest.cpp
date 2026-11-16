@@ -1125,10 +1125,48 @@ int main (int argc, char** argv)
                 if (sid == "zg_piep_hz" || sid == "zg_piep_ms") set2 ("zg_piep", 0.8f);
                 if (sid == "zg_length") set2 ("zg_len_follow", 0.f);
                 if (sid.startsWith ("zg_pup_")) set2 ("zg_pup", 1.5f);
-                if (sid.startsWith ("tk_") && sid != "tk_level") set2 ("tk_level", 0.f);
-                if (sid == "tk_tune") set2 ("tk_pitch_mode", 0.f);                       // THE FRONT (owner 2026-11-16): a module wakes with its LEVEL
-                if (sid.startsWith ("clk_") && sid != "clk_level") set2 ("clk_level", 0.f);
-                if (sid.startsWith ("spk_") && sid != "spk_level") set2 ("spk_level", 0.f);
+                if (sid.startsWith ("tk_")) { set2 ("tk_level", 0.f); set2 ("tk_mode", 1.f); if (sid == "tk_mode") set2 ("tk_auto", 1.f); if (sid == "tk_auto") set2 ("tk_mode", 0.f); }
+                if (sid == "tk_tune") set2 ("tk_pitch_mode", 0.f);
+                if (sid == "tk_pitch_mode") set2 ("tk_tune", 5.f);
+                if (sid.startsWith ("cp_"))                                                                    // PUNCH TYPE CLASSIC (EARLY REWORK)
+                {
+                    set2 ("punch_mode", 5.f); set2 ("punch_level", 0.f);
+                    if (sid == "cp_trans_ms" || sid == "cp_trans_hz") set2 ("cp_trans", 1.5f);
+                    if (sid == "cp_res_hz" || sid == "cp_res_q") set2 ("cp_res", 1.f);
+                    if (sid == "cp_noise_hz") set2 ("cp_noise", 0.6f);
+                }
+                if (sid.startsWith ("ex_"))                                                                    // TAIL TYPE EXPERIMENTAL (owner 2026-11-16)
+                {
+                    set2 ("tail_engine", 4.f);
+                    if (sid.startsWith ("ex_s") && ! sid.endsWith ("_type"))
+                    {
+                        const String pre = sid.upToFirstOccurrenceOf ("_", true, false) + sid.fromFirstOccurrenceOf ("_", false, false).upToFirstOccurrenceOf ("_", true, false);   // "ex_sN_"
+                        set2 (pre + "type", 1.f);                                                         // FORMANT (uses AMOUNT + PARAM)
+                        if (sid.endsWith ("_mod")) set2 (pre + "depth", 0.8f);
+                        if (sid.endsWith ("_depth")) set2 (pre + "mod", 2.f);
+                    }
+                    if (sid == "ex_wt_pos") set2 ("ex_osc", 4.f);
+                    if (sid == "ex_fm_amount" || sid == "ex_fm_ratio" || sid == "ex_fm_mod") { set2 ("ex_fm_level", 1.f); set2 ("ex_fm_amount", 4.f); }
+                    if (sid == "ex_noise") set2 ("ex_noise_level", 0.5f);
+                    if (sid == "ex_ring_ratio") set2 ("ex_s1_type", 3.f);
+                    if (sid == "ex_mid") set2 ("ex_pitch_curve", 7.f);
+                    if (sid == "ex_pm_rate") set2 ("ex_pm_depth", 6.f);
+                    const String modOf = sid == "ex_lfo1_rate" ? "2" : sid == "ex_lfo2_rate" ? "3" : (sid == "ex_rnd_rate" || sid == "ex_seed") ? "4" : sid.startsWith ("ex_curve_") ? "6" : "";
+                    if (modOf.isNotEmpty()) { set2 ("ex_s1_type", 1.f); set2 ("ex_s1_mod", (float) modOf.getIntValue()); set2 ("ex_s1_depth", 0.9f); set2 ("ex_s1_amount", 0.4f); }
+                    if (sid == "ex_fs_mod") set2 ("ex_s1_type", 2.f);
+                    if (sid == "ex_width") { set2 ("ex_s1_type", 7.f); set2 ("ex_s1_amount", 0.8f); }                // (a stereo phaser: something on the side)
+                }
+                if (sid.startsWith ("rw_") || sid.startsWith ("tl_"))                                         // TAIL TYPE RAW (owner 2026-11-16)
+                {
+                    set2 ("tail_engine", 3.f);
+                    if (sid == "rw_flt_mid") set2 ("rw_flt_shape", 4.f);
+                    if (sid == "rw_flt_time") set2 ("rw_sync", 1.f);
+                    if (sid == "rw_osc2_level" || sid == "rw_osc2_tune") set2 ("rw_osc2", 0.f);
+                    if (sid == "rw_noise_level") set2 ("rw_noise", 0.f);
+                    if (sid.startsWith ("rw_verb_")) set2 ("rw_verb", 0.3f);
+                }                                          // (on a G the tok register = G3: FIXED 0 = FOLLOW)                       // THE FRONT (owner 2026-11-16): a module wakes with its LEVEL
+                if (sid.startsWith ("clk_")) { set2 ("clk_level", 0.f); set2 ("clk_mode", 1.f); if (sid == "clk_mode") set2 ("clk_auto", 1.f); if (sid == "clk_auto") set2 ("clk_mode", 0.f); }
+                if (sid.startsWith ("spk_")) { set2 ("spk_level", 0.f); set2 ("spk_mode", 1.f); if (sid == "spk_mode") set2 ("spk_auto", 1.f); if (sid == "spk_auto") set2 ("spk_mode", 0.f); }
                 if (sid == "zg_side_boost_hz") set2 ("zg_side_boost", 9.f);                                 // ZAAG ENGINE (ZAAG_ENGINE.md)
                 if (sid == "zg_sw_reopen" || sid == "zg_sw_end" || sid == "zg_sw_hold") set2 ("zg_peak", 15.f);                                          // TAIL ENGINE PVC (owner 2026-11-14)
                 if (sid == "pt_movement") set2 ("gt_gate", 1.f);
@@ -3515,7 +3553,7 @@ int main (int argc, char** argv)
         namespace ka = fge::dsp::analysis;
         auto run = [] (int note, float& tokHz, float& tailOnMs, float& endHz)
         {
-            GeProcessor p; fge::style::apply (p, fge::style::Modern, false);
+            GeProcessor p; fge::style::apply (p, fge::style::Modern, false); for (auto* m : { "tk_mode", "clk_mode", "spk_mode" }) setP (p, m, 2.f);   // (the classic tok alone: no FRONT layers)
             for (auto [id, v] : std::initializer_list<std::pair<const char*, float>> { { "punch_mode", 1 }, { "punch_note_mode", 0 }, { "punch_pitch", 392 }, { "punch_length", 110 },
                      { "punch_source", 2 }, { "punch_level", 0 }, { "punch_sustain", 1 }, { "tail_penv_offset", 0 }, { "sub_level", -60 }, { "body_level", -60 } })
                 setP (p, id, v);
@@ -3529,7 +3567,7 @@ int main (int argc, char** argv)
         float t1, t2, a1, a2, e1, e2;
         run (31, t1, a1, e1); run (35, t2, a2, e2);
         // where the tail starts: the tail alone, the tok muted
-        GeProcessor p; fge::style::apply (p, fge::style::Modern, false);
+        GeProcessor p; fge::style::apply (p, fge::style::Modern, false); for (auto* m : { "tk_mode", "clk_mode", "spk_mode" }) setP (p, m, 2.f);   // (the classic tok alone: no FRONT layers)
         for (auto [id, v] : std::initializer_list<std::pair<const char*, float>> { { "punch_mode", 1 }, { "punch_length", 110 }, { "punch_sustain", 1 }, { "punch_overlap", 4 },
                  { "tail_penv_offset", 0 }, { "mix_punch_mute", 1 }, { "sub_level", -60 }, { "body_level", -60 } }) setP (p, id, v);
         const auto tb = fge::analysis::renderMine (p.exportSnapshot(), 31, 150.0);
@@ -3546,6 +3584,7 @@ int main (int argc, char** argv)
         auto make = [] (std::initializer_list<std::pair<const char*, float>> extra)
         {
             auto p = std::make_unique<GeProcessor>(); fge::style::apply (*p, fge::style::Raw, false);
+            for (auto* m : { "tk_mode", "clk_mode", "spk_mode" }) setP (*p, m, 2.f);           // (the classic tok alone: no FRONT layers)
             for (auto [id, v] : std::initializer_list<std::pair<const char*, float>> { { "punch_mode", 1 }, { "punch_length", 125 }, { "punch_sustain", 1 }, { "punch_overlap", 4 },
                      { "tail_penv_offset", 0 }, { "body_level", -60 } }) setP (*p, id, v);
             for (auto [id, v] : extra) setP (*p, id, v);
@@ -4328,7 +4367,8 @@ int main (int argc, char** argv)
             xp.exportNow (false);
             pump ([&] { return ! xp.busy() && xp.lastFile().existsAsFile(); });
             pump ([&] { return xp.resultText().contains ("TRUE PEAK"); });
-            const bool wrote = xp.lastFile().existsAsFile() && xp.resultText().contains ("TRUE PEAK") && (int) p.exportHistory.list().size() == h0 + 1;
+            const bool wrote = xp.lastFile().existsAsFile() && xp.resultText().contains ("TRUE PEAK") && (int) p.exportHistory.list().size() == std::min (h0 + 1, 50);   // (the history keeps the last 50)
+            if (! wrote) printf ("   (export: file %d, history %d -> %d, text: %s)\n", (int) xp.lastFile().existsAsFile(), h0, (int) p.exportHistory.list().size(), xp.resultText().substring (0, 160).toRawUTF8());
             xp.previewNow();
             pump ([&] { return ! xp.busy(); });
             const bool prev = xp.resultText().startsWith ("PREVIEW") && dir.findChildFiles (File::findFiles, false).size() == 1;
@@ -4632,7 +4672,7 @@ int main (int argc, char** argv)
                 GeProcessor q;
                 for (auto* id : { "mix_body_mute", "mix_tail_mute", "mix_sub_mute" }) setP (q, id, 1.f);
                 setP (q, "punch_level", -60.f);
-                setP (q, tok ? "tk_level" : "spk_level", 0.f); setP (q, "tk_pitch_mode", mode);
+                setP (q, tok ? "tk_level" : "spk_level", 0.f); setP (q, tok ? "tk_mode" : "spk_mode", 1.f); setP (q, "tk_pitch_mode", mode);
                 return renderKick (q.frame(), note, 44100.0, 0.3, -1, 1.f, &q.shapes(), 0.0, -1.0, nullptr, &q.oscData(), &q.distData(), nullptr, &q.modAudioCopy());
             };
             const auto t31 = front (31, true), t36 = front (36, true);
@@ -4652,7 +4692,7 @@ int main (int argc, char** argv)
             {
                 GeProcessor q;
                 for (auto* id : { "mix_body_mute", "mix_sub_mute" }) setP (q, id, 1.f);
-                setP (q, "tail_engine", 2.f); setP (q, "zg_send", 1.f); setP (q, "zg_drive", zd); setP (q, "clk_level", click ? 0.f : -60.f);
+                setP (q, "tail_engine", 2.f); setP (q, "zg_send", 1.f); setP (q, "zg_drive", zd); setP (q, "clk_level", 0.f); setP (q, "clk_mode", click ? 1.f : 2.f);
                 return renderKick (q.frame(), 31, 44100.0, 0.05, -1, 1.f, &q.shapes(), 0.0, -1.0, nullptr, &q.oscData(), &q.distData(), nullptr, &q.modAudioCopy());
             };
             const auto c1 = zclick (0.f, true), n1 = zclick (0.f, false), c2 = zclick (24.f, true), n2 = zclick (24.f, false);
@@ -4664,6 +4704,143 @@ int main (int argc, char** argv)
             }
             check (ec > 1e-4 && dc < 0.1 * ec && dk > dc, "FRONT CLICK: the click goes to the punch bus, never through the ZAAG cascade (ZAAG drive moves the kick, not the click)",
                    "click change " + String (10.0 * std::log10 (dc / (ec + 1e-12) + 1e-12), 1) + " dB, kick change " + String (dk, 4));
+        }
+        {   // TAIL TYPE RAW (owner 2026-11-16, TAIL_RAW_EXP.md 8: the acceptance tests for RAW)
+            namespace rw = fge::dsp::raw;
+            auto run = [&] (rw::Settings st, double fs, float noteHz, float lenMs, std::vector<float>& L, std::vector<float>& R)
+            {
+                auto u = std::make_unique<rw::Unit>(); u->prepare (fs); st.on = true; st.lengthMs = lenMs;
+                L.clear(); R.clear();
+                for (int i = 0; i < (int) (lenMs * 0.001 * fs); ++i) { float l, r; u->process (st, (float) (i * 1000.0 / fs), noteHz, l, r); L.push_back (l); R.push_back (r); }
+            };
+            auto bands = [&] (const std::vector<float>& x, double fs, float from, float to)        // 8 log bands 300 Hz - 8 kHz over a window, normalised
+            {
+                std::vector<double> e (8, 0.0); fge::dsp::bq::Biquad f[8];
+                for (int k = 0; k < 8; ++k) f[k].bp (fs, 300.0 * std::pow (8000.0 / 300.0, (k + 0.5) / 8.0), 2.0);
+                for (int i = (int) (from * 0.001 * fs); i < std::min ((int) x.size(), (int) (to * 0.001 * fs)); ++i)
+                    for (int k = 0; k < 8; ++k) { const float y = f[k].tick (x[(size_t) i]); e[(size_t) k] += y * y; }
+                double t = 0; for (auto v : e) t += v; for (auto& v : e) v = 10.0 * std::log10 (v / (t + 1e-12) + 1e-12);
+                return e;
+            };
+            auto dist = [] (const std::vector<double>& a, const std::vector<double>& b) { double d = 0; for (size_t k = 0; k < a.size(); ++k) d = std::max (d, std::abs (a[k] - b[k])); return d; };
+            const double fs = 176400.0; rw::Settings d;
+            std::vector<float> L1, R1, L2, R2;
+            // 1: the character across MIDI notes (G1 vs C2): the spectral shape of the growl stays (max band difference)
+            run (d, fs, 49.f, 400.f, L1, R1); run (d, fs, 65.4f, 400.f, L2, R2);
+            const double dNote = dist (bands (L1, fs, 100, 300), bands (L2, fs, 100, 300));
+            check (dNote < 6.0, "RAW 1: keeps its character across MIDI notes (G1 vs C2, the band shape 300 Hz - 8 kHz)", String (dNote, 1) + " dB max band difference");
+            // 2: the growl across kick lengths (SYNC): the same part of the tail has the same shape at 300 and 600 ms
+            run (d, fs, 49.f, 300.f, L1, R1); run (d, fs, 49.f, 600.f, L2, R2);
+            const double dLen = dist (bands (L1, fs, 0.4f * 300, 0.6f * 300), bands (L2, fs, 0.4f * 600, 0.6f * 600));
+            check (dLen < 4.0, "RAW 2: keeps its growl across kick lengths (300 vs 600 ms, SYNC: the same part of the tail)", String (dLen, 1) + " dB");
+            // 5: no clicks: the biggest sample step after the start stays small (smooth movement at 176 kHz)
+            // (a hard-driven tail has a sharp edge every cycle by design; a CLICK = high-frequency energy the MOVEMENT adds on top: the moving
+            //  sweep + CHAOS vs the same tail with the sweep parked, per 1 ms window above 16 kHz)
+            auto hfWin = [&] (const std::vector<float>& x)
+            {
+                std::vector<double> v; fge::dsp::bq::Biquad h1, h2; h1.hp (fs, 16000.0, 0.7071); h2.hp (fs, 16000.0, 0.7071); const int W = (int) (0.001 * fs); double q = 0; int n = 0;
+                for (size_t i = 0; i < x.size(); ++i) { const float y = h2.tick (h1.tick (x[i])); q += y * y; if (++n == W) { v.push_back (q / W); q = 0; n = 0; } }
+                return v;
+            };
+            rw::Settings mv; mv.mMove = 1.f; mv.fltShape = 2; mv.mChaos = 0.9f; rw::Settings parked = mv; parked.mMove = 0.f; parked.mChaos = 0.5f;
+            run (mv, fs, 49.f, 400.f, L1, R1); run (parked, fs, 49.f, 400.f, L2, R2);
+            const auto a1 = hfWin (L1), a2 = hfWin (L2); double t1 = 0, t2 = 0;
+            for (size_t i = 6; i + 6 < std::min (a1.size(), a2.size()); ++i) { t1 += a1[i]; t2 += a2[i]; }
+            const double spike = 10.0 * std::log10 ((t1 + 1e-15) / (t2 + 1e-15));
+            check (spike < 6.0, "RAW 5: the movement (sweep + CHAOS) adds no clicks (energy above 16 kHz vs the same tail with the sweep parked)", String (spike, 1) + " dB");
+            // 6: stereo never touches the mono low end (width max): the side under 60 Hz stays far under the mid
+            rw::Settings w; w.width = 1.f; w.mWidth = 1.f; w.verb = 0.5f; w.mSpace = 1.f;
+            run (w, fs, 49.f, 400.f, L1, R1);
+            fge::dsp::bq::Biquad mf[4], sf[4]; for (int k = 0; k < 4; ++k) { mf[k].lp (fs, 60.0, 0.7071); sf[k].lp (fs, 60.0, 0.7071); }
+            double qm = 0, qs = 0;
+            for (size_t i = 0; i < L1.size(); ++i) { float mm = 0.5f * (L1[i] + R1[i]), sd = 0.5f * (L1[i] - R1[i]); for (int k = 0; k < 4; ++k) { mm = mf[k].tick (mm); sd = sf[k].tick (sd); } qm += mm * mm; qs += sd * sd; }
+            const double sideLow = 10.0 * std::log10 ((qs + 1e-12) / (qm + 1e-12));
+            check (sideLow < -40.0, "RAW 6: the stereo / reverb never widen the lows (side under 60 Hz, width + space max)", String (sideLow, 1) + " dB");
+            // 7: other sample rates: 44.1 and 48 kHz (x4) give the same tail shape
+            run (d, 176400.0, 49.f, 400.f, L1, R1); run (d, 192000.0, 49.f, 400.f, L2, R2);
+            const double dSr = dist (bands (L1, 176400.0, 50, 350), bands (L2, 192000.0, 50, 350));
+            check (dSr < 2.0, "RAW 7: works the same at 44.1 / 48 kHz (x4 oversampled)", String (dSr, 2) + " dB");
+            // 8: the same MIDI + preset = the same render (CHAOS at max is deterministic)
+            rw::Settings c; c.mChaos = 1.f; c.noise = 0; run (c, fs, 49.f, 300.f, L1, R1); run (c, fs, 49.f, 300.f, L2, R2);
+            check (L1 == L2 && R1 == R2, "RAW 8: identical MIDI + preset = an identical render (CHAOS + noise deterministic)", "");
+            // the sweep moves: DOWN vs UP end in different places
+            auto u1 = std::make_unique<rw::Unit>(), u2 = std::make_unique<rw::Unit>(); u1->prepare (fs); u2->prepare (fs);
+            rw::Settings dn, up; dn.on = up.on = true; up.fltShape = 1; float l, r;
+            for (int i = 0; i < (int) (0.35 * fs); ++i) { u1->process (dn, (float) (i * 1000.0 / fs), 49.f, l, r); u2->process (up, (float) (i * 1000.0 / fs), 49.f, l, r); }
+            check (u1->lastSweepHz() < 0.5f * u2->lastSweepHz(), "RAW SWEEP: the band-pass moves (DOWN ends low, UP ends high)", String (u1->lastSweepHz(), 0) + " / " + String (u2->lastSweepHz(), 0) + " Hz");
+        }
+        {   // TAIL TYPE EXPERIMENTAL (owner 2026-11-16, TAIL_RAW_EXP.md 8: the acceptance tests for EXPERIMENTAL)
+            namespace ex = fge::dsp::exper;
+            const double fs = 176400.0;
+            auto run = [&] (ex::Settings st, double rate, float lenMs, std::vector<float>& L, std::vector<float>& R, int note = 31)
+            {
+                auto u = std::make_unique<ex::Unit>(); u->prepare (rate); st.on = true; st.lengthMs = lenMs; u->resetFor (st); u->seedFor (note, st.fixedSeed, 1);
+                L.clear(); R.clear(); const float hz = 440.f * std::exp2 ((note - 69) / 12.f);
+                for (int i = 0; i < (int) (lenMs * 0.001 * rate); ++i) { float l, r; u->process (st, (float) (i * 1000.0 / rate), hz, l, r); L.push_back (l); R.push_back (r); }
+            };
+            auto clean = [] { ex::Settings s; for (auto& q : s.slot) q.type = ex::Off; s.osc = 2; s.pitchMs = 20.f; s.sub = 0.f; s.drive = 0.f; return s; };
+            // 3: an inharmonic, metallic tail: a FREQ SHIFTER moves the partials off the harmonic grid of the note
+            auto harmonicShare = [&] (const std::vector<float>& x, double rate, float f0)
+            {
+                const int a0 = (int) (0.15 * rate), n = (int) (0.2 * rate); double on = 0, all = 0;
+                for (int k = 1; k * f0 < 4000.f; ++k) {}
+                for (float f = 150.f; f < 4000.f; f += 2.f)
+                {
+                    double re = 0, im = 0; for (int i = 0; i < n; i += 4) { const double w = 0.5 - 0.5 * std::cos (6.283185307 * i / n), ph = 6.283185307 * f * i / rate; re += x[(size_t) (a0 + i)] * w * std::cos (ph); im += x[(size_t) (a0 + i)] * w * std::sin (ph); }
+                    const double e = re * re + im * im; all += e;
+                    const float h = f / f0; if (std::abs (h - std::round (h)) * f0 < 6.f) on += e;
+                }
+                return on / (all + 1e-15);
+            };
+            std::vector<float> L1, R1, L2, R2;
+            auto s0 = clean(); run (s0, fs, 400.f, L1, R1);
+            auto s3 = clean(); s3.slot[0] = { ex::FreqShift, 1.f, 0.8f, 0.5f, ex::MNone, 0.f }; run (s3, fs, 400.f, L2, R2);
+            const double hPlain = harmonicShare (L1, fs, 49.f), hShift = harmonicShare (L2, fs, 49.f);
+            check (hPlain > 0.6 && hShift < 0.45, "EXP 3: makes an inharmonic, metallic tail (FREQ SHIFTER: energy off the harmonic grid of the note)",
+                   String (hPlain, 2) + " -> " + String (hShift, 2) + " on the harmonics");
+            // 4: the processor order changes the sound (FREQ SHIFTER -> WAVESHAPER vs WAVESHAPER -> FREQ SHIFTER)
+            auto sa = clean(); sa.slot[0] = { ex::FreqShift, 1.f, 0.75f, 0.5f, ex::MNone, 0.f }; sa.slot[1] = { ex::Waveshaper, 1.f, 0.8f, 0.3f, ex::MNone, 0.f };
+            auto sb = sa; std::swap (sb.slot[0], sb.slot[1]);
+            run (sa, fs, 300.f, L1, R1); run (sb, fs, 300.f, L2, R2);
+            double dd = 0, ee = 0; for (size_t i = 0; i < L1.size(); ++i) { dd += (L1[i] - L2[i]) * (L1[i] - L2[i]); ee += L1[i] * L1[i]; }
+            check (dd / (ee + 1e-12) > 0.1, "EXP 4: the order of the processors really changes the sound (shifter -> shaper vs shaper -> shifter)", String (dd / (ee + 1e-12), 2));
+            // 5: modulation makes no clicks: an LFO on a PHASER amount vs the same phaser parked (energy above 16 kHz)
+            auto hfE = [&] (const std::vector<float>& x) { fge::dsp::bq::Biquad h1, h2; h1.hp (fs, 16000.0, 0.7071); h2.hp (fs, 16000.0, 0.7071); double q = 0;
+                                                           for (size_t i = (size_t) (0.006 * fs); i + (size_t) (0.006 * fs) < x.size(); ++i) { const float y = h2.tick (h1.tick (x[i])); q += y * y; } return q; };
+            auto sm = clean(); sm.slot[0] = { ex::Phaser, 1.f, 0.5f, 0.5f, ex::MLfo1, 1.f }; sm.mMove = 1.f; auto sp = sm; sp.slot[0].modSrc = ex::MNone;
+            run (sm, fs, 400.f, L1, R1); run (sp, fs, 400.f, L2, R2);
+            const double clk = 10.0 * std::log10 ((hfE (L1) + 1e-15) / (hfE (L2) + 1e-15));
+            check (clk < 6.0, "EXP 5: the modulation makes no clicks (LFO on a phaser vs parked, energy above 16 kHz)", String (clk, 1) + " dB");
+            // 6: the stereo FX never take the lows: everything wide, the side under 60 Hz stays far under the mid
+            auto sw = clean(); sw.width = 1.f; sw.mWidth = 1.f; sw.mSpace = 1.f; sw.slot[0] = { ex::FreqShift, 1.f, 0.7f, 0.5f, ex::MNone, 0.f }; sw.slot[1] = { ex::Phaser, 1.f, 0.8f, 0.5f, ex::MLfo1, 1.f };
+            run (sw, fs, 400.f, L1, R1);
+            fge::dsp::bq::Biquad mf[4], sf[4]; for (int k = 0; k < 4; ++k) { mf[k].lp (fs, 60.0, 0.7071); sf[k].lp (fs, 60.0, 0.7071); }
+            double qm = 0, qs = 0;
+            for (size_t i = 0; i < L1.size(); ++i) { float mm = 0.5f * (L1[i] + R1[i]), sd = 0.5f * (L1[i] - R1[i]); for (int k = 0; k < 4; ++k) { mm = mf[k].tick (mm); sd = sf[k].tick (sd); } qm += mm * mm; qs += sd * sd; }
+            const double sideLow = 10.0 * std::log10 ((qs + 1e-12) / (qm + 1e-12));
+            check (sideLow < -40.0, "EXP 6: stereo FX never destroy the mono low end (side under 60 Hz with shifter + phaser + width max)", String (sideLow, 1) + " dB");
+            // 7: other sample rates (44.1 / 48 kHz x4): the same level within 1.5 dB with the default chain
+            ex::Settings d7; run (d7, 176400.0, 300.f, L1, R1); run (d7, 192000.0, 300.f, L2, R2);
+            auto rmsDb = [] (const std::vector<float>& x) { double q = 0; for (float v : x) q += v * v; return 10.0 * std::log10 (q / (double) std::max<size_t> (1, x.size()) + 1e-15); };
+            const double dSr = std::abs (rmsDb (L1) - rmsDb (L2));
+            check (dSr < 1.5, "EXP 7: works the same at 44.1 / 48 kHz (x4 oversampled)", String (dSr, 2) + " dB");
+            // 8: FIXED SEED: RANDOM modulation + noise render identically every time
+            auto s8 = clean(); s8.noise = 0; s8.noiseLevel = 0.3f; s8.slot[0] = { ex::FreqShift, 1.f, 0.5f, 0.5f, ex::MRandom, 1.f }; s8.mChaos = 1.f; s8.fixedSeed = true;
+            run (s8, fs, 300.f, L1, R1); run (s8, fs, 300.f, L2, R2);
+            check (L1 == L2 && R1 == R2, "EXP 8: identical MIDI + preset = an identical render (RANDOM + noise with FIXED SEED)", "");
+        }
+        {   // THE FRONT + STYLE (owner 2026-11-16): a style gives the layers a PROFILE (AUTO on + character); a forced ON / OFF stays the user's
+            GeProcessor q;
+            auto rv = [&] (const char* id) { return q.apvts.getRawParameterValue (id)->load(); };
+            fge::style::apply (q, fge::style::Early, false);
+            const bool early = rv ("tk_auto") > 0.5f && rv ("clk_auto") < 0.5f && rv ("spk_auto") > 0.5f && (int) rv ("tk_type") == 0;   // (EARLY: no global click)
+            fge::style::apply (q, fge::style::Experimental, false);
+            const bool exp = rv ("tk_auto") < 0.5f;
+            setP (q, "tk_mode", 2.f); setP (q, "tk_type", 5.f);
+            fge::style::apply (q, fge::style::Raw, false);
+            const bool kept = (int) rv ("tk_mode") == 2 && (int) rv ("tk_type") == 5 && rv ("clk_auto") > 0.5f && (int) rv ("clk_type") == 5;
+            check (early && exp && kept, "FRONT STYLES: MODERN / RAW switch TOK + CLICK + SUB PUNCH on in AUTO (EARLY: TOK + SUB PUNCH, no global click) with their profile, EXPERIMENTAL leaves it to the preset, a forced ON / OFF layer keeps its settings",
+                   String (early ? "early ok " : "early bad ") + (exp ? "exp ok " : "exp bad ") + (kept ? "kept" : "overwritten"));
         }
         {   // PAGE RANDOMIZE (owner 2026-11-14): a dice per page / tab with the one RND POWER; the style switches stay; DIST may add a stage; one undo step
             GeProcessor q; fge::pagernd::setStrength (q, 1.f);

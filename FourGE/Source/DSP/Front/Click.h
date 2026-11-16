@@ -24,7 +24,7 @@ namespace fge::dsp::front
     {
     public:
         void prepare (double rate) { fs = rate; reset(); }
-        void reset() { ph[0] = ph[1] = ph[2] = 0.0; seed = 0x51ed2701u; hold = 0.f; holdN = 0; lp.clear(); bp.clear(); blk = 0; }
+        void reset() { ph[0] = ph[1] = ph[2] = 0.0; seed = 0x51ed2701u; hold = 0.f; holdN = 0; lp.clear(); bp.clear(); bp2.clear(); blk = 0; }
 
         float process (const ClickSettings& s, float ms)
         {
@@ -33,7 +33,8 @@ namespace fge::dsp::front
             {
                 blk = 32;
                 lp.lp (fs, std::clamp (200.0 * std::pow (2.0, 1.0 + s.tone * 6.5), 200.0, fs * 0.45), 0.7071);
-                bp.bp (fs, std::clamp ((double) s.pitchHz, 100.0, fs * 0.4), 1.2 + 3.0 * (1.0 - s.tone));
+                bp.bp (fs, std::clamp ((double) s.pitchHz, 100.0, fs * 0.4), 2.0 + 4.0 * (1.0 - s.tone));
+                bp2.bp (fs, std::clamp ((double) s.pitchHz, 100.0, fs * 0.4), 2.0 + 4.0 * (1.0 - s.tone));
             }
             const float len = std::max (0.5f, s.lengthMs), u = ms / len;
             // DECAY: 0 = held then cut hard, 1 = falls away at once (soft)
@@ -42,11 +43,11 @@ namespace fge::dsp::front
             float x = 0.f;
             switch (s.type)
             {
-                case 0: { env *= std::min (1.f, ms / 0.6f); x = osc (0, s.pitchHz * (1.f + 0.5f * std::exp (-ms / 1.5f))); break; }   // SOFT: rounded sine "tk"
+                case 0: { env *= std::min (1.f, ms / 0.25f); x = osc (0, s.pitchHz * (1.f + 0.6f * std::exp (-ms / 1.2f))) + 0.35f * noise() * std::exp (-ms / 0.5f); break; }   // SOFT: a rounded "tk" with a readable start
                 case 1: { x = 0.6f * osc (0, s.pitchHz) + 0.8f * noise() * std::exp (-ms / 0.7f); break; }                            // HARD: instant, bright "tik"
-                case 2: { if (holdN-- <= 0) { holdN = 6; hold = std::round ((osc (0, s.pitchHz) + 0.5f * noise()) * 4.f) / 4.f; } x = hold; break; } // DIGITAL
-                case 3: { x = bp.tick (noise()) * 2.5f; break; }                                                                       // NOISE
-                case 4: { x = 0.5f * (osc (0, s.pitchHz) + osc (1, s.pitchHz * 1.483f) + 0.7f * osc (2, s.pitchHz * 2.137f)); break; }  // METAL
+                case 2: { if (holdN-- <= 0) { holdN = 6; hold = std::round ((osc (0, s.pitchHz) + 0.5f * noise()) * 4.f) / 4.f; } x = hold * std::exp (-ms / std::max (0.5f, 0.35f * len)); break; } // DIGITAL (its own tighter length)
+                case 3: { x = bp2.tick (bp.tick (noise())) * 4.f; break; }                                                              // NOISE: a narrower, smoother band                                                                       // NOISE
+                case 4: { x = 0.5f * (osc (0, s.pitchHz) + osc (1, s.pitchHz * 1.483f) + 0.7f * osc (2, s.pitchHz * 2.137f)) * std::exp (-ms / 3.5f); break; }  // METAL (the ring held short)  // METAL
                 default:                                                                                                              // PUNCHY: a saw diving down
                 {
                     const double f = s.pitchHz * std::exp2 (-2.0 * std::min (1.f, u));
@@ -64,6 +65,6 @@ namespace fge::dsp::front
         double fs = 48000.0, ph[3] {};
         uint32_t seed = 0x51ed2701u;
         float hold = 0.f; int holdN = 0, blk = 0;
-        bq::Biquad lp, bp;
+        bq::Biquad lp, bp, bp2;
     };
 }

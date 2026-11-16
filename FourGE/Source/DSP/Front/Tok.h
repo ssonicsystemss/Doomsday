@@ -51,7 +51,7 @@ namespace fge::dsp::front
     {
     public:
         void prepare (double rate) { fs = rate; reset(); }
-        void reset() { ph = 0.0; seed = 0x7a3b11c5u; for (auto* b : { &lp, &bhp, &blp, &m1, &m2, &nbp, &wbp }) b->clear(); blk = 0; }
+        void reset() { ph = 0.0; seed = 0x7a3b11c5u; for (auto* b : { &lp, &bhp, &blp, &m1, &m2, &m3, &hol, &nbp, &wbp }) b->clear(); blk = 0; }
 
         float process (const TokSettings& s, float ms, float noteHz)
         {
@@ -66,11 +66,14 @@ namespace fge::dsp::front
                 lp.lp (fs, std::clamp (400.0 * std::pow (2.0, s.tone * 5.5), 200.0, fs * 0.45), 0.7071);           // core TONE
                 // SQUARE: the band - TONE 0 = a narrow band round the 2nd harmonic (hollow / wooden), 1 = wide open (full / harsh)
                 bhp.hp (fs, std::clamp ((double) hz * (0.9 - 0.4 * s.tone), 20.0, fs * 0.4), 0.7071);
-                blp.lp (fs, std::clamp ((double) hz * (2.5 + 60.0 * s.tone * s.tone), 60.0, fs * 0.45), 1.6 - 0.9 * s.tone);
+                blp.lp (fs, std::clamp ((double) hz * (3.0 + 60.0 * s.tone * s.tone), 60.0, fs * 0.45), 0.7071);   // (no resonance: a box, not a ring)
                 // WOOD: band-pass on the strike, then the resonant modes (TONE = brighter strike, a touch less ring)
-                wbp.bp (fs, std::clamp ((double) hz * (1.5 + 2.0 * s.tone), 60.0, fs * 0.4), 1.2);
-                m1.bp (fs, std::clamp ((double) hz, 40.0, fs * 0.4), 22.0 - 8.0 * s.tone);
-                m2.bp (fs, std::clamp ((double) hz * 2.76, 40.0, fs * 0.4), 16.0 - 6.0 * s.tone);
+                wbp.bp (fs, std::clamp ((double) hz * (1.5 + 2.0 * s.tone), 60.0, fs * 0.4), 0.8);
+                m1.bp (fs, std::clamp ((double) hz, 40.0, fs * 0.4), 34.0 - 10.0 * s.tone);              // narrow, strong resonances: a struck bar
+                m2.bp (fs, std::clamp ((double) hz * 2.76, 40.0, fs * 0.4), 26.0 - 8.0 * s.tone);
+                m3.bp (fs, std::clamp ((double) hz * 5.40, 40.0, fs * 0.4), 18.0 - 6.0 * s.tone);
+                // SQUARE: the HOLLOW MIDDLE = a deep cut round the 3rd harmonic (an electronic box, nothing rings)
+                hol.bell (fs, std::clamp ((double) hz * 3.0, 60.0, fs * 0.4), -14.0, 1.1);
                 nbp.bp (fs, std::clamp (2500.0 + 5000.0 * s.tone, 500.0, fs * 0.4), 1.4);  // 909: the noise click's band
             }
             // ---- the amp envelope (ATTACK = peak, DECAY = fall, LENGTH)
@@ -81,19 +84,28 @@ namespace fge::dsp::front
             float x = 0.f, post = 0.f;                                                     // post = outside the amp envelope (909's tik)
             switch (s.type)
             {
-                case 0: x = (float) std::sin (6.283185307 * step (hz)); break;                                   // SINE
-                case 1: x = (float) (4.0 * std::abs (step (hz) - 0.5) - 1.0); break;                              // TRI
-                case 2: x = 2.2f * blp.tick (bhp.tick (step (hz) < 0.5 ? 1.f : -1.f)); break;                     // SQUARE -> BAND
+                case 0:                                                                                           // SINE: a full, round foundation
+                {
+                    const double p = step (hz);
+                    x = std::tanh (1.5f * (float) std::sin (6.283185307 * p)) / std::tanh (1.5f) + 0.12f * (float) std::sin (12.566370614 * p);
+                    break;
+                }
+                case 1:                                                                                           // TRI: tighter + harder (squared-off peaks, shorter)
+                    x = std::tanh (2.4f * (float) (4.0 * std::abs (step (hz) - 0.5) - 1.0)) / std::tanh (2.4f);
+                    env *= env;
+                    break;
+                case 2: x = 2.4f * hol.tick (blp.tick (bhp.tick (step (hz) < 0.5 ? 1.f : -1.f)));               // SQUARE -> BAND -> HOLLOW MIDDLE
+                        break;
                 case 3: x = (float) (2.0 * step (hz) - 1.0); break;                                               // PUP: a saw on the pitch env
                 case 4:                                                                                           // 909: SINE BODY + NOISE CLICK
                     x = (float) std::sin (6.283185307 * step (hz * (1.0 + 1.2 * std::exp (-ms / 1.2))));   // its own extra fast bend on top
                     x = std::tanh (1.8f * x) / std::tanh (1.8f);                                             // + a rounder, fatter body
-                    post = 0.9f * nbp.tick (noise()) * std::exp (-ms / 0.8f) * std::min (1.f, ms / 0.1f);
+                    post = 1.6f * nbp.tick (noise()) * std::exp (-ms / 1.3f) * std::min (1.f, ms / 0.1f);   // a clear, separate noise attack
                     break;
                 default:                                                                                          // WOOD: impulse -> BP -> RESONANCE
                 {
-                    const float exc = ms < 0.6f ? wbp.tick (noise()) * 6.f : wbp.tick (0.f);
-                    x = 18.f * m1.tick (exc) + 11.f * m2.tick (exc);                                    // (a resonator is quiet: +15 dB to sit with the other sources)
+                    const float exc = ms < 0.3f ? wbp.tick (noise()) * 6.f : wbp.tick (0.f);                          // a very short strike
+                    x = 26.f * m1.tick (exc) + 16.f * m2.tick (exc) + 8.f * m3.tick (exc);               // three ringing modes (a resonator is quiet: gain)
                     env = ms > len ? 0.f : std::pow (std::max (0.f, 1.f - ms / len), 0.6f + 3.f * (1.f - s.fade));   // (struck: no attack ramp)
                     break;
                 }
@@ -109,6 +121,6 @@ namespace fge::dsp::front
         double fs = 48000.0, ph = 0.0;
         uint32_t seed = 0x7a3b11c5u;
         int blk = 0;
-        bq::Biquad lp, bhp, blp, m1, m2, nbp, wbp;
+        bq::Biquad lp, bhp, blp, m1, m2, m3, hol, nbp, wbp;
     };
 }

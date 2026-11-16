@@ -94,12 +94,12 @@ namespace fge
         const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
         const juce::StringArray& lenSyncs()       { static const juce::StringArray a { "OFF", "1/4 BEAT", "1/2 BEAT", "1 BEAT", "2 BEATS" }; return a; }
         const juce::StringArray& tokModes()       { static const juce::StringArray a { "FOLLOW MIDI", "FIXED" }; return a; }
-        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK", "EUPHORIC", "PVC", "ZAAG" }; return a; }
+        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK", "EUPHORIC", "PVC", "ZAAG", "CLASSIC (EARLY)" }; return a; }
         const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "OFFSET" }; return a; }
         const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE", "HYBRID" }; return a; }
         const juce::StringArray& pvcSources()   { static const juce::StringArray a { "SAW", "NOISE", "SNARE", "HYBRID" }; return a; }
         const juce::StringArray& pvcMaterials() { static const juce::StringArray a { "RING MOD", "FLANGER", "COMB" }; return a; }
-        const juce::StringArray& tailEngines()  { static const juce::StringArray a { "CLASSIC", "PVC", "ZAAG" }; return a; }
+        const juce::StringArray& tailEngines()  { static const juce::StringArray a { "CLASSIC", "PVC", "ZAAG", "RAW", "EXPERIMENTAL" }; return a; }
         const juce::StringArray& gtGateModes()  { static const juce::StringArray a { "SINGLE", "PULSE", "MOVEMENT" }; return a; }
         const juce::StringArray& pvcModels()    { static const juce::StringArray a { "KLOENK", "TUBE" }; return a; }
         const juce::StringArray& pvcPhModes()   { static const juce::StringArray a { "SWEEP", "LFO" }; return a; }
@@ -110,6 +110,20 @@ namespace fge
         const juce::StringArray& zgVariants()   { static const juce::StringArray a { "CLASSIC", "RESONANT", "BOUNCE", "AGGRESSIVE" }; return a; }
         const juce::StringArray& zgRsnModes()   { static const juce::StringArray a { "PHASER", "RESONATOR", "COMB" }; return a; }
         const juce::StringArray& zgRsnPositions() { static const juce::StringArray a { "BEFORE DIST 1", "BEFORE DIST 2", "BEFORE DIST 3", "AFTER DIST 3" }; return a; }
+        const juce::StringArray& rawOsc1s()     { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW", "SQUARE" }; return a; }
+        const juce::StringArray& rawOsc2s()     { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW", "OFF" }; return a; }
+        const juce::StringArray& rawNoises()    { static const juce::StringArray a { "WHITE", "PINK", "OFF" }; return a; }
+        const juce::StringArray& rawStages()    { static const juce::StringArray a { "SOFT", "HARD", "ASYMMETRIC", "WAVE", "FOLD", "TUBE" }; return a; }
+        const juce::StringArray& rawFltShapes() { static const juce::StringArray a { "DOWN", "UP", "DOWN-UP", "UP-DOWN", "CUSTOM" }; return a; }
+        const juce::StringArray& tailSyncs()    { static const juce::StringArray a { "SYNC", "FREE", "BODY END" }; return a; }
+        const juce::StringArray& expOscs()       { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW", "SQUARE", "CUSTOM WAVETABLE" }; return a; }
+        const juce::StringArray& expNoises()     { static const juce::StringArray a { "WHITE", "PINK", "DIGITAL" }; return a; }
+        const juce::StringArray& expPitchCurves(){ static const juce::StringArray a { "LINEAR DOWN", "LINEAR UP", "EXPONENTIAL DOWN", "EXPONENTIAL UP", "MULTI-STEP", "SINE MODULATION", "RANDOM", "CUSTOM" }; return a; }
+        const juce::StringArray& expFxTypes()    { static const juce::StringArray a { "OFF", "FORMANT", "FREQ SHIFTER", "RING MOD", "PITCH SHIFTER", "WAVESHAPER", "BITCRUSHER", "PHASER", "COMB", "STRETCH", "RESONATOR" }; return a; }
+        const juce::StringArray& expModSrcs()    { static const juce::StringArray a { "NONE", "ENVELOPE", "LFO 1", "LFO 2", "RANDOM", "KICK POSITION", "MANUAL CURVE" }; return a; }
+        const juce::StringArray& expSeeds()      { static const juce::StringArray a { "FIXED SEED", "FREE" }; return a; }
+        const juce::StringArray& cpWsTypes()     { static const juce::StringArray a { "SOFT", "HARD", "ASYMMETRIC", "TUBE" }; return a; }
+        const juce::StringArray& frontModes()    { static const juce::StringArray a { "AUTO", "ON", "OFF" }; return a; }
         const juce::StringArray& tokPitchModes() { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "RELATIVE" }; return a; }
         const juce::StringArray& tokTypes()     { static const juce::StringArray a { "SINE", "TRI", "SQUARE", "PUP", "909", "WOOD" }; return a; }
         const juce::StringArray& clickTypes()   { static const juce::StringArray a { "SOFT", "HARD", "DIGITAL", "NOISE", "METAL", "PUNCHY" }; return a; }
@@ -485,6 +499,192 @@ namespace fge
             case tkPenvEnd: return "TOK PITCH END: where the fast drop lands, in st from the tok pitch (0 / -12).";
             case tkPenvTime: return "TOK DROP TIME: how fast the pitch falls from START to END.";
             case tkDrive: return "TOK DRIVE: the TOK CORE saturation, after the amp envelope (it gets cleaner as the tok fades).";
+            case tkMode: return "TOK MODE: AUTO (the STYLE / preset decides whether the tok plays and sets its character), ON (always), OFF (never). A style change updates AUTO only.";
+            case clkMode: return "CLICK MODE: AUTO (the STYLE / preset decides whether the click plays and sets its character), ON (always), OFF (never). A style change updates AUTO only.";
+            case spkMode: return "SUB PUNCH MODE: AUTO (the STYLE / preset decides whether the sub punch plays and sets its character), ON (always), OFF (never). A style change updates AUTO only.";
+            case tkAuto: return "TOK AUTO ON: set by the STYLE / preset - whether the tok plays in AUTO mode.";
+            case clkAuto: return "CLICK AUTO ON: set by the STYLE / preset - whether the click plays in AUTO mode.";
+            case spkAuto: return "SUB PUNCH AUTO ON: set by the STYLE / preset - whether the sub punch plays in AUTO mode.";
+            case rwOsc1: return "RAW OSC 1: the main source - SINE / TRIANGLE (default, the rawstyle start) / SAW / SQUARE.";
+            case rwOsc2: return "RAW OSC 2: a second source - SINE / TRIANGLE / SAW / OFF (default).";
+            case rwOsc2Lvl: return "RAW OSC 2 LEVEL: how loud the second oscillator is.";
+            case rwOsc2St: return "RAW OSC 2 TUNE: semitones from OSC 1 (12 = an octave up).";
+            case rwNoise: return "RAW NOISE: WHITE / PINK / OFF (default) - a noise source under the oscillators, into the distortion.";
+            case rwNoiseLvl: return "RAW NOISE LEVEL: how much noise goes into the stack.";
+            case rwStart: return "RAW PITCH START: where the tail starts, in st above the note (a controlled drop: the hit).";
+            case rwDrop: return "RAW PITCH DROP: how long the drop to the note takes (ms - the hit stays the same at any length).";
+            case rwCurve: return "RAW PITCH CURVE: linear <-> a fast, exponential drop.";
+            case rwRoot: return "RAW ROOT: the tail note, in st from the MIDI note.";
+            case rwPreOn: return "RAW PRE-EQ on / off (low cut + mid before DIST 1).";
+            case rwLowCut: return "RAW PRE LOW CUT: how much low end goes into the distortion.";
+            case rwPreMid: return "RAW PRE MID: a mid bell before DIST 1 (more = more mid harmonics).";
+            case rwD1On: return "RAW DIST 1 on / off - the main harmonic generation (aggressive).";
+            case rwD1Type: return "RAW DIST 1 TYPE: SOFT / HARD / ASYMMETRIC (default) / WAVE / FOLD / TUBE.";
+            case rwD1Db: return "RAW DIST 1 DRIVE: the strongest stage - it shapes the character.";
+            case rwShapeOn: return "RAW SHAPING EQ on / off (the GROWL bell between DIST 1 and DIST 2).";
+            case rwGrowlHz: return "RAW GROWL FREQ: the shaping bell - ~400-500 Hz is the classic rawstyle area (a start for tuning, not a rule).";
+            case rwGrowlDb: return "RAW GROWL GAIN: how much the growl bell lifts before DIST 2.";
+            case rwGrowlQ: return "RAW GROWL Q: wide <-> narrow growl.";
+            case rwD2On: return "RAW DIST 2 on / off - densifies the signal (strong).";
+            case rwD2Type: return "RAW DIST 2 TYPE: SOFT / HARD (default) / ASYMMETRIC / WAVE / FOLD / TUBE.";
+            case rwD2Db: return "RAW DIST 2 DRIVE: less than DIST 1 - it thickens what DIST 1 made.";
+            case rwBpOn: return "RAW BAND-PASS SWEEP on / off - the resonant movement (the tonal motion while it rings out).";
+            case rwFltShape: return "RAW SWEEP SHAPE: DOWN / UP / DOWN-UP / UP-DOWN / CUSTOM (START -> MID -> END).";
+            case rwFltStart: return "RAW FILTER START: where the band-pass sweep starts.";
+            case rwFltEnd: return "RAW FILTER END: where the sweep ends.";
+            case rwFltMid: return "RAW FILTER MID: the middle point of the CUSTOM shape.";
+            case rwFltReso: return "RAW FILTER RESONANCE: the peak of the sweep (the vowel of the growl).";
+            case rwFltSpeed: return "RAW SWEEP SPEED (SYNC): the sweep lasts this part of the TAIL length - it scales with KICK LENGTH.";
+            case rwFltTime: return "RAW SWEEP TIME (FREE): the sweep time in ms, independent of the length.";
+            case rwFltCurve: return "RAW SWEEP CURVE: an early, fast move <-> a late one.";
+            case rwFltMix: return "RAW FILTER MIX: the dry stack <-> the band-passed sweep.";
+            case rwSync: return "RAW TIME SYNC: SYNC (the movements scale with the TAIL length), FREE (times in ms), BODY END (the sweep starts at the end of the BODY).";
+            case rwD3On: return "RAW DIST 3 on / off - the final character (controlled).";
+            case rwD3Type: return "RAW DIST 3 TYPE: SOFT (default) / HARD / ASYMMETRIC / WAVE / FOLD / TUBE.";
+            case rwD3Db: return "RAW DIST 3 DRIVE: the smallest - it refines without destroying the texture.";
+            case rwPostOn: return "RAW POST-EQ on / off (low cut + high shelf after DIST 3).";
+            case rwPostLowCut: return "RAW POST LOW CUT: cleans the very low end after the stack.";
+            case rwPostHigh: return "RAW POST HIGH: the brightness of the tail.";
+            case rwClipOn: return "RAW SOFT CLIPPER on / off (peak control).";
+            case rwClipHard: return "RAW CLIPPER HARDNESS: soft <-> hard.";
+            case rwGrowl: return "RAW GROWL (macro): the mid harmonics + the resonance intensity (the growl bell and the sweep resonance together).";
+            case rwCrunch: return "RAW CRUNCH (macro): the distortion + clipping aggression.";
+            case rwVerb: return "RAW REVERB MIX: subtle by default; it starts after the attack and has no low end (never smears the hit).";
+            case rwVerbSize: return "RAW REVERB SIZE.";
+            case rwVerbDecay: return "RAW REVERB DECAY.";
+            case rwVerbDamp: return "RAW REVERB DAMPING: the high cut inside the reverb.";
+            case rwVerbPre: return "RAW REVERB PRE-DELAY.";
+            case rwVerbLowCut: return "RAW REVERB LOW CUT: what goes into the reverb (no bass tail).";
+            case rwSub: return "RAW SUB: the lows of the distorted tail <-> a clean sine on the tail pitch (mono).";
+            case rwSubHz: return "RAW SUB FREQ: the crossover under which the tail is the (mono) sub.";
+            case rwWidth: return "RAW WIDTH: a controlled width of the harmonics above ~250 Hz; the centre stays stable, the lows mono.";
+            case rwAttack: return "RAW TAIL ATTACK: the fade-in of the tail.";
+            case rwBody: return "RAW TAIL BODY: how much of the length stays at full level.";
+            case rwDecay: return "RAW TAIL DECAY: how far it falls after the body.";
+            case rwFade: return "RAW TAIL FADE: the shape of the fall.";
+            case tlDrive: return "TAIL DRIVE (macro): RAW = the distortion aggression, EXPERIMENTAL = the nonlinearity intensity.";
+            case tlTone: return "TAIL TONE (macro): RAW = brightness and the pitch of the growl, EXPERIMENTAL = colour and spectrum.";
+            case tlMove: return "TAIL MOVEMENT (macro): RAW = the depth of the filter sweep, EXPERIMENTAL = every modulation depth.";
+            case tlReso: return "TAIL RESONANCE (macro): RAW = the growl / mid peak resonance, EXPERIMENTAL = formant / comb / resonator.";
+            case tlDensity: return "TAIL DENSITY (macro): RAW = the harmonic density (DIST 2), EXPERIMENTAL = the texture complexity (FM + noise).";
+            case tlSpace: return "TAIL SPACE (macro): RAW = the subtle reverb, EXPERIMENTAL = the spatial FX spread.";
+            case tlChaos: return "TAIL CHAOS (macro): RAW = distortion instability, EXPERIMENTAL = random / FM / glitch (deterministic with FIXED SEED).";
+            case tlWidth: return "TAIL WIDTH (macro): RAW = the controlled stereo of the highs, EXPERIMENTAL = creative stereo (the lows always mono).";
+            case exOsc: return "EXP OSCILLATOR: SINE / TRIANGLE / SAW (default) / SQUARE / CUSTOM WAVETABLE (a morph table: POSITION).";
+            case exWtPos: return "EXP WAVETABLE POSITION: sine -> triangle -> saw -> square -> pulse (CUSTOM WAVETABLE).";
+            case exOscLvl: return "EXP OSCILLATOR LEVEL.";
+            case exFmLvl: return "EXP FM LEVEL: a REAL FM generator - a sine carrier phase-modulated by a sine modulator (0 = off).";
+            case exFmAmt: return "EXP FM AMOUNT: the modulation index (more = more sidebands, metallic / bassy FM tails).";
+            case exFmRatio: return "EXP FM RATIO: modulator / carrier frequency (whole = harmonic, odd ratios = inharmonic).";
+            case exNoise: return "EXP NOISE: WHITE / PINK / DIGITAL (stepped, crushed).";
+            case exNoiseLvl: return "EXP NOISE LEVEL.";
+            case exRingRatio: return "EXP RING MOD SOURCE: the ring oscillator's ratio to the pitch (used by RING MOD slots).";
+            case exPCurve: return "EXP PITCH CURVE: LINEAR DOWN / UP, EXPONENTIAL DOWN / UP, MULTI-STEP, SINE MODULATION, RANDOM, CUSTOM (START -> MID -> END).";
+            case exStart: return "EXP START PITCH: st from the note where the curve starts.";
+            case exEnd: return "EXP END PITCH: st from the note where it ends.";
+            case exMid: return "EXP MID PITCH: the middle point of the CUSTOM curve.";
+            case exRange: return "EXP PITCH RANGE: scales the whole curve (0 = flat, 2 = double).";
+            case exPTime: return "EXP PITCH TIME: how long the curve takes.";
+            case exPShape: return "EXP PITCH CURVE AMOUNT: how exponential / bent the curve is.";
+            case exPmRate: return "EXP PITCH MOD RATE: the speed of the pitch modulation.";
+            case exPmDepth: return "EXP PITCH MOD DEPTH: semitones of pitch modulation (any curve; SINE MODULATION uses it).";
+            case exRoot: return "EXP ROOT: the tail note, st from the MIDI note.";
+            case exLfo1: return "EXP LFO 1 RATE (a sine; also drives the phasers).";
+            case exLfo2: return "EXP LFO 2 RATE (a triangle; also the FM MOD).";
+            case exRndRate: return "EXP RANDOM RATE: how often RANDOM steps (CHAOS makes it faster).";
+            case exCurve0: return "EXP MANUAL CURVE: the value at the start of the tail.";
+            case exCurve1: return "EXP MANUAL CURVE: the value in the middle.";
+            case exCurve2: return "EXP MANUAL CURVE: the value at the end.";
+            case exSeed: return "EXP RANDOM SEED: FIXED SEED (the same note = the same render, always) or FREE (a new texture every hit).";
+            case exFmMod: return "EXP FM MOD: LFO 2 moves the FM AMOUNT (independent of the slots).";
+            case exFsMod: return "EXP FREQ SHIFT MOD: RANDOM moves every FREQ SHIFTER (independent of the slots).";
+            case exSub: return "EXP SUB: the lows <-> a clean sine on the pitch (mono, never lost to phase tricks).";
+            case exSubHz: return "EXP SUB FREQ: the crossover; everything under it is mono.";
+            case exWidth: return "EXP WIDTH: the mid band width (user); the highs carry the stereo FX.";
+            case exDrive: return "EXP OUTPUT DRIVE: the soft clip at the end.";
+            case exAttack: return "EXP TAIL ATTACK.";
+            case exBody: return "EXP TAIL BODY: how much of the length stays at full level.";
+            case exDecay: return "EXP TAIL DECAY.";
+            case exFade: return "EXP TAIL FADE: the shape of the fall.";
+            case exS1Type: return "EXP SLOT 1 TYPE: the processor in slot 1 of the chain (the slot order = the processing order): OFF / FORMANT / FREQ SHIFTER / RING MOD / PITCH SHIFTER / WAVESHAPER / BITCRUSHER / PHASER / COMB / STRETCH / RESONATOR.";
+            case exS1Mix: return "EXP SLOT 1 MIX: dry <-> the processor.";
+            case exS1Amt: return "EXP SLOT 1 AMOUNT: the main control (vowel / shift / ring / semitones / drive / bits / depth / feedback / stretch / ring gain).";
+            case exS1Par: return "EXP SLOT 1 PARAM: the characteristic control (formant shift / - / - / - / soft-fold / sample-rate / frequency / comb ratio / - / resonance ratio).";
+            case exS1Mod: return "EXP SLOT 1 MOD SOURCE: ENVELOPE / LFO 1 / LFO 2 / RANDOM / KICK POSITION / MANUAL CURVE onto the AMOUNT.";
+            case exS1Depth: return "EXP SLOT 1 MOD DEPTH (+ / -, scaled by MOVEMENT).";
+            case exS2Type: return "EXP SLOT 2 TYPE: the processor in slot 2 of the chain (the slot order = the processing order): OFF / FORMANT / FREQ SHIFTER / RING MOD / PITCH SHIFTER / WAVESHAPER / BITCRUSHER / PHASER / COMB / STRETCH / RESONATOR.";
+            case exS2Mix: return "EXP SLOT 2 MIX: dry <-> the processor.";
+            case exS2Amt: return "EXP SLOT 2 AMOUNT: the main control (vowel / shift / ring / semitones / drive / bits / depth / feedback / stretch / ring gain).";
+            case exS2Par: return "EXP SLOT 2 PARAM: the characteristic control (formant shift / - / - / - / soft-fold / sample-rate / frequency / comb ratio / - / resonance ratio).";
+            case exS2Mod: return "EXP SLOT 2 MOD SOURCE: ENVELOPE / LFO 1 / LFO 2 / RANDOM / KICK POSITION / MANUAL CURVE onto the AMOUNT.";
+            case exS2Depth: return "EXP SLOT 2 MOD DEPTH (+ / -, scaled by MOVEMENT).";
+            case exS3Type: return "EXP SLOT 3 TYPE: the processor in slot 3 of the chain (the slot order = the processing order): OFF / FORMANT / FREQ SHIFTER / RING MOD / PITCH SHIFTER / WAVESHAPER / BITCRUSHER / PHASER / COMB / STRETCH / RESONATOR.";
+            case exS3Mix: return "EXP SLOT 3 MIX: dry <-> the processor.";
+            case exS3Amt: return "EXP SLOT 3 AMOUNT: the main control (vowel / shift / ring / semitones / drive / bits / depth / feedback / stretch / ring gain).";
+            case exS3Par: return "EXP SLOT 3 PARAM: the characteristic control (formant shift / - / - / - / soft-fold / sample-rate / frequency / comb ratio / - / resonance ratio).";
+            case exS3Mod: return "EXP SLOT 3 MOD SOURCE: ENVELOPE / LFO 1 / LFO 2 / RANDOM / KICK POSITION / MANUAL CURVE onto the AMOUNT.";
+            case exS3Depth: return "EXP SLOT 3 MOD DEPTH (+ / -, scaled by MOVEMENT).";
+            case exS4Type: return "EXP SLOT 4 TYPE: the processor in slot 4 of the chain (the slot order = the processing order): OFF / FORMANT / FREQ SHIFTER / RING MOD / PITCH SHIFTER / WAVESHAPER / BITCRUSHER / PHASER / COMB / STRETCH / RESONATOR.";
+            case exS4Mix: return "EXP SLOT 4 MIX: dry <-> the processor.";
+            case exS4Amt: return "EXP SLOT 4 AMOUNT: the main control (vowel / shift / ring / semitones / drive / bits / depth / feedback / stretch / ring gain).";
+            case exS4Par: return "EXP SLOT 4 PARAM: the characteristic control (formant shift / - / - / - / soft-fold / sample-rate / frequency / comb ratio / - / resonance ratio).";
+            case exS4Mod: return "EXP SLOT 4 MOD SOURCE: ENVELOPE / LFO 1 / LFO 2 / RANDOM / KICK POSITION / MANUAL CURVE onto the AMOUNT.";
+            case exS4Depth: return "EXP SLOT 4 MOD DEPTH (+ / -, scaled by MOVEMENT).";
+            case exS5Type: return "EXP SLOT 5 TYPE: the processor in slot 5 of the chain (the slot order = the processing order): OFF / FORMANT / FREQ SHIFTER / RING MOD / PITCH SHIFTER / WAVESHAPER / BITCRUSHER / PHASER / COMB / STRETCH / RESONATOR.";
+            case exS5Mix: return "EXP SLOT 5 MIX: dry <-> the processor.";
+            case exS5Amt: return "EXP SLOT 5 AMOUNT: the main control (vowel / shift / ring / semitones / drive / bits / depth / feedback / stretch / ring gain).";
+            case exS5Par: return "EXP SLOT 5 PARAM: the characteristic control (formant shift / - / - / - / soft-fold / sample-rate / frequency / comb ratio / - / resonance ratio).";
+            case exS5Mod: return "EXP SLOT 5 MOD SOURCE: ENVELOPE / LFO 1 / LFO 2 / RANDOM / KICK POSITION / MANUAL CURVE onto the AMOUNT.";
+            case exS5Depth: return "EXP SLOT 5 MOD DEPTH (+ / -, scaled by MOVEMENT).";
+            case exS6Type: return "EXP SLOT 6 TYPE: the processor in slot 6 of the chain (the slot order = the processing order): OFF / FORMANT / FREQ SHIFTER / RING MOD / PITCH SHIFTER / WAVESHAPER / BITCRUSHER / PHASER / COMB / STRETCH / RESONATOR.";
+            case exS6Mix: return "EXP SLOT 6 MIX: dry <-> the processor.";
+            case exS6Amt: return "EXP SLOT 6 AMOUNT: the main control (vowel / shift / ring / semitones / drive / bits / depth / feedback / stretch / ring gain).";
+            case exS6Par: return "EXP SLOT 6 PARAM: the characteristic control (formant shift / - / - / - / soft-fold / sample-rate / frequency / comb ratio / - / resonance ratio).";
+            case exS6Mod: return "EXP SLOT 6 MOD SOURCE: ENVELOPE / LFO 1 / LFO 2 / RANDOM / KICK POSITION / MANUAL CURVE onto the AMOUNT.";
+            case exS6Depth: return "EXP SLOT 6 MOD DEPTH (+ / -, scaled by MOVEMENT).";
+            case exS7Type: return "EXP SLOT 7 TYPE: the processor in slot 7 of the chain (the slot order = the processing order): OFF / FORMANT / FREQ SHIFTER / RING MOD / PITCH SHIFTER / WAVESHAPER / BITCRUSHER / PHASER / COMB / STRETCH / RESONATOR.";
+            case exS7Mix: return "EXP SLOT 7 MIX: dry <-> the processor.";
+            case exS7Amt: return "EXP SLOT 7 AMOUNT: the main control (vowel / shift / ring / semitones / drive / bits / depth / feedback / stretch / ring gain).";
+            case exS7Par: return "EXP SLOT 7 PARAM: the characteristic control (formant shift / - / - / - / soft-fold / sample-rate / frequency / comb ratio / - / resonance ratio).";
+            case exS7Mod: return "EXP SLOT 7 MOD SOURCE: ENVELOPE / LFO 1 / LFO 2 / RANDOM / KICK POSITION / MANUAL CURVE onto the AMOUNT.";
+            case exS7Depth: return "EXP SLOT 7 MOD DEPTH (+ / -, scaled by MOVEMENT).";
+            case exS8Type: return "EXP SLOT 8 TYPE: the processor in slot 8 of the chain (the slot order = the processing order): OFF / FORMANT / FREQ SHIFTER / RING MOD / PITCH SHIFTER / WAVESHAPER / BITCRUSHER / PHASER / COMB / STRETCH / RESONATOR.";
+            case exS8Mix: return "EXP SLOT 8 MIX: dry <-> the processor.";
+            case exS8Amt: return "EXP SLOT 8 AMOUNT: the main control (vowel / shift / ring / semitones / drive / bits / depth / feedback / stretch / ring gain).";
+            case exS8Par: return "EXP SLOT 8 PARAM: the characteristic control (formant shift / - / - / - / soft-fold / sample-rate / frequency / comb ratio / - / resonance ratio).";
+            case exS8Mod: return "EXP SLOT 8 MOD SOURCE: ENVELOPE / LFO 1 / LFO 2 / RANDOM / KICK POSITION / MANUAL CURVE onto the AMOUNT.";
+            case exS8Depth: return "EXP SLOT 8 MOD DEPTH (+ / -, scaled by MOVEMENT).";
+            case cpShape: return "CLASSIC PUNCH SHAPE: the tonal source - sine -> triangle -> a rounded saw (never a pure sine at max).";
+            case cpTrans: return "CLASSIC PUNCH TRANSIENT: the punch's OWN transient - a fast knock above it (EARLY needs no global click).";
+            case cpTransMs: return "CLASSIC PUNCH TRANSIENT LENGTH: how long the knock rings (a hit, never a click).";
+            case cpTransHz: return "CLASSIC PUNCH TRANSIENT FREQ: the pitch of the knock (the references sit ~2-4 kHz in the first 4 ms).";
+            case cpRes: return "CLASSIC PUNCH RESONANCE: a slightly resonant low-mid / mid ring excited by the source.";
+            case cpResHz: return "CLASSIC PUNCH RESONANCE FREQ.";
+            case cpResQ: return "CLASSIC PUNCH RESONANCE Q: wide <-> ringing.";
+            case cpNoise: return "CLASSIC PUNCH NOISE: very controlled noise, only in the attack (~first 8 ms).";
+            case cpNoiseHz: return "CLASSIC PUNCH NOISE FREQ: the band of the attack noise.";
+            case cpStart: return "CLASSIC PUNCH START: where the pitch starts (the top of the hit).";
+            case cpHit: return "CLASSIC PUNCH HIT FREQ: where the fast drop lands (~230 Hz at ~12 ms in the references).";
+            case cpDrop: return "CLASSIC PUNCH DROP: the fast hit drop (START -> HIT) - short and clear, a physical hit.";
+            case cpGlide: return "CLASSIC PUNCH GLIDE: the slower glide from HIT to the FUNDAMENTAL (~100 Hz at ~60 ms in the references).";
+            case cpCurve: return "CLASSIC PUNCH CURVE: how exponential both drops are.";
+            case cpEndSt: return "CLASSIC PUNCH END: the fundamental it settles on, in st over the played note (12 = an octave up).";
+            case cpLowCut: return "CLASSIC PUNCH LOW CUT (pre-EQ).";
+            case cpLmHz: return "CLASSIC PUNCH LOW-MID FREQ (pre-EQ: the meat).";
+            case cpLmDb: return "CLASSIC PUNCH LOW-MID gain (pre-EQ).";
+            case cpMidHz: return "CLASSIC PUNCH MID FREQ (pre-EQ: the character of the hit).";
+            case cpMidDb: return "CLASSIC PUNCH MID gain (pre-EQ).";
+            case cpHighCut: return "CLASSIC PUNCH HIGH CUT (post-EQ): the top only as much as the transient needs.";
+            case cpSat: return "CLASSIC PUNCH SATURATION: the character saturation (it brings out the harmonics of the punch).";
+            case cpAsym: return "CLASSIC PUNCH ASYMMETRY of the saturation.";
+            case cpSatDecay: return "CLASSIC PUNCH SATURATION DECAY: the drive fades - harmonics on the hit, a cleaner fundamental after.";
+            case cpWsType: return "CLASSIC PUNCH WAVESHAPER: SOFT / HARD (default) / ASYMMETRIC / TUBE, after the saturation.";
+            case cpWsDb: return "CLASSIC PUNCH WAVESHAPER DRIVE.";
+            case cpTransCtrl: return "CLASSIC PUNCH TRANSIENT CONTROL: less <-> more attack after the drive.";
+            case cpAttack: return "CLASSIC PUNCH ATTACK.";
+            case cpHold: return "CLASSIC PUNCH HOLD: full level before the decay.";
+            case cpDecay: return "CLASSIC PUNCH DECAY: the punch hands over to the body / tail (~80-120 ms in all).";
+            case cpDecayCurve: return "CLASSIC PUNCH DECAY CURVE.";
             case zgSend: return "ZAAG SEND: how much of the TOK + PUNCH goes INTO the ZAAG cascade (0 = beside it, as before; 100 % = the front melts into the zaag). The CLICK never does.";
             case zgHverb: return "ZAAG HIGH REVERB: a reverb on the top band only (above 2.5 kHz), the low end stays dry.";
             case zgThump: return "ZAAG THUMP: the hit at the start - a short driven body falling from THUMP HZ to the note.";

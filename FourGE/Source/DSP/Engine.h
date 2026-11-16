@@ -17,6 +17,9 @@
 #include "Tone/PvcTail.h"
 #include "Tone/ZaagTail.h"
 #include "Core/ZaagPunch.h"
+#include "Core/ClassicPunch.h"
+#include "Tone/RawTail.h"
+#include "Tone/ExpTail.h"
 #include "Front/Click.h"
 #include "Front/Tok.h"
 #include "Front/SubPunch.h"
@@ -60,8 +63,11 @@ namespace fge
         dsp::shaped::Settings shaped;             // SHAPED PUNCH (owner 2026-11-14): the rendered tonal layer + click + verb, read by the voices
         const float* shL = nullptr; const float* shR = nullptr; int shLen = 0; double shRate = 48000.0;
         dsp::pvctail::Settings pvcTail;           // TAIL ENGINE PVC (owner 2026-11-14, the KLOENK tail)
+        dsp::raw::Settings raw;
+        dsp::exper::Settings exp;                 // TAIL TYPE EXPERIMENTAL (owner 2026-11-16, TAIL_RAW_EXP.md)                   // TAIL TYPE RAW (owner 2026-11-16, TAIL_RAW_EXP.md)
         dsp::zaag::Settings zaag;                 // TAIL TYPE ZAAG (owner 2026-11-14 / 15)
         dsp::front::ClickSettings click; dsp::front::TokSettings tok; dsp::front::SubPunchSettings spk; float zgSend = 0.f;   // the FRONT (owner 2026-11-16)
+        dsp::classicpunch::Settings cpunch;      // PUNCH TYPE CLASSIC (EARLY REWORK, owner 2026-11-16)
         dsp::zaagpunch::Settings zpunch;          // PUNCH TYPE ZAAG (ARCHITECTURE.md rule 0: the punch lives in the PUNCH ENGINE)
         dsp::color::Settings color;               // TAIL COLOR after the tail's distortion (owner 2026-11-12)                 // the TAIL room before its distortion (EARLY, owner 2026-11-12)
         int tokNoteMode = 0;                      // 0 FIXED / 1 FOLLOW MIDI / 2 OFFSET (the played note + tokOffsetMul)
@@ -434,7 +440,7 @@ namespace fge
             limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
             muteG = 1.f;
             tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor); tailColor.reset();
-            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor); zaagU.prepare (sampleRate * osFactor); zpU.prepare (sampleRate * osFactor);
+            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor); zaagU.prepare (sampleRate * osFactor); rawU.prepare (sampleRate * osFactor); expU.prepare (sampleRate * osFactor); zpU.prepare (sampleRate * osFactor); cpU.prepare (sampleRate * osFactor);
             clkU.prepare (sampleRate * osFactor); tokU.prepare (sampleRate * osFactor); spkU.prepare (sampleRate * osFactor);
             sendBuf.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             for (auto& u : *spcUnits)
@@ -535,7 +541,7 @@ namespace fge
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
-            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); zpU.reset(); clkU.reset(); tokU.reset(); spkU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); rawU.reset(); expU.resetFor (cfg.exp); expU.seedFor (note, cfg.exp.fixedSeed, (uint32_t) counter); zpU.reset(); cpU.reset(); clkU.reset(); tokU.reset(); spkU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
@@ -941,6 +947,55 @@ namespace fge
             {                                                                       // TAIL ENGINE PVC (owner 2026-11-14)
                 auto& pt = cfg.pvcTail;
                 pt.on = f.idx (P::tailEngine) == 1;
+                {                                                                   // TAIL TYPE RAW (owner 2026-11-16)
+                    auto& r = cfg.raw;
+                    r.on = f.idx (P::tailEngine) == 3;
+                    r.osc1 = f.idx (P::rwOsc1); r.osc2 = f.idx (P::rwOsc2); r.noise = f.idx (P::rwNoise);
+                    r.osc2Level = f[P::rwOsc2Lvl]; r.osc2St = f[P::rwOsc2St]; r.noiseLevel = f[P::rwNoiseLvl];
+                    r.startSt = f[P::rwStart]; r.dropMs = f[P::rwDrop]; r.curve = f[P::rwCurve]; r.rootSt = f[P::rwRoot];
+                    r.preOn = f.on (P::rwPreOn); r.d1On = f.on (P::rwD1On); r.shapeOn = f.on (P::rwShapeOn); r.d2On = f.on (P::rwD2On);
+                    r.bpOn = f.on (P::rwBpOn); r.d3On = f.on (P::rwD3On); r.postOn = f.on (P::rwPostOn); r.clipOn = f.on (P::rwClipOn);
+                    r.lowCut = f[P::rwLowCut]; r.preMidDb = f[P::rwPreMid];
+                    r.d1Type = f.idx (P::rwD1Type); r.d2Type = f.idx (P::rwD2Type); r.d3Type = f.idx (P::rwD3Type);
+                    r.d1Db = f[P::rwD1Db]; r.d2Db = f[P::rwD2Db]; r.d3Db = f[P::rwD3Db];
+                    r.growlHz = f[P::rwGrowlHz]; r.growlDb = f[P::rwGrowlDb]; r.growlQ = f[P::rwGrowlQ];
+                    r.postLowCut = f[P::rwPostLowCut]; r.postHighDb = f[P::rwPostHigh]; r.clipHard = f[P::rwClipHard];
+                    r.fltShape = f.idx (P::rwFltShape); r.sync = f.idx (P::rwSync);
+                    r.fltStart = f[P::rwFltStart]; r.fltEnd = f[P::rwFltEnd]; r.fltMid = f[P::rwFltMid]; r.fltReso = f[P::rwFltReso];
+                    r.fltSpeed = f[P::rwFltSpeed]; r.fltTimeMs = f[P::rwFltTime]; r.fltCurve = f[P::rwFltCurve]; r.fltMix = f[P::rwFltMix];
+                    r.bodyEndMs = f[P::bodyLen];
+                    r.growl = f[P::rwGrowl]; r.crunch = f[P::rwCrunch];
+                    r.mDrive = f[P::tlDrive]; r.mTone = f[P::tlTone]; r.mMove = f[P::tlMove]; r.mReso = f[P::tlReso];
+                    r.mDensity = f[P::tlDensity]; r.mSpace = f[P::tlSpace]; r.mChaos = f[P::tlChaos]; r.mWidth = f[P::tlWidth];
+                    r.verb = f[P::rwVerb]; r.verbSize = f[P::rwVerbSize]; r.verbDecay = f[P::rwVerbDecay]; r.verbDamp = f[P::rwVerbDamp];
+                    r.verbPre = f[P::rwVerbPre]; r.verbLowCut = f[P::rwVerbLowCut];
+                    r.sub = f[P::rwSub]; r.subHz = f[P::rwSubHz]; r.width = f[P::rwWidth];
+                    r.lengthMs = ks.lengthMs; r.attackMs = f[P::rwAttack]; r.body = f[P::rwBody]; r.decay = f[P::rwDecay]; r.fade = f[P::rwFade];
+                }
+                {                                                                   // TAIL TYPE EXPERIMENTAL (owner 2026-11-16)
+                    auto& e = cfg.exp;
+                    e.on = f.idx (P::tailEngine) == 4;
+                    e.osc = f.idx (P::exOsc); e.wtPos = f[P::exWtPos]; e.oscLevel = f[P::exOscLvl];
+                    e.fmLevel = f[P::exFmLvl]; e.fmAmount = f[P::exFmAmt]; e.fmRatio = f[P::exFmRatio];
+                    e.noise = f.idx (P::exNoise); e.noiseLevel = f[P::exNoiseLvl]; e.ringRatio = f[P::exRingRatio];
+                    e.pitchCurve = f.idx (P::exPCurve); e.startSt = f[P::exStart]; e.endSt = f[P::exEnd]; e.midSt = f[P::exMid]; e.range = f[P::exRange];
+                    e.pitchMs = f[P::exPTime]; e.pitchCurveAmt = f[P::exPShape]; e.pmRate = f[P::exPmRate]; e.pmDepth = f[P::exPmDepth]; e.rootSt = f[P::exRoot];
+                    { auto& q = e.slot[0]; q.type = f.idx (P::exS1Type); q.mix = f[P::exS1Mix]; q.amount = f[P::exS1Amt]; q.param = f[P::exS1Par]; q.modSrc = f.idx (P::exS1Mod); q.modDepth = f[P::exS1Depth]; }
+                    { auto& q = e.slot[1]; q.type = f.idx (P::exS2Type); q.mix = f[P::exS2Mix]; q.amount = f[P::exS2Amt]; q.param = f[P::exS2Par]; q.modSrc = f.idx (P::exS2Mod); q.modDepth = f[P::exS2Depth]; }
+                    { auto& q = e.slot[2]; q.type = f.idx (P::exS3Type); q.mix = f[P::exS3Mix]; q.amount = f[P::exS3Amt]; q.param = f[P::exS3Par]; q.modSrc = f.idx (P::exS3Mod); q.modDepth = f[P::exS3Depth]; }
+                    { auto& q = e.slot[3]; q.type = f.idx (P::exS4Type); q.mix = f[P::exS4Mix]; q.amount = f[P::exS4Amt]; q.param = f[P::exS4Par]; q.modSrc = f.idx (P::exS4Mod); q.modDepth = f[P::exS4Depth]; }
+                    { auto& q = e.slot[4]; q.type = f.idx (P::exS5Type); q.mix = f[P::exS5Mix]; q.amount = f[P::exS5Amt]; q.param = f[P::exS5Par]; q.modSrc = f.idx (P::exS5Mod); q.modDepth = f[P::exS5Depth]; }
+                    { auto& q = e.slot[5]; q.type = f.idx (P::exS6Type); q.mix = f[P::exS6Mix]; q.amount = f[P::exS6Amt]; q.param = f[P::exS6Par]; q.modSrc = f.idx (P::exS6Mod); q.modDepth = f[P::exS6Depth]; }
+                    { auto& q = e.slot[6]; q.type = f.idx (P::exS7Type); q.mix = f[P::exS7Mix]; q.amount = f[P::exS7Amt]; q.param = f[P::exS7Par]; q.modSrc = f.idx (P::exS7Mod); q.modDepth = f[P::exS7Depth]; }
+                    { auto& q = e.slot[7]; q.type = f.idx (P::exS8Type); q.mix = f[P::exS8Mix]; q.amount = f[P::exS8Amt]; q.param = f[P::exS8Par]; q.modSrc = f.idx (P::exS8Mod); q.modDepth = f[P::exS8Depth]; }
+                    e.lfo1Rate = f[P::exLfo1]; e.lfo2Rate = f[P::exLfo2]; e.rndRate = f[P::exRndRate];
+                    e.curve0 = f[P::exCurve0]; e.curve1 = f[P::exCurve1]; e.curve2 = f[P::exCurve2]; e.fixedSeed = f.idx (P::exSeed) == 0;
+                    e.fmMod = f[P::exFmMod]; e.fsMod = f[P::exFsMod];
+                    e.mDrive = f[P::tlDrive]; e.mTone = f[P::tlTone]; e.mMove = f[P::tlMove]; e.mReso = f[P::tlReso];
+                    e.mDensity = f[P::tlDensity]; e.mSpace = f[P::tlSpace]; e.mChaos = f[P::tlChaos]; e.mWidth = f[P::tlWidth];
+                    e.sub = f[P::exSub]; e.subHz = f[P::exSubHz]; e.width = f[P::exWidth]; e.drive = f[P::exDrive];
+                    e.lengthMs = ks.lengthMs; e.attackMs = f[P::exAttack]; e.body = f[P::exBody]; e.decay = f[P::exDecay]; e.fade = f[P::exFade];
+                }
                 auto& z = cfg.zaag;                                                 // TAIL ENGINE ZAAG
                 z.on = f.idx (P::tailEngine) == 2;
                 z.variant = f.idx (P::zgVariant);
@@ -963,18 +1018,31 @@ namespace fge
                 {   // FRONT OF THE KICK (owner 2026-11-16): TOK, CLICK, SUB PUNCH - shared modules; the PUNCH TYPE profile changes how they are used
                     const auto& pf = dsp::front::profileFor (f.idx (P::punchMode));
                     auto dbGain = [] (float db) { return db <= -59.9f ? 0.f : std::pow (10.f, db / 20.f); };
-                    auto& tk = cfg.tok; tk.gain = dbGain (f[P::tkLevel]); tk.on = tk.gain > 0.f; tk.type = f.idx (P::tkType); tk.tuneSt = f[P::tkTune];
+                    auto& tk = cfg.tok; // AUTO / ON / OFF; AUTO click / sub punch only if the PUNCH TYPE wants the GLOBAL layers (EUPHORIC / PVC / ZAAG have their own)
+                    auto layerOn = [&] (int mode, int autoOn, bool profileWants = true) { const int m = f.idx (mode); return m == 1 || (m == 0 && f[autoOn] > 0.5f && profileWants); };   // AUTO / ON / OFF
+                    tk.gain = dbGain (f[P::tkLevel]); tk.on = tk.gain > 0.f && layerOn (P::tkMode, P::tkAuto); tk.type = f.idx (P::tkType); tk.tuneSt = f[P::tkTune];
                     tk.lengthMs = f[P::tkLength]; tk.peakMs = f[P::tkPeak]; tk.fade = f[P::tkFade]; tk.tone = f[P::tkTone];
                     tk.pitchMode = f.idx (P::tkPitchMode); tk.penvStartSt = f[P::tkPenvStart]; tk.penvEndSt = f[P::tkPenvEnd]; tk.penvMs = f[P::tkPenvTime]; tk.drive = f[P::tkDrive];
                     auto& ck = cfg.click; const float cdb = f[P::clkLevel];
-                    ck.gain = cdb <= -59.9f ? 0.f : dbGain (cdb + pf.clickDb); ck.on = ck.gain > 0.f; ck.type = f.idx (P::clkType); ck.pitchHz = f[P::clkPitch];
+                    ck.gain = cdb <= -59.9f ? 0.f : dbGain (cdb + pf.clickDb); ck.on = ck.gain > 0.f && layerOn (P::clkMode, P::clkAuto, pf.globalInAuto); ck.type = f.idx (P::clkType); ck.pitchHz = f[P::clkPitch];
                     ck.lengthMs = f[P::clkLength] * pf.clickLenMul; ck.decay = f[P::clkDecay];
                     ck.tone = juce::jlimit (0.f, 1.f, f[P::clkTone] + pf.clickTone); ck.drive = juce::jlimit (0.f, 1.f, f[P::clkDrive] + pf.clickDrive); ck.mix = f[P::clkMix];
                     auto& sp = cfg.spk; const float sdb = f[P::spkLevel];
-                    sp.gain = sdb <= -59.9f ? 0.f : dbGain (sdb + pf.subDb); sp.on = sp.gain > 0.f; sp.startHz = f[P::spkStart]; sp.endHz = f[P::spkEnd];
+                    sp.gain = sdb <= -59.9f ? 0.f : dbGain (sdb + pf.subDb); sp.on = sp.gain > 0.f && layerOn (P::spkMode, P::spkAuto, pf.subInAuto); sp.startHz = f[P::spkStart]; sp.endHz = f[P::spkEnd];
                     sp.delayMs = f[P::spkDelay]; sp.lengthMs = f[P::spkLength] * pf.subLenMul;
                     sp.drive = juce::jlimit (0.f, 1.f, f[P::spkDrive] + pf.subDrive); sp.tone = juce::jlimit (0.f, 1.f, f[P::spkTone] + pf.subTone);
                     cfg.zgSend = f.idx (P::tailEngine) == 2 ? f[P::zgSend] : 0.f;      // (only into a ZAAG tail)
+                }
+                {                                                                   // PUNCH TYPE CLASSIC (EARLY REWORK, owner 2026-11-16)
+                    auto& q = cfg.cpunch;
+                    q.on = f.idx (P::punchMode) == 5;
+                    q.shape = f[P::cpShape]; q.transLevel = f[P::cpTrans]; q.transMs = f[P::cpTransMs]; q.transHz = f[P::cpTransHz];
+                    q.resLevel = f[P::cpRes]; q.resHz = f[P::cpResHz]; q.resQ = f[P::cpResQ]; q.noise = f[P::cpNoise]; q.noiseHz = f[P::cpNoiseHz];
+                    q.startHz = f[P::cpStart]; q.hitHz = f[P::cpHit]; q.dropMs = f[P::cpDrop]; q.glideMs = f[P::cpGlide]; q.curve = f[P::cpCurve];
+                    q.endSt = f[P::cpEndSt]; q.follow = true;
+                    q.lowCut = f[P::cpLowCut]; q.lowMidHz = f[P::cpLmHz]; q.lowMidDb = f[P::cpLmDb]; q.midHz = f[P::cpMidHz]; q.midDb = f[P::cpMidDb]; q.highCut = f[P::cpHighCut];
+                    q.satDb = f[P::cpSat]; q.asym = f[P::cpAsym]; q.satDecayMs = f[P::cpSatDecay]; q.wsType = f.idx (P::cpWsType); q.wsDb = f[P::cpWsDb]; q.transCtrl = f[P::cpTransCtrl];
+                    q.attackMs = f[P::cpAttack]; q.holdMs = f[P::cpHold]; q.decayMs = f[P::cpDecay]; q.decayCurve = f[P::cpDecayCurve];
                 }
                 auto& zp = cfg.zpunch;                                              // PUNCH TYPE ZAAG
                 zp.on = f.idx (P::punchMode) == 4;
@@ -1148,11 +1216,11 @@ namespace fge
                 const auto g0 = gainNow[(size_t) c], g1 = gainTarget[(size_t) c];
                 const float* x = b[c];
                 const bool wideTail = c == 2 && cfg.wide;
-                const bool roomHere = cfg.room.on && ((c == 2 && ! cfg.zaag.on && ! cfg.pvcTail.on) || (c == 0 && cfg.room.onTok && ! cfg.zpunch.on));   // (the classic room: not on the engine parts)
+                const bool roomHere = cfg.room.on && ((c == 2 && ! cfg.zaag.on && ! cfg.pvcTail.on && ! cfg.raw.on && ! cfg.exp.on) || (c == 0 && cfg.room.onTok && ! cfg.zpunch.on && ! cfg.cpunch.on));   // (the classic room: not on the engine parts)
                 auto* room = c == 0 ? tokRoom.get() : tailRoom.get();
                 if (roomHere) room->cook (cfg.room);
-                const bool colorHere = c == 2 && cfg.color.on && ! cfg.pvcTail.on && ! cfg.zaag.on;
-                const bool pvcHere = (c == 2 && (cfg.pvcTail.on || cfg.zaag.on)) || (c == 0 && cfg.zpunch.on);   // an ENGINE replaces the part's source (rule 0: one engine per part)
+                const bool colorHere = c == 2 && cfg.color.on && ! cfg.pvcTail.on && ! cfg.zaag.on && ! cfg.raw.on && ! cfg.exp.on;
+                const bool pvcHere = (c == 2 && (cfg.pvcTail.on || cfg.zaag.on || cfg.raw.on || cfg.exp.on)) || (c == 0 && (cfg.zpunch.on || cfg.cpunch.on));   // an ENGINE replaces the part's source (rule 0: one engine per part)
                 const float noteNow = lastNoteHz * cfg.fineMul;
                 if (colorHere) tailColor.cook (cfg.color, cfg.keyTrack ? lastNoteHz * cfg.fineMul : cfg.endHz * cfg.fineMul, cfg.ks.rate);
                 float p = 0.f;
@@ -1161,7 +1229,10 @@ namespace fge
                     const float u = (float) (i + 1) * inv;
                     const float gl = g0.first + (g1.first - g0.first) * u, gr = g0.second + (g1.second - g0.second) * u;
                     float yl, yr;
-                    if (pvcHere && c == 0) zpU.process (cfg.zpunch, msAt (i), noteNow, yl, yr);                  // PUNCH TYPE ZAAG
+                    if (pvcHere && c == 0 && cfg.cpunch.on) { yl = yr = cpU.process (cfg.cpunch, msAt (i), noteNow); }   // PUNCH TYPE CLASSIC (EARLY)
+                    else if (pvcHere && c == 0) zpU.process (cfg.zpunch, msAt (i), noteNow, yl, yr);                  // PUNCH TYPE ZAAG
+                    else if (pvcHere && cfg.exp.on) expU.process (cfg.exp, msAt (i), noteNow, yl, yr);              // TAIL TYPE EXPERIMENTAL
+                    else if (pvcHere && cfg.raw.on) rawU.process (cfg.raw, msAt (i), noteNow, yl, yr);              // TAIL TYPE RAW
                     else if (pvcHere && cfg.zaag.on) zaagU.process (cfg.zaag, msAt (i), noteNow, yl, yr, cfg.zgSend > 0.f ? sendBuf[(size_t) i] : 0.f);   // TAIL TYPE ZAAG (+ ZAAG SEND)
                     else if (pvcHere) pvcU.process (cfg.pvcTail, b[1][i], msAt (i), noteNow, yl, yr);   // (the room after it = the reverb after the cut)
                     else if (wideTail)
@@ -1382,8 +1453,9 @@ namespace fge
         std::unique_ptr<dsp::shaped::Renderer> shapedR = std::make_unique<dsp::shaped::Renderer>();
         std::unique_ptr<dsp::pvc::Renderer> pvcR = std::make_unique<dsp::pvc::Renderer>();          // PVC punch (owner 2026-11-14)
         dsp::pvctail::Unit pvcU;
-        dsp::zaag::Unit zaagU;
+        dsp::zaag::Unit zaagU; dsp::raw::Unit rawU; dsp::exper::Unit expU;
         dsp::zaagpunch::Unit zpU;
+        dsp::classicpunch::Unit cpU;
         dsp::front::ClickUnit clkU; dsp::front::TokUnit tokU; dsp::front::SubPunchUnit spkU;
         std::vector<float> sendBuf;                                         // ZAAG SEND: TOK + PUNCH of this block -> the ZAAG cascade
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11

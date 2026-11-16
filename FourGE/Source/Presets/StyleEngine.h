@@ -39,6 +39,7 @@ namespace fge::style
         if (id.startsWith ("punch_")) return false;                    // PUNCH / TOK: the tok's own length / envelope is its character, not the kick length
         if (id.startsWith ("tail_room")) return false;                 // the TAIL ROOM decay is its character (it never makes the kick longer)
         if (id.startsWith ("noise")) return false;
+        if (id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_")) return false;   // the FRONT layers' own lengths = their character
         if (id.startsWith ("pvc_") || id.startsWith ("pt_") || id.startsWith ("zg_")) return false;   // PVC punch length / tail length = the PVC character (owner 2026-11-14)                     // a noise layer's decay / length is its character (EUPHORIC's grain), not the kick length
         return id == "core_length" || id == "core_auto_length" || id.endsWith ("_length") || id.endsWith ("_decay") || id.endsWith ("_release")
                || id.endsWith ("_sustain") || id.contains ("_length_") || id.endsWith ("_hold");
@@ -49,6 +50,7 @@ namespace fge::style
         if (isLength (id)) return false;
         for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_", "zg_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
         if (id.startsWith ("dist")) return true;                         // the whole distortion pool (dist1..16 + dist_ globals)
+        if ((id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_")) && ! id.endsWith ("_mode")) return true;   // the FRONT profiles (never the user's AUTO / ON / OFF)
         return id == "master_clip_drive";
     }
 
@@ -143,6 +145,30 @@ namespace fge::style
         };
         return t[(size_t) juce::jlimit (0, NumStyles - 1, s)];
     }
+    // ---- THE FRONT (owner 2026-11-16): the style has no TOK / CLICK / SUB PUNCH of its own - it only gives the shared modules a
+    //      PROFILE (on / off in AUTO + character). Levels from the owner's balances (TOK / PUNCH / CLICK / SUB PUNCH, 100 % = -6 dB):
+    //      EARLY a short characteristic tok, NO global click (EARLY REWORK: the classic punch makes its own transient), a short controlled sub punch; MODERN precise tok, short selective click, controlled sub punch;
+    //      RAW harder tok, aggressive click, strong sub punch; EXPERIMENTAL = by the preset (off); ZAAG = optional (off: its own punch
+    //      engine has the click / pup, ZAAG SEND mixes the zaag into the TOK / PUNCH); EUPHORIC / PVC = their models' own click / sub (off).
+    inline std::vector<std::pair<const char*, float>> frontProfile (int s)
+    {
+        switch (s)
+        {
+            case Early: return { { "tk_auto", 1 }, { "tk_type", 0 }, { "tk_level", -8.5f }, { "tk_tune", -3 }, { "tk_length", 28 }, { "tk_peak", 4 }, { "tk_fade", 0.25f },
+                                 { "tk_tone", 0.45f }, { "tk_penv_start", 10 }, { "tk_drive", 0.15f },
+                                 { "clk_auto", 0 },                                                   // (EARLY REWORK: the punch makes its own transient - global CLICK OFF)
+                                 { "spk_auto", 1 }, { "spk_level", -9 }, { "spk_length", 32 }, { "spk_drive", 0.2f }, { "spk_tone", 0.35f } };   // short, controlled
+            case Modern: return { { "tk_auto", 1 }, { "tk_type", 4 }, { "tk_level", -12 }, { "tk_tune", 2 }, { "tk_length", 50 }, { "tk_peak", 3 }, { "tk_fade", 0.5f },
+                                  { "tk_tone", 0.6f }, { "tk_penv_start", 12 }, { "tk_drive", 0.2f },
+                                  { "clk_auto", 1 }, { "clk_type", 1 }, { "clk_level", -10.5f }, { "clk_length", 7 }, { "clk_decay", 0.7f }, { "clk_tone", 0.7f }, { "clk_drive", 0.25f },
+                                  { "spk_auto", 1 }, { "spk_level", -10.5f }, { "spk_length", 45 }, { "spk_drive", 0.15f }, { "spk_tone", 0.3f } };
+            case Raw: return { { "tk_auto", 1 }, { "tk_type", 2 }, { "tk_level", -11 }, { "tk_tune", 7 }, { "tk_length", 45 }, { "tk_peak", 2 }, { "tk_fade", 0.5f },
+                               { "tk_tone", 0.7f }, { "tk_penv_start", 14 }, { "tk_drive", 0.4f },
+                               { "clk_auto", 1 }, { "clk_type", 5 }, { "clk_level", -9.5f }, { "clk_length", 12 }, { "clk_tone", 0.7f }, { "clk_drive", 0.6f },
+                               { "spk_auto", 1 }, { "spk_level", -8 }, { "spk_length", 50 }, { "spk_drive", 0.5f }, { "spk_tone", 0.5f } };
+            default: return {};                                                // EXPERIMENTAL / EUPHORIC / PVC / ZAAG: AUTO = off (the defaults)
+        }
+    }
     // every in-scope parameter's value for a style (defaults + the template + the chain)
     inline std::vector<std::pair<int, float>> values (int s)
     {
@@ -151,6 +177,7 @@ namespace fge::style
         for (int i = 0; i < P::count; ++i) if (inScope (i)) { scope[(size_t) i] = true; v[(size_t) i] = def (i).def; }
         const auto& t = templ (s);
         for (auto& [id, x] : t.values) if (const int i = indexOf (id); i >= 0 && scope[(size_t) i]) v[(size_t) i] = x;
+        for (auto& [id, x] : frontProfile (s)) if (const int i = indexOf (id); i >= 0 && scope[(size_t) i]) v[(size_t) i] = x;
         std::array<int, 16> ord {};
         for (size_t k = 0; k < t.chain.size(); ++k)
         {
@@ -180,6 +207,11 @@ namespace fge::style
         {
             auto* prm = p.apvts.getParameter (def (i).id);
             if (prm == nullptr) continue;
+            {   // THE FRONT: a layer the user forced ON / OFF keeps its settings (a style updates AUTO layers only)
+                const juce::String id (def (i).id);
+                const char* mode = id.startsWith ("tk_") ? "tk_mode" : id.startsWith ("clk_") ? "clk_mode" : id.startsWith ("spk_") ? "spk_mode" : nullptr;
+                if (mode != nullptr && (int) p.apvts.getRawParameterValue (mode)->load() != 0) continue;
+            }
             if (keepTouched && p.isTouched (i))
             {
                 if (std::abs (p.apvts.getRawParameterValue (def (i).id)->load() - x) > 1.0e-6f) { ++r.kept; r.keptNames.add (def (i).name); }

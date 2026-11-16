@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs(); const juce::StringArray& zgVariants(); const juce::StringArray& zgRsnModes(); const juce::StringArray& zgRsnPositions(); const juce::StringArray& zgDistTypes(); const juce::StringArray& tokTypes(); const juce::StringArray& tokPitchModes(); const juce::StringArray& clickTypes();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs(); const juce::StringArray& zgVariants(); const juce::StringArray& zgRsnModes(); const juce::StringArray& zgRsnPositions(); const juce::StringArray& zgDistTypes(); const juce::StringArray& tokTypes(); const juce::StringArray& tokPitchModes(); const juce::StringArray& frontModes(); const juce::StringArray& rawOsc1s(); const juce::StringArray& rawOsc2s(); const juce::StringArray& rawNoises(); const juce::StringArray& rawStages(); const juce::StringArray& rawFltShapes(); const juce::StringArray& tailSyncs(); const juce::StringArray& expOscs(); const juce::StringArray& expNoises(); const juce::StringArray& expPitchCurves(); const juce::StringArray& expFxTypes(); const juce::StringArray& expModSrcs(); const juce::StringArray& expSeeds(); const juce::StringArray& cpWsTypes(); const juce::StringArray& clickTypes();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -595,34 +595,220 @@ namespace fge
     F (zgPupDrive, "zg_pup_drive", "Punch Pup Drive (Zaag)", Unit::Pct, 0.f, 1.f, 1.f, 0.f, FNone) \
     /* FRONT OF THE KICK (owner 2026-11-16): TOK (its own layer before the PUNCH ENGINE), CLICK + SUB PUNCH (shared modules with */ \
     /* PUNCH TYPE profiles), ZAAG SEND (TOK + PUNCH into the ZAAG cascade). LEVEL -60 dB = off (the old sounds unchanged) */ \
-    F (tkLevel, "tk_level", "Tok Level", Unit::Db, -60.f, 12.f, -60.f, -12.f, FMod) \
+    F (tkLevel, "tk_level", "Tok Level", Unit::Db, -60.f, 12.f, -8.f, -12.f, FMod) \
     C (tkType, "tk_type", "Tok Type", tokTypes, 0, FNone) \
     F (tkTune, "tk_tune", "Tok Pitch", Unit::Semi, -24.f, 24.f, 0.f, 0.f, FNone) \
     F (tkLength, "tk_length", "Tok Length", Unit::Ms, 10.f, 80.f, 45.f, 40.f, FNone) \
     F (tkPeak, "tk_peak", "Tok Attack", Unit::Ms, 1.f, 10.f, 4.f, 4.f, FNone) \
     F (tkFade, "tk_fade", "Tok Decay", Unit::Pct, 0.f, 1.f, 0.4f, 0.f, FNone) \
     F (tkTone, "tk_tone", "Tok Tone", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
-    F (clkLevel, "clk_level", "Click Level", Unit::Db, -60.f, 12.f, -60.f, -12.f, FMod) \
-    C (clkType, "clk_type", "Click Type", clickTypes, 1, FNone) \
-    F (clkPitch, "clk_pitch", "Click Pitch", Unit::Hz, 200.f, 12000.f, 3000.f, 2500.f, FNone) \
-    F (clkLength, "clk_length", "Click Length", Unit::Ms, 1.f, 30.f, 12.f, 10.f, FNone) \
-    F (clkDecay, "clk_decay", "Click Decay", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
-    F (clkTone, "clk_tone", "Click Tone", Unit::Pct, 0.f, 1.f, 0.6f, 0.f, FNone) \
-    F (clkDrive, "clk_drive", "Click Drive", Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
-    F (clkMix, "clk_mix", "Click Mix", Unit::Pct, 0.f, 1.f, 1.f, 0.f, FNone) \
-    F (spkLevel, "spk_level", "Sub Punch Level", Unit::Db, -60.f, 12.f, -60.f, -12.f, FMod) \
-    F (spkStart, "spk_start", "Sub Punch Pitch Start", Unit::Hz, 60.f, 400.f, 180.f, 160.f, FNone) \
-    F (spkEnd, "spk_end", "Sub Punch Pitch End", Unit::Hz, 35.f, 200.f, 90.f, 80.f, FNone) \
-    F (spkDelay, "spk_delay", "Sub Punch Start", Unit::Ms, 0.f, 40.f, 10.f, 10.f, FNone) \
-    F (spkLength, "spk_length", "Sub Punch Length", Unit::Ms, 10.f, 120.f, 50.f, 50.f, FNone) \
-    F (spkDrive, "spk_drive", "Sub Punch Drive", Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
-    F (spkTone, "spk_tone", "Sub Punch Tone", Unit::Pct, 0.f, 1.f, 0.4f, 0.f, FNone) \
+    F (clkLevel, "clk_level", "Global Click Level", Unit::Db, -60.f, 12.f, -12.f, -12.f, FMod) \
+    C (clkType, "clk_type", "Global Click Type", clickTypes, 1, FNone) \
+    F (clkPitch, "clk_pitch", "Global Click Pitch", Unit::Hz, 200.f, 12000.f, 3000.f, 2500.f, FNone) \
+    F (clkLength, "clk_length", "Global Click Length", Unit::Ms, 1.f, 30.f, 12.f, 10.f, FNone) \
+    F (clkDecay, "clk_decay", "Global Click Decay", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (clkTone, "clk_tone", "Global Click Tone", Unit::Pct, 0.f, 1.f, 0.6f, 0.f, FNone) \
+    F (clkDrive, "clk_drive", "Global Click Drive", Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
+    F (clkMix, "clk_mix", "Global Click Mix", Unit::Pct, 0.f, 1.f, 1.f, 0.f, FNone) \
+    F (spkLevel, "spk_level", "Global Sub Punch Level", Unit::Db, -60.f, 12.f, -9.f, -12.f, FMod) \
+    F (spkStart, "spk_start", "Global Sub Punch Pitch Start", Unit::Hz, 60.f, 400.f, 180.f, 160.f, FNone) \
+    F (spkEnd, "spk_end", "Global Sub Punch Pitch End", Unit::Hz, 35.f, 200.f, 90.f, 80.f, FNone) \
+    F (spkDelay, "spk_delay", "Global Sub Punch Start", Unit::Ms, 0.f, 40.f, 10.f, 10.f, FNone) \
+    F (spkLength, "spk_length", "Global Sub Punch Length", Unit::Ms, 10.f, 120.f, 50.f, 50.f, FNone) \
+    F (spkDrive, "spk_drive", "Global Sub Punch Drive", Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
+    F (spkTone, "spk_tone", "Global Sub Punch Tone", Unit::Pct, 0.f, 1.f, 0.4f, 0.f, FNone) \
     F (zgSend, "zg_send", "Zaag Send (Tok + Punch)", Unit::Pct, 0.f, 1.f, 0.f, 0.f, FNone) \
     C (tkPitchMode, "tk_pitch_mode", "Tok Pitch Mode", tokPitchModes, 0, FNone) \
     F (tkPenvStart, "tk_penv_start", "Tok Pitch Start", Unit::Semi, -12.f, 36.f, 12.f, 0.f, FNone) \
     F (tkPenvEnd, "tk_penv_end", "Tok Pitch End", Unit::Semi, -24.f, 12.f, 0.f, 0.f, FNone) \
     F (tkPenvTime, "tk_penv_time", "Tok Drop Time", Unit::Ms, 0.5f, 40.f, 5.f, 6.f, FNone) \
-    F (tkDrive, "tk_drive", "Tok Drive", Unit::Pct, 0.f, 1.f, 0.2f, 0.f, FNone)
+    F (tkDrive, "tk_drive", "Tok Drive", Unit::Pct, 0.f, 1.f, 0.2f, 0.f, FNone) \
+    C (tkMode, "tk_mode", "Tok Mode", frontModes, 0, FNone) \
+    C (clkMode, "clk_mode", "Global Click Mode", frontModes, 0, FNone) \
+    C (spkMode, "spk_mode", "Global Sub Punch Mode", frontModes, 0, FNone) \
+    B (tkAuto, "tk_auto", "Tok Auto On (Style)", false, FNone) \
+    B (clkAuto, "clk_auto", "Global Click Auto On (Style)", false, FNone) \
+    B (spkAuto, "spk_auto", "Global Sub Punch Auto On (Style)", false, FNone) \
+    C (rwOsc1, "rw_osc1", "Raw Osc 1", rawOsc1s, 1, FNone) \
+    C (rwOsc2, "rw_osc2", "Raw Osc 2", rawOsc2s, 3, FNone) \
+    F (rwOsc2Lvl, "rw_osc2_level", "Raw Osc 2 Level", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (rwOsc2St, "rw_osc2_tune", "Raw Osc 2 Tune", Unit::Semi, -24.0f, 24.0f, 12.0f, 0.0f, FNone) \
+    C (rwNoise, "rw_noise", "Raw Noise", rawNoises, 2, FNone) \
+    F (rwNoiseLvl, "rw_noise_level", "Raw Noise Level", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
+    F (rwStart, "rw_start", "Raw Pitch Start", Unit::Semi, 0.0f, 48.0f, 24.0f, 0.0f, FNone) \
+    F (rwDrop, "rw_drop", "Raw Pitch Drop", Unit::Ms, 10.0f, 300.0f, 70.0f, 70.0f, FNone) \
+    F (rwCurve, "rw_curve", "Raw Pitch Curve", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (rwRoot, "rw_root", "Raw Root", Unit::Semi, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    B (rwPreOn, "rw_pre_on", "Raw Pre-EQ On", true, FNone) \
+    F (rwLowCut, "rw_low_cut", "Raw Pre Low Cut", Unit::Hz, 10.0f, 200.0f, 30.0f, 40.0f, FNone) \
+    F (rwPreMid, "rw_pre_mid", "Raw Pre Mid", Unit::Db, -12.0f, 12.0f, 3.0f, 0.0f, FNone) \
+    B (rwD1On, "rw_d1_on", "Raw Dist 1 On", true, FNone) \
+    C (rwD1Type, "rw_d1_type", "Raw Dist 1 Type", rawStages, 2, FNone) \
+    F (rwD1Db, "rw_d1_drive", "Raw Dist 1 Drive", Unit::Db, 0.0f, 48.0f, 30.0f, 0.0f, FNone) \
+    B (rwShapeOn, "rw_shape_on", "Raw Shaping EQ On", true, FNone) \
+    F (rwGrowlHz, "rw_growl_hz", "Raw Growl Freq", Unit::Hz, 200.0f, 1200.0f, 450.0f, 450.0f, FNone) \
+    F (rwGrowlDb, "rw_growl_db", "Raw Growl Gain", Unit::Db, 0.0f, 18.0f, 8.0f, 0.0f, FNone) \
+    F (rwGrowlQ, "rw_growl_q", "Raw Growl Q", Unit::None, 0.5f, 8.0f, 2.0f, 2.0f, FNone) \
+    B (rwD2On, "rw_d2_on", "Raw Dist 2 On", true, FNone) \
+    C (rwD2Type, "rw_d2_type", "Raw Dist 2 Type", rawStages, 1, FNone) \
+    F (rwD2Db, "rw_d2_drive", "Raw Dist 2 Drive", Unit::Db, 0.0f, 36.0f, 14.0f, 0.0f, FNone) \
+    B (rwBpOn, "rw_bp_on", "Raw Band-Pass On", true, FNone) \
+    C (rwFltShape, "rw_flt_shape", "Raw Sweep Shape", rawFltShapes, 0, FNone) \
+    F (rwFltStart, "rw_flt_start", "Raw Filter Start", Unit::Hz, 200.0f, 8000.0f, 2500.0f, 1500.0f, FNone) \
+    F (rwFltEnd, "rw_flt_end", "Raw Filter End", Unit::Hz, 100.0f, 4000.0f, 450.0f, 600.0f, FNone) \
+    F (rwFltMid, "rw_flt_mid", "Raw Filter Mid (Custom)", Unit::Hz, 100.0f, 8000.0f, 1200.0f, 1200.0f, FNone) \
+    F (rwFltReso, "rw_flt_reso", "Raw Filter Resonance", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (rwFltSpeed, "rw_flt_speed", "Raw Sweep Speed (Sync)", Unit::Pct, 0.05f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (rwFltTime, "rw_flt_time", "Raw Sweep Time (Free)", Unit::Ms, 20.0f, 1000.0f, 250.0f, 250.0f, FNone) \
+    F (rwFltCurve, "rw_flt_curve", "Raw Sweep Curve", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (rwFltMix, "rw_flt_mix", "Raw Filter Mix", Unit::Pct, 0.0f, 1.0f, 0.8f, 0.0f, FNone) \
+    C (rwSync, "rw_sync", "Raw Time Sync", tailSyncs, 0, FNone) \
+    B (rwD3On, "rw_d3_on", "Raw Dist 3 On", true, FNone) \
+    C (rwD3Type, "rw_d3_type", "Raw Dist 3 Type", rawStages, 0, FNone) \
+    F (rwD3Db, "rw_d3_drive", "Raw Dist 3 Drive", Unit::Db, 0.0f, 24.0f, 8.0f, 0.0f, FNone) \
+    B (rwPostOn, "rw_post_on", "Raw Post-EQ On", true, FNone) \
+    F (rwPostLowCut, "rw_post_low_cut", "Raw Post Low Cut", Unit::Hz, 10.0f, 120.0f, 25.0f, 30.0f, FNone) \
+    F (rwPostHigh, "rw_post_high", "Raw Post High", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    B (rwClipOn, "rw_clip_on", "Raw Clipper On", true, FNone) \
+    F (rwClipHard, "rw_clip_hard", "Raw Clipper Hardness", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
+    F (rwGrowl, "rw_growl", "Raw Growl", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (rwCrunch, "rw_crunch", "Raw Crunch", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (rwVerb, "rw_verb", "Raw Reverb Mix", Unit::Pct, 0.0f, 0.5f, 0.08f, 0.0f, FNone) \
+    F (rwVerbSize, "rw_verb_size", "Raw Reverb Size", Unit::None, 0.3f, 2.0f, 0.8f, 0.8f, FNone) \
+    F (rwVerbDecay, "rw_verb_decay", "Raw Reverb Decay", Unit::Ms, 100.0f, 3000.0f, 600.0f, 600.0f, FNone) \
+    F (rwVerbDamp, "rw_verb_damp", "Raw Reverb Damping", Unit::Hz, 2000.0f, 16000.0f, 7000.0f, 6000.0f, FNone) \
+    F (rwVerbPre, "rw_verb_pre", "Raw Reverb Pre-Delay", Unit::Ms, 0.0f, 60.0f, 10.0f, 10.0f, FNone) \
+    F (rwVerbLowCut, "rw_verb_low_cut", "Raw Reverb Low Cut", Unit::Hz, 100.0f, 2000.0f, 400.0f, 400.0f, FNone) \
+    F (rwSub, "rw_sub", "Raw Sub (Clean)", Unit::Pct, 0.0f, 1.5f, 0.8f, 0.0f, FNone) \
+    F (rwSubHz, "rw_sub_hz", "Raw Sub Freq", Unit::Hz, 40.0f, 250.0f, 110.0f, 110.0f, FNone) \
+    F (rwWidth, "rw_width", "Raw Width (Highs)", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
+    F (rwAttack, "rw_attack", "Raw Tail Attack", Unit::Ms, 0.0f, 30.0f, 2.0f, 0.0f, FNone) \
+    F (rwBody, "rw_body", "Raw Tail Body", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (rwDecay, "rw_tail_decay", "Raw Tail Decay", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (rwFade, "rw_fade", "Raw Tail Fade", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (tlDrive, "tl_drive", "Tail Macro Drive", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \
+    F (tlTone, "tl_tone", "Tail Macro Tone", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \
+    F (tlMove, "tl_movement", "Tail Macro Movement", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \
+    F (tlReso, "tl_resonance", "Tail Macro Resonance", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \
+    F (tlDensity, "tl_density", "Tail Macro Density", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \
+    F (tlSpace, "tl_space", "Tail Macro Space", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \
+    F (tlChaos, "tl_chaos", "Tail Macro Chaos", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \
+    F (tlWidth, "tl_width", "Tail Macro Width", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FMod) \
+    C (exOsc, "ex_osc", "Exp Oscillator", expOscs, 2, FNone) \
+    F (exWtPos, "ex_wt_pos", "Exp Wavetable Position", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (exOscLvl, "ex_osc_level", "Exp Oscillator Level", Unit::Pct, 0.0f, 1.0f, 1.0f, 0.0f, FNone) \
+    F (exFmLvl, "ex_fm_level", "Exp FM Level", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (exFmAmt, "ex_fm_amount", "Exp FM Amount", Unit::None, 0.0f, 10.0f, 2.0f, 2.0f, FNone) \
+    F (exFmRatio, "ex_fm_ratio", "Exp FM Ratio", Unit::None, 0.25f, 8.0f, 2.0f, 2.0f, FNone) \
+    C (exNoise, "ex_noise", "Exp Noise", expNoises, 0, FNone) \
+    F (exNoiseLvl, "ex_noise_level", "Exp Noise Level", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (exRingRatio, "ex_ring_ratio", "Exp Ring Mod Ratio", Unit::None, 0.25f, 8.0f, 1.5f, 1.5f, FNone) \
+    C (exPCurve, "ex_pitch_curve", "Exp Pitch Curve", expPitchCurves, 2, FNone) \
+    F (exStart, "ex_start", "Exp Start Pitch", Unit::Semi, -24.0f, 48.0f, 24.0f, 0.0f, FNone) \
+    F (exEnd, "ex_end", "Exp End Pitch", Unit::Semi, -24.0f, 24.0f, 0.0f, 0.0f, FNone) \
+    F (exMid, "ex_mid", "Exp Mid Pitch (Custom)", Unit::Semi, -24.0f, 48.0f, 7.0f, 0.0f, FNone) \
+    F (exRange, "ex_range", "Exp Pitch Range", Unit::Pct, 0.0f, 2.0f, 1.0f, 0.0f, FNone) \
+    F (exPTime, "ex_pitch_time", "Exp Pitch Time", Unit::Ms, 5.0f, 1000.0f, 120.0f, 120.0f, FNone) \
+    F (exPShape, "ex_pitch_shape", "Exp Pitch Curve Amount", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exPmRate, "ex_pm_rate", "Exp Pitch Mod Rate", Unit::Hz, 0.1f, 40.0f, 6.0f, 6.0f, FNone) \
+    F (exPmDepth, "ex_pm_depth", "Exp Pitch Mod Depth", Unit::Semi, 0.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (exRoot, "ex_root", "Exp Root", Unit::Semi, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    C (exS1Type, "ex_s1_type", "Exp Slot 1 Type", expFxTypes, 5, FNone) \
+    F (exS1Mix, "ex_s1_mix", "Exp Slot 1 Mix", Unit::Pct, 0.0f, 1.0f, 1.0f, 0.0f, FNone) \
+    F (exS1Amt, "ex_s1_amount", "Exp Slot 1 Amount", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exS1Par, "ex_s1_param", "Exp Slot 1 Param", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    C (exS1Mod, "ex_s1_mod", "Exp Slot 1 Mod Source", expModSrcs, 0, FNone) \
+    F (exS1Depth, "ex_s1_depth", "Exp Slot 1 Mod Depth", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    C (exS2Type, "ex_s2_type", "Exp Slot 2 Type", expFxTypes, 1, FNone) \
+    F (exS2Mix, "ex_s2_mix", "Exp Slot 2 Mix", Unit::Pct, 0.0f, 1.0f, 1.0f, 0.0f, FNone) \
+    F (exS2Amt, "ex_s2_amount", "Exp Slot 2 Amount", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exS2Par, "ex_s2_param", "Exp Slot 2 Param", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    C (exS2Mod, "ex_s2_mod", "Exp Slot 2 Mod Source", expModSrcs, 0, FNone) \
+    F (exS2Depth, "ex_s2_depth", "Exp Slot 2 Mod Depth", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    C (exS3Type, "ex_s3_type", "Exp Slot 3 Type", expFxTypes, 8, FNone) \
+    F (exS3Mix, "ex_s3_mix", "Exp Slot 3 Mix", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exS3Amt, "ex_s3_amount", "Exp Slot 3 Amount", Unit::Pct, 0.0f, 1.0f, 0.4f, 0.0f, FNone) \
+    F (exS3Par, "ex_s3_param", "Exp Slot 3 Param", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    C (exS3Mod, "ex_s3_mod", "Exp Slot 3 Mod Source", expModSrcs, 0, FNone) \
+    F (exS3Depth, "ex_s3_depth", "Exp Slot 3 Mod Depth", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    C (exS4Type, "ex_s4_type", "Exp Slot 4 Type", expFxTypes, 0, FNone) \
+    F (exS4Mix, "ex_s4_mix", "Exp Slot 4 Mix", Unit::Pct, 0.0f, 1.0f, 1.0f, 0.0f, FNone) \
+    F (exS4Amt, "ex_s4_amount", "Exp Slot 4 Amount", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exS4Par, "ex_s4_param", "Exp Slot 4 Param", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    C (exS4Mod, "ex_s4_mod", "Exp Slot 4 Mod Source", expModSrcs, 0, FNone) \
+    F (exS4Depth, "ex_s4_depth", "Exp Slot 4 Mod Depth", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    C (exS5Type, "ex_s5_type", "Exp Slot 5 Type", expFxTypes, 0, FNone) \
+    F (exS5Mix, "ex_s5_mix", "Exp Slot 5 Mix", Unit::Pct, 0.0f, 1.0f, 1.0f, 0.0f, FNone) \
+    F (exS5Amt, "ex_s5_amount", "Exp Slot 5 Amount", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exS5Par, "ex_s5_param", "Exp Slot 5 Param", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    C (exS5Mod, "ex_s5_mod", "Exp Slot 5 Mod Source", expModSrcs, 0, FNone) \
+    F (exS5Depth, "ex_s5_depth", "Exp Slot 5 Mod Depth", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    C (exS6Type, "ex_s6_type", "Exp Slot 6 Type", expFxTypes, 0, FNone) \
+    F (exS6Mix, "ex_s6_mix", "Exp Slot 6 Mix", Unit::Pct, 0.0f, 1.0f, 1.0f, 0.0f, FNone) \
+    F (exS6Amt, "ex_s6_amount", "Exp Slot 6 Amount", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exS6Par, "ex_s6_param", "Exp Slot 6 Param", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    C (exS6Mod, "ex_s6_mod", "Exp Slot 6 Mod Source", expModSrcs, 0, FNone) \
+    F (exS6Depth, "ex_s6_depth", "Exp Slot 6 Mod Depth", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    C (exS7Type, "ex_s7_type", "Exp Slot 7 Type", expFxTypes, 0, FNone) \
+    F (exS7Mix, "ex_s7_mix", "Exp Slot 7 Mix", Unit::Pct, 0.0f, 1.0f, 1.0f, 0.0f, FNone) \
+    F (exS7Amt, "ex_s7_amount", "Exp Slot 7 Amount", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exS7Par, "ex_s7_param", "Exp Slot 7 Param", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    C (exS7Mod, "ex_s7_mod", "Exp Slot 7 Mod Source", expModSrcs, 0, FNone) \
+    F (exS7Depth, "ex_s7_depth", "Exp Slot 7 Mod Depth", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    C (exS8Type, "ex_s8_type", "Exp Slot 8 Type", expFxTypes, 0, FNone) \
+    F (exS8Mix, "ex_s8_mix", "Exp Slot 8 Mix", Unit::Pct, 0.0f, 1.0f, 1.0f, 0.0f, FNone) \
+    F (exS8Amt, "ex_s8_amount", "Exp Slot 8 Amount", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exS8Par, "ex_s8_param", "Exp Slot 8 Param", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    C (exS8Mod, "ex_s8_mod", "Exp Slot 8 Mod Source", expModSrcs, 0, FNone) \
+    F (exS8Depth, "ex_s8_depth", "Exp Slot 8 Mod Depth", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (exLfo1, "ex_lfo1_rate", "Exp LFO 1 Rate", Unit::Hz, 0.1f, 40.0f, 4.0f, 4.0f, FNone) \
+    F (exLfo2, "ex_lfo2_rate", "Exp LFO 2 Rate", Unit::Hz, 0.1f, 40.0f, 9.0f, 9.0f, FNone) \
+    F (exRndRate, "ex_rnd_rate", "Exp Random Rate", Unit::Hz, 0.5f, 60.0f, 12.0f, 12.0f, FNone) \
+    F (exCurve0, "ex_curve_start", "Exp Curve Start", Unit::Pct, 0.0f, 1.0f, 1.0f, 0.0f, FNone) \
+    F (exCurve1, "ex_curve_mid", "Exp Curve Mid", Unit::Pct, 0.0f, 1.0f, 0.2f, 0.0f, FNone) \
+    F (exCurve2, "ex_curve_end", "Exp Curve End", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    C (exSeed, "ex_seed", "Exp Random Seed", expSeeds, 0, FNone) \
+    F (exFmMod, "ex_fm_mod", "Exp FM Mod (LFO 2)", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (exFsMod, "ex_fs_mod", "Exp Freq Shift Mod (Random)", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (exSub, "ex_sub", "Exp Sub (Clean)", Unit::Pct, 0.0f, 1.5f, 0.8f, 0.0f, FNone) \
+    F (exSubHz, "ex_sub_hz", "Exp Sub Freq", Unit::Hz, 40.0f, 250.0f, 120.0f, 120.0f, FNone) \
+    F (exWidth, "ex_width", "Exp Width", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exDrive, "ex_drive", "Exp Output Drive", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
+    F (exAttack, "ex_attack", "Exp Tail Attack", Unit::Ms, 0.0f, 30.0f, 2.0f, 0.0f, FNone) \
+    F (exBody, "ex_body", "Exp Tail Body", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (exDecay, "ex_tail_decay", "Exp Tail Decay", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (exFade, "ex_fade", "Exp Tail Fade", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (cpShape, "cp_shape", "Classic Punch Shape", Unit::Pct, 0.0f, 1.0f, 0.2f, 0.0f, FNone) \
+    F (cpTrans, "cp_trans", "Classic Punch Transient", Unit::Pct, 0.0f, 2.0f, 1.3f, 0.0f, FNone) \
+    F (cpTransMs, "cp_trans_ms", "Classic Punch Transient Length", Unit::Ms, 0.2f, 6.0f, 1.1f, 1.0f, FNone) \
+    F (cpTransHz, "cp_trans_hz", "Classic Punch Transient Freq", Unit::Hz, 800.0f, 8000.0f, 2300.0f, 2500.0f, FNone) \
+    F (cpRes, "cp_res", "Classic Punch Resonance", Unit::Pct, 0.0f, 1.5f, 0.85f, 0.0f, FNone) \
+    F (cpResHz, "cp_res_hz", "Classic Punch Resonance Freq", Unit::Hz, 150.0f, 1500.0f, 380.0f, 400.0f, FNone) \
+    F (cpResQ, "cp_res_q", "Classic Punch Resonance Q", Unit::None, 0.5f, 12.0f, 7.9f, 4.0f, FNone) \
+    F (cpNoise, "cp_noise", "Classic Punch Noise", Unit::Pct, 0.0f, 1.0f, 0.05f, 0.0f, FNone) \
+    F (cpNoiseHz, "cp_noise_hz", "Classic Punch Noise Freq", Unit::Hz, 1000.0f, 10000.0f, 4400.0f, 4000.0f, FNone) \
+    F (cpStart, "cp_start", "Classic Punch Start", Unit::Hz, 300.0f, 2500.0f, 1300.0f, 1000.0f, FNone) \
+    F (cpHit, "cp_hit", "Classic Punch Hit Freq", Unit::Hz, 120.0f, 400.0f, 240.0f, 240.0f, FNone) \
+    F (cpDrop, "cp_drop", "Classic Punch Drop", Unit::Ms, 2.0f, 30.0f, 11.7f, 10.0f, FNone) \
+    F (cpGlide, "cp_glide", "Classic Punch Glide", Unit::Ms, 10.0f, 200.0f, 70.0f, 70.0f, FNone) \
+    F (cpCurve, "cp_curve", "Classic Punch Curve", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (cpEndSt, "cp_end", "Classic Punch End (st over note)", Unit::Semi, 0.0f, 24.0f, 13.5f, 0.0f, FNone) \
+    F (cpLowCut, "cp_low_cut", "Classic Punch Low Cut", Unit::Hz, 10.0f, 200.0f, 35.0f, 40.0f, FNone) \
+    F (cpLmHz, "cp_lowmid_hz", "Classic Punch Low-Mid Freq", Unit::Hz, 80.0f, 1000.0f, 157.0f, 250.0f, FNone) \
+    F (cpLmDb, "cp_lowmid_db", "Classic Punch Low-Mid", Unit::Db, -12.0f, 12.0f, -3.0f, 0.0f, FNone) \
+    F (cpMidHz, "cp_mid_hz", "Classic Punch Mid Freq", Unit::Hz, 300.0f, 5000.0f, 2860.0f, 1500.0f, FNone) \
+    F (cpMidDb, "cp_mid_db", "Classic Punch Mid", Unit::Db, -12.0f, 12.0f, 8.3f, 0.0f, FNone) \
+    F (cpHighCut, "cp_high_cut", "Classic Punch High Cut", Unit::Hz, 1000.0f, 20000.0f, 16000.0f, 6000.0f, FNone) \
+    F (cpSat, "cp_sat", "Classic Punch Saturation", Unit::Db, 0.0f, 40.0f, 32.0f, 0.0f, FNone) \
+    F (cpAsym, "cp_asym", "Classic Punch Asymmetry", Unit::Pct, 0.0f, 1.0f, 0.1f, 0.0f, FNone) \
+    F (cpSatDecay, "cp_sat_decay", "Classic Punch Saturation Decay", Unit::Ms, 2.0f, 300.0f, 113.0f, 100.0f, FNone) \
+    C (cpWsType, "cp_ws_type", "Classic Punch Waveshaper", cpWsTypes, 1, FNone) \
+    F (cpWsDb, "cp_ws_drive", "Classic Punch Waveshaper Drive", Unit::Db, 0.0f, 30.0f, 21.8f, 0.0f, FNone) \
+    F (cpTransCtrl, "cp_trans_ctrl", "Classic Punch Transient Control", Unit::Bip, -1.0f, 1.0f, 0.22f, 0.0f, FNone) \
+    F (cpAttack, "cp_attack", "Classic Punch Attack", Unit::Ms, 0.0f, 10.0f, 0.5f, 0.0f, FNone) \
+    F (cpHold, "cp_hold", "Classic Punch Hold", Unit::Ms, 0.0f, 120.0f, 30.0f, 30.0f, FNone) \
+    F (cpDecay, "cp_decay", "Classic Punch Decay", Unit::Ms, 5.0f, 300.0f, 84.0f, 80.0f, FNone) \
+    F (cpDecayCurve, "cp_decay_curve", "Classic Punch Decay Curve", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

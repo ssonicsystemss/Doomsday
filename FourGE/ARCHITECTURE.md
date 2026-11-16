@@ -57,6 +57,21 @@ start), WOOD (an impulse → band-pass → two resonant modes, PITCH moves the r
 (TOK / PUNCH / CLICK / SUB): EARLY ~75 / 100 / 45 / 85, MODERN ~50 / 100 / 60 / 60, RAW ~55 / 100 / 65 / 35, EXPERIMENTAL all
 by the preset.
 
+**INTERNAL vs GLOBAL (owner 2026-11-16).** INTERNAL click / sub punch = built into a PUNCH model (EUPHORIC `psh_click` / `psh_sub`,
+PVC, ZAAG click / pup / thump) – part of its sound. GLOBAL CLICK / GLOBAL SUB PUNCH = the shared FRONT modules (`clk_*` / `spk_*`),
+available with any PUNCH TYPE. In AUTO the engine asks the PUNCH TYPE profile (`FrontProfiles.h` `globalInAuto`) whether the global
+layers are needed: EUPHORIC / PVC / ZAAG no (they have their own), the classic PUNCH / TOK yes. ON always adds them (even on top of the
+model's own), OFF never. Character over symmetry.
+
+**AUTO logic (owner 2026-11-16).** Every FRONT layer has AUTO / ON / OFF (`tk_mode` / `clk_mode` / `spk_mode`, default AUTO).
+AUTO = the STYLE / preset / subtype decides (`tk_auto` / `clk_auto` / `spk_auto` + the layer's profile); ON / OFF = the user forces it,
+and a style change never touches a forced layer. STYLE ENGINE → TOK PROFILE + CLICK PROFILE + SUB PUNCH PROFILE (no generators of
+its own). Styles: EARLY / MODERN / RAW all three on (EARLY round tok, clear click, stronger short sub punch; MODERN precise tok, short
+selective click, controlled sub punch; RAW harder tok, aggressive click, strong sub punch); EXPERIMENTAL by the preset; ZAAG optional
+(off); EUPHORIC / PVC off (their models have their own click + sub). PUNCH SUBTYPES (EUPHORIC CLASSIC / 2010–2012 / FESTIVAL,
+PVC CLASSIC / KLOENK / MODERN): global TOK AUTO by the profile, global CLICK OFF, global SUB PUNCH OFF – OFF = the extra global
+layer only, never the click / sub built into the model. Other PUNCH TYPEs: by the profile.
+
 **PUNCH SUBTYPES** (owner 2026-11-16) are NOT separate generators: they are sound PROFILES of the one PUNCH / TOK engine
 that change several parameters at once (EUPHORIC CLASSIC / 2010–2012 / FESTIVAL, PVC CLASSIC / KLOENK / MODERN ...).
 EUPHORIC CLASSIC = clean euphoric: attack medium, body strong, click moderate, sub punch strong, harmonics medium,
@@ -94,6 +109,7 @@ CLEAN ATTACK → CONTROLLED PUNCH → DENSE HARMONICS → CLEAN LOW END (lots of
 │   ├── CLASSIC / TOK    punch_*                       (the old PUNCH / TOK generator)
 │   ├── EUPHORIC         psh_* (source, mid, drive, asym, tape, shape, low cut)
 │   ├── PVC              pvc_* (model KLOENK / TUBE)
+│   ├── CLASSIC (EARLY)  cp_*  PUNCH TYPE CLASSIC (EARLY REWORK, EARLY_REWORK.md, DSP/Core/ClassicPunch.h): hybrid source + own transient, 3-stage pitch, pre-EQ > saturation > waveshaper > post-EQ > transient control; defaults fitted to the owner's 20 EARLY references
 │   ├── (EUPHORIC)       psh_click*, psh_sub* = the EUPHORIC model's own click / sub (older, stays)
 │   ├── FRONT: TOK       tk_*   (one TOK CORE, 6 sources, pitch mode)        (shared, its own layer before the punch)
 │   ├── FRONT: CLICK     clk_*  (6 types, drive / mix, never through ZAAG)   (shared + per-type profile)
@@ -102,6 +118,8 @@ CLEAN ATTACK → CONTROLLED PUNCH → DENSE HARMONICS → CLEAN LOW END (lots of
 ├── 03 TAIL ENGINE       TAIL TYPE (tail_engine)
 │   ├── CLASSIC          tail_*, body_* (body = its own part)
 │   ├── PVC              pt_*, gt_*
+│   ├── RAW              rw_* + the shared TAIL macros tl_*   TAIL TYPE RAW (owner 2026-11-16, TAIL_RAW_EXP.md): OSC 1 / 2 / NOISE, fixed stack PRE-EQ > DIST 1 > GROWL EQ > DIST 2 > BAND-PASS SWEEP > DIST 3 > POST-EQ > CLIP, GROWL / CRUNCH, reverb, sub, width (DSP/Tone/RawTail.h)
+│   ├── EXPERIMENTAL     ex_* + tl_*   TAIL TYPE EXPERIMENTAL (TAIL_RAW_EXP.md, DSP/Tone/ExpTail.h): osc / wavetable, real FM, noise, ring source, 8 pitch curves, 8 re-orderable FX slots (10 processors), ENV / LFO 1 / LFO 2 / RANDOM (fixed seed) / KICK POS / CURVE, M/S stereo with mono lows
 │   └── ZAAG             zg_*   ZAAG ENGINE (owner's tutorial, FourGE/ZAAG_ENGINE.md): VARIANT CLASSIC / RESONANT / BOUNCE / AGGRESSIVE, 8 ZAAG macros
 ├── 04 CHARACTER / MOVE  screech (scr_*, m06 filters), resonance, filter movement, modulation (module 09)
 ├── 05 MIX / SPACE       core mixer (mix_*), layers (module 04), stereo (spc_*), room / reverb, EQ (m07)

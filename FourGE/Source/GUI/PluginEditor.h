@@ -43,7 +43,7 @@ public:
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
     void selectPart (int);
-    void tailTab (int t) { detailPage = juce::jlimit (0, 6, t); layoutDetail(); repaint(); }
+    void tailTab (int t) { detailPage = juce::jlimit (0, 15, t); layoutDetail(); repaint(); }
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
@@ -103,6 +103,7 @@ private:
     Toggle* toggle (const char* id, const juce::String& text, Toggle::Style, juce::Colour accent);
     Seg* seg (const char* id, juce::StringArray labels, juce::Colour accent);
     juce::ComboBox* combo (const char* id);
+    juce::TextButton* moveSlotButton (int n);
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAtt;
     std::vector<juce::Component*> masterRow, macroRow;
     juce::Rectangle<int> macroArea;
@@ -158,7 +159,7 @@ private:
     juce::ComboBox punchSub; int punchSubFamily = -1;                // PUNCH SUBTYPE (owner 2026-11-16): a profile of the family (Presets/PunchSubtypes.h)
     juce::ComboBox tokNote;                                          // TOK NOTE: sets START to a note (owner 2026-11-09)
     juce::Component detailPageMark;                                 // (a marker in a part's detail list: the items after it = the 2nd tab)
-    juce::TextButton detTab[7];
+    juce::TextButton detTab[16];
     int detailPage = 0;
     void syncTokNote();
 public:

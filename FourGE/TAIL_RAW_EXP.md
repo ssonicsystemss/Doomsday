@@ -1,4 +1,9 @@
-# 4GE – TAIL TYPE RAW & EXPERIMENTAL (owner's spec, 2026-11-16) – collected verbatim in English, build after the FRONT
+# 4GE – TAIL TYPE RAW & EXPERIMENTAL (owner's spec, 2026-11-16) – collected verbatim in English
+
+Status: **RAW built** (`Source/DSP/Tone/RawTail.h`, params `rw_*`, shared TAIL macros `tl_*` (DRIVE / TONE / MOVEMENT / RESONANCE /
+DENSITY / SPACE / CHAOS / WIDTH, RAW mapping), tail tabs RAW STACK / RAW SWEEP / CHAR / RAW SPACE / OUT, acceptance tests RAW 1, 2, 5,
+6, 7, 8 + sweep in RenderTest; test 3 / 4 belong to EXPERIMENTAL). **EXPERIMENTAL built** (`Source/DSP/Tone/ExpTail.h`, params `ex_*` + `tl_*`, tabs EXP SOURCE / FX 1-2 … 7-8 (MOVE = swap with the slot before) / MOD / OUT, acceptance tests EXP 3-8). Not yet: RESAMPLING (listed as important for EXPERIMENTAL) - a later processor. Note: the classic group distortion (dist pool,
+e.g. the RAW style chain) still applies after any tail engine – pick TAIL TYPE RAW on INIT or clear the chain to hear the engine alone.
 
 RAW and EXPERIMENTAL are the two most flexible TAIL TYPEs, with completely different philosophies – NOT two presets of one
 engine, but two separate TAIL generation profiles on a shared DSP foundation.

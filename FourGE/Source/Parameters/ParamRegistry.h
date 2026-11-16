@@ -654,18 +654,18 @@ namespace fge
     F (rwD2Db, "rw_d2_drive", "Raw Dist 2 Drive", Unit::Db, 0.0f, 36.0f, 14.0f, 0.0f, FNone) \
     B (rwBpOn, "rw_bp_on", "Raw Band-Pass On", true, FNone) \
     C (rwFltShape, "rw_flt_shape", "Raw Sweep Shape", rawFltShapes, 0, FNone) \
-    F (rwFltStart, "rw_flt_start", "Raw Filter Start", Unit::Hz, 200.0f, 8000.0f, 2500.0f, 1500.0f, FNone) \
-    F (rwFltEnd, "rw_flt_end", "Raw Filter End", Unit::Hz, 100.0f, 4000.0f, 450.0f, 600.0f, FNone) \
+    F (rwFltStart, "rw_flt_start", "Raw Filter Start", Unit::Hz, 200.0f, 8000.0f, 1800.0f, 1500.0f, FNone) \
+    F (rwFltEnd, "rw_flt_end", "Raw Filter End", Unit::Hz, 100.0f, 4000.0f, 600.0f, 600.0f, FNone) \
     F (rwFltMid, "rw_flt_mid", "Raw Filter Mid (Custom)", Unit::Hz, 100.0f, 8000.0f, 1200.0f, 1200.0f, FNone) \
-    F (rwFltReso, "rw_flt_reso", "Raw Filter Resonance", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
-    F (rwFltSpeed, "rw_flt_speed", "Raw Sweep Speed (Sync)", Unit::Pct, 0.05f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (rwFltReso, "rw_flt_reso", "Raw Filter Resonance", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (rwFltSpeed, "rw_flt_speed", "Raw Sweep Speed (Sync)", Unit::Pct, 0.05f, 1.0f, 0.8f, 0.0f, FNone) \
     F (rwFltTime, "rw_flt_time", "Raw Sweep Time (Free)", Unit::Ms, 20.0f, 1000.0f, 250.0f, 250.0f, FNone) \
     F (rwFltCurve, "rw_flt_curve", "Raw Sweep Curve", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
-    F (rwFltMix, "rw_flt_mix", "Raw Filter Mix", Unit::Pct, 0.0f, 1.0f, 0.8f, 0.0f, FNone) \
+    F (rwFltMix, "rw_flt_mix", "Raw Filter Mix", Unit::Pct, 0.0f, 1.0f, 0.7f, 0.0f, FNone) \
     C (rwSync, "rw_sync", "Raw Time Sync", tailSyncs, 0, FNone) \
     B (rwD3On, "rw_d3_on", "Raw Dist 3 On", true, FNone) \
     C (rwD3Type, "rw_d3_type", "Raw Dist 3 Type", rawStages, 0, FNone) \
-    F (rwD3Db, "rw_d3_drive", "Raw Dist 3 Drive", Unit::Db, 0.0f, 24.0f, 8.0f, 0.0f, FNone) \
+    F (rwD3Db, "rw_d3_drive", "Raw Dist 3 Drive", Unit::Db, 0.0f, 24.0f, 12.0f, 0.0f, FNone) \
     B (rwPostOn, "rw_post_on", "Raw Post-EQ On", true, FNone) \
     F (rwPostLowCut, "rw_post_low_cut", "Raw Post Low Cut", Unit::Hz, 10.0f, 120.0f, 25.0f, 30.0f, FNone) \
     F (rwPostHigh, "rw_post_high", "Raw Post High", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \

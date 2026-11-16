@@ -438,3 +438,11 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   kod do łańcucha `if / else if` w pętli części, nie rozrywać go – wstawka „if” przed `else if (wideTail)` nadpisywała wyjście
   silnika ZAAG klasycznym ogonem (wszystkie renderingi identyczne). Sprawdzać: zmiana gałki silnika musi zmienić plik.
 
+
+## 4GE TAIL RAW: "wychodzi jakiś acidowy" (owner 2026-11-16)
+- Pierwszy RAW: band-pass sweep ZASTĘPOWAŁ sygnał (mix 0.8) przy wysokim Q (do 18) i szybkim zjeździe 2.5 kHz → 450 Hz = filtr
+  TB-303 (acid squelch), nie rawowy growl. Poprawka: sweep jako EMFAZA na pełnym stosie (x += mix · bp(x)), szerokie Q (max 8,
+  ruchomy formant), węższy zakres 1.8 kHz → 600 Hz, wolniej (80 % ogona), mocniejszy DIST 3 po filtrze. Zasada: w kicku ruchomy
+  filtr ma kolorować gęsty przester, nigdy nie zostawiać samego wąskiego pasma z rezonansem.
+- (Dobre od razu) PUNCH TYPE CLASSIC dopasowany pomiarami do 20 referencji EARLY (pitch w 3 etapach, widmo w oknach 0-4 / 4-15 /
+  15-40 / 40-100 ms): „classic punche git” – mierzyć referencje w oknach czasowych, zanim się stroi na słuch.

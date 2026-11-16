@@ -38,11 +38,11 @@ namespace fge::dsp::raw
         // 04 stack (stage switches)
         bool preOn = true, d1On = true, shapeOn = true, d2On = true, bpOn = true, d3On = true, postOn = true, clipOn = true;
         float lowCut = 30.f, preMidDb = 3.f;
-        int d1Type = 2, d2Type = 1, d3Type = 0; float d1Db = 30.f, d2Db = 14.f, d3Db = 8.f;
+        int d1Type = 2, d2Type = 1, d3Type = 0; float d1Db = 30.f, d2Db = 14.f, d3Db = 12.f;
         float growlHz = 450.f, growlDb = 8.f, growlQ = 2.f;
         float postLowCut = 25.f, postHighDb = 0.f, clipHard = 0.3f;
         // 05 filter movement
-        int fltShape = 0, sync = 0; float fltStart = 2500.f, fltEnd = 450.f, fltMid = 1200.f, fltReso = 0.5f, fltSpeed = 0.6f, fltTimeMs = 250.f, fltCurve = 0.5f, fltMix = 0.6f;
+        int fltShape = 0, sync = 0; float fltStart = 1800.f, fltEnd = 600.f, fltMid = 1200.f, fltReso = 0.5f, fltSpeed = 0.8f, fltTimeMs = 250.f, fltCurve = 0.5f, fltMix = 0.7f;
         float bodyEndMs = 120.f;                       // (SYNC TO BODY END)
         // 06 character + the shared TAIL macros (0.5 = neutral)
         float growl = 0.5f, crunch = 0.5f;
@@ -104,7 +104,8 @@ namespace fge::dsp::raw
             if (s.d1On) x = dc1.tick (stage (s.d1Type, x * g1));                                // DIST 1: aggressive, the main harmonics
             if (s.shapeOn) x = grl.tick (x);                                                    // SHAPING EQ: the GROWL bell
             if (s.d2On) x = stage (s.d2Type, x * g2);                                           // DIST 2: densifies
-            if (s.bpOn) x += (bpGain * bp.tick (x) - x) * fltMixNow;                            // BAND-PASS SWEEP (resonant, the movement)
+            if (s.bpOn) x += fltMixNow * bpGain * bp.tick (x);                                  // BAND-PASS SWEEP as an EMPHASIS on the full stack (owner 2026-11-16: replacing
+                                                                                                //  the signal with a narrow resonant band-pass = an ACID squelch, not a raw growl)
             if (s.d3On) x = dc3.tick (stage (s.d3Type, x * g3) * d3Comp);                       // DIST 3: controlled, the final character
             if (s.postOn) x = post2.tick (post1.tick (x));                                      // POST-EQ: low cut + TONE shelf
             if (s.clipOn) x = clip (x * clipIn);                                                // SOFT CLIPPER (soft <-> hard)
@@ -207,9 +208,9 @@ namespace fge::dsp::raw
             const float mv = std::clamp (s.mMove * 2.f, 0.f, 2.f);                               // MOVEMENT: the depth of the sweep (0 = parked in the middle)
             const float centre = std::sqrt (std::max (20.f, s.fltStart) * std::max (20.f, s.fltEnd));
             sweepNow = std::clamp (std::exp (std::log (centre) + (std::log (std::max (20.f, f)) - std::log (centre)) * mv), 60.f, (float) fs * 0.4f);
-            const double q = std::clamp (0.7 + 9.0 * (double) s.fltReso * (1.0 + rs + 0.6 * gr), 0.5, 18.0);   // RESONANCE + GROWL
+            const double q = std::clamp (0.6 + 3.4 * (double) s.fltReso * (1.0 + rs + 0.6 * gr), 0.5, 8.0);    // RESONANCE + GROWL (wide: a moving formant, never a 303 peak)
             bp.bp (fs, sweepNow, q);
-            bpGain = 1.f + 0.4f * (float) q;
+            bpGain = 1.2f + 0.15f * (float) q;
             fltMixNow = std::clamp (s.fltMix, 0.f, 1.f);
             // EQs
             pre1.hp (fs, std::max (10.f, s.lowCut), 0.7071);

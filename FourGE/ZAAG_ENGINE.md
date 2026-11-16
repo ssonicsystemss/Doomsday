@@ -40,7 +40,7 @@ ZAAG STEREO (only the safe part) · ZAAG CRUSH · ZAAG CHARACTER (`zg_character`
 
 CLASSIC (the tutorial chain) · RESONANT (+6 dB / narrower sweep, reopens) · BOUNCE (the shelf and the sub breathe 3x over the
 tail, a sharper pitch hit) · AGGRESSIVE (+6 dB drive, character pushed towards the type, harder crush). Recipe constants in
-`ZaagTail.h::cook`. Later: FAKEDROP, LONG, CLEAN, INDUSTRIAL.
+`ZaagTail.h::cook`. Later (listening round 2026-11-16): LONG, CLEAN, INDUSTRIAL. FAKEDROP dropped (owner 2026-11-16).
 
 ## PUNCH TYPE ZAAG (ZaagPunch.h)
 

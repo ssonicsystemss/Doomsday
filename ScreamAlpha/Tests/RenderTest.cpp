@@ -8,6 +8,34 @@ using namespace juce;
 int main (int argc, char** argv)
 {
     ScopedJuceInitialiser_GUI gui;
+    if (argc > 4 && String (argv[2]) == "--midi")       // RenderTest <out.wav> --midi <program | -1> <file.mid> [bpm] [id=value ...]: a MIDI line through 4LPH4
+    {                                                    // (the owner's test MIDI 2026-11-16; FL writes a broken tempo, so the BPM is given)
+        const double rate = 44100.0; const int blk = 512; AlphaProcessor p; p.setPlayConfigDetails (0, 2, rate, blk); p.prepareToPlay (rate, blk);
+        const int prog = String (argv[3]).getIntValue(); if (prog >= 0 && prog < p.getNumPrograms()) p.setCurrentProgram (prog);
+        const double bpm = argc > 5 ? String (argv[5]).getDoubleValue() : 150.0;
+        for (int i = 6; i < argc; ++i)
+        {
+            const String kv (argv[i]); const String id = kv.upToFirstOccurrenceOf ("=", false, false); const float v = kv.fromFirstOccurrenceOf ("=", false, false).getFloatValue();
+            if (auto* prm = p.getParameters()[0] != nullptr ? dynamic_cast<RangedAudioParameter*> (p.apvts.getParameter (id)) : nullptr) prm->setValueNotifyingHost (prm->convertTo0to1 (v));
+            else printf ("!! unknown parameter %s\n", id.toRawUTF8());
+        }
+        FileInputStream in ((File (argv[4]))); MidiFile mf; if (! in.openedOk() || ! mf.readFrom (in)) { printf ("!! midi not read\n"); return 1; }
+        const double tpq = (double) mf.getTimeFormat(); std::vector<std::pair<int, MidiMessage>> ev; double endS = 0;
+        for (int t = 0; t < mf.getNumTracks(); ++t) for (auto* e : *mf.getTrack (t)) if (e->message.isNoteOnOrOff())
+        { const double sec = e->message.getTimeStamp() / tpq * 60.0 / bpm; ev.push_back ({ (int) (sec * rate), e->message }); endS = std::max (endS, sec); }
+        std::stable_sort (ev.begin(), ev.end(), [] (auto& a, auto& b) { return a.first < b.first; });
+        const int total = (int) ((endS + 1.5) * rate); AudioBuffer<float> out (2, total); out.clear();
+        for (int pos = 0; pos < total; pos += blk)
+        {
+            const int n = jmin (blk, total - pos); AudioBuffer<float> b (2, n); b.clear(); MidiBuffer m;
+            for (auto& [at, msg] : ev) if (at >= pos && at < pos + n) m.addEvent (msg, at - pos);
+            p.processBlock (b, m); for (int ch = 0; ch < 2; ++ch) out.copyFrom (ch, pos, b, ch, 0, n);
+        }
+        File f (argv[1]); f.deleteFile(); WavAudioFormat wf;
+        if (auto w = std::unique_ptr<AudioFormatWriter> (wf.createWriterFor (new FileOutputStream (f), rate, 2, 24, {}, 0))) w->writeFromAudioSampleBuffer (out, 0, total);
+        printf ("rendered %s (%d events, %.1f s)\n", f.getFileName().toRawUTF8(), (int) ev.size(), endS + 1.5);
+        return 0;
+    }
     const File outDir = argc > 1 ? File (argv[1]) : File::getCurrentWorkingDirectory();
     const double sr = 48000.0; const int block = 512;
     AlphaProcessor proc;

@@ -446,3 +446,10 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   filtr ma kolorować gęsty przester, nigdy nie zostawiać samego wąskiego pasma z rezonansem.
 - (Dobre od razu) PUNCH TYPE CLASSIC dopasowany pomiarami do 20 referencji EARLY (pitch w 3 etapach, widmo w oknach 0-4 / 4-15 /
   15-40 / 40-100 ms): „classic punche git” – mierzyć referencje w oknach czasowych, zanim się stroi na słuch.
+
+## 4GE EARLY "drapie przy punchu" (owner 2026-11-16)
+- A whole-kick fit scored on third-octave spectra up to ~5 kHz happily stacked distortions (CLASSIC punch sat 32 dB + HARD shaper,
+  SOFT -> TUBE on the punch, master clip 7 over punch + sub + body): the score was fine, the first 1.5 ms had +5 dB of 8-20 kHz
+  over the refs = a scratch on the hit. Fix the owner picked (D): softer punch shaper (SOFT, sat 24, ws 12 dB), punch top cut 7 kHz,
+  no pool distortion on the punch, master clip 3. Rule: a fit score must include the 0-2 ms / 8-20 kHz band, and after a fit check
+  the onset alone - the ear hears the first millisecond as "drapanie" long before the averages move.

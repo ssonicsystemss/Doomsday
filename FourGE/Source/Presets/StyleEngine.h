@@ -71,6 +71,7 @@ namespace fge::style
             // pitch falls slowly (pe 170 ms, curve 0.04) and the SUB glides down with it (SLOW DROP 12 st / 120 ms: the refs sit at 90 / 72 / 63 / 56 Hz
             // over 80-130 ms, not on the note at once); body a clean octave layer; the master clip squeezes it like the refs
             Template { { { "punch_mode", 5 }, { "punch_level", 6 }, { "cp_decay", 41.2f }, { "cp_end", 11.8f },
+                         { "cp_sat", 24 }, { "cp_ws_type", 0 }, { "cp_ws_drive", 12 }, { "cp_high_cut", 7000 },   // owner 2026-11-16 "drapie przy punchu" -> his pick D: a warmer, softer punch shaper, top cut at 7 kHz
                          { "punch_pitch", 1000 }, { "punch_glide", 4 }, { "punch_drive", 0.6f }, { "punch_tone", 6000 }, { "punch_transient", 0.4f }, { "punch_transient_tone", 4000 },
                          { "punch_attack", 0 }, { "punch_tok_decay", -2 }, { "punch_tok_bend", 0 }, { "punch_note_offset", 12 }, { "punch_note_mode", 0 }, { "punch_source", 0 },
                          { "punch_overlap", 20 }, { "punch_length", 28 }, { "punch_decay", 16 }, { "punch_sustain", 0 }, { "punch_release", 5 },
@@ -82,9 +83,9 @@ namespace fge::style
                          { "tail_start_mode", 1 }, { "tail_start", 120 }, { "tail_room", 0.4f }, { "tail_room_decay", 450 }, { "tail_room_tone", 4500 }, { "tail_room_input", 0 },
                          { "pe_start_mode", 1 }, { "pe_start", 127 }, { "pe_time", 170.5f }, { "pe_curve", 0.044f },
                          { "sub_level", -1.1f }, { "sub_penv_mode", 2 }, { "sub_penv_depth", 12 }, { "sub_penv_time", 120 }, { "sub_penv_curve", 0.364f },
-                         { "master_clip_drive", 7 } },
-                       { { dd::LocTail, { { "type", dd::Soft }, { "drive", 0 }, { "shape", 0.5f } } }, { dd::LocTail, { { "type", dd::Tube }, { "drive", 0 } } },   // the chain stays (owner's EARLY SOFT -> TUBE), the fit opened it fully on the tail only
-                         { dd::LocPunch, { { "type", dd::Soft }, { "drive", 0.4f }, { "shape", 0.5f } } }, { dd::LocPunch, { { "type", dd::Tube }, { "drive", 0.55f } } } } },
+                         { "master_clip_drive", 3 } },                     // (pick D: 7 -> 3, the punch + sub + body no longer grind together in the clip)
+                       { { dd::LocTail, { { "type", dd::Soft }, { "drive", 0 }, { "shape", 0.5f } } }, { dd::LocTail, { { "type", dd::Tube }, { "drive", 0 } } },   // the chain stays (owner's EARLY SOFT -> TUBE) at 0 - the
+                         { dd::LocPunch, { { "type", dd::Soft }, { "drive", 0 }, { "shape", 0.5f } } }, { dd::LocPunch, { { "type", dd::Tube }, { "drive", 0 } } } } },   // CLASSIC punch saturates itself (pick D)
             // MODERN - from "MODERN - Festival Drive", HARD -> SOFT -> DIGITAL CLIP on the tail (controlled), the bass in at 75 ms
             Template { { { "body_resonance", 0.15f }, { "body_drive", 0.25f }, { "body_follow_offset", 12 }, { "body_follow_depth", 0 }, { "body_link_source", 2 }, { "body_link", 1 }, { "noiseB_to_punch", -24 }, { "punch_overlap", 20 }, { "punch_transient_tone", 6000 }, { "punch_transient", 0.55f }, { "punch_release", 6 }, { "punch_sustain", 1 }, { "punch_decay", 150 }, { "punch_attack", 0 }, { "punch_tone", 9000 }, { "tail_room", 0 }, { "tail_color_gain", 0 }, { "tail_room_input", 0 }, { "punch_length", 125 }, { "punch_tok_decay", -4 }, { "punch_tok_bend", 0 }, { "punch_note_offset", 12 }, { "tail_start_mode", 0 }, { "tail_start", 100 }, { "punch_note_mode", 0 }, { "punch_mode", 1 }, { "tail_character", 1 }, { "tail_source", 2 }, { "tail_st2_type", 0 }, { "pe_start", 110.f }, { "pe_start_mode", 0 }, { "pe_time", 18 }, { "tail_penv_offset", 0 },
                          { "pe_curve", 0.8f }, { "tail_drive", 0.55f }, { "tail_tone", 10188 }, { "tail_resonance", 0.25f }, { "body_level", -14.f },

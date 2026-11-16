@@ -45,3 +45,7 @@ Order of work: one reference EARLY / CLASSIC PUNCH → then TOK, SUB PUNCH, BODY
   with it (SLOW DROP 12 st / 120 ms - the refs sit at 90 / 72 / 63 / 56 Hz over 80-130 ms); body = a clean layer at 162 Hz; master
   clip 7. A separate TOK went to -40 dB in every round -> EARLY TOK AUTO = OFF (the classic punch is the tok); SUB PUNCH -19.7 dB / 50 ms.
   Remaining mismatch: the spectrum 15-40 ms (refs have more 300-600 Hz) - next candidate if the owner hears it.
+- Owner 2026-11-16 "drapie przy punchu" (on the very start): the stacked distortion gave +5 dB of 8-20 kHz in the first 1.5 ms.
+  His pick **D**: `cp_ws_type` SOFT, `cp_sat` 24, `cp_ws_drive` 12, `cp_high_cut` 7000, punch pool stages at 0, master clip 3 (score
+  12.4 - by ear over the numbers). Also tried: a lower punch start 800 Hz (F) and a shorter 5 kHz transient (G) - closer onset
+  numbers, not chosen.

@@ -49,3 +49,9 @@ Order of work: one reference EARLY / CLASSIC PUNCH → then TOK, SUB PUNCH, BODY
   His pick **D**: `cp_ws_type` SOFT, `cp_sat` 24, `cp_ws_drive` 12, `cp_high_cut` 7000, punch pool stages at 0, master clip 3 (score
   12.4 - by ear over the numbers). Also tried: a lower punch start 800 Hz (F) and a shorter 5 kHz transient (G) - closer onset
   numbers, not chosen.
+
+## MODERN as a whole kick (2026-11-16, after the owner liked RAW: "nawet git a dawaj inne")
+- MODERN fitted to the owner's OPS FREE KICK 1-4 (F; KICK5 ARSONY is G, left out) with the scratch tool `mf/fit.py` (2 passes):
+  score 25.6 -> 12.6 (style 13.8). The refs hold a tonal ~700 Hz for the first ~40 ms -> a high 909 TOK (+22 st, 65 ms, loud),
+  a loud global click (+3.5 dB, 24 ms), a long sub punch (110 ms), the tail sits low from the start (pe_start 60 Hz), tail attack 23 ms,
+  the punch chain SOFT 0.8 -> DIGITAL 0.35, master clip 5.6.

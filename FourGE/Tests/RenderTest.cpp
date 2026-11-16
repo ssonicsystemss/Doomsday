@@ -3570,6 +3570,7 @@ int main (int argc, char** argv)
         auto tokAt = [] (int mode, int note, float& endHz)
         {
             GeProcessor p; fge::style::apply (p, fge::style::Modern, false); setP (p, "punch_mode", 0.f); setP (p, "pe_start", 494.f);   // (the tail START itself)
+            for (auto* m : { "tk_mode", "clk_mode", "spk_mode" }) setP (p, m, 2.f);           // (no FRONT layers: the analysis reads the tail start)
             setP (p, "pe_start_mode", (float) mode); setP (p, "tail_penv_offset", 150.f);
             setP (p, "sub_level", -60.f); setP (p, "body_level", -60.f);              // (the tail alone: the analysis reads the tok, not the sub under it)
             const auto r = ka::analyse (fge::analysis::renderMine (p.exportSnapshot(), note, 150.0), 44100.0);

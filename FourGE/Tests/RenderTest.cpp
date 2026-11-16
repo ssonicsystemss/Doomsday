@@ -4885,13 +4885,13 @@ int main (int argc, char** argv)
             GeProcessor q;
             auto rv = [&] (const char* id) { return q.apvts.getRawParameterValue (id)->load(); };
             fge::style::apply (q, fge::style::Early, false);
-            const bool early = rv ("tk_auto") > 0.5f && rv ("clk_auto") < 0.5f && rv ("spk_auto") > 0.5f && (int) rv ("tk_type") == 0;   // (EARLY: no global click)
+            const bool early = rv ("tk_auto") < 0.5f && rv ("clk_auto") < 0.5f && rv ("spk_auto") > 0.5f && (int) rv ("tk_type") == 0;   // (EARLY: the CLASSIC punch is the tok + no global click, fit 2026-11-16)
             fge::style::apply (q, fge::style::Experimental, false);
             const bool exp = rv ("tk_auto") < 0.5f;
             setP (q, "tk_mode", 2.f); setP (q, "tk_type", 5.f);
             fge::style::apply (q, fge::style::Raw, false);
             const bool kept = (int) rv ("tk_mode") == 2 && (int) rv ("tk_type") == 5 && rv ("clk_auto") > 0.5f && (int) rv ("clk_type") == 5;
-            check (early && exp && kept, "FRONT STYLES: MODERN / RAW switch TOK + CLICK + SUB PUNCH on in AUTO (EARLY: TOK + SUB PUNCH, no global click) with their profile, EXPERIMENTAL leaves it to the preset, a forced ON / OFF layer keeps its settings",
+            check (early && exp && kept, "FRONT STYLES: MODERN / RAW switch TOK + CLICK + SUB PUNCH on in AUTO (EARLY: SUB PUNCH only - the CLASSIC punch is its tok + click) with their profile, EXPERIMENTAL leaves it to the preset, a forced ON / OFF layer keeps its settings",
                    String (early ? "early ok " : "early bad ") + (exp ? "exp ok " : "exp bad ") + (kept ? "kept" : "overwritten"));
         }
         {   // PAGE RANDOMIZE (owner 2026-11-14): a dice per page / tab with the one RND POWER; the style switches stay; DIST may add a stage; one undo step

@@ -39,7 +39,7 @@ namespace fge::style
         if (id.startsWith ("punch_")) return false;                    // PUNCH / TOK: the tok's own length / envelope is its character, not the kick length
         if (id.startsWith ("tail_room")) return false;                 // the TAIL ROOM decay is its character (it never makes the kick longer)
         if (id.startsWith ("noise")) return false;
-        if (id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_")) return false;   // the FRONT layers' own lengths = their character
+        if (id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_") || id.startsWith ("cp_")) return false;   // the FRONT layers' own lengths = their character
         if (id.startsWith ("pvc_") || id.startsWith ("pt_") || id.startsWith ("zg_")) return false;   // PVC punch length / tail length = the PVC character (owner 2026-11-14)                     // a noise layer's decay / length is its character (EUPHORIC's grain), not the kick length
         return id == "core_length" || id == "core_auto_length" || id.endsWith ("_length") || id.endsWith ("_decay") || id.endsWith ("_release")
                || id.endsWith ("_sustain") || id.contains ("_length_") || id.endsWith ("_hold");
@@ -48,7 +48,7 @@ namespace fge::style
     {
         const juce::String id (def (i).id);
         if (isLength (id)) return false;
-        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_", "zg_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
+        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_", "zg_", "cp_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
         if (id.startsWith ("dist")) return true;                         // the whole distortion pool (dist1..16 + dist_ globals)
         if ((id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_")) && ! id.endsWith ("_mode")) return true;   // the FRONT profiles (never the user's AUTO / ON / OFF)
         return id == "master_clip_drive";
@@ -65,14 +65,26 @@ namespace fge::style
             // the tail starts from the tok note in phase, an equal-power OVERLAP crossfade - the timbre does not break at the hand-over
             // (all styles, owner 2026-11-09 "BODY robi łup łup, goofy"): the BODY has no pitch slide of its own - it FOLLOWS the tail at a fixed
             // interval (0 / +7 / +12 st), so it thickens the tail instead of a separate 808-like "boing"; it starts with the tail after the tok
-            // EARLY - a classic PUNCH (a short thump that falls into the kick, the tail from the hit - no tonal tok "pup", owner 2026-11-10); from "EARLY - Short Tonal" (the tonal v0.4 match), the drive brought down, warm SOFT -> TUBE chain on the tail
-            Template { { { "body_resonance", 0.1f }, { "body_tone", 3000 }, { "body_drive", 0.3f }, { "body_source", 1 }, { "body_follow_offset", 0 }, { "body_follow_depth", 0 }, { "body_link_source", 2 }, { "body_link", 1 }, { "punch_overlap", 20 }, { "punch_transient_tone", 4000 }, { "punch_transient", 0.4f }, { "punch_release", 5 }, { "punch_sustain", 0 }, { "punch_decay", 16 }, { "punch_attack", 0 }, { "punch_tone", 6000 }, { "tail_color_gain", 0 }, { "tail_room_input", 0 }, { "punch_length", 28 }, { "punch_tok_decay", -2 }, { "punch_tok_bend", 0 }, { "punch_note_offset", 12 }, { "tail_start_mode", 0 }, { "tail_start", 100 }, { "punch_note_mode", 0 }, { "punch_mode", 0 }, { "tail_character", 5 }, { "tail_source", 2 }, { "tail_st2_type", 2 }, { "pe_start", 349.23f }, { "tail_room", 0.4f }, { "tail_room_decay", 450 }, { "tail_room_tone", 4500 }, { "pe_start_mode", 1 }, { "pe_time", 130 }, { "pe_curve", 0.15f },
-                         { "tail_drive", 0.55f }, { "tail_tone", 4463 }, { "tail_resonance", 0.06f }, { "body_level", -8 }, { "body_pitch", 187.7f },
-                         { "sub_level", -8 }, { "punch_level", -3 }, { "punch_pitch", 1000 }, { "punch_glide", 4 }, { "punch_drive", 0.6f }, { "tail_level", 0 }, { "tail_uni_drift", 14 },
-                         { "tail_uni_mix", 1 }, { "tail_st2_drive", 14 }, { "tail_mid_hz", 596 }, { "tail_mid_gain", 8 }, { "tail_low_cut", 40 },
-                         { "tail_high_cut", 19000 }, { "master_clip_drive", 2 }, { "tail_attack", 3.6f }, { "tail_hold_level", 0 }, { "punch_source", 0 } },
-                       { { dd::LocTail, { { "type", dd::Soft }, { "drive", 0.35f }, { "shape", 0.5f } } }, { dd::LocTail, { { "type", dd::Tube }, { "drive", 0.3f } } },
-                         { dd::LocPunch, { { "type", dd::Soft }, { "drive", 0.35f }, { "shape", 0.5f } } }, { dd::LocPunch, { { "type", dd::Tube }, { "drive", 0.3f } } } } },
+            // EARLY (EARLY REWORK, owner 2026-11-16): PUNCH TYPE CLASSIC (cp_ defaults = fit P1) + TOK / SUB PUNCH / BODY / TAIL fitted to the
+            // owner's 20 EARLY refs by measurements in time windows (spectra / pitch track / levels, score 25 -> 10): the CLASSIC punch carries
+            // the distortion (SOFT -> TUBE on the PUNCH), the tail is clean, low-passed and starts from the hit (tail_start_mode 1) - its
+            // pitch falls slowly (pe 170 ms, curve 0.04) and the SUB glides down with it (SLOW DROP 12 st / 120 ms: the refs sit at 90 / 72 / 63 / 56 Hz
+            // over 80-130 ms, not on the note at once); body a clean octave layer; the master clip squeezes it like the refs
+            Template { { { "punch_mode", 5 }, { "punch_level", 6 }, { "cp_decay", 41.2f }, { "cp_end", 11.8f },
+                         { "punch_pitch", 1000 }, { "punch_glide", 4 }, { "punch_drive", 0.6f }, { "punch_tone", 6000 }, { "punch_transient", 0.4f }, { "punch_transient_tone", 4000 },
+                         { "punch_attack", 0 }, { "punch_tok_decay", -2 }, { "punch_tok_bend", 0 }, { "punch_note_offset", 12 }, { "punch_note_mode", 0 }, { "punch_source", 0 },
+                         { "punch_overlap", 20 }, { "punch_length", 28 }, { "punch_decay", 16 }, { "punch_sustain", 0 }, { "punch_release", 5 },
+                         { "body_source", 1 }, { "body_level", 0 }, { "body_pitch", 162.4f }, { "body_tone", 3000 }, { "body_resonance", 0.1f }, { "body_drive", 0 },
+                         { "body_follow_offset", 0 }, { "body_follow_depth", 0 }, { "body_link_source", 2 }, { "body_link", 1 },
+                         { "tail_source", 2 }, { "tail_character", 5 }, { "tail_level", -15.9f }, { "tail_attack", 40 }, { "tail_tone", 300 }, { "tail_resonance", 0.06f },
+                         { "tail_drive", 0 }, { "tail_st2_type", 2 }, { "tail_st2_drive", 0 }, { "tail_mid_hz", 545 }, { "tail_mid_gain", -6 }, { "tail_low_cut", 40 },
+                         { "tail_high_cut", 19000 }, { "tail_uni_drift", 14 }, { "tail_uni_mix", 1 }, { "tail_hold_level", 0 }, { "tail_color_gain", 0 },
+                         { "tail_start_mode", 1 }, { "tail_start", 120 }, { "tail_room", 0.4f }, { "tail_room_decay", 450 }, { "tail_room_tone", 4500 }, { "tail_room_input", 0 },
+                         { "pe_start_mode", 1 }, { "pe_start", 127 }, { "pe_time", 170.5f }, { "pe_curve", 0.044f },
+                         { "sub_level", -1.1f }, { "sub_penv_mode", 2 }, { "sub_penv_depth", 12 }, { "sub_penv_time", 120 }, { "sub_penv_curve", 0.364f },
+                         { "master_clip_drive", 7 } },
+                       { { dd::LocTail, { { "type", dd::Soft }, { "drive", 0 }, { "shape", 0.5f } } }, { dd::LocTail, { { "type", dd::Tube }, { "drive", 0 } } },   // the chain stays (owner's EARLY SOFT -> TUBE), the fit opened it fully on the tail only
+                         { dd::LocPunch, { { "type", dd::Soft }, { "drive", 0.4f }, { "shape", 0.5f } } }, { dd::LocPunch, { { "type", dd::Tube }, { "drive", 0.55f } } } } },
             // MODERN - from "MODERN - Festival Drive", HARD -> SOFT -> DIGITAL CLIP on the tail (controlled), the bass in at 75 ms
             Template { { { "body_resonance", 0.15f }, { "body_drive", 0.25f }, { "body_follow_offset", 12 }, { "body_follow_depth", 0 }, { "body_link_source", 2 }, { "body_link", 1 }, { "noiseB_to_punch", -24 }, { "punch_overlap", 20 }, { "punch_transient_tone", 6000 }, { "punch_transient", 0.55f }, { "punch_release", 6 }, { "punch_sustain", 1 }, { "punch_decay", 150 }, { "punch_attack", 0 }, { "punch_tone", 9000 }, { "tail_room", 0 }, { "tail_color_gain", 0 }, { "tail_room_input", 0 }, { "punch_length", 125 }, { "punch_tok_decay", -4 }, { "punch_tok_bend", 0 }, { "punch_note_offset", 12 }, { "tail_start_mode", 0 }, { "tail_start", 100 }, { "punch_note_mode", 0 }, { "punch_mode", 1 }, { "tail_character", 1 }, { "tail_source", 2 }, { "tail_st2_type", 0 }, { "pe_start", 110.f }, { "pe_start_mode", 0 }, { "pe_time", 18 }, { "tail_penv_offset", 0 },
                          { "pe_curve", 0.8f }, { "tail_drive", 0.55f }, { "tail_tone", 10188 }, { "tail_resonance", 0.25f }, { "body_level", -14.f },
@@ -154,10 +166,12 @@ namespace fge::style
     {
         switch (s)
         {
-            case Early: return { { "tk_auto", 1 }, { "tk_type", 0 }, { "tk_level", -8.5f }, { "tk_tune", -3 }, { "tk_length", 28 }, { "tk_peak", 4 }, { "tk_fade", 0.25f },
+            // EARLY (fit to the 20 refs, 2026-11-16): the CLASSIC punch already is the tok - a separate TOK only got quieter in every fit
+            // round (-40 dB), so AUTO = OFF (ON in the FRONT tab brings the short sine tok back); the sub punch stays, quieter and longer
+            case Early: return { { "tk_auto", 0 }, { "tk_type", 0 }, { "tk_level", -14 }, { "tk_tune", 1 }, { "tk_length", 14 }, { "tk_peak", 4 }, { "tk_fade", 0.25f },
                                  { "tk_tone", 0.45f }, { "tk_penv_start", 10 }, { "tk_drive", 0.15f },
                                  { "clk_auto", 0 },                                                   // (EARLY REWORK: the punch makes its own transient - global CLICK OFF)
-                                 { "spk_auto", 1 }, { "spk_level", -9 }, { "spk_length", 32 }, { "spk_drive", 0.2f }, { "spk_tone", 0.35f } };   // short, controlled
+                                 { "spk_auto", 1 }, { "spk_level", -19.7f }, { "spk_length", 50 }, { "spk_drive", 0.2f }, { "spk_tone", 0.35f } };   // controlled (fit)
             case Modern: return { { "tk_auto", 1 }, { "tk_type", 4 }, { "tk_level", -12 }, { "tk_tune", 2 }, { "tk_length", 50 }, { "tk_peak", 3 }, { "tk_fade", 0.5f },
                                   { "tk_tone", 0.6f }, { "tk_penv_start", 12 }, { "tk_drive", 0.2f },
                                   { "clk_auto", 1 }, { "clk_type", 1 }, { "clk_level", -10.5f }, { "clk_length", 7 }, { "clk_decay", 0.7f }, { "clk_tone", 0.7f }, { "clk_drive", 0.25f },

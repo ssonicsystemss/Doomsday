@@ -129,7 +129,7 @@ namespace fge
         {
             using namespace dsp;
             srcAmp = {}; srcPitch = 1.f; srcFilt = 0.f;
-            active = true; t = 0.0; shSubPh = 0.f; age = order; vel = velocityGain; fade = 1.f; fadeStep = 0.f; held = true; ctl = 0; relAtMs = -1.f;
+            active = true; t = 0.0; shSubPh = 0.f; age = order; vel = velocityGain; fade = 1.f; fadeStep = 0.f; held = true; ctl = 0; relAtMs = -1.f; noteNum = note;
             noteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f);
             const uint32_t seed = 0x9e3779b9u * (uint32_t) (note + 1) + cfg.seedSalt * 0x632BE5ABu;   // module 12: SEED (0 = as always)
             punch.start (cfg.ks.part[PPunch], phases01[PPunch], seed ^ 0x1234u);
@@ -188,6 +188,7 @@ namespace fge
         void choke (float ms, double rate) { if (active) fadeStep = 1.f / juce::jmax (1.f, ms * 0.001f * (float) rate); }
         bool isActive() const { return active; }
         bool isHeld() const { return active && held; }
+        int note() const { return noteNum; }
         float elapsedMs() const { return (float) (t * 1000.0); }
         uint64_t order() const { return age; }
         double samplePos (int slot) const { return lbv.samplePos (slot); }
@@ -405,6 +406,7 @@ namespace fge
         double t = 0.0;
         float noteHz = 49.f, vel = 1.f, fade = 1.f, fadeStep = 0.f, relAtMs = -1.f, shSubPh = 0.f;
         bool active = false, held = false;
+        int noteNum = -1;
         uint32_t ctl = 0;
         uint64_t age = 0;
     };
@@ -503,7 +505,7 @@ namespace fge
                 const int at = juce::jlimit (0, n, meta.samplePosition);
                 if (at > pos) { render (out, pos, at - pos); pos = at; }
                 const auto m = meta.getMessage();
-                if (m.isNoteOn()) trigger (m.getNoteNumber(), m.getFloatVelocity());
+                if (m.isNoteOn()) { noteOnKey (m.getNoteNumber()); trigger (m.getNoteNumber(), m.getFloatVelocity()); }
                 else if (m.isNoteOff()) release (m.getNoteNumber());
                 // ONE SHOT: Note Off never cuts the kick (module 01, 11 / module 02, 11) - only RETRIGGER envelopes release
             }
@@ -554,20 +556,39 @@ namespace fge
             }
             hits.fetch_add (1);
         }
-        void release (int)
+        // NOTE-OFF (owner 2026-11-16 "the tail sometimes vanishes by itself"): a note-off of the PREVIOUS kick that arrives after the next
+        // note-on (overlapping notes in the piano roll) used to release EVERY voice - the new kick's envelopes / KICK END too. Now a key
+        // counts its note-ons: a note is released only when its last key goes up, and only the voices of that note.
+        void noteOnKey (int note)
         {
-            for (auto& v : voices)
+            if (note < 0 || note >= 128) return;
+            bool sounding = false; for (auto& v : voices) if (v.isHeld() && v.note() == note) sounding = true;
+            if (! sounding) keyDown[(size_t) note] = 0;                      // (a lost note-off never leaves a key stuck)
+            ++keyDown[(size_t) note];
+        }
+        void release (int note)
+        {
+            if (note >= 0 && note < 128)
             {
-                const bool held = v.isHeld();
-                v.noteOff (cfg);
-                if (cfg.noteCut && held) v.choke (5.f, cfg.ks.rate);        // NOTE END CUTS: the kick stops with the note
+                if (keyDown[(size_t) note] > 1) { --keyDown[(size_t) note]; return; }   // another note-on of this key is still held
+                keyDown[(size_t) note] = 0;
             }
+            KickVoice* newest = nullptr; bool any = false;
+            for (auto& v : voices) if (v.isActive() && (newest == nullptr || v.order() > newest->order())) newest = &v;
+            for (auto& v : voices)
+                if (v.isHeld() && (v.note() == note || note < 0))
+                {
+                    any = true; v.noteOff (cfg);
+                    if (cfg.noteCut) v.choke (5.f, cfg.ks.rate);                 // NOTE END CUTS: the kick stops with the note
+                }
+            if (! any || newest == nullptr || (newest->note() != note && note >= 0)) return;   // an older kick's note: the current kick keeps playing
             if (cfg.noteCut) scrCut = true;
             if (cfg.noteCutFx) outCut = true;                                // NOTE + FX: the whole output fades too
             if (relMs < 0.f) relMs = sinceHitMs;
             modEng.onNoteOff();
         }
-        void stopAll() { for (auto& v : voices) v.choke (3.f, cfg.ks.rate); }
+        std::array<int, 128> keyDown {};
+        void stopAll() { for (auto& v : voices) v.choke (3.f, cfg.ks.rate); keyDown.fill (0); }
         void cookOnly (const ParamFrame& f) { cook (f); }
 
         // meters (peak since the GUI last read them): PUNCH / BODY / TAIL / SUB and the output
@@ -605,7 +626,7 @@ namespace fge
                 while (it != midi.end() && (*it).samplePosition <= pos)
                 {
                     const auto m = (*it).getMessage();
-                    if (m.isNoteOn()) { modEng.onNoteOn (heldNotes == 0); ++heldNotes; lastKey = m.getNoteNumber(); lastVel = m.getFloatVelocity(); kicked = true; pendingNotes[(size_t) juce::jmin (15, pendingN++)] = { m.getNoteNumber(), m.getFloatVelocity() }; }
+                    if (m.isNoteOn()) { noteOnKey (m.getNoteNumber()); modEng.onNoteOn (heldNotes == 0); ++heldNotes; lastKey = m.getNoteNumber(); lastVel = m.getFloatVelocity(); kicked = true; pendingNotes[(size_t) juce::jmin (15, pendingN++)] = { m.getNoteNumber(), m.getFloatVelocity() }; }
                     else if (m.isNoteOff()) { heldNotes = juce::jmax (0, heldNotes - 1); release (m.getNoteNumber()); }
                     else if (m.isController())
                         for (int c = 0; c < 4; ++c)

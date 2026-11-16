@@ -262,6 +262,28 @@ int main (int argc, char** argv)
         }
         return 0;
     }
+    if (argc > 4 && String (argv[2]) == "--midi")                              // RenderTest <out.wav> --midi <preset.4gp | -> <file.mid> [bpm] [k=v ...]: a MIDI line through the plugin
+    {                                                                          // (the owner's test MIDI: the bass line = the kicks; the tempo is given, FL writes a broken one)
+        GeProcessor p;
+        if (String (argv[3]) != "-" && ! p.loadUserPresetFile (File (argv[3]))) { printf ("!! preset not loaded\n"); return 1; }
+        const double bpm = argc > 5 ? String (argv[5]).getDoubleValue() : 150.0;
+        for (int i = 6; i < argc; ++i) { const String kv (argv[i]); setP (p, kv.upToFirstOccurrenceOf ("=", false, false).toRawUTF8(), kv.fromFirstOccurrenceOf ("=", false, false).getFloatValue()); }
+        FileInputStream in ((File (argv[4]))); MidiFile mf; if (! in.openedOk() || ! mf.readFrom (in)) { printf ("!! midi not read\n"); return 1; }
+        const double tpq = (double) mf.getTimeFormat(), sr = 44100.0;
+        std::vector<std::pair<int, MidiMessage>> ev; double endS = 0;
+        for (int t = 0; t < mf.getNumTracks(); ++t)
+            for (auto* e : *mf.getTrack (t))
+                if (e->message.isNoteOnOrOff())
+                {
+                    const double sec = e->message.getTimeStamp() / tpq * 60.0 / bpm;
+                    ev.push_back ({ (int) (sec * sr), e->message }); endS = std::max (endS, sec);
+                }
+        std::stable_sort (ev.begin(), ev.end(), [] (auto& a, auto& b) { return a.first < b.first; });
+        auto out = hitProc (p, ev, endS + 1.0, sr);
+        writeWav (File (argv[1]), out, sr);
+        printf ("rendered %d events, %.1f s at %.0f BPM\n", (int) ev.size(), endS + 1.0, bpm);
+        return 0;
+    }
     if (argc > 3 && String (argv[2]) == "--presetlab")                        // factory preset work: render + analyse + compare + C++ line
     {
         namespace ka = fge::dsp::analysis;
@@ -4828,6 +4850,17 @@ int main (int argc, char** argv)
             auto s8 = clean(); s8.noise = 0; s8.noiseLevel = 0.3f; s8.slot[0] = { ex::FreqShift, 1.f, 0.5f, 0.5f, ex::MRandom, 1.f }; s8.mChaos = 1.f; s8.fixedSeed = true;
             run (s8, fs, 300.f, L1, R1); run (s8, fs, 300.f, L2, R2);
             check (L1 == L2 && R1 == R2, "EXP 8: identical MIDI + preset = an identical render (RANDOM + noise with FIXED SEED)", "");
+        }
+        {   // OVERLAPPING NOTES (owner 2026-11-16 "the tail sometimes vanishes by itself"): the previous kick's note-off arriving AFTER the
+            // next note-on (same key, overlapping notes in FL) must not end the new kick - with KICK END = NOTE the new kick plays to its own note-off
+            GeProcessor p; setP (p, "core_note_cut", 1.f); setP (p, "core_length", 600.f);
+            const int sr = 44100, k2 = (int) (0.2 * sr), off1 = (int) (0.23 * sr), off2 = (int) (0.55 * sr);
+            auto out = hitProc (p, { { 0, MidiMessage::noteOn (1, 31, 1.f) }, { k2, MidiMessage::noteOn (1, 31, 1.f) }, { off1, MidiMessage::noteOff (1, 31) },
+                                     { off2, MidiMessage::noteOff (1, 31) } }, 0.8);
+            auto rmsAt = [&] (double t0, double t1) { double q = 0; int n = 0; for (int i = (int) (t0 * sr); i < (int) (t1 * sr); ++i, ++n) q += out.getSample (0, i) * out.getSample (0, i); return std::sqrt (q / std::max (1, n)); };
+            const double during = rmsAt (0.30, 0.50), after = rmsAt (0.60, 0.75);
+            check (during > 0.02 && after < 0.25 * during, "NOTE-OFF: an older note's late note-off never ends the new kick (overlapping notes); its own note-off still does",
+                   String (during, 3) + " -> " + String (after, 4));
         }
         {   // THE FRONT + STYLE (owner 2026-11-16): a style gives the layers a PROFILE (AUTO on + character); a forced ON / OFF stays the user's
             GeProcessor q;

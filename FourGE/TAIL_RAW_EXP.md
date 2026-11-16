@@ -168,3 +168,10 @@ the same render.
 - **EXPERIMENTAL** – Creative – FM · FORMANT · CHAOS: sounds a classic distortion chain cannot easily make.
 - **ZAAG stays its own engine**, never merged with RAW: RAW may use similar processors but does not inherit the ZAAG
   algorithm. Three really different TAIL engines, not three names for one distortion chain.
+
+## RAW as a whole kick (2026-11-16)
+- The RAW style now switches TAIL TYPE to RAW (`tail_engine` 3) and is fitted as a whole kick to FHSP 038 (F1, 930 ms) with the scratch
+  tool `rf/fit.py` (window spectra up to 700 ms, pitch track, levels, plus the 0-2 ms top band - the EARLY "scratch" lesson): score
+  14.2 -> 10.9. Result: rw_start 43 st, D1 30.5 dB, D3 10.1 dB, filter mix 0.31, attack 3 ms, body 0.39, decay 0.39; TOK SQUARE
+  -4.6 st / 59 ms / no pitch envelope, CLICK PUNCHY -11.2 dB / 20 ms, SUB PUNCH 32 ms drive 0.85, punch -11.6, body off (-36),
+  sub -7.8, tail -6.4, master clip 2.85. `rw_` / `ex_` are in the style scope now (a style sets them, never lengths).

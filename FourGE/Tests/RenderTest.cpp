@@ -3626,6 +3626,7 @@ int main (int argc, char** argv)
         {
             auto p = std::make_unique<GeProcessor>(); fge::style::apply (*p, fge::style::Raw, false);
             for (auto* m : { "tk_mode", "clk_mode", "spk_mode" }) setP (*p, m, 2.f);           // (the classic tok alone: no FRONT layers)
+            setP (*p, "tail_engine", 0.f);                                                       // (RAW now uses TAIL TYPE RAW: this checks the CLASSIC tail's timing)
             for (auto [id, v] : std::initializer_list<std::pair<const char*, float>> { { "punch_mode", 1 }, { "punch_length", 125 }, { "punch_sustain", 1 }, { "punch_overlap", 4 },
                      { "tail_penv_offset", 0 }, { "body_level", -60 } }) setP (*p, id, v);
             for (auto [id, v] : extra) setP (*p, id, v);

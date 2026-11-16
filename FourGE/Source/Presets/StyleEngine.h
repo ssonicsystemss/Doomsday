@@ -39,7 +39,7 @@ namespace fge::style
         if (id.startsWith ("punch_")) return false;                    // PUNCH / TOK: the tok's own length / envelope is its character, not the kick length
         if (id.startsWith ("tail_room")) return false;                 // the TAIL ROOM decay is its character (it never makes the kick longer)
         if (id.startsWith ("noise")) return false;
-        if (id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_") || id.startsWith ("cp_")) return false;   // the FRONT layers' own lengths = their character
+        if (id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_") || id.startsWith ("cp_") || id.startsWith ("rw_") || id.startsWith ("ex_")) return false;   // the FRONT layers' own lengths = their character
         if (id.startsWith ("pvc_") || id.startsWith ("pt_") || id.startsWith ("zg_")) return false;   // PVC punch length / tail length = the PVC character (owner 2026-11-14)                     // a noise layer's decay / length is its character (EUPHORIC's grain), not the kick length
         return id == "core_length" || id == "core_auto_length" || id.endsWith ("_length") || id.endsWith ("_decay") || id.endsWith ("_release")
                || id.endsWith ("_sustain") || id.contains ("_length_") || id.endsWith ("_hold");
@@ -48,7 +48,7 @@ namespace fge::style
     {
         const juce::String id (def (i).id);
         if (isLength (id)) return false;
-        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_", "zg_", "cp_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
+        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_", "zg_", "cp_", "rw_", "ex_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
         if (id.startsWith ("dist")) return true;                         // the whole distortion pool (dist1..16 + dist_ globals)
         if ((id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_")) && ! id.endsWith ("_mode")) return true;   // the FRONT profiles (never the user's AUTO / ON / OFF)
         return id == "master_clip_drive";
@@ -97,15 +97,19 @@ namespace fge::style
                          { "noiseB_level", 0 }, { "noiseB_filter", 0 }, { "noiseB_cutoff", 12034 } },
                        { { dd::LocTail, { { "type", dd::Hard }, { "drive", 0.18f }, { "ceiling", -1 } } }, { dd::LocTail, { { "type", dd::Soft }, { "drive", 0.15f } } }, { dd::LocTail, { { "type", dd::Digital }, { "drive", 0.12f }, { "ceiling", -1 } } },
                          { dd::LocPunch, { { "type", dd::Hard }, { "drive", 0.18f }, { "ceiling", -1 } } }, { dd::LocPunch, { { "type", dd::Soft }, { "drive", 0.15f } } }, { dd::LocPunch, { { "type", dd::Digital }, { "drive", 0.12f }, { "ceiling", -1 } } } } },
-            // RAW - from "RAW - Buzz Saw", ASYMMETRIC -> HARD -> WAVEFOLD, a screech, the bass under the tok (55 ms: "lepiej buja")
+            // RAW - TAIL TYPE RAW fitted to FHSP 038 (2026-11-16); the CLASSIC-tail values below stay for the old tail; from "RAW - Buzz Saw", ASYMMETRIC -> HARD -> WAVEFOLD, a screech, the bass under the tok (55 ms: "lepiej buja")
             Template { { { "body_resonance", 0.2f }, { "body_drive", 0.6f }, { "body_follow_offset", 12 }, { "body_follow_depth", 0 }, { "body_link_source", 2 }, { "body_link", 1 }, { "noiseB_to_punch", -22 }, { "punch_overlap", 20 }, { "punch_transient_tone", 7000 }, { "punch_transient", 0.5f }, { "punch_release", 5 }, { "punch_sustain", 1 }, { "punch_decay", 150 }, { "punch_attack", 0 }, { "punch_tone", 12000 }, { "tail_room", 0 }, { "tail_color_gain", 0 }, { "tail_room_input", 0 }, { "punch_length", 110 }, { "punch_tok_decay", -5 }, { "punch_tok_bend", 0 }, { "punch_note_offset", 12 }, { "tail_start_mode", 0 }, { "tail_start", 100 }, { "punch_note_mode", 0 }, { "punch_mode", 1 }, { "tail_character", 1 }, { "tail_source", 0 }, { "tail_st2_type", 0 }, { "pe_start", 130.f }, { "pe_start_mode", 0 }, { "pe_time", 15 }, { "tail_penv_offset", 0 },
-                         { "pe_curve", 0.72f }, { "tail_drive", 1 }, { "tail_tone", 11932 }, { "tail_resonance", 0.43f }, { "body_level", -4.f },
-                         { "body_pitch", 124.1f }, { "sub_level", -0.06f }, { "punch_level", -9.f }, { "punch_pitch", 830.61f }, { "punch_drive", 1 }, { "tail_level", -3.3f },
+                         { "pe_curve", 0.72f }, { "tail_drive", 1 }, { "tail_tone", 11932 }, { "tail_resonance", 0.43f }, { "body_level", -36 },
+                         { "body_pitch", 124.1f }, { "sub_level", -7.8f }, { "punch_level", -11.6f }, { "punch_pitch", 830.61f }, { "punch_drive", 1 }, { "tail_level", -6.4f },
                          { "tail_uni_detune", 17.4f }, { "tail_uni_drift", 5.8f }, { "tail_uni_mix", 0.49f }, { "tail_st2_drive", 12.8f }, { "tail_mid_hz", 1800 },
-                         { "tail_mid_gain", 5 }, { "tail_low_cut", 150 }, { "tail_high_cut", 18917 }, { "master_clip_drive", 0 }, { "tail_attack", 3.6f },
+                         { "tail_mid_gain", 5 }, { "tail_low_cut", 150 }, { "tail_high_cut", 18917 }, { "master_clip_drive", 2.85f }, { "tail_attack", 3.6f },
                          { "tail_hold_level", 0 }, { "sub_amp_env_delay", 55 }, { "body_amp_env_delay", 0 }, { "body_source", 4 }, { "body_tone", 7000 },
                          { "punch_source", 3 }, { "noiseB_on", 1 }, { "noiseB_type", 1 }, { "noiseB_env", 3 }, { "noiseB_to_texture", -60 }, { "noiseB_to_tail", -27.7f },
-                         { "noiseB_level", 0 }, { "noiseB_filter", 0 }, { "noiseB_cutoff", 4204 }, { "scr_on", 1 }, { "scr_level", -14 } },
+                         { "noiseB_level", 0 }, { "noiseB_filter", 0 }, { "noiseB_cutoff", 4204 }, { "scr_on", 1 }, { "scr_level", -14 },
+                         // FULL KICK fitted to FHSP 038 (owner 2026-11-16: "038 to klasyczny rawowy"): TAIL TYPE RAW (its defaults = the 038 tail fit) +
+                         // the levels / TOK / CLICK / SUB PUNCH fitted on the whole kick (score 14.2 -> 10.6, no extra top on the hit)
+                         { "tail_engine", 3 }, { "rw_start", 43 }, { "rw_d1_drive", 30.5f }, { "rw_d3_drive", 10.1f }, { "rw_flt_mix", 0.31f },
+                         { "rw_attack", 3 }, { "rw_body", 0.39f }, { "rw_tail_decay", 0.39f } },
                        { { dd::LocTail, { { "type", dd::Asym }, { "drive", 0.55f }, { "bias", 0.2f } } }, { dd::LocTail, { { "type", dd::Hard }, { "drive", 0.35f } } }, { dd::LocTail, { { "type", dd::Wavefold }, { "drive", 0.3f }, { "mix", 0.6f } } },
                          { dd::LocPunch, { { "type", dd::Asym }, { "drive", 0.55f }, { "bias", 0.2f } } }, { dd::LocPunch, { { "type", dd::Hard }, { "drive", 0.35f } } }, { dd::LocPunch, { { "type", dd::Wavefold }, { "drive", 0.3f }, { "mix", 0.6f } } } } },
             // EXPERIMENTAL - a WORKING kick (the MODERN core: click, tok, clean sub, noise density) + the unusual part: a DOUBLE DROP, a METALLIC
@@ -177,10 +181,10 @@ namespace fge::style
                                   { "tk_tone", 0.6f }, { "tk_penv_start", 12 }, { "tk_drive", 0.2f },
                                   { "clk_auto", 1 }, { "clk_type", 1 }, { "clk_level", -10.5f }, { "clk_length", 7 }, { "clk_decay", 0.7f }, { "clk_tone", 0.7f }, { "clk_drive", 0.25f },
                                   { "spk_auto", 1 }, { "spk_level", -10.5f }, { "spk_length", 45 }, { "spk_drive", 0.15f }, { "spk_tone", 0.3f } };
-            case Raw: return { { "tk_auto", 1 }, { "tk_type", 2 }, { "tk_level", -11 }, { "tk_tune", 7 }, { "tk_length", 45 }, { "tk_peak", 2 }, { "tk_fade", 0.5f },
-                               { "tk_tone", 0.7f }, { "tk_penv_start", 14 }, { "tk_drive", 0.4f },
-                               { "clk_auto", 1 }, { "clk_type", 5 }, { "clk_level", -9.5f }, { "clk_length", 12 }, { "clk_tone", 0.7f }, { "clk_drive", 0.6f },
-                               { "spk_auto", 1 }, { "spk_level", -8 }, { "spk_length", 50 }, { "spk_drive", 0.5f }, { "spk_tone", 0.5f } };
+            case Raw: return { { "tk_auto", 1 }, { "tk_type", 2 }, { "tk_level", -11 }, { "tk_tune", -4.6f }, { "tk_length", 58.6f }, { "tk_peak", 2 }, { "tk_fade", 0.5f },   // (fit to FHSP 038, 2026-11-16)
+                               { "tk_tone", 0.8f }, { "tk_penv_start", 0 }, { "tk_drive", 0.12f },
+                               { "clk_auto", 1 }, { "clk_type", 5 }, { "clk_level", -11.2f }, { "clk_length", 20.5f }, { "clk_tone", 0.52f }, { "clk_drive", 0.6f },
+                               { "spk_auto", 1 }, { "spk_level", -8 }, { "spk_length", 31.6f }, { "spk_drive", 0.85f }, { "spk_tone", 0.5f } };
             default: return {};                                                // EXPERIMENTAL / EUPHORIC / PVC / ZAAG: AUTO = off (the defaults)
         }
     }

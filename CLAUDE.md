@@ -46,6 +46,8 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
   (previews in a background thread), files never on the audio thread. Every visible control must change the sound (test min vs max).
 - Never change existing parameter IDs (saved projects); new params get new IDs.
 - After sound changes give the owner an A/B file (reference vs plugin) and ask what sounds wrong.
+- **Kick test in context (owner 2026-11-16):** 4GE kicks are also judged in the track "EVERYBODY SCREAM" (150 BPM, bass line = kicks,
+  melody = 5CR34M 4LPH4 "SCREECH - Owner 9 evbd scrm" two octaves up): `FourGE/Tests/demo/make_demo.sh <preset.4gp | -> <out.mp3> [id=value ...]`.
 
 ## Rules
 - Git: push straight to `main` (owner's choice); no branches / PRs unless asked. Commit as `ssonicsystemss <tym222q@gmail.com>`.

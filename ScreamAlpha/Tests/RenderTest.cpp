@@ -11,7 +11,9 @@ int main (int argc, char** argv)
     if (argc > 4 && String (argv[2]) == "--midi")       // RenderTest <out.wav> --midi <program | -1> <file.mid> [bpm] [id=value ...]: a MIDI line through 4LPH4
     {                                                    // (the owner's test MIDI 2026-11-16; FL writes a broken tempo, so the BPM is given)
         const double rate = 44100.0; const int blk = 512; AlphaProcessor p; p.setPlayConfigDetails (0, 2, rate, blk); p.prepareToPlay (rate, blk);
-        const int prog = String (argv[3]).getIntValue(); if (prog >= 0 && prog < p.getNumPrograms()) p.setCurrentProgram (prog);
+        int prog = String (argv[3]).getIntValue();
+        if (! String (argv[3]).containsOnly ("-0123456789")) for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i).containsIgnoreCase (argv[3])) { prog = i; break; }   // (or a name)
+        if (prog >= 0 && prog < p.getNumPrograms()) p.setCurrentProgram (prog);
         const double bpm = argc > 5 ? String (argv[5]).getDoubleValue() : 150.0;
         for (int i = 6; i < argc; ++i)
         {
@@ -33,7 +35,7 @@ int main (int argc, char** argv)
         }
         File f (argv[1]); f.deleteFile(); WavAudioFormat wf;
         if (auto w = std::unique_ptr<AudioFormatWriter> (wf.createWriterFor (new FileOutputStream (f), rate, 2, 24, {}, 0))) w->writeFromAudioSampleBuffer (out, 0, total);
-        printf ("rendered %s (%d events, %.1f s)\n", f.getFileName().toRawUTF8(), (int) ev.size(), endS + 1.5);
+        printf ("rendered %s (%d events, %.1f s, program %s)\n", f.getFileName().toRawUTF8(), (int) ev.size(), endS + 1.5, p.getProgramName (p.getCurrentProgram()).toRawUTF8());
         return 0;
     }
     const File outDir = argc > 1 ? File (argv[1]) : File::getCurrentWorkingDirectory();

@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs(); const juce::StringArray& zgVariants(); const juce::StringArray& zgRsnModes(); const juce::StringArray& zgRsnPositions(); const juce::StringArray& zgDistTypes();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs(); const juce::StringArray& zgVariants(); const juce::StringArray& zgRsnModes(); const juce::StringArray& zgRsnPositions(); const juce::StringArray& zgDistTypes(); const juce::StringArray& tokTypes(); const juce::StringArray& tokPitchModes(); const juce::StringArray& clickTypes();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -592,7 +592,37 @@ namespace fge
     F (zgPupHz, "zg_pup_hz", "Punch Pup Pitch (Zaag)", Unit::Hz, 200.f, 6000.f, 1000.f, 1000.f, FNone) \
     F (zgPupMs, "zg_pup_ms", "Punch Pup Length (Zaag)", Unit::Ms, 4.f, 80.f, 30.f, 25.f, FNone) \
     F (zgPupOct, "zg_pup_oct", "Punch Pup Dive (Zaag)", Unit::None, 0.f, 4.f, 2.f, 2.f, FNone) \
-    F (zgPupDrive, "zg_pup_drive", "Punch Pup Drive (Zaag)", Unit::Pct, 0.f, 1.f, 1.f, 0.f, FNone)
+    F (zgPupDrive, "zg_pup_drive", "Punch Pup Drive (Zaag)", Unit::Pct, 0.f, 1.f, 1.f, 0.f, FNone) \
+    /* FRONT OF THE KICK (owner 2026-11-16): TOK (its own layer before the PUNCH ENGINE), CLICK + SUB PUNCH (shared modules with */ \
+    /* PUNCH TYPE profiles), ZAAG SEND (TOK + PUNCH into the ZAAG cascade). LEVEL -60 dB = off (the old sounds unchanged) */ \
+    F (tkLevel, "tk_level", "Tok Level", Unit::Db, -60.f, 12.f, -60.f, -12.f, FMod) \
+    C (tkType, "tk_type", "Tok Type", tokTypes, 0, FNone) \
+    F (tkTune, "tk_tune", "Tok Pitch", Unit::Semi, -24.f, 24.f, 0.f, 0.f, FNone) \
+    F (tkLength, "tk_length", "Tok Length", Unit::Ms, 10.f, 80.f, 45.f, 40.f, FNone) \
+    F (tkPeak, "tk_peak", "Tok Attack", Unit::Ms, 1.f, 10.f, 4.f, 4.f, FNone) \
+    F (tkFade, "tk_fade", "Tok Decay", Unit::Pct, 0.f, 1.f, 0.4f, 0.f, FNone) \
+    F (tkTone, "tk_tone", "Tok Tone", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (clkLevel, "clk_level", "Click Level", Unit::Db, -60.f, 12.f, -60.f, -12.f, FMod) \
+    C (clkType, "clk_type", "Click Type", clickTypes, 1, FNone) \
+    F (clkPitch, "clk_pitch", "Click Pitch", Unit::Hz, 200.f, 12000.f, 3000.f, 2500.f, FNone) \
+    F (clkLength, "clk_length", "Click Length", Unit::Ms, 1.f, 30.f, 12.f, 10.f, FNone) \
+    F (clkDecay, "clk_decay", "Click Decay", Unit::Pct, 0.f, 1.f, 0.5f, 0.f, FNone) \
+    F (clkTone, "clk_tone", "Click Tone", Unit::Pct, 0.f, 1.f, 0.6f, 0.f, FNone) \
+    F (clkDrive, "clk_drive", "Click Drive", Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
+    F (clkMix, "clk_mix", "Click Mix", Unit::Pct, 0.f, 1.f, 1.f, 0.f, FNone) \
+    F (spkLevel, "spk_level", "Sub Punch Level", Unit::Db, -60.f, 12.f, -60.f, -12.f, FMod) \
+    F (spkStart, "spk_start", "Sub Punch Pitch Start", Unit::Hz, 60.f, 400.f, 180.f, 160.f, FNone) \
+    F (spkEnd, "spk_end", "Sub Punch Pitch End", Unit::Hz, 35.f, 200.f, 90.f, 80.f, FNone) \
+    F (spkDelay, "spk_delay", "Sub Punch Start", Unit::Ms, 0.f, 40.f, 10.f, 10.f, FNone) \
+    F (spkLength, "spk_length", "Sub Punch Length", Unit::Ms, 10.f, 120.f, 50.f, 50.f, FNone) \
+    F (spkDrive, "spk_drive", "Sub Punch Drive", Unit::Pct, 0.f, 1.f, 0.3f, 0.f, FNone) \
+    F (spkTone, "spk_tone", "Sub Punch Tone", Unit::Pct, 0.f, 1.f, 0.4f, 0.f, FNone) \
+    F (zgSend, "zg_send", "Zaag Send (Tok + Punch)", Unit::Pct, 0.f, 1.f, 0.f, 0.f, FNone) \
+    C (tkPitchMode, "tk_pitch_mode", "Tok Pitch Mode", tokPitchModes, 0, FNone) \
+    F (tkPenvStart, "tk_penv_start", "Tok Pitch Start", Unit::Semi, -12.f, 36.f, 12.f, 0.f, FNone) \
+    F (tkPenvEnd, "tk_penv_end", "Tok Pitch End", Unit::Semi, -24.f, 12.f, 0.f, 0.f, FNone) \
+    F (tkPenvTime, "tk_penv_time", "Tok Drop Time", Unit::Ms, 0.5f, 40.f, 5.f, 6.f, FNone) \
+    F (tkDrive, "tk_drive", "Tok Drive", Unit::Pct, 0.f, 1.f, 0.2f, 0.f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

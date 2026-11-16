@@ -17,6 +17,10 @@
 #include "Tone/PvcTail.h"
 #include "Tone/ZaagTail.h"
 #include "Core/ZaagPunch.h"
+#include "Front/Click.h"
+#include "Front/Tok.h"
+#include "Front/SubPunch.h"
+#include "Front/FrontProfiles.h"
 #include "Env/KickEnvelopes.h"
 #include "Osc/OscTables.h"
 #include "Layers/LayerCook.h"
@@ -57,6 +61,7 @@ namespace fge
         const float* shL = nullptr; const float* shR = nullptr; int shLen = 0; double shRate = 48000.0;
         dsp::pvctail::Settings pvcTail;           // TAIL ENGINE PVC (owner 2026-11-14, the KLOENK tail)
         dsp::zaag::Settings zaag;                 // TAIL TYPE ZAAG (owner 2026-11-14 / 15)
+        dsp::front::ClickSettings click; dsp::front::TokSettings tok; dsp::front::SubPunchSettings spk; float zgSend = 0.f;   // the FRONT (owner 2026-11-16)
         dsp::zaagpunch::Settings zpunch;          // PUNCH TYPE ZAAG (ARCHITECTURE.md rule 0: the punch lives in the PUNCH ENGINE)
         dsp::color::Settings color;               // TAIL COLOR after the tail's distortion (owner 2026-11-12)                 // the TAIL room before its distortion (EARLY, owner 2026-11-12)
         int tokNoteMode = 0;                      // 0 FIXED / 1 FOLLOW MIDI / 2 OFFSET (the played note + tokOffsetMul)
@@ -430,6 +435,8 @@ namespace fge
             muteG = 1.f;
             tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor); tailColor.reset();
             shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor); zaagU.prepare (sampleRate * osFactor); zpU.prepare (sampleRate * osFactor);
+            clkU.prepare (sampleRate * osFactor); tokU.prepare (sampleRate * osFactor); spkU.prepare (sampleRate * osFactor);
+            sendBuf.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -528,7 +535,7 @@ namespace fge
             const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
-            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); zpU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); zpU.reset(); clkU.reset(); tokU.reset(); spkU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
@@ -953,6 +960,22 @@ namespace fge
                 z.zaag = f[P::zgZaag]; z.drive = f[P::zgGrit]; z.resonance = f[P::zgResonance]; z.movement = f[P::zgMovement]; z.bass = f[P::zgBass];
                 z.stereo = f[P::zgStereo]; z.crush = f[P::zgCrush]; z.character = f[P::zgCharacter];
                 z.attackMs = f[P::zgAttack]; z.body = f[P::zgBody]; z.decay = f[P::zgDecay]; z.fade = f[P::zgFade];
+                {   // FRONT OF THE KICK (owner 2026-11-16): TOK, CLICK, SUB PUNCH - shared modules; the PUNCH TYPE profile changes how they are used
+                    const auto& pf = dsp::front::profileFor (f.idx (P::punchMode));
+                    auto dbGain = [] (float db) { return db <= -59.9f ? 0.f : std::pow (10.f, db / 20.f); };
+                    auto& tk = cfg.tok; tk.gain = dbGain (f[P::tkLevel]); tk.on = tk.gain > 0.f; tk.type = f.idx (P::tkType); tk.tuneSt = f[P::tkTune];
+                    tk.lengthMs = f[P::tkLength]; tk.peakMs = f[P::tkPeak]; tk.fade = f[P::tkFade]; tk.tone = f[P::tkTone];
+                    tk.pitchMode = f.idx (P::tkPitchMode); tk.penvStartSt = f[P::tkPenvStart]; tk.penvEndSt = f[P::tkPenvEnd]; tk.penvMs = f[P::tkPenvTime]; tk.drive = f[P::tkDrive];
+                    auto& ck = cfg.click; const float cdb = f[P::clkLevel];
+                    ck.gain = cdb <= -59.9f ? 0.f : dbGain (cdb + pf.clickDb); ck.on = ck.gain > 0.f; ck.type = f.idx (P::clkType); ck.pitchHz = f[P::clkPitch];
+                    ck.lengthMs = f[P::clkLength] * pf.clickLenMul; ck.decay = f[P::clkDecay];
+                    ck.tone = juce::jlimit (0.f, 1.f, f[P::clkTone] + pf.clickTone); ck.drive = juce::jlimit (0.f, 1.f, f[P::clkDrive] + pf.clickDrive); ck.mix = f[P::clkMix];
+                    auto& sp = cfg.spk; const float sdb = f[P::spkLevel];
+                    sp.gain = sdb <= -59.9f ? 0.f : dbGain (sdb + pf.subDb); sp.on = sp.gain > 0.f; sp.startHz = f[P::spkStart]; sp.endHz = f[P::spkEnd];
+                    sp.delayMs = f[P::spkDelay]; sp.lengthMs = f[P::spkLength] * pf.subLenMul;
+                    sp.drive = juce::jlimit (0.f, 1.f, f[P::spkDrive] + pf.subDrive); sp.tone = juce::jlimit (0.f, 1.f, f[P::spkTone] + pf.subTone);
+                    cfg.zgSend = f.idx (P::tailEngine) == 2 ? f[P::zgSend] : 0.f;      // (only into a ZAAG tail)
+                }
                 auto& zp = cfg.zpunch;                                              // PUNCH TYPE ZAAG
                 zp.on = f.idx (P::punchMode) == 4;
                 zp.click = f[P::zgClick]; zp.piep = f[P::zgPiep]; zp.piepHz = f[P::zgPiepHz]; zp.piepMs = f[P::zgPiepMs];
@@ -1139,7 +1162,7 @@ namespace fge
                     const float gl = g0.first + (g1.first - g0.first) * u, gr = g0.second + (g1.second - g0.second) * u;
                     float yl, yr;
                     if (pvcHere && c == 0) zpU.process (cfg.zpunch, msAt (i), noteNow, yl, yr);                  // PUNCH TYPE ZAAG
-                    else if (pvcHere && cfg.zaag.on) zaagU.process (cfg.zaag, msAt (i), noteNow, yl, yr);         // TAIL TYPE ZAAG
+                    else if (pvcHere && cfg.zaag.on) zaagU.process (cfg.zaag, msAt (i), noteNow, yl, yr, cfg.zgSend > 0.f ? sendBuf[(size_t) i] : 0.f);   // TAIL TYPE ZAAG (+ ZAAG SEND)
                     else if (pvcHere) pvcU.process (cfg.pvcTail, b[1][i], msAt (i), noteNow, yl, yr);   // (the room after it = the reverb after the cut)
                     else if (wideTail)
                     {
@@ -1150,7 +1173,21 @@ namespace fge
                         yl = low + m + sd; yr = low + m - sd;
                     }
                     else { yl = x[i]; yr = x[i]; }
-                    if (! pvcHere) { yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i]; }  // module 04: layers on this part's bus
+                    if (! pvcHere || c == 0) { yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i]; }  // module 04: layers on this part's bus (the PUNCH BUS with every punch type)
+                    float front = 0.f;                                                // the FRONT: TOK (before the punch), CLICK + SUB PUNCH -> the PUNCH BUS
+                    if (c == 0)                                                       // (own levels: not under the PUNCH fader / mute, not through the punch group's FX)
+                    {
+                        const float ms = msAt (i);
+                        const float tk = tokU.process (cfg.tok, ms, noteNow);
+                        if (cfg.zgSend > 0.f)                                         // ZAAG SEND: TOK + PUNCH (not the CLICK) into the ZAAG cascade
+                        {
+                            sendBuf[(size_t) i] = cfg.zgSend * (0.5f * (yl * gl + yr * gr) + tk);
+                            yl *= 1.f - cfg.zgSend; yr *= 1.f - cfg.zgSend; front = tk * (1.f - cfg.zgSend);
+                        }
+                        else front = tk;
+                        front += clkU.process (cfg.click, ms) + spkU.process (cfg.spk, ms);
+                        if (cfg.noteCut && relMs >= 0.f) front *= juce::jlimit (0.f, 1.f, 1.f - (ms - relMs) / 5.f);
+                    }
                     if (pvcHere && cfg.noteCut && relMs >= 0.f)                                   // KICK END = NOTE: the engines stop with the note too (5 ms fade)
                     {
                         const float cg = juce::jlimit (0.f, 1.f, 1.f - (msAt (i) - relMs) / 5.f);
@@ -1171,7 +1208,7 @@ namespace fge
                     if (m7 && cfg.tone.at (c + 1, 1)) toneSt->process (cfg.tone, c + 1, 1, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 AFTER
                     if (m8 && cfg.dyn.at (c + 1, 1)) dynSt->process (cfg.dyn, c + 1, 1, yl, yr, m6Ctx (i), scOf (b, i), cfg.ks.rate); // module 08 AFTER
                     if (cfg.spc.t[(size_t) c].on) (*spcUnits)[(size_t) c].process (cfg.spc.t[(size_t) c], yl, yr);                   // module 11: the group's stereo
-                    yl *= gl; yr *= gr;
+                    yl = yl * gl + front; yr = yr * gr + front;
                     L[i] = (c == 0 ? 0.f : L[i]) + yl;
                     R[i] = (c == 0 ? 0.f : R[i]) + yr;
                     p = juce::jmax (p, std::abs (yl), std::abs (yr));
@@ -1347,6 +1384,8 @@ namespace fge
         dsp::pvctail::Unit pvcU;
         dsp::zaag::Unit zaagU;
         dsp::zaagpunch::Unit zpU;
+        dsp::front::ClickUnit clkU; dsp::front::TokUnit tokU; dsp::front::SubPunchUnit spkU;
+        std::vector<float> sendBuf;                                         // ZAAG SEND: TOK + PUNCH of this block -> the ZAAG cascade
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};
         float* const* curBus = nullptr;

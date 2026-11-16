@@ -1,6 +1,7 @@
 // 4GE offline checks (rebuild, module 01 Core Kick Engine - its acceptance list 14.1-14.12 + the registry / GUI)
 //   RenderTest <outdir>                                   tests, renders of the factory presets, GUI snapshot
 //   RenderTest <outdir> --render <settings.txt> <out.wav> one kick: lines "note N", "seconds S", "<param id> <value>"
+#include "../Source/Presets/PunchSubtypes.h"
 #include "../Source/PluginProcessor.h"
 #include "../Source/GUI/PluginEditor.h"
 #include "../Source/Presets/LayerTools.h"
@@ -266,7 +267,7 @@ int main (int argc, char** argv)
         namespace ka = fge::dsp::analysis;
         // spec: "preset <name>" starts one; "style <0-3>", "note <midi>", "ref <wav>", "<param id> <value>"; "#" = comment
         StringArray lines; lines.addLines (File (argv[3]).loadFileAsString());
-        struct Spec { String name, ref; int style = -1, note = 31, factory = -1; std::vector<std::pair<String, float>> v; };
+        struct Spec { String name, ref; int style = -1, note = 31, factory = -1, sub = -1; std::vector<std::pair<String, float>> v; };
         std::vector<Spec> specs;
         for (auto l : lines)
         {
@@ -280,6 +281,7 @@ int main (int argc, char** argv)
             else if (k == "note") sp.note = rest.getIntValue();
             else if (k == "ref") sp.ref = rest;
             else if (k == "factory") sp.factory = rest.getIntValue();
+            else if (k == "subtype") sp.sub = rest.getIntValue();
             else sp.v.push_back ({ k, rest.getFloatValue() });
         }
         const String only = argc > 4 ? String (argv[4]) : String();
@@ -290,6 +292,7 @@ int main (int argc, char** argv)
             GeProcessor p;
             if (sp.factory >= 0) p.setCurrentProgram (sp.factory);
             if (sp.style >= 0) fge::style::apply (p, sp.style, false);
+            if (sp.sub >= 0) fge::punchsub::apply (p, sp.sub);              // PUNCH SUBTYPE (a profile of the family)
             for (auto& [id, x] : sp.v)
             {
                 auto* prm = p.apvts.getParameter (id);
@@ -1122,6 +1125,10 @@ int main (int argc, char** argv)
                 if (sid == "zg_piep_hz" || sid == "zg_piep_ms") set2 ("zg_piep", 0.8f);
                 if (sid == "zg_length") set2 ("zg_len_follow", 0.f);
                 if (sid.startsWith ("zg_pup_")) set2 ("zg_pup", 1.5f);
+                if (sid.startsWith ("tk_") && sid != "tk_level") set2 ("tk_level", 0.f);
+                if (sid == "tk_tune") set2 ("tk_pitch_mode", 0.f);                       // THE FRONT (owner 2026-11-16): a module wakes with its LEVEL
+                if (sid.startsWith ("clk_") && sid != "clk_level") set2 ("clk_level", 0.f);
+                if (sid.startsWith ("spk_") && sid != "spk_level") set2 ("spk_level", 0.f);
                 if (sid == "zg_side_boost_hz") set2 ("zg_side_boost", 9.f);                                 // ZAAG ENGINE (ZAAG_ENGINE.md)
                 if (sid == "zg_sw_reopen" || sid == "zg_sw_end" || sid == "zg_sw_hold") set2 ("zg_peak", 15.f);                                          // TAIL ENGINE PVC (owner 2026-11-14)
                 if (sid == "pt_movement") set2 ("gt_gate", 1.f);
@@ -4606,6 +4613,57 @@ int main (int argc, char** argv)
             }
             check (before > 0.1f && after < 0.02f, "KICK END = NOTE: a 100 ms note cuts the ZAAG engines (punch + tail) right after the note",
                    String (before, 2) + " -> " + String (after, 3));
+        }
+        {   // THE FRONT (owner 2026-11-16): TOK = 6 separate generators on a FIXED pitch, SUB PUNCH gone before the SUB, CLICK never through ZAAG
+            namespace fr = fge::dsp::front;
+            const double fs = 176400.0;
+            auto tokRender = [&] (int type) { auto u = std::make_unique<fr::TokUnit>(); u->prepare (fs); fr::TokSettings t; t.on = true; t.gain = 1.f; t.type = type;
+                                              std::vector<float> x; for (int i = 0; i < (int) (0.06 * fs); ++i) x.push_back (u->process (t, (float) (i * 1000.0 / fs), 49.f)); return x; };
+            float minDiff = 1e9f;
+            for (int a2 = 0; a2 < 6; ++a2) for (int b2 = a2 + 1; b2 < 6; ++b2)
+            {
+                const auto xa = tokRender (a2), xb = tokRender (b2); double d = 0, e = 0;
+                for (size_t i = 0; i < xa.size(); ++i) { d += (xa[i] - xb[i]) * (xa[i] - xb[i]); e += xa[i] * xa[i] + xb[i] * xb[i]; }
+                minDiff = std::min (minDiff, (float) (d / (e + 1e-12)));
+            }
+            check (minDiff > 0.05f, "FRONT TOK: the 6 TOK TYPES are 6 different sources (no two alike)", String (minDiff, 2));
+            auto front = [&] (int note, bool tok, float mode = 0.f)
+            {
+                GeProcessor q;
+                for (auto* id : { "mix_body_mute", "mix_tail_mute", "mix_sub_mute" }) setP (q, id, 1.f);
+                setP (q, "punch_level", -60.f);
+                setP (q, tok ? "tk_level" : "spk_level", 0.f); setP (q, "tk_pitch_mode", mode);
+                return renderKick (q.frame(), note, 44100.0, 0.3, -1, 1.f, &q.shapes(), 0.0, -1.0, nullptr, &q.oscData(), &q.distData(), nullptr, &q.modAudioCopy());
+            };
+            const auto t31 = front (31, true), t36 = front (36, true);
+            double d = 0, e = 0;
+            for (int i = 0; i < t31.getNumSamples(); ++i) { const float u = t31.getSample (0, i), v = t36.getSample (0, i); d += (u - v) * (u - v); e += u * u; }
+            const auto r31 = front (31, true, 2.f), r36 = front (36, true, 2.f);
+            double dr = 0, er = 0;
+            for (int i = 0; i < r31.getNumSamples(); ++i) { const float u = r31.getSample (0, i), v = r36.getSample (0, i); dr += (u - v) * (u - v); er += u * u; }
+            check (er > 1e-3 && dr / er > 0.3, "FRONT TOK PITCH MODE: RELATIVE follows the played note (G1 vs C2 differ)", String (dr / (er + 1e-12), 2));
+            check (e > 1e-3 && d / e < 0.01, "FRONT TOK: a FIXED pitch - the same tok on G1 and C2 (it never follows the MIDI note)", String (10.0 * std::log10 (d / (e + 1e-12) + 1e-12), 1) + " dB diff");
+            // SUB PUNCH (default 10 ms + 50 ms): after 60 ms it is gone, >= 30 dB under its peak
+            const auto sp = front (31, false); float pk = 0.f, late = 0.f;
+            for (int i = 0; i < sp.getNumSamples(); ++i) { const float v = std::abs (sp.getSample (0, i)), t = (float) i / 44.1f; if (t < 55.f) pk = std::max (pk, v); else if (t > 62.f) late = std::max (late, v); }
+            check (pk > 0.05f && late < pk * 0.03f, "FRONT SUB PUNCH: a short low hit, gone after its length (before the SUB takes over)", String (pk, 2) + " -> " + String (late, 4));
+            // CLICK never through ZAAG: with TAIL ZAAG + ZAAG SEND 100 %, ZAAG's drive changes the kick but not the click (render click - no-click)
+            auto zclick = [&] (float zd, bool click)
+            {
+                GeProcessor q;
+                for (auto* id : { "mix_body_mute", "mix_sub_mute" }) setP (q, id, 1.f);
+                setP (q, "tail_engine", 2.f); setP (q, "zg_send", 1.f); setP (q, "zg_drive", zd); setP (q, "clk_level", click ? 0.f : -60.f);
+                return renderKick (q.frame(), 31, 44100.0, 0.05, -1, 1.f, &q.shapes(), 0.0, -1.0, nullptr, &q.oscData(), &q.distData(), nullptr, &q.modAudioCopy());
+            };
+            const auto c1 = zclick (0.f, true), n1 = zclick (0.f, false), c2 = zclick (24.f, true), n2 = zclick (24.f, false);
+            double dc = 0, ec = 0, dk = 0;
+            for (int i = 0; i < (int) (0.012 * 44100); ++i)
+            {
+                const float k1 = c1.getSample (0, i) - n1.getSample (0, i), k2 = c2.getSample (0, i) - n2.getSample (0, i);
+                dc += (k1 - k2) * (k1 - k2); ec += k1 * k1; dk += (n1.getSample (0, i) - n2.getSample (0, i)) * (n1.getSample (0, i) - n2.getSample (0, i));
+            }
+            check (ec > 1e-4 && dc < 0.1 * ec && dk > dc, "FRONT CLICK: the click goes to the punch bus, never through the ZAAG cascade (ZAAG drive moves the kick, not the click)",
+                   "click change " + String (10.0 * std::log10 (dc / (ec + 1e-12) + 1e-12), 1) + " dB, kick change " + String (dk, 4));
         }
         {   // PAGE RANDOMIZE (owner 2026-11-14): a dice per page / tab with the one RND POWER; the style switches stay; DIST may add a stage; one undo step
             GeProcessor q; fge::pagernd::setStrength (q, 1.f);

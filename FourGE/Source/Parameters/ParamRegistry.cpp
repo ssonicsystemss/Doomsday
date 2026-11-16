@@ -110,6 +110,9 @@ namespace fge
         const juce::StringArray& zgVariants()   { static const juce::StringArray a { "CLASSIC", "RESONANT", "BOUNCE", "AGGRESSIVE" }; return a; }
         const juce::StringArray& zgRsnModes()   { static const juce::StringArray a { "PHASER", "RESONATOR", "COMB" }; return a; }
         const juce::StringArray& zgRsnPositions() { static const juce::StringArray a { "BEFORE DIST 1", "BEFORE DIST 2", "BEFORE DIST 3", "AFTER DIST 3" }; return a; }
+        const juce::StringArray& tokPitchModes() { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "RELATIVE" }; return a; }
+        const juce::StringArray& tokTypes()     { static const juce::StringArray a { "SINE", "TRI", "SQUARE", "PUP", "909", "WOOD" }; return a; }
+        const juce::StringArray& clickTypes()   { static const juce::StringArray a { "SOFT", "HARD", "DIGITAL", "NOISE", "METAL", "PUNCHY" }; return a; }
         const juce::StringArray& zgDistTypes()  { static const juce::StringArray a { "SOFT", "HARD", "WAVE", "FOLD", "ASYMMETRIC", "DIGITAL", "ZERO-SQUARE" }; return a; }
         const juce::StringArray& ptGateCurves() { static const juce::StringArray a { "HARD", "SOFT", "EXPONENTIAL", "STEPS" }; return a; }
         const juce::StringArray& gtGateDivs()   { static const juce::StringArray a { "1/8", "1/16", "1/32" }; return a; }
@@ -455,6 +458,34 @@ namespace fge
             case zgPupMs: return "ZAAG PUP LENGTH: how long the pup is (and how long it dives).";
             case zgPupOct: return "ZAAG PUP DIVE: how many octaves the pup falls over its length.";
             case zgPupDrive: return "ZAAG PUP DRIVE: how scratchy the pup is.";
+            case tkLevel: return "TOK LEVEL: the TOK - its own layer BEFORE the punch (\"tok\"): shorter and more percussive than the punch, longer than the click. -60 dB = off.";
+            case tkType: return "TOK TYPE: the source of the one TOK CORE - SINE (clean, neutral), TRI (soft, more harmonics), SQUARE (TONE: hollow / wooden <-> full / harsh), PUP (a saw on the pitch envelope = \"pup!\"), 909 (a sine body + a noise tik at its start), WOOD (a struck resonance, PITCH moves it).";
+            case tkTune: return "TOK PITCH: FIXED = +-24 st around G3 (the same tok on every note); RELATIVE = semitones from the played note; not used with FOLLOW MIDI.";
+            case tkLength: return "TOK LENGTH: EARLY ~25-45 ms, MODERN ~35-70, RAW ~30-65, EXPERIMENTAL 10-80. Longer than the click, shorter than the punch.";
+            case tkPeak: return "TOK ATTACK: how long the tok rises to its peak (EARLY 2-6 ms, MODERN 2-8, RAW 1-7; a tick is instant).";
+            case tkFade: return "TOK DECAY: a fast (left) <-> slow (right) fall after the peak, within the LENGTH.";
+            case tkTone: return "TOK TONE: dark <-> bright.";
+            case clkLevel: return "CLICK LEVEL: the CLICK - a module of its own, the \"ts\" = the spark of the attack (0 - 10 / 20 ms). It goes to the PUNCH BUS and never through the ZAAG cascade. -60 dB = off.";
+            case clkType: return "CLICK TYPE: SOFT / HARD / DIGITAL / NOISE / METAL / PUNCHY (a raw saw diving down).";
+            case clkPitch: return "CLICK PITCH: the click's pitch / centre.";
+            case clkLength: return "CLICK LENGTH: usually 10 - 20 ms.";
+            case clkDecay: return "CLICK DECAY: held then cut (left) <-> falls away at once (right).";
+            case clkTone: return "CLICK TONE: dark <-> bright.";
+            case clkDrive: return "CLICK DRIVE: the click's own distortion.";
+            case clkMix: return "CLICK MIX: clean <-> driven.";
+            case spkLevel: return "SUB PUNCH LEVEL: SUB PUNCH != SUB - a short impulse of the low / lower mid that gives the kick its hit (10 - 70 ms). It is gone before the SUB dominates. -60 dB = off.";
+            case spkStart: return "SUB PUNCH PITCH START: where its pitch envelope starts.";
+            case spkEnd: return "SUB PUNCH PITCH END: where it falls to (keep it at / above the sub's note, they must not fight).";
+            case spkDelay: return "SUB PUNCH START: when it starts (~10 ms after the hit).";
+            case spkLength: return "SUB PUNCH LENGTH: 10 - 70 ms typical.";
+            case spkDrive: return "SUB PUNCH DRIVE: meat in the lower mid.";
+            case spkTone: return "SUB PUNCH TONE: dark <-> brighter.";
+            case tkPitchMode: return "TOK PITCH MODE: FIXED (default - G3 + PITCH on every note), FOLLOW MIDI (the played note, in the tok register), RELATIVE (the played note + PITCH, e.g. PUP -7 st).";
+            case tkPenvStart: return "TOK PITCH START: where the pitch envelope starts, in st above the tok pitch (PUP: +12 / +24 = the \"pup!\").";
+            case tkPenvEnd: return "TOK PITCH END: where the fast drop lands, in st from the tok pitch (0 / -12).";
+            case tkPenvTime: return "TOK DROP TIME: how fast the pitch falls from START to END.";
+            case tkDrive: return "TOK DRIVE: the TOK CORE saturation, after the amp envelope (it gets cleaner as the tok fades).";
+            case zgSend: return "ZAAG SEND: how much of the TOK + PUNCH goes INTO the ZAAG cascade (0 = beside it, as before; 100 % = the front melts into the zaag). The CLICK never does.";
             case zgHverb: return "ZAAG HIGH REVERB: a reverb on the top band only (above 2.5 kHz), the low end stays dry.";
             case zgThump: return "ZAAG THUMP: the hit at the start - a short driven body falling from THUMP HZ to the note.";
             case zgThumpHz: return "ZAAG THUMP: where it starts (Hz).";

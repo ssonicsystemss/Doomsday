@@ -155,6 +155,7 @@ private:
     std::vector<std::pair<int, int>> activeParams;                    // (page, parameter) the "on" switches behind the navigation dots
     void knobValueMenu (doomsday::flat::Knob&, juce::PopupMenu&);
     void applyTooltips();
+    juce::ComboBox punchSub; int punchSubFamily = -1;                // PUNCH SUBTYPE (owner 2026-11-16): a profile of the family (Presets/PunchSubtypes.h)
     juce::ComboBox tokNote;                                          // TOK NOTE: sets START to a note (owner 2026-11-09)
     juce::Component detailPageMark;                                 // (a marker in a part's detail list: the items after it = the 2nd tab)
     juce::TextButton detTab[7];

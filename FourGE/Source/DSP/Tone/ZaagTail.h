@@ -99,14 +99,14 @@ namespace fge::dsp::zaag
             for (auto* b : { &sc1, &sc2, &sc3, &sc4, &sbst, &hv1, &hv2, &sb1, &sb2, &sd1, &sd2 }) b->clear();
         }
 
-        void process (const Settings& s, float ms, float noteHz, float& outL, float& outR)
+        void process (const Settings& s, float ms, float noteHz, float& outL, float& outR, float ext = 0.f)   // ext = ZAAG SEND (TOK + PUNCH)
         {
             if (blk-- <= 0) { blk = 32; cook (s, ms, noteHz); }
             // ---- 01 SOURCE: LOW SAW at the falling pitch + HIGH SAW 3 octaves up
             const float sn = (float) std::sin (6.283185307 * pa), lo = (float) (2.0 * pa - 1.0), hi = (float) (2.0 * pb - 1.0);
             pa += hz / fs; if (pa >= 1.0) pa -= 1.0;
             pb += hz * 8.0 / fs; if (pb >= 1.0) pb -= 1.0;
-            const float src = (lo + s.highSaw * hi) / (1.f + 0.5f * s.highSaw);
+            const float src = (lo + s.highSaw * hi) / (1.f + 0.5f * s.highSaw) + ext;
             float y[2];
             for (int c = 0; c < 2; ++c)
             {

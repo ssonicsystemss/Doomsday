@@ -8,19 +8,67 @@ underneath; the GUI stays simple.
 
 | term | what it is |
 |---|---|
-| **CLICK** | the micro-transient at the very start (0–3 ms) |
-| **TOK** | an optional tonal layer BEFORE the punch ("pup"); its own layer, not part of PUNCH |
-| **PUNCH** | the first part of the kick: the attack, the character, the hit |
-| **SUB PUNCH** | the delayed low end that belongs to the hit |
-| **BODY** | the transition from the punch into the tail (its own generator / envelope) |
-| **TAIL** | the main tonal mass after the punch |
+| **CLICK** | the "ts": the spark of the attack, 0–10 / 20 ms. A module of its own (`clk_*`, `DSP/Front/Click.h`) |
+| **TOK** | the "tok": its own layer BEFORE the punch, 10–80 ms – longer than the click, shorter than the punch. Not a "small punch", not a macro (`tk_*`, `DSP/Front/Tok.h`) |
+| **PUNCH** | the "THUMP": the first part of the kick, the attack, the character, the hit (5–100 ms) |
+| **SUB PUNCH** | a short low / lower-mid impulse that gives the hit, 10–70 ms. **SUB PUNCH ≠ SUB**: it may have a pitch envelope but is gone before the real SUB dominates (`spk_*`, `DSP/Front/SubPunch.h`) |
+| **BODY** | the character: the transition from the punch into the tail (its own generator / envelope), from ~20 ms |
+| **TAIL** | the tonal tail: the main mass after the punch |
+| **SUB** | the weight: the whole low end / tail |
 | **SCREECH** | a separate layer of the higher-frequency character |
 
-Kick timeline (every engine respects it):
+Kick timeline (owner 2026-11-16; the layers overlap in time):
 
 ```
-0 ms ─ CLICK ─ TOK ─ PUNCH ─ SUB PUNCH ─ BODY ─ TAIL ─ DECAY
+TOK        0 – 40 / 70 ms
+PUNCH      5 – 100 ms
+CLICK      0 – 10 / 20 ms
+SUB PUNCH 10 – 70 ms
+BODY      20 – ...
+TAIL / SUB ...
 ```
+
+Rule: **CLICK < TOK < PUNCH** in length. Structure and routing:
+
+```
+TOK → PUNCH ENGINE (PUNCH TYPE + CLICK + SUB PUNCH) → BODY → TAIL → SUB
+
+TOK + PUNCH ──(ZAAG SEND zg_send, 0 = beside it)──► ZAAG PROCESSING (the TAIL TYPE ZAAG cascade)
+CLICK → CLICK PROCESSING (drive / mix) → PUNCH BUS          (never through ZAAG: ZAAG would smear the transient)
+```
+
+The FRONT (TOK / CLICK / SUB PUNCH) has its own levels: not under the PUNCH fader / mute, not through the punch group's FX;
+it goes into the master clip with the rest. Every module defaults OFF (LEVEL -60 dB) so approved presets stay identical.
+
+**TOK** = ONE TOK CORE (pitch mode + pitch → pitch envelope START → fast drop → END → source → tone → amp envelope
+ATTACK / DECAY / LENGTH → DRIVE → LEVEL) and six SOURCES: SINE (clean), TRI (soft), SQUARE (through a band, TONE hollow /
+wooden ↔ full / harsh), PUP (a saw on the pitch envelope = "pup!"), 909 (a sine body + a band-passed noise "tik" only at its
+start), WOOD (an impulse → band-pass → two resonant modes, PITCH moves the resonance). PITCH MODE: FIXED (default, G3 + PITCH,
+±24 st) / FOLLOW MIDI / RELATIVE (note + PITCH). Per style: EARLY low / mid, 25–45 ms; MODERN mid, 35–70; RAW mid / higher,
+30–65; EXPERIMENTAL anything, 10–80. Never 110–125 ms as a standard.
+
+**CLICK and SUB PUNCH are shared by every PUNCH TYPE as a system**: each PUNCH TYPE has its own PROFILE for them
+(`DSP/Front/FrontProfiles.h`: offsets on top of the user's knobs – level, length, tone, drive). Example balances
+(TOK / PUNCH / CLICK / SUB): EARLY ~75 / 100 / 45 / 85, MODERN ~50 / 100 / 60 / 60, RAW ~55 / 100 / 65 / 35, EXPERIMENTAL all
+by the preset.
+
+**PUNCH SUBTYPES** (owner 2026-11-16) are NOT separate generators: they are sound PROFILES of the one PUNCH / TOK engine
+that change several parameters at once (EUPHORIC CLASSIC / 2010–2012 / FESTIVAL, PVC CLASSIC / KLOENK / MODERN ...).
+EUPHORIC CLASSIC = clean euphoric: attack medium, body strong, click moderate, sub punch strong, harmonics medium,
+distortion light / medium, transient soft – "TOK → THUMP → a tonal, clean punch", never metallic.
+2010–2012 = the older, harder hardstyle: attack fast, body strong, click strong, sub punch medium, harmonics medium-high,
+distortion medium, transient clear – less smooth, raw and mechanical; a clear TOK → CLICK → PUNCH, not one packed mass.
+FESTIVAL = big, wide, very readable for big systems: attack very clear, body very strong, click bright, sub punch strong,
+harmonics high, distortion medium, more stereo in the highs. Size without more level: a strong transient, wide harmonics,
+a controlled low end, stereo only above ~200–300 Hz.
+PVC is a different family. PVC CLASSIC = short, dry, plastic-percussive: attack very fast, body short, click clear, sub punch
+medium, harmonics medium-high, distortion medium, decay short. No big soft body: "TOK → K", not "TOK → THUUUMP".
+KLOENK = the most characteristic profile: a resonant, hard, metal-plastic impact. Attack fast, body medium, click strong, sub
+punch medium, RESONANCE high, distortion medium / high, decay medium. One concrete narrow resonant peak in the upper low-mid /
+midrange (not broadband distortion) – that peak IS the "kloenk".
+PVC MODERN = modern, very polished: big, aggressive and clean at once. Attack very fast, body strong, click very controlled,
+sub punch strong, harmonics very high, distortion high, transient very precise, stereo controlled. NOT "more distortion":
+CLEAN ATTACK → CONTROLLED PUNCH → DENSE HARMONICS → CLEAN LOW END (lots of harmonics, never a muddy low).
 
 ## 2. STYLE ≠ PUNCH TYPE ≠ TAIL TYPE
 
@@ -41,8 +89,11 @@ Kick timeline (every engine respects it):
 │   ├── CLASSIC / TOK    punch_*                       (the old PUNCH / TOK generator)
 │   ├── EUPHORIC         psh_* (source, mid, drive, asym, tape, shape, low cut)
 │   ├── PVC              pvc_* (model KLOENK / TUBE)
-│   ├── CLICK            psh_click, psh_click_len, psh_click_tone          (shared)
-│   └── SUB PUNCH        psh_sub, psh_sub_*                                (shared)
+│   ├── (EUPHORIC)       psh_click*, psh_sub* = the EUPHORIC model's own click / sub (older, stays)
+│   ├── FRONT: TOK       tk_*   (one TOK CORE, 6 sources, pitch mode)        (shared, its own layer before the punch)
+│   ├── FRONT: CLICK     clk_*  (6 types, drive / mix, never through ZAAG)   (shared + per-type profile)
+│   ├── FRONT: SUB PUNCH spk_*  (pitch env start -> end, gone before the SUB) (shared + per-type profile)
+│   └── ZAAG SEND        zg_send (TOK + PUNCH into the ZAAG tail cascade)
 ├── 03 TAIL ENGINE       TAIL TYPE (tail_engine)
 │   ├── CLASSIC          tail_*, body_* (body = its own part)
 │   ├── PVC              pt_*, gt_*

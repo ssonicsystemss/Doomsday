@@ -3,6 +3,7 @@
 #include "../Presets/StyleEngine.h"
 #include "../Presets/LengthEngine.h"
 #include "../Presets/PageRandomizer.h"
+#include "../Presets/PunchSubtypes.h"
 #include "DoomsdayBrand.h"
 
 using namespace juce;
@@ -85,6 +86,14 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     addChildComponent (detDice);
     punchType = combo ("punch_mode"); tailType = combo ("tail_engine");          // ARCHITECTURE.md: the TYPE lists in the panel header
     punchType->setTooltip ("PUNCH TYPE: the mechanism that makes the punch - only its controls are shown below.");
+    punchSub.setTooltip ("PUNCH SUBTYPE: a sound profile of this family (EUPHORIC: CLASSIC / 2010-2012 / FESTIVAL, PVC: CLASSIC / KLOENK / MODERN) - sets the punch, CLICK, SUB PUNCH and stereo at once (one undo). Never the TOK.");
+    punchSub.setTextWhenNothingSelected ("SUBTYPE...");
+    punchSub.onChange = [this]
+    {
+        const int i = punchSub.getSelectedId() - 1;
+        if (i >= 0 && fge::punchsub::family (i) == (int) raw (proc, P::punchMode)) fge::punchsub::apply (proc, i);
+    };
+    addChildComponent (punchSub);
     tailType->setTooltip ("TAIL TYPE: the mechanism that makes the tail (CLASSIC / PVC / ZAAG) - only its controls are shown below.");
     liveSpec = std::make_unique<fge::gui::LiveSpecView> (proc);
     addChildComponent (*liveSpec);
@@ -277,6 +286,26 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
                      { "zg_verb", "PUNCH VERB" }, { "zg_verb_decay", "DECAY" }, { "zg_verb_size", "SIZE" }, { "zg_verb_send", "SEND" }, { "zg_verb_pre", "PRE-DELAY" },
                      { "zg_verb_gate", "GATE" }, { "zg_verb_damp", "BRIGHT" }, { "zg_verb_low_cut", "LOW CUT" } })
+                d.push_back (knob (id, lab, col));
+            // 6th tab: THE FRONT (owner 2026-11-16) - TOK (own layer before the punch), CLICK ("ts", never through ZAAG), SUB PUNCH (!= SUB);
+            // shared by every PUNCH TYPE, so this tab is there with each of them
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("tk_type"));
+            d.push_back (combo ("tk_pitch_mode"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "tk_level", "TOK LEVEL" }, { "tk_tune", "TOK PITCH" }, { "tk_penv_start", "P START" }, { "tk_penv_end", "P END" }, { "tk_penv_time", "DROP TIME" },
+                     { "tk_length", "TOK LENGTH" }, { "tk_peak", "ATTACK" }, { "tk_fade", "DECAY" }, { "tk_tone", "TONE" }, { "tk_drive", "DRIVE" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            d.push_back (combo ("clk_type"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "clk_level", "CLICK LEVEL" }, { "clk_pitch", "CLICK PITCH" }, { "clk_length", "CLICK LEN" }, { "clk_decay", "CLICK DECAY" },
+                     { "clk_tone", "CLICK TONE" }, { "clk_drive", "CLICK DRIVE" }, { "clk_mix", "CLICK MIX" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "spk_level", "SUB PUNCH" }, { "spk_start", "SP START HZ" }, { "spk_end", "SP END HZ" }, { "spk_delay", "SP DELAY" },
+                     { "spk_length", "SP LENGTH" }, { "spk_drive", "SP DRIVE" }, { "spk_tone", "SP TONE" }, { "zg_send", "ZAAG SEND" } })
                 d.push_back (knob (id, lab, col));
         }
         if (i == 3) d.push_back (knob ("sub_amp_env_delay", "START", col));      // SUB START: its own time, may enter under the tok
@@ -704,18 +733,30 @@ void GeCanvas::layoutDetail()
         auto* tb = selected == 0 ? punchType : selected == 2 ? tailType : nullptr;
         for (auto* c : { punchType, tailType }) if (c != nullptr) c->setVisible ((pageIdx == 0 && ! overview) && c == tb);
         if (tb != nullptr) tb->setBounds (detailArea.getRight() - 14 - nTabs * 112 - 100 - 160, detailArea.getY() + 5, 150, 24);
+        const int fam = (int) raw (proc, P::punchMode);
+        const bool sub = selected == 0 && (pageIdx == 0 && ! overview) && (fam == 2 || fam == 3);
+        if (sub && fam != punchSubFamily)                                       // the family's three profiles
+        {
+            punchSubFamily = fam; punchSub.clear (dontSendNotification);
+            for (int i = 0; i < fge::punchsub::count; ++i) if (fge::punchsub::family (i) == fam) punchSub.addItem (fge::punchsub::name (i), i + 1);
+        }
+        if (sub) { const int cur = (int) proc.apvts.state.getProperty ("punchSub", -1);
+                   punchSub.setSelectedId (cur >= 0 && fge::punchsub::family (cur) == fam ? cur + 1 : 0, dontSendNotification); }
+        punchSub.setVisible (sub);
+        if (sub && tb != nullptr) punchSub.setBounds (tb->getX() - 128, detailArea.getY() + 5, 122, 24);
     }
     for (int t = 0; t < 7; ++t)
     {
         detTab[t].setVisible (tabs && isAllowed (t) && nTabs > 1 && (pageIdx == 0 && ! overview));
         detDice.setVisible ((pageIdx == 0 && ! overview));
-        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "", "" };
+        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "FRONT", "" };
         static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG", "ZAAG SWEEP / FX", "ZAAG OUT" };
         static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
                                          "EUPHORIC model (punch mode EUPHORIC): a broadband source -> mid boost -> asymmetric distortion -> tape stop -> volume shaper.",
                                          "PVC model (punch mode PVC, the KLOENK): source -> resonance / ring mod / flanger / comb -> blend -> compressor -> distortion -> EQ -> shape. Monotone.",
                                          "The shared part of the PUNCH ENGINE: the SUB PUNCH (own wave / pitch / delay / decay) and the BLEND (tonal / click / sub / body / tail).",
-                                         "PUNCH TYPE ZAAG: a 2 ms click, the PIEP first, then the TRASK, and a reverb on them only.", "", "" };
+                                         "PUNCH TYPE ZAAG: a 2 ms click, the PIEP first, then the TRASK, and a reverb on them only.",
+                                         "THE FRONT of the kick, with every PUNCH TYPE: TOK (its own layer before the punch, a fixed pitch), CLICK (the 'ts', straight to the punch bus, never through ZAAG) and SUB PUNCH (a short low hit, gone before the SUB). ZAAG SEND: TOK + PUNCH into the ZAAG tail cascade.", "" };
         detTab[t].setButtonText (selected == 0 ? punchTabs[t] : tailTabs[t]);
         detTab[t].setTooltip (selected == 0 ? punchTips[t]
                                             : (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -953,6 +994,10 @@ void GeCanvas::updateEnabled()
         for (auto* id : { "zg_trask_delay", "zg_trask_ms", "zg_trask_tone" }) en (id, zp && raw (proc, P::zgTrask) > 0.001f);
         for (auto* id : { "zg_thump_hz", "zg_thump_ms", "zg_thump_drive" }) en (id, zp && raw (proc, P::zgThump) > 0.001f);
         for (auto* id : { "zg_pup_hz", "zg_pup_ms", "zg_pup_oct", "zg_pup_drive" }) en (id, zp && raw (proc, P::zgPup) > 0.001f);
+        for (auto [lv, pre] : std::initializer_list<std::pair<int, const char*>> { { P::tkLevel, "tk_" }, { P::clkLevel, "clk_" }, { P::spkLevel, "spk_" } })
+            for (int i = 0; i < P::count; ++i)                                     // THE FRONT: a module's knobs wake up with its LEVEL
+                if (const String id (def (i).id); id.startsWith (pre) && ! id.endsWith ("_level")) en (id, raw (proc, lv) > -59.9f);
+        if (raw (proc, P::tkLevel) > -59.9f) en ("tk_tune", (int) raw (proc, P::tkPitchMode) != 1);   // FOLLOW MIDI: no PITCH
         for (auto* id : { "zg_verb_decay", "zg_verb_size", "zg_verb_send", "zg_verb_pre", "zg_verb_gate", "zg_verb_damp", "zg_verb_low_cut" }) en (id, zp && raw (proc, P::zgVerb) > 0.001f);
         for (auto* id : { "zg_rsn_freq", "zg_rsn_reso", "zg_rsn_width", "zg_rsn_pos", "zg_rsn_mode" }) en (id, zg && raw (proc, P::zgRsnMix) > 0.001f);
         en ("zg_side_boost_hz", zg && raw (proc, P::zgSideBoost) > 0.01f);
@@ -991,8 +1036,8 @@ std::vector<int> GeCanvas::allowedTabs() const                                //
     if (selected == 0)
     {
         const int m = (int) raw (proc, P::punchMode);
-        if (m == 4) return { 4 };                                                 // PUNCH TYPE ZAAG
-        return { m <= 1 ? 0 : m == 2 ? 1 : 2, 3 };                                  // + SUB / BLEND (the shared CLICK / SUB PUNCH)
+        if (m == 4) return { 4, 5 };                                              // PUNCH TYPE ZAAG + THE FRONT
+        return { m <= 1 ? 0 : m == 2 ? 1 : 2, 3, 5 };                               // + SUB / BLEND + THE FRONT (TOK / CLICK / SUB PUNCH)
     }
     if (selected == 2)
     {

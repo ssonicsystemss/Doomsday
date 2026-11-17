@@ -2,7 +2,8 @@
 
 Owner spec: `SPEC.md` (2026-11-17, 31 sections). Successor of Fortune of Seekers (frozen at v1.0, old projects keep it).
 Owner priorities (2026-11-17): **euphoric leads / supersaws** and **plucks / arps** sound best.
-Kick test in context: `FourGE/Tests/demo/everybody_scream_melody.mid` (EVERYBODY SCREAM, 150 BPM).
+Melody test (owner 2026-11-17): `Tests/demo/no_time_to_waste.mid` (Wildstylez - No Time To Waste lead, 150 BPM, B1-E5, played at the
+original pitch, solo without a kick): `RenderTest <out.wav> --midi <preset> Tests/demo/no_time_to_waste.mid 150 [id=value]`.
 
 Rules (same as every Doomsday plugin): DSP / GUI / files never in one component, real-time safe audio thread,
 parameter IDs frozen in `Tests/param_ids.txt` (APPEND ONLY - the order is the FL automation index), every visible control

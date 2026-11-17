@@ -453,3 +453,8 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   over the refs = a scratch on the hit. Fix the owner picked (D): softer punch shaper (SOFT, sat 24, ws 12 dB), punch top cut 7 kHz,
   no pool distortion on the punch, master clip 3. Rule: a fit score must include the 0-2 ms / 8-20 kHz band, and after a fit check
   the onset alone - the ear hears the first millisecond as "drapanie" long before the averages move.
+
+## 4TUNE demo "midi się rozjechało" (owner 2026-11-17)
+- The EVERYBODY SCREAM demo mixed 4GE kicks (44.1 kHz) with a 4TUNE melody (48 kHz); `Shared/Tools/midi_demo.py` took the kick's
+  rate for both, so the melody played ~9 % slower and drifted off the beat. Fixed: the mixer resamples the melody to the kick's rate.
+  Rule: every mixing / A-B tool checks the sample rate of each input - never assume one rate across plugins.

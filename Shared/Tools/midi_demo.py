@@ -6,7 +6,12 @@ def ld(f):
     sr,x=wavfile.read(f); x=x.astype(float)
     if x.ndim==1: x=np.stack([x,x],1)
     return sr,x/max(1e-9,np.abs(x).max())
-sr,k=ld(sys.argv[1]); _,m=ld(sys.argv[2]); n=max(len(k),len(m))
+sr,k=ld(sys.argv[1]); msr,m=ld(sys.argv[2])
+if msr!=sr:   # 4GE renders at 44.1 kHz, 4TUNE at 48 kHz: without this the melody plays slower and drifts off the kicks (2026-11-17)
+    from scipy.signal import resample_poly
+    from math import gcd
+    g=gcd(int(sr),int(msr)); m=resample_poly(m,int(sr)//g,int(msr)//g,axis=0)
+n=max(len(k),len(m))
 K=np.zeros((n,2)); M=np.zeros((n,2)); K[:len(k)]=k[:,:2]; M[:len(m)]=m[:,:2]
 env=np.abs(K.mean(1)); a=np.exp(-1/(sr*0.06)); e=np.zeros(n); v=0.0
 for i in range(n): v=max(env[i],v*a); e[i]=v

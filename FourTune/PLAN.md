@@ -38,3 +38,13 @@ FORTUNE = a modulation layer on top: FINAL = BASE + FORTUNE (cutoff +2 oct, detu
 - WAVETABLE = a morph SINE -> TRI -> SAW -> SQUARE by POSITION (the architecture takes real tables later); WARP = phase
   distortion on every wave (PULSE: POSITION = pulse width).
 - Group B gets the stronger FORTUNE detune (spec 14: OSC 1 / 2 stay focused).
+
+## Step 7 notes (2026-11-17, before writing the generator)
+- Owner: 4TUNE v0.1 on No Time To Waste "chyba git" -> go on with MELODY (step 7) + PIANO ROLL / MIDI drag (step 8).
+- The reference MIDI (Wildstylez - No Time To Waste lead) = a **shuffled bounce**: every beat = a lead note 2/3 beat long on the beat +
+  a 1/3 beat note on the triplet off-beat, which is mostly the **low root of the current chord** (B1 / G2 / A2 / F#2, one bar per chord)
+  and sometimes a second melody note. Chords 1 per bar (Bm - G - A - F#), lead notes are chord tones on the beat, steps / small
+  leaps in between, phrase answers repeat bars 1-2 with a new ending. Use this as the CLASSIC / EUPHORIC rhythm template
+  ("ROOT BOUNCE" option: off-beats = low chord root), all velocities 100.
+- Plan for the code: `Source/Melody/MelodyGen.h` (no DSP / GUI: settings -> notes, seeded), melody stored in the state child MELODY
+  (ValueTree, undoable), audio-thread snapshot swapped from the message thread, PREVIEW synced to the host, `GUI/PianoRoll` + DRAG MIDI.

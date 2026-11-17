@@ -17,6 +17,8 @@ on:
       - '.github/workflows/build-throne-of-titans.yml'
       - 'ForgeOfWrath/**'
       - 'FourGE/**'
+      - 'FourTune/**'
+      - '.github/workflows/build-4tune.yml'
       - '.github/workflows/build-4ge.yml'
       - 'Re4GE/**'
       - '.github/workflows/build-re4ge.yml'

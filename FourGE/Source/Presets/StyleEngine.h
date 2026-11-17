@@ -121,7 +121,12 @@ namespace fge::style
                          { "tail_level", -5 }, { "tail_uni_detune", 28 }, { "tail_uni_drift", 30 }, { "tail_uni_mix", 0.7f }, { "tail_st2_drive", 10 },
                          { "tail_low_cut", 80 }, { "tail_high_cut", 16000 }, { "master_clip_drive", 0 }, { "tail_attack", 4 }, { "tail_hold_level", 0 },
                          { "sub_amp_env_delay", 50 }, { "body_source", 2 }, { "body_tone", 6000 }, { "punch_source", 2 }, { "noiseB_on", 1 }, { "noiseB_type", 1 },
-                         { "noiseB_env", 3 }, { "noiseB_to_texture", -60 }, { "noiseB_to_tail", -30 }, { "noiseB_level", 0 }, { "noiseB_cutoff", 8000 } },
+                         { "noiseB_env", 3 }, { "noiseB_to_texture", -60 }, { "noiseB_to_tail", -30 }, { "noiseB_level", 0 }, { "noiseB_cutoff", 8000 },
+                         // TAIL TYPE EXPERIMENTAL (2026-11-17, owner: "exp w sumie obojętnie jaki") = demo X1 LASER FORMANT: saw, +36 st exp-down in 150 ms,
+                         // slot 1 WAVESHAPER 0.7, slot 2 FORMANT opened by the envelope, slot 3 light COMB (slots 4-8 off)
+                         { "tail_engine", 4 }, { "ex_osc", 2 }, { "ex_start", 36 }, { "ex_end", 0 }, { "ex_pitch_curve", 2 }, { "ex_pitch_time", 150 },
+                         { "ex_s1_type", 5 }, { "ex_s1_amount", 0.7f }, { "ex_s2_type", 1 }, { "ex_s2_mix", 0.7f }, { "ex_s2_mod", 1 }, { "ex_s2_depth", 0.8f },
+                         { "ex_s3_type", 8 }, { "ex_s3_mix", 0.3f }, { "ex_s4_type", 0 }, { "ex_s5_type", 0 }, { "ex_s6_type", 0 }, { "ex_s7_type", 0 }, { "ex_s8_type", 0 } },
                        { { dd::LocTail, { { "type", dd::Wavefold }, { "drive", 0.3f }, { "mix", 0.45f } } }, { dd::LocTail, { { "type", dd::Rectifier }, { "drive", 0.25f }, { "mix", 0.25f } } }, { dd::LocTail, { { "type", dd::Custom }, { "drive", 0.25f }, { "mix", 0.35f } } },
                          { dd::LocPunch, { { "type", dd::Wavefold }, { "drive", 0.3f }, { "mix", 0.45f } } }, { dd::LocPunch, { { "type", dd::Rectifier }, { "drive", 0.25f }, { "mix", 0.25f } } }, { dd::LocPunch, { { "type", dd::Custom }, { "drive", 0.25f }, { "mix", 0.35f } } } } },
             // EUPHORIC 2009-12 - the OWNER'S OWN kick (2026-11-13: "u mnie takie ustawienia sa najbliżej", made from INIT): a LOW tok (231 Hz, 91 ms,

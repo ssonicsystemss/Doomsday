@@ -428,6 +428,7 @@ void GeProcessor::setCurrentProgram (int i)
         const String n = factoryPresets()[(size_t) jlimit (0, (int) factoryPresets().size() - 1, i)].name;
         const int st = n.startsWith ("EARLY") ? 0 : n.startsWith ("MODERN") ? 1 : n.startsWith ("RAW") ? 2 : n.startsWith ("EXPERIMENTAL") ? 3 : n.startsWith ("EUPHORIC") ? 4 : n.startsWith ("PVC") ? 5 : n.startsWith ("ZAAG") ? 6 : -1;
         if (st >= 0) apvts.state.setProperty ("style", st, nullptr); else apvts.state.removeProperty ("style", nullptr);
+        if (st >= 0) apvts.state.setProperty ("vrStyle", st, nullptr);           // RANDOMIZE follows the preset's style (owner 2026-11-18: "euphoric się nie randomizuje")
     }
     seedWanted.store (0);
     auto sm = apvts.state.getChildWithName (sampleTag);                           // module 10: a factory preset has no samples
@@ -483,7 +484,7 @@ bool GeProcessor::loadUserPresetFile (const File& f)
     {
         if (xml->hasAttribute ("presetSeed")) apvts.state.setProperty ("presetSeed", xml->getStringAttribute ("presetSeed").getLargeIntValue(), nullptr);
         else apvts.state.removeProperty ("presetSeed", nullptr);
-        if (xml->hasAttribute ("style")) apvts.state.setProperty ("style", xml->getIntAttribute ("style"), nullptr);
+        if (xml->hasAttribute ("style")) { apvts.state.setProperty ("style", xml->getIntAttribute ("style"), nullptr); apvts.state.setProperty ("vrStyle", xml->getIntAttribute ("style"), nullptr); }
         else apvts.state.removeProperty ("style", nullptr);
         seedWanted.store (presetSeed());
     }

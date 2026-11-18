@@ -458,3 +458,9 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - The EVERYBODY SCREAM demo mixed 4GE kicks (44.1 kHz) with a 4TUNE melody (48 kHz); `Shared/Tools/midi_demo.py` took the kick's
   rate for both, so the melody played ~9 % slower and drifted off the beat. Fixed: the mixer resamples the melody to the kick's rate.
   Rule: every mixing / A-B tool checks the sample rate of each input - never assume one rate across plugins.
+
+## 4GE "euphoric się nie randomizuje" (owner 2026-11-18)
+- RANDOMIZE uses its own style (state property `vrStyle`); the header STYLE combo set it, but loading a preset only set `style`
+  (what the header shows), so after loading a EUPHORIC preset RANDOMIZE still rolled MODERN kicks. Fixed: factory and user presets
+  set `vrStyle` too; `RenderTest <out> --rndcheck` checks every style + every factory preset. Rule: one visible setting = one
+  source of truth - when two features follow "the style", update both from every path that changes it (header, preset, project).

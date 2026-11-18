@@ -168,6 +168,34 @@ int main (int argc, char** argv)
     ScopedJuceInitialiser_GUI init;
     const File outDir (argc > 1 ? File::getCurrentWorkingDirectory().getChildFile (argv[1]) : File::getCurrentWorkingDirectory().getChildFile ("4ge_out"));
     outDir.createDirectory();
+    if (argc > 2 && String (argv[2]) == "--rndcheck")                          // RANDOMIZE in every style: how many settings move, how much the kick changes
+    {
+        for (int st = 0; st < fge::style::NumStyles; ++st)
+        {
+            GeProcessor p; p.prepareToPlay (44100.0, 512);
+            fge::style::apply (p, st, false);
+            p.apvts.state.setProperty ("vrStyle", st, nullptr);
+            auto render = [&p] { return renderKick (p.frame(), 31, 44100.0, 0.6, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy(), &p.samples().ptrs); };
+            auto a = render(); const auto f0 = p.frame();
+            for (int k = 0; k < 3; ++k)
+            {
+                p.randomizeSound();
+                auto b = render(); const auto f1 = p.frame();
+                int moved = 0; for (int i = 0; i < P::count; ++i) if (std::abs (f1[i] - f0[i]) > 1e-4f) ++moved;
+                double d = 0, r = 0; for (int i = 0; i < a.getNumSamples(); ++i) { const double x = a.getSample (0, i) - b.getSample (0, i); d += x * x; r += (double) a.getSample (0, i) * a.getSample (0, i); }
+                printf ("%-13s try %d: %3d settings moved, kick change %.3f, vrStyle %d\n", fge::style::names()[st].toRawUTF8(), k + 1, moved, std::sqrt (d / std::max (1e-12, r)), (int) p.apvts.state.getProperty ("vrStyle"));
+            }
+        }
+        // a preset of a style -> RANDOMIZE stays in that style (the header shows it)
+        for (int i = 0; i < (int) factoryPresets().size(); ++i)
+        {
+            GeProcessor p; p.setCurrentProgram (i);
+            const int st = p.currentStyle(), vr = (int) p.apvts.state.getProperty ("vrStyle", -1);
+            if (st >= 0 && st != vr) printf ("!! preset %s: style %d but RANDOMIZE in %d\n", factoryPresets()[(size_t) i].name.toRawUTF8(), st, vr);
+        }
+        printf ("preset -> RANDOMIZE style check done\n");
+        return 0;
+    }
     if (argc > 2 && String (argv[2]) == "--bench") { GeProcessor p; cpuStress (p); printf ("%.1f %% of one core\n", 100.0 * cpuTime (p, argc > 3 ? String (argv[3]).getDoubleValue() : 2.0)); return 0; }
     if (argc > 2 && String (argv[2]) == "--cookbench")                         // how long one full cook takes (module 09 decides per-block re-cooking)
     {

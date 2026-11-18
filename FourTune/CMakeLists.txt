@@ -9,5 +9,5 @@ doomsday_plugin(FourTune
     VENDOR "sonicsystems"
     CATEGORIES Instrument Synth
     FLAT
-    SOURCES Source/Params.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp
+    SOURCES Source/Params.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/PianoRoll.cpp Source/MelodyPage.cpp
     TEST Tests/RenderTest.cpp)

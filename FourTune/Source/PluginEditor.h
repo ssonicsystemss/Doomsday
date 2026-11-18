@@ -4,18 +4,23 @@
 #include "PluginProcessor.h"
 #include "DoomsdayFlat.h"
 #include "DoomsdayUI.h"
+#include "PianoRoll.h"
 
 // 4TUNE GUI (no DSP here): SYNTH / MOD / FX / MELODY pages, the signal flow OSCILLATORS -> FILTER -> SCREAM -> FX -> OUTPUT
 // always visible, FORTUNE big and central (spec 29)
 namespace tuneui
 {
-    inline juce::Colour groupA()  { return juce::Colour (0xff3ddc84); }    // PART A green (Fortune of Seekers identity)
+    // LIQUID GLASS in violet + lime (owner 2026-11-18: "styl liquid glass ale kolory fiolet i limonka jak w FoS")
+    inline juce::Colour groupA()  { return juce::Colour (0xffb6f23e); }    // PART A lime (Fortune of Seekers identity)
     inline juce::Colour groupB()  { return juce::Colour (0xffa66bff); }    // PART B violet
-    inline juce::Colour fortune() { return juce::Colour (0xffffc23d); }    // FORTUNE gold
-    inline juce::Colour filter()  { return juce::Colour (0xff4ea1ff); }
-    inline juce::Colour scream()  { return juce::Colour (0xffff5a36); }
-    inline juce::Colour fx()      { return juce::Colour (0xff36c9d6); }
-    inline juce::Colour neutral() { return juce::Colour (0xffb4bac3); }
+    inline juce::Colour fortune() { return juce::Colour (0xffd8ff4a); }    // FORTUNE: the brightest lime
+    inline juce::Colour filter()  { return juce::Colour (0xffc7a6ff); }    // light lilac
+    inline juce::Colour scream()  { return juce::Colour (0xffff4fd8); }    // hot magenta-violet
+    inline juce::Colour fx()      { return juce::Colour (0xff7ef0a8); }    // mint-lime
+    inline juce::Colour neutral() { return juce::Colour (0xffc9c3d6); }
+    // glass: translucent violet-tinted panel, hairline edge, highlight along the top
+    void glassCard (juce::Graphics&, doomsday::flat::FlatLookAndFeel&, juce::Rectangle<int>, const juce::String& title, juce::Colour dot);
+    void glassBackground (juce::Graphics&, juce::Rectangle<float>);
 
     struct Card { juce::String title; juce::Colour dot; juce::Rectangle<int> area; };
 
@@ -79,11 +84,27 @@ namespace tuneui
         std::array<Unit, 8> units;
     };
 
-    class MelodyPage : public Page
+    class ValueKnob;
+    class MidiDragSource;
+    // MELODY (spec 21-24): generator settings, GENERATE, PREVIEW, the piano roll, edit tools, DRAG MIDI into FL
+    class MelodyPage : public Page, private juce::Timer
     {
     public:
-        explicit MelodyPage (TuneProcessor& p) : Page (p) {}
-        void paint (juce::Graphics&) override;
+        explicit MelodyPage (TuneProcessor&);
+        ~MelodyPage() override;
+        void resized() override;
+        void paintOverChildren (juce::Graphics&) override;
+        PianoRoll& roll() { return *pianoRoll; }
+        void syncFromState();
+    private:
+        void timerCallback() override;
+        juce::ComboBox key, scale, mode, bars, range, gridBox;
+        std::vector<std::unique_ptr<ValueKnob>> genKnobs;
+        juce::TextButton generate { "GENERATE" }, newSeed { "NEW IDEA" }, bounce { "ROOT BOUNCE" }, preview { "PREVIEW" };
+        std::array<juce::TextButton, 12> custom;
+        std::vector<std::unique_ptr<juce::TextButton>> tools;
+        std::unique_ptr<PianoRoll> pianoRoll;
+        std::unique_ptr<MidiDragSource> dragSrc;
     };
 
     // OSCILLATORS -> FILTER -> SCREAM -> FX -> OUTPUT (click = open the page; lit = active)

@@ -4,14 +4,16 @@
 #include "DoomsdayUI.h"
 #include "Params.h"
 #include "TuneEngine.h"
+#include "Melody/MelodyGen.h"
+#include "Melody/MelodyPlayer.h"
 #include <atomic>
 
 // 4TUNE - hardstyle melody synthesizer (see ../SPEC.md, ../PLAN.md). Files / presets here, DSP in TuneEngine.h, GUI in PluginEditor.
-class TuneProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost
+class TuneProcessor : public juce::AudioProcessor, public doomsday::ui::PresetHost, private juce::ValueTree::Listener
 {
 public:
     TuneProcessor();
-    ~TuneProcessor() override = default;
+    ~TuneProcessor() override { apvts.state.removeListener (this); }
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
@@ -66,6 +68,20 @@ public:
     // offline: the engine with the current settings (RenderTest / previews)
     tune::dsp::Engine& getEngine() { return engine; }
 
+    // ---- MELODY (spec 21-24): settings + notes live in the state child MELODY (saved with the project, Ctrl+Z works)
+    juce::ValueTree melodyTree();
+    tune::melody::Settings melodySettings();
+    void setMelodySetting (const juce::Identifier& id, const juce::var& v);           // no undo (generator controls)
+    std::vector<tune::melody::Note> melodyNotes();
+    void setMelodyNotes (const std::vector<tune::melody::Note>&, bool newTransaction, const juce::String& name = "Edit melody");
+    void generateMelody (bool newSeed);                                                 // 1 click = 1 undo
+    double melodyLengthBeats();
+    std::atomic<bool> melodyPreview { false };
+    double previewPosition() const { return melodyPlayer.positionInLoop (lastPpq.load()); }
+    bool previewPlaying() const { return melodyPlayer.playing(); }
+    double hostBpm() const { return lastBpm.load(); }
+    std::atomic<int> melodyVersion { 0 };                 // GUI polls it to refresh the piano roll
+
 private:
     void setValue (tune::P::Id id, float realValue);
     std::array<std::atomic<float>*, tune::P::count> raw {};
@@ -77,5 +93,12 @@ private:
     int currentProgram = 0;
     juce::String presetName { "INIT" };
     juce::Random rng;
+    tune::melody::Player melodyPlayer;
+    std::atomic<double> lastPpq { -1.0 }, lastBpm { 150.0 };
+    void publishMelody();
+    void valueTreeChildAdded (juce::ValueTree&, juce::ValueTree&) override { publishMelody(); }
+    void valueTreeChildRemoved (juce::ValueTree&, juce::ValueTree&, int) override { publishMelody(); }
+    void valueTreePropertyChanged (juce::ValueTree& t, const juce::Identifier&) override { if (t.hasType ("MELODY") || t.hasType ("N")) publishMelody(); }
+    void valueTreeRedirected (juce::ValueTree&) override { publishMelody(); }
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TuneProcessor)
 };

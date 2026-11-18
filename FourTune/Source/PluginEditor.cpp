@@ -35,7 +35,48 @@ Toggle* Page::toggle (const char* id, const char* text, Colour c, bool chip)
 void Page::paint (Graphics& g)
 {
     auto& lnf = lnfOf (*this);
-    for (auto& c : cards) card (g, lnf, c.area, c.title, c.dot);
+    for (auto& c : cards) glassCard (g, lnf, c.area, c.title, c.dot);
+}
+
+// ======================================================================= LIQUID GLASS (violet + lime)
+void tuneui::glassCard (Graphics& g, FlatLookAndFeel& lnf, Rectangle<int> area, const String& title, Colour dot)
+{
+    const auto r = area.toFloat();
+    const float rr = 14.f;
+    // translucent violet-tinted glass: the canvas glows shine through
+    g.setGradientFill (ColourGradient (Colour (0x9a1d1626), r.getX(), r.getY(), Colour (0xb0110e17), r.getX(), r.getBottom(), false));
+    g.fillRoundedRectangle (r, rr);
+    g.setColour (Colours::white.withAlpha (0.085f)); g.drawRoundedRectangle (r.reduced (0.5f), rr, 1.f);
+    // the glass highlight along the top edge
+    g.setGradientFill (ColourGradient (Colours::white.withAlpha (0.0f), r.getX() + rr, 0.f, Colours::white.withAlpha (0.0f), r.getRight() - rr, 0.f, false));
+    ColourGradient hl (Colours::white.withAlpha (0.f), r.getX() + rr, r.getY(), Colours::white.withAlpha (0.f), r.getRight() - rr, r.getY(), false);
+    hl.addColour (0.5, Colours::white.withAlpha (0.22f));
+    g.setGradientFill (hl); g.fillRect (r.getX() + rr, r.getY() + 0.5f, r.getWidth() - 2.f * rr, 1.2f);
+    if (title.isEmpty()) return;
+    float x = r.getX() + 16.f;
+    if (! dot.isTransparent())
+    {
+        g.setColour (dot.withAlpha (0.35f)); g.fillEllipse (x - 3.f, r.getY() + 14.f, 12.f, 12.f);      // soft glow
+        g.setColour (dot); g.fillEllipse (x, r.getY() + 17.f, 6.f, 6.f);
+        x += 14.f;
+    }
+    g.setColour (tokens().text.withAlpha (0.78f));
+    g.setFont (lnf.font (12.f, Bold, 0.14f));
+    g.drawText (title.toUpperCase(), Rectangle<float> (x, r.getY() + 10.f, r.getWidth() - 40.f, 20.f), Justification::centredLeft);
+}
+
+void tuneui::glassBackground (Graphics& g, Rectangle<float> a)
+{
+    g.setColour (Colour (0xff08060c)); g.fillRect (a);
+    auto glow = [&] (float cx, float cy, float rad, Colour col)
+    {
+        ColourGradient gr (col, cx, cy, col.withAlpha (0.f), cx + rad, cy, true);
+        g.setGradientFill (gr); g.fillEllipse (cx - rad, cy - rad, 2.f * rad, 2.f * rad);
+    };
+    glow (a.getRight() - a.getWidth() * 0.18f, a.getY() + a.getHeight() * 0.10f, a.getWidth() * 0.36f, Colour (0x46a066ff));   // violet, top right
+    glow (a.getX() + a.getWidth() * 0.10f, a.getBottom() - a.getHeight() * 0.12f, a.getWidth() * 0.34f, Colour (0x30b6f23e));  // lime, bottom left
+    glow (a.getX() + a.getWidth() * 0.45f, a.getY() + a.getHeight() * 0.55f, a.getWidth() * 0.28f, Colour (0x24743cd6));      // deep violet, middle
+    glow (a.getX() + a.getWidth() * 0.05f, a.getY(), a.getWidth() * 0.20f, Colour (0x22d8ff4a));                             // a touch of lime, top left
 }
 
 // place components left -> right in a row, each 'w' wide
@@ -296,19 +337,7 @@ void FxPage::resized()
     }
 }
 
-// ======================================================================= MELODY page (spec 21-24, next step)
-void MelodyPage::paint (Graphics& g)
-{
-    auto& lnf = lnfOf (*this);
-    card (g, lnf, getLocalBounds().withHeight (300), "MELODY ENGINE", fortune());
-    g.setFont (lnf.font (15.f, SemiBold)); g.setColour (tokens().text);
-    g.drawText ("Melody generator + piano roll + MIDI drag & drop", getLocalBounds().withHeight (300).withTrimmedTop (60).withHeight (30), Justification::centred);
-    g.setFont (lnf.font (12.f, Medium)); g.setColour (tokens().textMute);
-    g.drawFittedText ("Next build step (spec 21-24): key / scale, phrase length, density, complexity, repetition, movement,\n"
-                      "9 hardstyle modes (Classic, Euphoric, Rawphoric, Melodic Raw, Festival, Emotional, Anthem, Dark, Minimal),\n"
-                      "an editable piano roll and dragging the melody straight into FL Studio.",
-                      getLocalBounds().withHeight (300).withTrimmedTop (100).reduced (40, 0), Justification::centredTop, 4);
-}
+// MELODY page: MelodyPage.cpp
 
 // ======================================================================= FLOW bar
 Rectangle<float> FlowBar::item (int i) const
@@ -386,14 +415,18 @@ void TuneCanvas::showPage (int i)
 void TuneCanvas::paint (Graphics& g)
 {
     const auto& t = tokens();
-    g.fillAll (t.ground);
-    g.setColour (t.divider); g.fillRect (0, 96, W, 1);
+    glassBackground (g, getLocalBounds().toFloat());
+    g.setColour (Colours::white.withAlpha (0.07f)); g.fillRect (0, 96, W, 1);
     doomsday::brand::drawHeaderBadge (g, 1.f, 0.6f);
     const float tx = doomsday::brand::headerTextX (1.f);
-    g.setFont (lnf.font (26.f, Bold, 0.12f)); g.setColour (fortune());
+    // 4TUNE in lime with a violet halo
+    g.setFont (lnf.font (26.f, Bold, 0.12f));
+    g.setColour (groupB().withAlpha (0.45f));
+    g.drawText ("4TUNE", Rectangle<float> (tx + 1.5f, 11.5f, 200.f, 40.f), Justification::centredLeft);
+    g.setColour (fortune());
     g.drawText ("4TUNE", Rectangle<float> (tx, 10.f, 200.f, 40.f), Justification::centredLeft);
     g.setFont (lnf.font (12.f, Medium)); g.setColour (t.textMute);
-    g.drawText ("v0.1  |  hardstyle melody synthesizer  |  test build", Rectangle<float> (tx, 48.f, 420.f, 20.f), Justification::centredLeft);
+    g.drawText ("v0.2  |  hardstyle melody synthesizer  |  test build", Rectangle<float> (tx, 48.f, 420.f, 20.f), Justification::centredLeft);
 }
 
 void TuneCanvas::resized()

@@ -1,4 +1,4 @@
-# 4TUNE v0.1 (wersja testowa)
+# 4TUNE v0.2 (wersja testowa)
 Syntezator do hardstyle'owych melodii: plucki, leady, supersawy, melodie euphoric, festiwalowe leady. VST3 (instrument) do FL Studio.
 Następca Fortune of Seekers (FoS zostaje jak był – stare projekty działają dalej).
 
@@ -41,8 +41,26 @@ cel (pitch, fine, wavetable, warp, cutoff, rezonans, detune, stereo, pan, głoś
 EQ (4 pasma), DISTORTION, CHORUS, DELAY (z tempem, ping-pong, filtr), REVERB (pre-delay, rozmiar, decay, tłumienie, szerokość), STEREO
 (szerokość, balans, mono bas), LIMITER (input, ceiling, release), MASTER.
 
-## Strona MELODY
-Generator melodii + piano roll + przeciąganie MIDI do FL – **następny etap** (spec 21–24).
+## Strona MELODY (generator melodii + piano roll)
+**Generator:** KEY (tonacja), SCALE (MAJOR / MINOR / HARMONIC MINOR / MELODIC MINOR / DORIAN / PHRYGIAN / CHROMATIC / CUSTOM –
+przy CUSTOM klikasz nuty skali), MODE (CLASSIC, EUPHORIC, RAWPHORIC, MELODIC RAW, FESTIVAL, EMOTIONAL, ANTHEM, DARK, MINIMAL),
+długość frazy (1 / 2 / 4 / 8 taktów), zakres oktaw, ROOT BOUNCE (niski bas akordu na słabej części bitu – jak w „No Time To Waste”),
+gałki DENSITY (ile nut), COMPLEXITY (synkopy, nuty przejściowe), REPETITION (ile motyw wraca), MOVEMENT (wielkość skoków),
+RHYTHM (1/4 → 1/8 → shuffle 1/8T → 1/16).
+Tryby zmieniają **zasady**, nie tylko nuty: EUPHORIC = większe skoki i mocne rozwiązanie frazy, CLASSIC = prosty motyw i dużo powtórzeń,
+RAWPHORIC / DARK = ciemniej, chromatyczne przejścia, FESTIVAL = długie nuty i skoki o oktawę, MINIMAL = mało nut.
+Każda zmiana gałki od razu tworzy melodię od nowa (Ctrl+Z cofa). **GENERATE** = od nowa z tych ustawień, **NEW IDEA** = nowa melodia.
+**PREVIEW** = 4TUNE gra melodię sam (gdy FL gra – w rytm projektu, gdy stoi – na własnym zegarze).
+
+**Piano roll:** dwuklik = nowa nuta, przeciąganie = przesuwanie (czas + wysokość, Alt = bez siatki), prawa krawędź = długość,
+prawy klik = usuń, przeciąganie po pustym = zaznaczanie, dolny pasek = velocity. Klawisze: Delete, Ctrl+A / C / V / D, strzałki
+góra/dół = półton (z Shift = oktawa), Q = kwantyzacja, Ctrl+Z / Ctrl+Y. Przyciski: QUANTIZE, HUMANIZE, -1 / +1, OCT - / OCT +,
+COPY, PASTE, DUPLICATE, DELETE, CLEAR, UNDO, REDO, GRID (1/4 … 1/32, też triola).
+**DRAG MIDI >> FL:** złap i upuść w playliście / piano rollu FL – melodia ląduje jako plik MIDI (wysokość, długość, czas, velocity).
+Melodia zapisuje się w projekcie i nie znika przy zmianie presetu brzmienia.
+
+## Wygląd
+Liquid glass w fiolecie i limonce (jak Fortune of Seekers): grupa A limonka, grupa B fiolet, FORTUNE najjaśniejsza limonka.
 
 ## Presety
 Kategorie z nazwy: PLUCKS, EUPHORIC, LEADS, RAW, SUPERSAWS, FESTIVAL, CLASSIC, KEYS, PADS, BASS, EXPERIMENTAL, INIT.

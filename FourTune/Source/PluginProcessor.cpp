@@ -84,7 +84,9 @@ void TuneProcessor::setStateInformation (const void* data, int size)
 }
 bool TuneProcessor::loadUserPresetFile (const File& f)
 {
+    const auto keepMelody = melodyTree().createCopy();          // a sound preset never replaces the melody
     if (! doomsday::PresetIO::load (*this, apvts, f)) return false;
+    { auto t = melodyTree(); t.copyPropertiesAndChildrenFrom (keepMelody, nullptr); }
     presetName = f.getFileNameWithoutExtension(); currentProgram = -1;
     return true;
 }
@@ -109,6 +111,11 @@ TuneProcessor::TuneProcessor()
         jassert (raw[(size_t) i] != nullptr);
     }
     setCurrentProgram (0);
+    melodyTree();                                   // the MELODY child exists from the start
+    if (melodyNotes().empty()) generateMelody (false);
+    undo.clearUndoHistory();
+    apvts.state.addListener (this);
+    publishMelody();
 }
 
 void TuneProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -194,6 +201,13 @@ void TuneProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     if (cmd == 1 && ! auditionHeld) { for (int n : { 57, 60, 64, 69 }) midi.addEvent (MidiMessage::noteOn (1, n, (uint8) 110), 0); auditionHeld = true; }
     if (cmd == 2 && auditionHeld)   { for (int n : { 57, 60, 64, 69 }) midi.addEvent (MidiMessage::noteOff (1, n), 0); auditionHeld = false; }
 
+    // MELODY PREVIEW: on the host grid when FL plays, on its own clock when it is stopped
+    {
+        bool playing = false;
+        if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) playing = pos->getIsPlaying();
+        lastPpq.store (playing ? ppq : -1.0); lastBpm.store (bpm);
+        melodyPlayer.process (midi, buffer.getNumSamples(), getSampleRate() > 0 ? getSampleRate() : 48000.0, bpm, playing ? ppq : -1.0, melodyPreview.load());
+    }
     engine.setSettings (gather (bpm));
     if (firstBlock) { engine.snapSmoothing(); firstBlock = false; }
     engine.smooth (buffer.getNumSamples());
@@ -287,6 +301,66 @@ void TuneProcessor::smartRandom()
     setValue (P::GbVol, between (-6.f, 0.f));
     presetName = String (pluck ? "Smart Pluck #" : "Smart Lead #") + String (1000 + rng.nextInt (9000)); currentProgram = -1;
 }
+
+// ------------------------------------------------------------ MELODY (state child MELODY: generator settings + notes N)
+namespace
+{
+    const Identifier idMel ("MELODY"), idNote ("N"), idStart ("s"), idLen ("l"), idPitch ("p"), idVel ("v");
+}
+ValueTree TuneProcessor::melodyTree() { return apvts.state.getOrCreateChildWithName (idMel, nullptr); }
+
+melody::Settings TuneProcessor::melodySettings()
+{
+    auto t = melodyTree();
+    melody::Settings m;
+    m.key = t.getProperty ("key", m.key); m.scale = t.getProperty ("scale", m.scale);
+    m.customMask = (uint16_t) (int) t.getProperty ("mask", (int) m.customMask);
+    m.bars = t.getProperty ("bars", m.bars); m.mode = t.getProperty ("mode", m.mode);
+    m.density = (float) t.getProperty ("density", m.density); m.complexity = (float) t.getProperty ("complexity", m.complexity);
+    m.repetition = (float) t.getProperty ("repetition", m.repetition); m.movement = (float) t.getProperty ("movement", m.movement);
+    m.rhythm = (float) t.getProperty ("rhythm", m.rhythm);
+    m.octLow = t.getProperty ("octLow", m.octLow); m.octHigh = t.getProperty ("octHigh", m.octHigh);
+    m.rootBounce = (bool) t.getProperty ("bounce", m.rootBounce); m.seed = (uint32_t) (int) t.getProperty ("seed", (int) m.seed);
+    return m;
+}
+void TuneProcessor::setMelodySetting (const Identifier& id, const var& v) { melodyTree().setProperty (id, v, nullptr); }
+
+std::vector<melody::Note> TuneProcessor::melodyNotes()
+{
+    std::vector<melody::Note> v;
+    for (auto c : melodyTree())
+        if (c.hasType (idNote))
+            v.push_back ({ (double) c.getProperty (idStart), (double) c.getProperty (idLen), (int) c.getProperty (idPitch), (int) c.getProperty (idVel) });
+    std::sort (v.begin(), v.end(), [] (auto& a, auto& b) { return a.start < b.start || (a.start == b.start && a.pitch < b.pitch); });
+    return v;
+}
+void TuneProcessor::setMelodyNotes (const std::vector<melody::Note>& v, bool newTransaction, const String& name)
+{
+    if (newTransaction) undo.beginNewTransaction (name);
+    auto t = melodyTree();
+    for (int i = t.getNumChildren(); --i >= 0;) if (t.getChild (i).hasType (idNote)) t.removeChild (i, &undo);
+    for (auto& n : v)
+    {
+        ValueTree c (idNote);
+        c.setProperty (idStart, jmax (0.0, n.start), nullptr); c.setProperty (idLen, jmax (1.0 / 64.0, n.len), nullptr);
+        c.setProperty (idPitch, jlimit (0, 127, n.pitch), nullptr); c.setProperty (idVel, jlimit (1, 127, n.vel), nullptr);
+        t.appendChild (c, &undo);
+    }
+}
+void TuneProcessor::generateMelody (bool newSeed)
+{
+    if (newSeed) setMelodySetting ("seed", (int) (1 + rng.nextInt (999999)));
+    melody::Generator g;
+    setMelodyNotes (g.generate (melodySettings()), true, "Generate melody");
+    melodyTree().setProperty ("length", 4.0 * melodySettings().bars, nullptr);
+}
+double TuneProcessor::melodyLengthBeats()
+{
+    double len = (double) melodyTree().getProperty ("length", 16.0);
+    for (auto& n : melodyNotes()) len = jmax (len, std::ceil ((n.start + n.len) / 4.0 - 1e-6) * 4.0);
+    return jmax (4.0, len);
+}
+void TuneProcessor::publishMelody() { melodyPlayer.publish (melodyNotes(), melodyLengthBeats()); ++melodyVersion; }
 
 AudioProcessorEditor* TuneProcessor::createEditor() { return new TuneEditor (*this); }
 AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new TuneProcessor(); }

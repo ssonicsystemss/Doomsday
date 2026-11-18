@@ -5,6 +5,7 @@
 //   RenderTest <outdir> --write-ids                           (once) write Tests/param_ids.txt
 #include "../Source/PluginProcessor.h"
 #include "../Source/PluginEditor.h"
+#include "../Source/Melody/MelodyFile.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <chrono>
 
@@ -139,6 +140,20 @@ int main (int argc, char** argv)
         writeWav (outArg, out);
         printf ("rendered %s (%d events, %.1f s, %s) peak %.3f nan %d\n", outArg.getFileName().toRawUTF8(), (int) ev.size(), endS + 2.0,
                 p.currentPresetName().toRawUTF8(), peakOf (out), (int) hasNaN (out));
+        return 0;
+    }
+    // RenderTest <out.mid> --melody [mode] [seed] [key] [scale] [bars]   a generated melody as a MIDI file (demos)
+    if (argc > 2 && String (argv[2]) == "--melody")
+    {
+        melody::Settings m;
+        if (argc > 3) m.mode = String (argv[3]).getIntValue();
+        if (argc > 4) m.seed = (uint32_t) String (argv[4]).getIntValue();
+        if (argc > 5) m.key = String (argv[5]).getIntValue();
+        if (argc > 6) m.scale = String (argv[6]).getIntValue();
+        if (argc > 7) m.bars = String (argv[7]).getIntValue();
+        melody::Generator g; auto v = g.generate (m);
+        melody::writeMidi (v, 150.0, outArg);
+        printf ("melody %s %s %s, %d notes -> %s\n", melody::modeName (m.mode), melody::keyName (m.key), melody::scaleName (m.scale), (int) v.size(), outArg.getFileName().toRawUTF8());
         return 0;
     }
     if (argc > 2 && String (argv[2]) == "--write-ids")
@@ -299,6 +314,76 @@ int main (int argc, char** argv)
         const double secs = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
         const double load = secs / (25.0 * 60.0 / 150.0) * 100.0;
         check (load < 60.0, "CPU: 8-note festival supersaw (" + String (load, 1) + " % of one core)");
+    }
+
+    // ---------------------------------------------------------------- 9. MELODY ENGINE (spec 21-24)
+    {
+        double meanIv[melody::numModes] {}; int leadCount[melody::numModes] {};
+        bool allOk = true;
+        for (int mo = 0; mo < melody::numModes; ++mo)
+            for (int sc : { (int) melody::Minor, (int) melody::Major, (int) melody::HarmonicMinor, (int) melody::Phrygian })
+                for (uint32_t seed = 1; seed <= 12; ++seed)
+                    for (int bars : { 1, 2, 4, 8 })
+                    {
+                        melody::Settings m; m.mode = mo; m.scale = sc; m.seed = seed; m.bars = bars; m.key = (int) (seed % 12);
+                        melody::Generator g; auto v = g.generate (m);
+                        double end = 0; int prev = -1; double iv = 0; int lead = 0;
+                        for (auto& n : v)
+                        {
+                            allOk &= melody::inScale (m, n.pitch) && n.len > 0 && n.start >= 0 && n.vel > 0 && n.vel <= 127;
+                            allOk &= n.pitch >= 12 * (m.octLow + 1) - 26 && n.pitch <= 12 * (m.octHigh + 2) - 1;
+                            end = jmax (end, n.start + n.len);
+                            if (n.pitch >= 12 * (m.octLow + 1)) { if (prev >= 0) iv += std::abs (n.pitch - prev); prev = n.pitch; ++lead; }
+                        }
+                        allOk &= ! v.empty() && end <= bars * 4.0 + 1e-6 && end > bars * 4.0 - 1.01;
+                        if (sc == melody::Minor && bars == 4) { meanIv[mo] += lead > 1 ? iv / (lead - 1) : 0; leadCount[mo] += lead; }
+                    }
+        check (allOk, "MELODY: every mode / scale / length: in key, in range, the whole phrase");
+        melody::Settings m; m.seed = 77;
+        melody::Generator g1, g2; auto a = g1.generate (m), b = g2.generate (m);
+        bool same = a.size() == b.size(); for (size_t i = 0; same && i < a.size(); ++i) same = a[i].pitch == b[i].pitch && a[i].start == b[i].start;
+        m.seed = 78; auto c = g1.generate (m);
+        bool differ = c.size() != a.size(); for (size_t i = 0; ! differ && i < a.size(); ++i) differ = a[i].pitch != c[i].pitch || a[i].start != c[i].start;
+        check (same && differ, "MELODY: same seed = same melody, new seed = new melody");
+        check (meanIv[melody::Euphoric] > meanIv[melody::Classic] && meanIv[melody::Euphoric] > meanIv[melody::Minimal]
+               && leadCount[melody::Minimal] < leadCount[melody::Anthem],
+               "MELODY: the modes follow their own rules",
+               "interval euphoric " + String (meanIv[melody::Euphoric] / 12.0, 2) + " / classic " + String (meanIv[melody::Classic] / 12.0, 2)
+               + " / minimal " + String (meanIv[melody::Minimal] / 12.0, 2));
+        // MIDI file round trip (DRAG MIDI keeps pitch, length, timing, velocity)
+        const File mid = outDir.getChildFile ("melody_roundtrip.mid");
+        melody::writeMidi (a, 150.0, mid);
+        auto r = melody::readMidi (mid);
+        bool rt = r.size() == a.size();
+        for (size_t i = 0; rt && i < a.size(); ++i) rt = r[i].pitch == a[i].pitch && std::abs (r[i].start - a[i].start) < 0.002 && std::abs (r[i].len - a[i].len) < 0.004 && r[i].vel == a[i].vel;
+        check (rt, "MELODY: MIDI file keeps pitch / length / timing / velocity", String ((int) r.size()) + " notes");
+
+        // the processor: state, undo, presets, preview
+        TuneProcessor p; p.setPlayConfigDetails (0, 2, sr, block); p.prepareToPlay (sr, block);
+        p.setMelodySetting ("mode", (int) melody::Festival); p.setMelodySetting ("seed", 5); p.generateMelody (false);
+        const auto before = p.melodyNotes();
+        p.generateMelody (true);
+        const auto after = p.melodyNotes();
+        p.undo.undo();
+        const auto undone = p.melodyNotes();
+        bool u = undone.size() == before.size(); for (size_t i = 0; u && i < before.size(); ++i) u = undone[i].pitch == before[i].pitch && undone[i].start == before[i].start;
+        check (u && after.size() > 0, "MELODY: GENERATE is one undo step");
+        MemoryBlock st; p.getStateInformation (st);
+        TuneProcessor q; q.setStateInformation (st.getData(), (int) st.getSize());
+        const auto restored = q.melodyNotes();
+        bool rs = restored.size() == undone.size(); for (size_t i = 0; rs && i < undone.size(); ++i) rs = restored[i].pitch == undone[i].pitch && restored[i].start == undone[i].start;
+        check (rs && (int) q.melodySettings().mode == melody::Festival, "MELODY: saved with the project (notes + settings)");
+        p.setCurrentProgram (3);
+        check (p.melodyNotes().size() == undone.size(), "MELODY: a sound preset keeps the melody");
+        // PREVIEW: no MIDI from the host, the melody plays the synth; off = silence
+        auto silent = render (p, {}, 8.0);
+        p.melodyPreview = true;
+        auto played = render (p, {}, 8.0);
+        p.melodyPreview = false;
+        auto after2 = render (p, {}, 8.0);
+        check (peakOf (silent) < 1e-4f && peakOf (played) > 0.05f && rmsOf (after2, after2.getNumSamples() / 2) < 1e-3,
+               "MELODY: PREVIEW plays the melody (own clock), stops cleanly", "peak " + String (peakOf (played), 3));
+        writeWav (outDir.getChildFile ("melody_preview.wav"), played);
     }
 
     // ---------------------------------------------------------------- 8. GUI snapshots

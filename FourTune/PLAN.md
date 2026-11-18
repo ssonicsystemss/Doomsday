@@ -28,8 +28,8 @@ FORTUNE = a modulation layer on top: FINAL = BASE + FORTUNE (cutoff +2 oct, detu
 | 4 | LFO 1 / 2 (7 shapes, sync incl. dotted / triplet, fade, phase, retrig) + 16-slot MOD MATRIX (sources / destinations from the spec, +/-) | 9-10 | v0.1 |
 | 5 | GUI: SYNTH page (OSC -> FILTER -> SCREAM -> FX -> OUTPUT readable at a glance, dominant FORTUNE with CONTROLLED -> FESTIVAL scale), MOD page, FX page | 29 | v0.1 |
 | 6 | Factory presets (plucks + euphoric leads / supersaws first) + PresetBar browser (search / categories / favourites) + RANDOM / SMART RANDOM | 27-28 | v0.1 |
-| 7 | MELODY ENGINE: key / scale (incl. custom), phrase length, density, complexity, repetition, movement, octave range, rhythm density + 9 hardstyle modes with their own rules | 21-22 | next |
-| 8 | PIANO ROLL (add / delete / move / pitch / length / velocity / copy / paste / duplicate / quantize / humanize / transpose / octave) + MIDI drag & drop into FL | 23-24 | next |
+| 7 | MELODY ENGINE `Source/Melody/MelodyGen.h`: key / scale (incl. custom), phrase length, density, complexity, repetition, movement, octave range, rhythm density, ROOT BOUNCE + 9 hardstyle modes with their own rules (chord forms, grid, leaps, repetition) | 21-22 | v0.2 |
+| 8 | PIANO ROLL `Source/PianoRoll.*` (add / delete / move / pitch / length / velocity / copy / paste / duplicate / quantize / humanize / transpose / octave, undo) + PREVIEW `Melody/MelodyPlayer.h` + DRAG MIDI `Melody/MelodyFile.h`; state child MELODY; GUI `Source/MelodyPage.cpp`; LIQUID GLASS violet + lime (owner 2026-11-18) | 23-24 | v0.2 |
 | 9 | Preset browser extras (rename / delete / author), HQ switches, CPU pass | 26-27 | later |
 
 ## Decisions taken without the owner (2026-11-17, can be changed)

@@ -312,20 +312,20 @@ FxPage::FxPage (TuneProcessor& p) : Page (p)
 {
     const Colour c = fx();
     units[0] = { toggle ("eq_on", "ON", c), nullptr, nullptr, { knob ("eq_low", "LOW", c, true), knob ("eq_lowmid", "LOW MID", c, true), knob ("eq_highmid", "HIGH MID", c, true), knob ("eq_high", "HIGH", c, true) } };
-    units[1] = { toggle ("dist_on", "ON", c), nullptr, nullptr, { knob ("dist_drive", "DRIVE", c), knob ("dist_tone", "TONE", c, true), knob ("dist_mix", "MIX", c), knob ("dist_out", "OUTPUT", c, true) } };
+    units[1] = { toggle ("dist_on", "ON", c), combo ("dist_os"), nullptr, { knob ("dist_drive", "DRIVE", c), knob ("dist_tone", "TONE", c, true), knob ("dist_mix", "MIX", c), knob ("dist_out", "OUTPUT", c, true) } };
     units[2] = { toggle ("cho_on", "ON", c), nullptr, nullptr, { knob ("cho_rate", "RATE", c), knob ("cho_depth", "DEPTH", c), knob ("cho_width", "WIDTH", c), knob ("cho_mix", "MIX", c) } };
     units[3] = { toggle ("dly_on", "ON", c), combo ("dly_div"), toggle ("dly_pp", "PING PONG", c), { knob ("dly_fb", "FEEDBACK", c), knob ("dly_filter", "FILTER", c), knob ("dly_mix", "MIX", c) } };
     units[4] = { toggle ("rvb_on", "ON", c), nullptr, nullptr, { knob ("rvb_pre", "PRE-DELAY", c), knob ("rvb_size", "SIZE", c), knob ("rvb_decay", "DECAY", c),
                                                                  knob ("rvb_damp", "DAMPING", c), knob ("rvb_width", "WIDTH", c), knob ("rvb_mix", "MIX", c) } };
     units[5] = { nullptr, nullptr, nullptr, { knob ("st_width", "WIDTH", c), knob ("st_balance", "BALANCE", c, true), knob ("st_monobass", "MONO BASS", c) } };
     units[6] = { toggle ("lim_on", "ON", c), nullptr, nullptr, { knob ("lim_input", "INPUT", c), knob ("lim_ceiling", "CEILING", c), knob ("lim_release", "RELEASE", c) } };
-    units[7] = { nullptr, nullptr, nullptr, { knob ("master", "MASTER", neutral(), false, 56) } };
+    units[7] = { nullptr, combo ("fx_order"), nullptr, { knob ("master", "MASTER", neutral(), false, 56) } };
 }
 
 void FxPage::resized()
 {
     cards.clear();
-    static const char* titles[] { "EQ", "DISTORTION", "CHORUS", "DELAY", "REVERB", "STEREO", "LIMITER", "OUTPUT" };
+    static const char* titles[] { "EQ", "DISTORTION", "CHORUS", "DELAY", "REVERB", "STEREO", "LIMITER", "FX ORDER + OUTPUT" };
     const Rectangle<int> areas[] { { 0, 0, 450, 150 }, { 462, 0, 450, 150 }, { 924, 0, 476, 150 },
                                    { 0, 162, 450, 160 }, { 462, 162, 938, 160 },
                                    { 0, 334, 450, 150 }, { 462, 334, 450, 150 }, { 924, 334, 476, 150 } };
@@ -338,7 +338,7 @@ void FxPage::resized()
         if (x.on) x.on->setBounds (a.getRight() - 62, a.getY() + 10, 46, 24);
         if (x.extra) x.extra->setBounds (a.getRight() - 274, a.getY() + 10, 92, 24);
         if (x.extra2) x.extra2->setBounds (a.getRight() - 174, a.getY() + 10, 104, 24);
-        if (u == 7) { x.knobs[0]->setBounds (a.getCentreX() - 50, a.getY() + 30, 100, Knob::heightFor (56)); continue; }
+        if (u == 7) { x.extra->setBounds (a.getX() + 16, a.getY() + 44, 300, 26); x.knobs[0]->setBounds (a.getRight() - 130, a.getY() + 30, 110, Knob::heightFor (56)); continue; }
         row (x.knobs, a.getX() + 14, a.getY() + 46, u == 4 ? 104 : 86, kh);
     }
 }

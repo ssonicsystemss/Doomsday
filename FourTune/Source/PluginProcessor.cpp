@@ -186,7 +186,7 @@ tune::dsp::Settings TuneProcessor::gather (double bpm) const
     s.fortune = v (P::Fortune); s.ftCut = v (P::FtCut); s.ftDet = v (P::FtDet); s.ftWidth = v (P::FtWidth); s.ftScr = v (P::FtScr);
     s.ftRMix = v (P::FtRMix); s.ftRSize = v (P::FtRSize);
     s.eqOn = on (P::EqOn); s.eqLow = v (P::EqLow); s.eqLowMid = v (P::EqLowMid); s.eqHighMid = v (P::EqHighMid); s.eqHigh = v (P::EqHigh);
-    s.distOn = on (P::DistOn); s.distDriveDb = v (P::DistDrive); s.distTone = v (P::DistTone); s.distMix = v (P::DistMix); s.distOutDb = v (P::DistOut);
+    s.distOn = on (P::DistOn); s.distDriveDb = v (P::DistDrive); s.distTone = v (P::DistTone); s.distMix = v (P::DistMix); s.distOutDb = v (P::DistOut); s.distOs = ix (P::DistOs); s.fxOrder = ix (P::FxOrder);
     s.choOn = on (P::ChoOn); s.choRate = v (P::ChoRate); s.choDepth = v (P::ChoDepth); s.choWidth = v (P::ChoWidth); s.choMix = v (P::ChoMix);
     s.dlyOn = on (P::DlyOn); s.dlyBeats = Choices::syncBeats (ix (P::DlyDiv)); s.dlyFb = v (P::DlyFb); s.dlyPP = on (P::DlyPP);
     s.dlyFilter = v (P::DlyFilter); s.dlyMix = v (P::DlyMix);

@@ -38,8 +38,10 @@ MOD ENVELOPE, **MOD MATRIX** 16 slotów: źródło (obwiednie, LFO, velocity, mo
 cel (pitch, fine, wavetable, warp, cutoff, rezonans, detune, stereo, pan, głośność, poziomy oscylatorów i grup, drive filtra, SCREAM, delay, reverb), ilość ±.
 
 ## Strona FX
-EQ (4 pasma), DISTORTION, CHORUS, DELAY (z tempem, ping-pong, filtr), REVERB (pre-delay, rozmiar, decay, tłumienie, szerokość), STEREO
-(szerokość, balans, mono bas), LIMITER (input, ceiling, release), MASTER.
+EQ (4 pasma), DISTORTION (z jakością 1x / 2x / 4x), CHORUS, DELAY (z tempem, ping-pong, filtr), REVERB (pre-delay, rozmiar, decay,
+tłumienie, szerokość), STEREO (szerokość, balans, mono bas), LIMITER (input, ceiling, release), MASTER.
+**FX ORDER** = kolejność efektów: EQ > DIST > CHORUS > DELAY > REVERB (domyślnie), DIST > EQ > …, … > REVERB > CHORUS (chorus na pogłosie),
+EQ > CHORUS > DIST > … (przester na chorusie), DIST > EQ > DELAY > CHORUS > REVERB. STEREO i LIMITER są zawsze na końcu.
 
 ## Strona MELODY (generator melodii + piano roll)
 **Generator:** KEY (tonacja), SCALE (MAJOR / MINOR / HARMONIC MINOR / MELODIC MINOR / DORIAN / PHRYGIAN / CHROMATIC / CUSTOM –

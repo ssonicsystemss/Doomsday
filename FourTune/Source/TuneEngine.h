@@ -43,7 +43,7 @@ namespace tune::dsp
         float scr = 0, scrDriveDb = 8, scrSat = 0.4f, scrTone = 0, scrBite = 0.4f, scrBody = 0.5f, scrMix = 1, scrOutDb = 0; int scrOs = 1;
         float fortune = 0, ftCut = 1, ftDet = 1, ftWidth = 1, ftScr = 1, ftRMix = 1, ftRSize = 1;
         bool eqOn = true; float eqLow = 0, eqLowMid = 0, eqHighMid = 0, eqHigh = 0;
-        bool distOn = false; float distDriveDb = 9, distTone = 0, distMix = 0.5f, distOutDb = 0;
+        bool distOn = false; float distDriveDb = 9, distTone = 0, distMix = 0.5f, distOutDb = 0; int distOs = 1, fxOrder = 0;
         bool choOn = false; float choRate = 0.6f, choDepth = 0.4f, choWidth = 0.8f, choMix = 0.3f;
         bool dlyOn = true; double dlyBeats = 0.75; float dlyFb = 0.35f; bool dlyPP = true; float dlyFilter = 5000, dlyMix = 0.14f;
         bool rvbOn = true; float rvbPre = 15, rvbSize = 0.55f, rvbDecay = 2.2f, rvbDamp = 7000, rvbWidth = 1, rvbMix = 0.16f;
@@ -317,6 +317,7 @@ namespace tune::dsp
             sr = rate; invSrMs = (float) (1000.0 / rate);
             for (auto& v : voices) { v.ladL.prepare (rate); v.ladR.prepare (rate); v.active = false; }
             scream.prepare (rate, maxBlock);
+            distOs.prepare (2, maxBlock);
             chorus.prepare (rate); echo.prepare (rate); reverb.prepare (rate);
             limiter.prepare (rate, 1.5f);
             for (auto& d : distAdaa) d = {};
@@ -326,7 +327,7 @@ namespace tune::dsp
         void reset()
         {
             for (auto& v : voices) { v.active = false; v.ae.kill(); v.fe.kill(); v.me.kill(); v.ladL.reset(); v.ladR.reset(); }
-            scream.reset(); chorus.reset(); echo.reset(); reverb.reset(); limiter.reset();
+            scream.reset(); distOs.reset(); chorus.reset(); echo.reset(); reverb.reset(); limiter.reset();
             for (auto& e : eq) e = {};
             numHeld = 0; bend = 0; wheel = 0; after = 0;
         }
@@ -609,55 +610,71 @@ namespace tune::dsp
             scream.process (b, start, n, s, scrAmt);
 
             // EQ (100 Hz shelf, 400 Hz bell, 2.5 kHz bell, 8 kHz shelf)
-            const bool eqActive = s.eqOn && (s.eqLow != 0.f || s.eqLowMid != 0.f || s.eqHighMid != 0.f || s.eqHigh != 0.f);
-            if (eqActive)
+            auto runEq = [&]
             {
-                using BC = dd::BiquadCoefs;
-                const BC c[4] { BC::make (BC::LowShelf, sr, 100, 0.7, s.eqLow), BC::make (BC::Bell, sr, 400, 0.9, s.eqLowMid),
-                                BC::make (BC::Bell, sr, 2500, 0.9, s.eqHighMid), BC::make (BC::HighShelf, sr, 8000, 0.7, s.eqHigh) };
-                for (int i = 0; i < n; ++i)
-                    for (int k = 0; k < 4; ++k) { L[i] = eq[(size_t) k][0].process (L[i], c[k]); R[i] = eq[(size_t) k][1].process (R[i], c[k]); }
-            }
-            // DIST (ADAA soft curve, tone tilt, mix, output)
-            if (s.distOn)
-            {
-                const float g = juce::Decibels::decibelsToGain (s.distDriveDb), mk = 1.f / std::pow (g, 0.7f), out = juce::Decibels::decibelsToGain (s.distOutDb);
-                const float tc = dd::onePoleCoef (1800.f, sr);
-                for (int i = 0; i < n; ++i)
+                const bool eqActive = s.eqOn && (s.eqLow != 0.f || s.eqLowMid != 0.f || s.eqHighMid != 0.f || s.eqHigh != 0.f);
+                if (eqActive)
                 {
-                    float* ch[2] { &L[i], &R[i] };
-                    for (int c = 0; c < 2; ++c)
-                    {
-                        const float x = *ch[c];
-                        float y = distAdaa[(size_t) c].process (x * g, doomsday::drive::Tube) * mk;
-                        y = distDc[(size_t) c].process (y);
-                        distTone[(size_t) c] += tc * (y - distTone[(size_t) c]);
-                        const float lo = distTone[(size_t) c], hi = y - lo;
-                        y = lo * (1.f - 0.5f * juce::jmax (0.f, s.distTone)) + hi * (1.f + 0.8f * s.distTone);
-                        *ch[c] = x + s.distMix * (y * out - x);
-                    }
+                    using BC = dd::BiquadCoefs;
+                    const BC c[4] { BC::make (BC::LowShelf, sr, 100, 0.7, s.eqLow), BC::make (BC::Bell, sr, 400, 0.9, s.eqLowMid),
+                                    BC::make (BC::Bell, sr, 2500, 0.9, s.eqHighMid), BC::make (BC::HighShelf, sr, 8000, 0.7, s.eqHigh) };
+                    for (int i = 0; i < n; ++i)
+                        for (int k = 0; k < 4; ++k) { L[i] = eq[(size_t) k][0].process (L[i], c[k]); R[i] = eq[(size_t) k][1].process (R[i], c[k]); }
                 }
-            }
+            };
+            // DIST (ADAA tube curve, tone tilt, mix, output) - oversampled 1x / 2x / 4x (spec 26)
+            auto runDist = [&]
+            {
+                if (! s.distOn) return;
+                distOs.setFactorIndex (juce::jlimit (0, 2, s.distOs));
+                const double rate = sr * distOs.ratio();
+                const float g = juce::Decibels::decibelsToGain (s.distDriveDb), mk = 1.f / std::pow (g, 0.7f), out = juce::Decibels::decibelsToGain (s.distOutDb);
+                const float tc = dd::onePoleCoef (1800.f, rate);
+                juce::dsp::AudioBlock<float> blk (b.getArrayOfWritePointers(), 2, (size_t) start, (size_t) n);
+                distOs.process (blk, [&] (int c, float x)
+                {
+                    const size_t ci = (size_t) c;
+                    float y = distAdaa[ci].process (x * g, doomsday::drive::Tube) * mk;
+                    y = distDc[ci].process (y);
+                    distTone[ci] += tc * (y - distTone[ci]);
+                    const float lo = distTone[ci], hi = y - lo;
+                    y = lo * (1.f - 0.5f * juce::jmax (0.f, s.distTone)) + hi * (1.f + 0.8f * s.distTone);
+                    return x + s.distMix * (y * out - x);
+                });
+            };
             // CHORUS
-            if (s.choOn) for (int i = 0; i < n; ++i) chorus.process (L[i], R[i], s.choRate, s.choDepth, s.choWidth, s.choMix);
+            auto runCho = [&]
+            {
+                if (s.choOn) for (int i = 0; i < n; ++i) chorus.process (L[i], R[i], s.choRate, s.choDepth, s.choWidth, s.choMix);
+            };
             // DELAY
-            const float dlyMix = juce::jlimit (0.f, 1.f, s.dlyMix + gmod[DDelayMix]);
-            if (s.dlyOn && dlyMix > 0.0005f)
+            auto runDly = [&]
             {
-                doomsday::space::EchoParams ep;
-                ep.mode = s.dlyPP ? 1 : 0; ep.timeMs = (float) (s.dlyBeats * 60000.0 / juce::jmax (40.0, s.bpm));
-                ep.feedback = s.dlyFb; ep.lowCutHz = 180.f; ep.highCutHz = s.dlyFilter; ep.mod = 0.1f; ep.drive = 0.f;
-                for (int i = 0; i < n; ++i) { float wl, wr; echo.process (L[i], R[i], wl, wr, ep); L[i] += dlyMix * wl; R[i] += dlyMix * wr; }
-            }
+                const float dlyMix = juce::jlimit (0.f, 1.f, s.dlyMix + gmod[DDelayMix]);
+                if (s.dlyOn && dlyMix > 0.0005f)
+                {
+                    doomsday::space::EchoParams ep;
+                    ep.mode = s.dlyPP ? 1 : 0; ep.timeMs = (float) (s.dlyBeats * 60000.0 / juce::jmax (40.0, s.bpm));
+                    ep.feedback = s.dlyFb; ep.lowCutHz = 180.f; ep.highCutHz = s.dlyFilter; ep.mod = 0.1f; ep.drive = 0.f;
+                    for (int i = 0; i < n; ++i) { float wl, wr; echo.process (L[i], R[i], wl, wr, ep); L[i] += dlyMix * wl; R[i] += dlyMix * wr; }
+                }
+            };
             // REVERB (+ FORTUNE: mix +15, size +10 points)
-            const float rvbMix = juce::jlimit (0.f, 1.f, s.rvbMix + FortuneMap::rvbMixAdd (s) + gmod[DReverbMix]);
-            if (s.rvbOn && rvbMix > 0.0005f)
+            auto runRvb = [&]
             {
-                doomsday::space::ReverbParams rp;
-                rp.preDelayMs = s.rvbPre; rp.size = juce::jlimit (0.f, 1.f, s.rvbSize + FortuneMap::rvbSizeAdd (s)) * 1.6f + 0.2f;
-                rp.decayS = s.rvbDecay; rp.dampHz = s.rvbDamp; rp.lowCutHz = 180.f; rp.width = s.rvbWidth; rp.mod = 0.35f;
-                for (int i = 0; i < n; ++i) { float wl, wr; reverb.process (L[i], R[i], wl, wr, rp); L[i] = L[i] * (1.f - 0.35f * rvbMix) + rvbMix * wl; R[i] = R[i] * (1.f - 0.35f * rvbMix) + rvbMix * wr; }
-            }
+                const float rvbMix = juce::jlimit (0.f, 1.f, s.rvbMix + FortuneMap::rvbMixAdd (s) + gmod[DReverbMix]);
+                if (s.rvbOn && rvbMix > 0.0005f)
+                {
+                    doomsday::space::ReverbParams rp;
+                    rp.preDelayMs = s.rvbPre; rp.size = juce::jlimit (0.f, 1.f, s.rvbSize + FortuneMap::rvbSizeAdd (s)) * 1.6f + 0.2f;
+                    rp.decayS = s.rvbDecay; rp.dampHz = s.rvbDamp; rp.lowCutHz = 180.f; rp.width = s.rvbWidth; rp.mod = 0.35f;
+                    for (int i = 0; i < n; ++i) { float wl, wr; reverb.process (L[i], R[i], wl, wr, rp); L[i] = L[i] * (1.f - 0.35f * rvbMix) + rvbMix * wl; R[i] = R[i] * (1.f - 0.35f * rvbMix) + rvbMix * wr; }
+                }
+            };
+            // FX ORDER (spec 20): 0 EQ DIST CHO DLY RVB, 1 DIST EQ CHO DLY RVB, 2 EQ DIST DLY RVB CHO, 3 EQ CHO DIST DLY RVB, 4 DIST EQ DLY CHO RVB
+            static const int orders[5][5] { { 0, 1, 2, 3, 4 }, { 1, 0, 2, 3, 4 }, { 0, 1, 3, 4, 2 }, { 0, 2, 1, 3, 4 }, { 1, 0, 3, 2, 4 } };
+            for (int k : orders[juce::jlimit (0, 4, s.fxOrder)])
+                switch (k) { case 0: runEq(); break; case 1: runDist(); break; case 2: runCho(); break; case 3: runDly(); break; default: runRvb(); break; }
             // STEREO (width, balance, mono bass)
             {
                 const float bl = std::sqrt (juce::jlimit (0.f, 2.f, 1.f - s.stBalance)), br = std::sqrt (juce::jlimit (0.f, 2.f, 1.f + s.stBalance));
@@ -696,6 +713,7 @@ namespace tune::dsp
         Scream scream;
         std::array<std::array<dd::Biquad, 2>, 4> eq {};
         std::array<doomsday::drive::Adaa1, 2> distAdaa {};
+        doomsday::drive::OverSampler distOs;
         std::array<doomsday::drive::DcBlock, 2> distDc {};
         std::array<float, 2> distTone {};
         Chorus chorus;

@@ -219,3 +219,5 @@ bend_range
 vel_sens
 transpose
 master
+dist_os
+fx_order

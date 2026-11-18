@@ -25,6 +25,9 @@ namespace tune
                                                     "FILTER DRIVE", "SCREAM", "DELAY MIX", "REVERB MIX" };
         inline const juce::StringArray screamOs   { "1x", "2x", "4x" };
         inline const juce::StringArray playModes  { "POLY", "MONO", "LEGATO" };
+        inline const juce::StringArray fxOrders   { "EQ > DIST > CHORUS > DELAY > REVERB", "DIST > EQ > CHORUS > DELAY > REVERB",
+                                                    "EQ > DIST > DELAY > REVERB > CHORUS", "EQ > CHORUS > DIST > DELAY > REVERB",
+                                                    "DIST > EQ > DELAY > CHORUS > REVERB" };
         inline juce::StringArray syncDivs()       { return { "1/64", "1/32", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D", "1/4T", "1/4", "1/4D",
                                                              "1/2T", "1/2", "1/2D", "1 BAR", "2 BARS", "4 BARS", "8 BARS", "16 BARS" }; }
         inline double syncBeats (int i)
@@ -166,7 +169,9 @@ namespace tune
     F (BendRange, "bend_range", "Pitch Bend Range", 0.f, 24.f, 2.f, 0.f, 1.f, Fm::Semi) \
     F (VelSens,   "vel_sens",   "Velocity",         0.f, 1.f, 0.4f, 0.f, 0.f, Fm::Pct) \
     F (Transpose, "transpose",  "Transpose",        -24.f, 24.f, 0.f, 0.f, 1.f, Fm::Semi) \
-    F (Master,    "master",     "Master Volume",    -36.f, 6.f, 0.f, 0.f, 0.f, Fm::Db)
+    F (Master,    "master",     "Master Volume",    -36.f, 6.f, 0.f, 0.f, 0.f, Fm::Db) \
+    C (DistOs,    "dist_os",    "Distortion Quality", Choices::screamOs, 1) \
+    C (FxOrder,   "fx_order",   "FX Order",         Choices::fxOrders, 0)
 
     namespace P
     {

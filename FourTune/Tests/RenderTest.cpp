@@ -257,6 +257,7 @@ int main (int argc, char** argv)
             if (id.startsWith ("ft_")) c.push_back ({ "fortune", 0.8f });
             if (id == "eq_on") c.push_back ({ "eq_low", 6 });
             if (id.startsWith ("dist_")) c.push_back ({ "dist_on", 1 });
+            if (id == "fx_order") { c.push_back ({ "dist_on", 1 }); c.push_back ({ "cho_on", 1 }); c.push_back ({ "eq_high", 6 }); }
             if (id.startsWith ("cho_")) c.push_back ({ "cho_on", 1 });
             if (id.startsWith ("lim_") && id != "lim_input") c.push_back ({ "lim_input", 14 });
             if (id == "glide") c.push_back ({ "play_mode", 2 });

@@ -8,6 +8,9 @@ on:
       - '.github/workflows/build-4ge.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   windows:
     runs-on: windows-latest
@@ -39,3 +42,15 @@ jobs:
           name: 4GE-symbols
           path: FourGE/build/symbols/
           if-no-files-found: warn
+      - name: Publish to Releases (a plain download button)
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          Compress-Archive -Path build/FourGE_artefacts/Release/VST3/* -DestinationPath 4GE-VST3-Windows.zip -Force
+          gh release view 4ge-latest *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create 4ge-latest --title "4GE (latest test build)" --notes "Latest Windows VST3 test build." --prerelease --target ${{ github.sha }} }
+          gh release upload 4ge-latest 4GE-VST3-Windows.zip --clobber
+          gh release edit 4ge-latest --notes "Latest Windows VST3 test build: $(Get-Date -Format 'yyyy-MM-dd HH:mm') UTC, commit ${{ github.sha }}. Unzip, copy the .vst3 folder to C:\Program Files\Common Files\VST3."

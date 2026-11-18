@@ -36,6 +36,7 @@ namespace tune::melody
                 if (tl.isLocked() && dirty) { snap = pending; dirty = false; }
             }
             if (! on) { if (wasOn) allOff (midi, 0); wasOn = false; return; }
+            bpm = juce::jlimit (20.0, 400.0, std::isfinite (bpm) ? bpm : 150.0);   // a host that reports garbage never fires the whole loop at once
             const double beatsPerSample = bpm / 60.0 / sr;
             const bool hostRuns = hostPpq >= 0.0;
             if (! wasOn || hostRuns != lastHostRuns) { allOff (midi, 0); ownBeat = 0.0; lastEnd = -1.0; }

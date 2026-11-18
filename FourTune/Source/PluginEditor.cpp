@@ -454,8 +454,18 @@ void TuneCanvas::timerCallback()
     if (current == 0) synth.tick();
 }
 
+// closing the window stops PREVIEW and releases PLAY (nothing keeps sounding from a window you cannot see)
+TuneEditor::~TuneEditor()
+{
+    if (auto* p = dynamic_cast<TuneProcessor*> (getAudioProcessor()))
+    {
+        p->editorOpen.store (false); p->melodyPreview.store (false); p->audition (false);
+    }
+}
+
 TuneEditor::TuneEditor (TuneProcessor& p) : AudioProcessorEditor (p), canvas (p)
 {
+    p.editorOpen.store (true);
     addAndMakeVisible (canvas);
     setResizable (true, true);
     setResizeLimits (720, 450, 2160, 1350);

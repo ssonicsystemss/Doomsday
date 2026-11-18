@@ -473,3 +473,12 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   (voice-led target note per bar, turn into the next target, 4 bars = A B A' new-end, 8 bars = 4 + 4 with a new last bar, the
   major V) + a SHIFT setting. Rule: derive melody rules from the owner's MIDI (`/home/claude/midtools`-style onset grid per bar:
   top voice + bass), never from theory alone; check WHERE in the bar the motion happens.
+
+## 4TUNE "po długim czasie nieużywania wydaje dźwięk randomowo, jakby wszystkie nuty na raz" (owner 2026-11-18)
+- The engine is silent on its own (`RenderTest <out> --idle [min]`: every preset, a chord, minutes of silence = 0.0). The only
+  in-plugin note sources were PLAY (an A minor chord held until mouse-up) and the melody PREVIEW (own clock when FL is stopped),
+  and both could outlive the window: PREVIEW stayed on after closing the editor, PLAY's chord stayed held if the release got lost
+  (FL Smart Disable / audio restart after a long idle), and `reset()` / `releaseResources()` did not kill the voices.
+  Fixed: PREVIEW / PLAY only while the window is open (closing it stops both), PLAY lets go after 4 s by itself, host reset /
+  release / prepare = every voice off, PREVIEW clamps a garbage host BPM. Rule for every Doomsday instrument: any note the
+  plugin makes by itself (audition, preview, sequencer) needs an owner (open window), a timeout and a panic on host reset.

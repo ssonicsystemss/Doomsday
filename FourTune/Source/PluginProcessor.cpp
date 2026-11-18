@@ -175,6 +175,7 @@ void TuneProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     engine.snapSmoothing();
     setLatencySamples (engine.latencySamples());
     firstBlock = true;
+    auditionHeld = false; auditionCmd.store (0); panicPending.store (false);
 }
 
 tune::dsp::Settings TuneProcessor::gather (double bpm) const
@@ -247,8 +248,15 @@ void TuneProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     double bpm, ppq;
     doomsday::PresetIO::hostTime (getPlayHead(), bpm, ppq);
 
-    const int cmd = auditionCmd.exchange (0);      // PLAY: an A minor chord (the euphoric test chord)
-    if (cmd == 1 && ! auditionHeld) { for (int n : { 57, 60, 64, 69 }) midi.addEvent (MidiMessage::noteOn (1, n, (uint8) 110), 0); auditionHeld = true; }
+    // after a host reset / audio restart (FL after a long idle): every voice and every held test note goes
+    if (panicPending.exchange (false)) { engine.reset(); auditionHeld = false; auditionCmd.store (0); }
+
+    // PLAY: an A minor chord (the euphoric test chord) - only from an open window, released by itself after 4 s
+    // (owner 2026-11-18: "po długim czasie nieużywania wydaje dźwięk randomowo jakby wszystkie nuty na raz")
+    int cmd = auditionCmd.exchange (0);
+    if (! editorOpen.load()) cmd = auditionHeld ? 2 : 0;
+    if (auditionHeld && (auditionSamples += buffer.getNumSamples()) > (int) (4.0 * jmax (8000.0, getSampleRate()))) cmd = 2;
+    if (cmd == 1 && ! auditionHeld) { for (int n : { 57, 60, 64, 69 }) midi.addEvent (MidiMessage::noteOn (1, n, (uint8) 110), 0); auditionHeld = true; auditionSamples = 0; }
     if (cmd == 2 && auditionHeld)   { for (int n : { 57, 60, 64, 69 }) midi.addEvent (MidiMessage::noteOff (1, n), 0); auditionHeld = false; }
 
     // MELODY PREVIEW: on the host grid when FL plays, on its own clock when it is stopped
@@ -256,7 +264,7 @@ void TuneProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
         bool playing = false;
         if (auto* ph = getPlayHead()) if (auto pos = ph->getPosition()) playing = pos->getIsPlaying();
         lastPpq.store (playing ? ppq : -1.0); lastBpm.store (bpm);
-        melodyPlayer.process (midi, buffer.getNumSamples(), getSampleRate() > 0 ? getSampleRate() : 48000.0, bpm, playing ? ppq : -1.0, melodyPreview.load());
+        melodyPlayer.process (midi, buffer.getNumSamples(), getSampleRate() > 0 ? getSampleRate() : 48000.0, bpm, playing ? ppq : -1.0, melodyPreview.load() && editorOpen.load());
     }
     engine.setSettings (gather (bpm));
     if (firstBlock) { engine.snapSmoothing(); firstBlock = false; }

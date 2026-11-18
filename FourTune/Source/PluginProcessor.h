@@ -17,7 +17,8 @@ public:
     ~TuneProcessor() override { apvts.state.removeListener (this); }
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
-    void releaseResources() override {}
+    void releaseResources() override { panicPending.store (true); }
+    void reset() override { panicPending.store (true); }        // the host stopped / restarted the audio: no note survives
     bool isBusesLayoutSupported (const BusesLayout& l) const override { return l.getMainOutputChannelSet() == juce::AudioChannelSet::stereo(); }
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     using AudioProcessor::processBlock;
@@ -90,6 +91,7 @@ public:
     void generateMelody (bool newSeed);                                                 // 1 click = 1 undo
     double melodyLengthBeats();
     std::atomic<bool> melodyPreview { false };
+    std::atomic<bool> editorOpen { false };               // PREVIEW and PLAY only sound while the window is open
     double previewPosition() const { return melodyPlayer.positionInLoop (lastPpq.load()); }
     bool previewPlaying() const { return melodyPlayer.playing(); }
     double hostBpm() const { return lastBpm.load(); }
@@ -102,6 +104,8 @@ private:
     tune::dsp::Engine engine;
     std::atomic<int> auditionCmd { 0 };
     bool auditionHeld = false, firstBlock = true;
+    std::atomic<bool> panicPending { false };
+    int auditionSamples = 0;                              // PLAY holds the chord at most a few seconds
     std::atomic<float> peak { 0.f };
     int currentProgram = 0;
     juce::String presetName { "INIT" };

@@ -158,6 +158,32 @@ int main (int argc, char** argv)
         printf ("melody %s %s %s, %d notes -> %s\n", melody::modeName (m.mode), melody::keyName (m.key), melody::scaleName (m.scale), (int) v.size(), outArg.getFileName().toRawUTF8());
         return 0;
     }
+    // RenderTest <out> --idle [minutes]   every preset: one chord, then minutes of silence (FL idle) -> any sound by itself?
+    if (argc > 2 && String (argv[2]) == "--idle")
+    {
+        const double minutes = argc > 3 ? String (argv[3]).getDoubleValue() : 5.0;
+        TuneProcessor p; p.prepareToPlay (sr, block);
+        bool bad = false;
+        for (int prog = 0; prog < p.getNumPrograms(); ++prog)
+        {
+            p.setCurrentProgram (prog);
+            render (p, { { 0.0, 1.0, 57 }, { 0.0, 1.0, 60 }, { 0.0, 1.0, 64 } }, 4.0);
+            const int total = (int) (minutes * 60.0 * sr);
+            float late = 0.f; double at = -1;
+            for (int pos = 0; pos < total; pos += block)
+            {
+                AudioBuffer<float> buf (2, block); buf.clear(); MidiBuffer midi;
+                p.processBlock (buf, midi);
+                const float pk = peakOf (buf);
+                if (pos > (int) (20.0 * sr) && pk > late) { late = pk; at = pos / sr; }
+                if (! std::isfinite (pk)) { late = 99.f; at = pos / sr; break; }
+            }
+            bad |= late > 1e-3f;
+            printf ("%-36s after 20 s: peak %.6f at %.1f s\n", p.getProgramName (prog).toRawUTF8(), late, at);
+        }
+        printf (bad ? "IDLE: SOUND BY ITSELF\n" : "IDLE: silent\n");
+        return bad ? 1 : 0;
+    }
     if (argc > 2 && String (argv[2]) == "--write-ids")
     {
         StringArray ids; for (auto* id : paramIds()) ids.add (id);
@@ -380,12 +406,31 @@ int main (int argc, char** argv)
         check (p.melodyNotes().size() == undone.size(), "MELODY: a sound preset keeps the melody");
         // PREVIEW: no MIDI from the host, the melody plays the synth; off = silence
         auto silent = render (p, {}, 8.0);
-        p.melodyPreview = true;
+        p.editorOpen = true; p.melodyPreview = true;
         auto played = render (p, {}, 8.0);
         p.melodyPreview = false;
         auto after2 = render (p, {}, 8.0);
         check (peakOf (silent) < 1e-4f && peakOf (played) > 0.05f && rmsOf (after2, after2.getNumSamples() / 2) < 1e-3,
                "MELODY: PREVIEW plays the melody (own clock), stops cleanly", "peak " + String (peakOf (played), 3));
+        // owner 2026-11-18 "after a long idle it sounds by itself, like all notes at once": with the window closed neither
+        // PREVIEW nor PLAY makes a sound, PLAY lets go by itself, a host reset kills every voice
+        {
+            p.editorOpen = false; p.melodyPreview = true;
+            auto closedPrev = render (p, {}, 8.0);
+            p.audition (true);
+            auto closedPlay = render (p, {}, 4.0);
+            p.melodyPreview = false; p.editorOpen = true;
+            p.audition (true);
+            auto held = render (p, {}, 30.0);                   // never released by the GUI (missed mouse-up)
+            const int s12 = (int) (12.0 * 60.0 / 150.0 * sr);   // 12 beats = 4.8 s
+            auto pad = render (p, { { 0.0, 100.0, 60 } }, 4.0);  // a held note, then the host resets the audio
+            p.reset();
+            auto afterReset = render (p, {}, 8.0);
+            p.editorOpen = false;
+            check (peakOf (closedPrev) < 1e-4f && peakOf (closedPlay) < 1e-4f && peakOf (held) > 0.05f
+                       && rmsOf (held, held.getNumSamples() - s12) < 1e-4 && peakOf (pad) > 0.05f && rmsOf (afterReset, afterReset.getNumSamples() / 2) < 1e-4,
+                   "NO SOUND BY ITSELF: window closed = no PREVIEW / PLAY, PLAY lets go after 4 s, host reset = silence");
+        }
         writeWav (outDir.getChildFile ("melody_preview.wav"), played);
     }
 

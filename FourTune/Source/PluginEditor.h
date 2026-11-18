@@ -186,6 +186,7 @@ class TuneEditor : public juce::AudioProcessorEditor
 {
 public:
     explicit TuneEditor (TuneProcessor&);
+    ~TuneEditor() override;
     void resized() override;
     TuneCanvas canvas;
 };

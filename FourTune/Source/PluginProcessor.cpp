@@ -90,12 +90,23 @@ bool TuneProcessor::loadUserPresetFile (const File& f)
     presetName = f.getFileNameWithoutExtension(); currentProgram = -1;
     return true;
 }
-bool TuneProcessor::saveUserPresetAs (const String& name)
+bool TuneProcessor::saveUserPresetAs (const String& name) { return saveUserPreset (name, lastAuthor()); }
+static File authorFile() { return File::getSpecialLocation (File::userApplicationDataDirectory).getChildFile ("Doomsday").getChildFile ("4TUNE author.txt"); }
+String TuneProcessor::lastAuthor() { return authorFile().loadFileAsString().trim(); }
+bool TuneProcessor::saveUserPreset (const String& name, const String& author)
 {
     String clean;
     if (! io.save (apvts, name, clean)) return false;
+    lib::Library::setAuthorAndStrip (io.folder().getChildFile (clean + "." + io.extension), author.trim());
+    if (author.trim().isNotEmpty()) { authorFile().getParentDirectory().createDirectory(); authorFile().replaceWithText (author.trim()); }
     presetName = clean; currentProgram = -1;
     return true;
+}
+void TuneProcessor::envelopeMode (bool lead)
+{
+    undo.beginNewTransaction (lead ? "Lead envelope" : "Pluck envelope");
+    const float pl[] { 0.5f, 0.f, 380.f, 0.12f, 180.f, 0.5f }, ld[] { 4.f, 0.f, 1200.f, 0.85f, 380.f, 0.3f };
+    for (int i = 0; i < 6; ++i) setValue ((P::Id) (P::AeA + i), lead ? ld[i] : pl[i]);
 }
 
 // ------------------------------------------------------------ processor

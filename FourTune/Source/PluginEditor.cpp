@@ -157,6 +157,10 @@ SynthPage::SynthPage (TuneProcessor& p) : Page (p)
     aenv = { knob ("ae_a", "ATTACK", neutral()), knob ("ae_h", "HOLD", neutral()), knob ("ae_d", "DECAY", neutral()), knob ("ae_s", "SUSTAIN", neutral()),
              knob ("ae_r", "RELEASE", neutral()), knob ("ae_curve", "CURVE", neutral(), true), knob ("vel_sens", "VELOCITY", neutral()) };
     playMode = combo ("play_mode");
+    for (auto* b : { &pluckEnv, &leadEnv }) addAndMakeVisible (*b);
+    pluckEnv.setTooltip ("PLUCK: short decay, low sustain"); leadEnv.setTooltip ("LEAD: longer, high sustain");
+    pluckEnv.onClick = [this] { proc.envelopeMode (false); };
+    leadEnv.onClick = [this] { proc.envelopeMode (true); };
     perf = { knob ("poly_voices", "VOICES", neutral()), knob ("glide", "GLIDE", neutral()), knob ("bend_range", "BEND", neutral()),
              knob ("transpose", "TRANSPOSE", neutral(), true), knob ("master", "MASTER", neutral()) };
     fview = std::make_unique<FortuneView> (p);
@@ -203,6 +207,8 @@ void SynthPage::resized()
     row ({ flt[1], flt[2], flt[3], flt[4] }, fa.getX() + 100, fa.getY() + 48, 84, bkh);
     row (fenv, fe.getX() + 14, fe.getY() + 44, 70, bkh);
     row (aenv, ae.getX() + 10, ae.getY() + 48, bk, bkh);
+    pluckEnv.setBounds (ae.getRight() - 160, ae.getY() + 10, 70, 24);
+    leadEnv.setBounds (ae.getRight() - 84, ae.getY() + 10, 68, 24);
     playMode->setBounds (pf.getRight() - 112, pf.getY() + 10, 96, 24);
     row (perf, pf.getX() + 14, pf.getY() + 44, 84, bkh);
     // FORTUNE (right, dominant) + SCREAM
@@ -386,11 +392,13 @@ doomsday::ui::Theme TuneCanvas::makeTheme()
     return t;
 }
 
-TuneCanvas::TuneCanvas (TuneProcessor& p) : proc (p), presetBar (p, true), flow (p), synth (p), mod (p), fxp (p), melody (p)
+TuneCanvas::TuneCanvas (TuneProcessor& p) : proc (p), presetBar (p, true), flow (p), synth (p), mod (p), fxp (p), melody (p), presets (p)
 {
     setLookAndFeel (&lnf);
     presetBar.setLookAndFeel (&stageLnf);
     addAndMakeVisible (presetBar);
+    presetBar.onBrowse = [this] { showPage (current == 4 ? 0 : 4); };            // a click on the preset name = the PRESETS page
+    presets.onLoaded = [this] { presetBar.refreshList(); presetBar.refresh(); };
     addAndMakeVisible (tabs);
     tabs.onSelect = [this] (int i) { showPage (i); };
     addAndMakeVisible (fullRandom);
@@ -406,9 +414,9 @@ TuneCanvas::~TuneCanvas() { stopTimer(); presetBar.setLookAndFeel (nullptr); set
 
 void TuneCanvas::showPage (int i)
 {
-    current = jlimit (0, 3, i);
+    current = jlimit (0, 4, i);
     auto pg = pages();
-    for (int k = 0; k < 4; ++k) pg[(size_t) k]->setVisible (k == current);
+    for (int k = 0; k < (int) pg.size(); ++k) pg[(size_t) k]->setVisible (k == current);
     tabs.setSelected (current);
 }
 
@@ -432,7 +440,7 @@ void TuneCanvas::paint (Graphics& g)
 void TuneCanvas::resized()
 {
     presetBar.setBounds (W - 316, 3, 300, 90);
-    tabs.setBounds (560, 30, 360, 36);
+    tabs.setBounds (520, 30, 440, 36);
     fullRandom.setBounds (W - 316 - 130, 34, 120, 28);
     flow.setBounds (20, 104, W - 40, 40);
     const Rectangle<int> area (20, 152, W - 40, H - 152 - 16);

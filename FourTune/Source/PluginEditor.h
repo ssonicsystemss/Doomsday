@@ -55,6 +55,7 @@ namespace tuneui
         std::array<OscRow, 4> osc;
         std::vector<juce::Component*> grpA, grpB, flt, fenv, aenv, perf, scr;
         juce::ComboBox *fltType = nullptr, *fltRoute = nullptr, *playMode = nullptr;
+        juce::TextButton pluckEnv { "PLUCK" }, leadEnv { "LEAD" };
         doomsday::flat::Knob* fortuneKnob = nullptr, *screamKnob = nullptr;
         doomsday::flat::Segmented* scrOs = nullptr;
         std::unique_ptr<FortuneView> fview;
@@ -107,6 +108,34 @@ namespace tuneui
         std::unique_ptr<MidiDragSource> dragSrc;
     };
 
+    // PRESETS (spec 27): categories, favourites, search, author, LOAD / FAVOURITE / RENAME / DELETE / DUPLICATE / SAVE AS
+    class PresetPage : public Page, public juce::ListBoxModel
+    {
+    public:
+        explicit PresetPage (TuneProcessor&);
+        void resized() override;
+        void paintOverChildren (juce::Graphics&) override;
+        void visibilityChanged() override { if (isVisible()) rebuild(); }
+        int getNumRows() override { return (int) rows.size(); }
+        void paintListBoxItem (int, juce::Graphics&, int, int, bool) override;
+        void listBoxItemDoubleClicked (int, const juce::MouseEvent&) override { loadSelected(); }
+        void selectedRowsChanged (int) override { repaint(); }
+        void rebuild();
+        std::function<void()> onLoaded;
+        tune::lib::Library& library() { return lib; }
+    private:
+        const tune::lib::Entry* selected() const;
+        void loadSelected();
+        tune::lib::Library lib;
+        juce::String category { "ALL" };
+        std::vector<int> rows;
+        std::vector<std::unique_ptr<juce::TextButton>> catButtons;
+        juce::TextEditor search, saveName, author;
+        juce::ComboBox saveCat;
+        juce::ListBox list { "presets", this };
+        juce::TextButton load { "LOAD" }, fav { "FAVOURITE" }, rename { "RENAME" }, del { "DELETE" }, dup { "DUPLICATE" }, save { "SAVE AS" };
+    };
+
     // OSCILLATORS -> FILTER -> SCREAM -> FX -> OUTPUT (click = open the page; lit = active)
     class FlowBar : public juce::Component
     {
@@ -132,7 +161,7 @@ public:
     void resized() override;
     void showPage (int);
     int page() const { return current; }
-    std::vector<tuneui::Page*> pages() { return { &synth, &mod, &fxp, &melody }; }
+    std::vector<tuneui::Page*> pages() { return { &synth, &mod, &fxp, &melody, &presets }; }
     void refreshNow() { timerCallback(); }
 private:
     void timerCallback() override;
@@ -141,13 +170,14 @@ private:
     doomsday::ui::StageLookAndFeel stageLnf { makeTheme() };
     static doomsday::ui::Theme makeTheme();
     doomsday::ui::PresetBar presetBar;
-    doomsday::flat::TabStrip tabs { { "SYNTH", "MOD", "FX", "MELODY" }, tuneui::fortune() };
+    doomsday::flat::TabStrip tabs { { "SYNTH", "MOD", "FX", "MELODY", "PRESETS" }, tuneui::fortune() };
     juce::TextButton fullRandom { "FULL RANDOM" };
     tuneui::FlowBar flow;
     tuneui::SynthPage synth;
     tuneui::ModPage mod;
     tuneui::FxPage fxp;
     tuneui::MelodyPage melody;
+    tuneui::PresetPage presets;
     int current = 0;
     juce::TooltipWindow tips { this, 600 };
 };

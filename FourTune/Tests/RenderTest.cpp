@@ -386,13 +386,52 @@ int main (int argc, char** argv)
         writeWav (outDir.getChildFile ("melody_preview.wav"), played);
     }
 
+    // ---------------------------------------------------------------- 10. PRESET LIBRARY (spec 27) + PLUCK / LEAD envelopes (spec 7)
+    {
+        TuneProcessor p; p.setPlayConfigDetails (0, 2, sr, block); p.prepareToPlay (sr, block);
+        const String tag = "ZZ TEST " + String (Time::currentTimeMillis() % 100000);
+        p.setCurrentProgram (5);
+        check (p.saveUserPreset ("LEADS - " + tag, "Owner Test"), "PRESETS: save with category + author");
+        auto lib = p.makeLibrary();
+        const tune::lib::Entry* mine = nullptr;
+        for (auto& e : lib.entries()) if (e.name == "LEADS - " + tag) mine = &e;
+        check (mine != nullptr && mine->category == "LEADS" && mine->author == "Owner Test" && ! mine->factory, "PRESETS: listed with its category and author");
+        auto xml = mine != nullptr ? XmlDocument::parse (mine->file) : nullptr;
+        check (xml != nullptr && xml->getChildByName ("MELODY") == nullptr, "PRESETS: a sound preset does not carry the melody");
+        check (lib.filter ("ALL", "Owner Test").size() == 1 && lib.filter ("LEADS", tag).size() == 1 && lib.filter ("PLUCKS", tag).empty()
+               && (int) lib.filter ("ALL", "").size() >= p.getNumPrograms() + 1, "PRESETS: search (name / author) + category filter");
+        if (mine != nullptr)
+        {
+            const auto copy = *mine;
+            lib.toggleFavourite (copy);
+            auto lib2 = p.makeLibrary();
+            check (lib2.filter ("FAVOURITES", tag).size() == 1, "PRESETS: favourite is remembered (same file as the preset bar star)");
+            check (lib2.rename (copy, "LEADS - " + tag + " NEW") && lib2.filter ("FAVOURITES", tag + " NEW").size() == 1, "PRESETS: rename keeps the favourite");
+            const tune::lib::Entry* renamed = nullptr; for (auto& e : lib2.entries()) if (e.name == "LEADS - " + tag + " NEW") renamed = &e;
+            const auto r2 = renamed != nullptr ? *renamed : copy;
+            const int before = (int) lib2.filter ("ALL", tag).size();
+            lib2.duplicate (r2);
+            check ((int) lib2.filter ("ALL", tag).size() == before + 1, "PRESETS: duplicate");
+            for (auto e : lib2.filter ("ALL", tag)) { auto en = lib2.entries()[(size_t) e]; en.file.deleteFile(); }
+            const tune::lib::Entry* again = nullptr; lib2.rescan(); for (auto& e : lib2.entries()) if (e.name.contains (tag)) again = &e;
+            check (again == nullptr, "PRESETS: delete");
+            if (lib2.isFavourite (r2)) lib2.toggleFavourite (r2);
+            check (! lib2.rename (lib2.entries()[0], "x") && ! lib2.remove (lib2.entries()[0]), "PRESETS: factory presets are protected");
+        }
+        p.envelopeMode (true);
+        const bool lead = p.param (P::AeS) > 0.8f && p.param (P::AeD) > 1000.f;
+        p.envelopeMode (false);
+        const bool pluck = p.param (P::AeS) < 0.2f && p.param (P::AeD) < 500.f;
+        check (lead && pluck, "AMP ENV: PLUCK / LEAD shapes");      // (undo: the APVTS records parameter moves from its GUI timer - not offline)
+    }
+
     // ---------------------------------------------------------------- 8. GUI snapshots
     {
         TuneProcessor p;
         std::unique_ptr<TuneEditor> ed (dynamic_cast<TuneEditor*> (p.createEditor()));
         ed->setSize (TuneCanvas::W, TuneCanvas::H);
-        static const char* names[] { "synth", "mod", "fx", "melody" };
-        for (int pg = 0; pg < 4; ++pg)
+        static const char* names[] { "synth", "mod", "fx", "melody", "presets" };
+        for (int pg = 0; pg < 5; ++pg)
         {
             ed->canvas.showPage (pg); ed->canvas.refreshNow();
             auto img = ed->canvas.createComponentSnapshot (ed->canvas.getLocalBounds(), true, 1.f);

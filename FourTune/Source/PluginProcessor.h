@@ -6,6 +6,7 @@
 #include "TuneEngine.h"
 #include "Melody/MelodyGen.h"
 #include "Melody/MelodyPlayer.h"
+#include "Presets/TuneLibrary.h"
 #include <atomic>
 
 // 4TUNE - hardstyle melody synthesizer (see ../SPEC.md, ../PLAN.md). Files / presets here, DSP in TuneEngine.h, GUI in PluginEditor.
@@ -53,6 +54,18 @@ public:
     juce::File userPresetFolder() override { return io.folder(); }
     juce::UndoManager* undoManager() override { return &undo; }
     void audition (bool on) override { auditionCmd.store (on ? 1 : 2); }
+
+    // PRESET LIBRARY (spec 27): the favourites file is the preset bar's, the author is remembered
+    tune::lib::Library makeLibrary() { juce::StringArray f; for (int i = 0; i < getNumPrograms(); ++i) f.add (getProgramName (i)); return { f, io.folder(), io.extension, favouritesFile() }; }
+    juce::File favouritesFile()
+    {
+        return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Doomsday")
+                 .getChildFile (juce::File::createLegalFileName (presetFolderText()) + " favourites.txt");
+    }
+    juce::String lastAuthor();
+    bool saveUserPreset (const juce::String& name, const juce::String& author);
+    // AMP ENVELOPE quick shapes (spec 7): PLUCK = short decay, low sustain; LEAD = longer, high sustain (1 undo)
+    void envelopeMode (bool lead);
 
     // RANDOM (spec 28): FULL = every sound-design parameter, SMART = musical ranges + safe relationships
     void fullRandom();

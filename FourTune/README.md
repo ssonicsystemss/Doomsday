@@ -65,6 +65,8 @@ Melodia zapisuje się w projekcie i nie znika przy zmianie presetu brzmienia.
 Liquid glass w fiolecie i limonce (jak Fortune of Seekers): grupa A limonka, grupa B fiolet, FORTUNE najjaśniejsza limonka.
 
 ## Presety (strona PRESETS albo klik w nazwę presetu)
+30 presetów fabrycznych: najwięcej plucków, leadów i supersawów, do tego po kilka w pozostałych kategoriach.
+
 Po lewej kategorie: ALL, FAVOURITES (ulubione), PLUCKS, LEADS, SUPERSAWS, PADS, BASS, KEYS, EXPERIMENTAL, FESTIVAL, EUPHORIC, RAW, CLASSIC, USER.
 Na górze listy **szukanie** po nazwie, kategorii i autorze. Dwuklik = wczytaj. **FAVOURITE** (ta sama gwiazdka co na pasku presetów),
 **RENAME** i **DELETE** (do kosza) dla Twoich presetów, **DUPLICATE** = kopia. **SAVE AS:** nazwa + kategoria + autor

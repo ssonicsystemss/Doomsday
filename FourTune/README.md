@@ -49,8 +49,17 @@ przy CUSTOM klikasz nuty skali), MODE (CLASSIC, EUPHORIC, RAWPHORIC, MELODIC RAW
 długość frazy (1 / 2 / 4 / 8 taktów), zakres oktaw, ROOT BOUNCE (niski bas akordu na słabej części bitu – jak w „No Time To Waste”),
 gałki DENSITY (ile nut), COMPLEXITY (synkopy, nuty przejściowe), REPETITION (ile motyw wraca), MOVEMENT (wielkość skoków),
 RHYTHM (1/4 → 1/8 → shuffle 1/8T → 1/16).
-Tryby zmieniają **zasady**, nie tylko nuty: EUPHORIC = większe skoki i mocne rozwiązanie frazy, CLASSIC = prosty motyw i dużo powtórzeń,
-RAWPHORIC / DARK = ciemniej, chromatyczne przejścia, FESTIVAL = długie nuty i skoki o oktawę, MINIMAL = mało nut.
+Tryby zmieniają **zasady**, nie tylko nuty. CLASSIC, EUPHORIC i RAWPHORIC są zrobione na wzór Twoich plików MIDI (Headhunterz,
+D-Block & S-te-Fan, Brooklyn Bounce, Nasty Boys / Ran-D, Wildstylez, Audiotricz, The Vision & Omegatypez / Sub Zero Project):
+- **CLASSIC** = lead na każdy bit nad bujającym basem, stoi na nucie akordu albo idzie po akordzie, ruch (obrót 2–3 nut) jest na 4. bicie
+  i prowadzi do następnego akordu;
+- **EUPHORIC** = nowa nuta prawie na każdy bit, na „raz” i „trzy” nuty akordu, między nimi przejścia; RHYTHM w środku = bujanie,
+  na skraju = proste ósemki z przytrzymanymi nutami i szesnastką przed taktem (jak „Inception”);
+- **RAWPHORIC** = długa nuta, potem bieg w górę na 3.–4. bicie do następnego taktu (jak „Maze of Memories”).
+Budowa jak w utworach: akordy w molu (i, VI, VII, iv, III i durowe V), jeden na takt; 4 takty = motyw, odpowiedź, motyw na nowym akordzie,
+nowe zakończenie; 8 taktów = te 4 jeszcze raz z nowym ostatnim taktem. Ostatni takt prowadzi z powrotem do pierwszego (pętla się klei).
+Pozostałe tryby: MELODIC RAW / DARK = ciemniej, chromatyczne przejścia, FESTIVAL = długie nuty i skoki o oktawę, MINIMAL = mało nut.
+**SHIFT** (0 / +1 / +2 / +3 bity) = pierwsze bity frazy idą na jej koniec – to, co robiłeś ręcznie w FL („2 pierwsze beaty na koniec”).
 Każda zmiana gałki od razu tworzy melodię od nowa (Ctrl+Z cofa). **GENERATE** = od nowa z tych ustawień, **NEW IDEA** = nowa melodia.
 **PREVIEW** = 4TUNE gra melodię sam (gdy FL gra – w rytm projektu, gdy stoi – na własnym zegarze).
 

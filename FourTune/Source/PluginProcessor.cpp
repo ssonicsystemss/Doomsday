@@ -371,6 +371,7 @@ melody::Settings TuneProcessor::melodySettings()
     m.rhythm = (float) t.getProperty ("rhythm", m.rhythm);
     m.octLow = t.getProperty ("octLow", m.octLow); m.octHigh = t.getProperty ("octHigh", m.octHigh);
     m.rootBounce = (bool) t.getProperty ("bounce", m.rootBounce); m.seed = (uint32_t) (int) t.getProperty ("seed", (int) m.seed);
+    m.shift = t.getProperty ("shift", m.shift);
     return m;
 }
 void TuneProcessor::setMelodySetting (const Identifier& id, const var& v) { melodyTree().setProperty (id, v, nullptr); }

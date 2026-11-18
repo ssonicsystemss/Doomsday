@@ -464,3 +464,12 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   (what the header shows), so after loading a EUPHORIC preset RANDOMIZE still rolled MODERN kicks. Fixed: factory and user presets
   set `vrStyle` too; `RenderTest <out> --rndcheck` checks every style + every factory preset. Rule: one visible setting = one
   source of truth - when two features follow "the style", update both from every path that changes it (header, preset, project).
+
+## 4TUNE "melodie nudnawe, lepiej brzmią jak 2 pierwsze beaty przesunę na koniec" (owner 2026-11-18)
+- The generator put the melodic movement at the START of each bar and resolved at the end. The owner's 12 reference MIDIs
+  (classic / euphoric / rawphoric hits) do the opposite: the lead sits on a chord tone (classic: often the same note on all 4 beats
+  over the triplet bass bounce) and the MOVEMENT is a turn / run on beat 4 (or beats 3-4) that leads INTO the next bar's chord
+  (a pick-up). Moving the first 2 beats to the end fixed that by accident. Rebuilt CLASSIC / EUPHORIC / RAWPHORIC from the refs
+  (voice-led target note per bar, turn into the next target, 4 bars = A B A' new-end, 8 bars = 4 + 4 with a new last bar, the
+  major V) + a SHIFT setting. Rule: derive melody rules from the owner's MIDI (`/home/claude/midtools`-style onset grid per bar:
+  top voice + bass), never from theory alone; check WHERE in the bar the motion happens.

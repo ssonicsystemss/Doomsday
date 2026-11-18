@@ -99,7 +99,7 @@ namespace tuneui
         void syncFromState();
     private:
         void timerCallback() override;
-        juce::ComboBox key, scale, mode, bars, range, gridBox;
+        juce::ComboBox key, scale, mode, bars, range, shift, gridBox;
         std::vector<std::unique_ptr<ValueKnob>> genKnobs;
         juce::TextButton generate { "GENERATE" }, newSeed { "NEW IDEA" }, bounce { "ROOT BOUNCE" }, preview { "PREVIEW" };
         std::array<juce::TextButton, 12> custom;

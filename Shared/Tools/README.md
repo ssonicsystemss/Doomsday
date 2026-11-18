@@ -3,3 +3,4 @@
 - `kick_band_report.py <wav...>` – pasma / centroid / RMS / peak ogona kicka (2. uderzenie przy 150 BPM, WAV 24-bit)
 - `f0_track_example.py` – śledzenie wysokości (autokorelacja) dla screechy
 Większe zestawy: `ForgeOfWrath/Tools` (dopasowywanie kicków, CMA-ES, A/B mp3), `Tools/screech` (Prophecy of Scream).
+- `midi_grid.py <file.mid> [bars]` – onset grid per bar of a MIDI file (top voice, bass in lower case); used to derive the 4TUNE melody rules from the owner's reference MIDIs (no dependencies).

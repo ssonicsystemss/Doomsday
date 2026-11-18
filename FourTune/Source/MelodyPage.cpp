@@ -93,6 +93,8 @@ MelodyPage::MelodyPage (TuneProcessor& p) : Page (p)
         static const int lo[] { 3, 4, 5, 4, 3 }, hi[] { 4, 5, 6, 6, 5 };
         proc.setMelodySetting ("octLow", lo[i]); proc.setMelodySetting ("octHigh", hi[i]); regen();
     });
+    combo (shift, { "SHIFT 0", "SHIFT +1 BEAT", "SHIFT +2 BEATS", "SHIFT +3 BEATS" }, [this, regen] (int i) { proc.setMelodySetting ("shift", i); regen(); });
+    shift.setTooltip ("The first beats of the phrase move to its end (the melody starts with a pick-up)");
     key.setTooltip ("Key"); scale.setTooltip ("Scale (CUSTOM: pick the notes below)"); mode.setTooltip ("Hardstyle mode: changes the rules, not just the notes");
     bars.setTooltip ("Phrase length"); range.setTooltip ("Octave range of the melody");
 
@@ -184,6 +186,7 @@ void MelodyPage::syncFromState()
     bars.setSelectedItemIndex (m.bars <= 1 ? 0 : m.bars <= 2 ? 1 : m.bars <= 4 ? 2 : 3, dontSendNotification);
     const int ri = m.octLow == 3 && m.octHigh == 4 ? 0 : m.octLow == 5 ? 2 : m.octLow == 4 && m.octHigh == 6 ? 3 : m.octLow == 3 ? 4 : 1;
     range.setSelectedItemIndex (ri, dontSendNotification);
+    shift.setSelectedItemIndex (jlimit (0, 3, m.shift), dontSendNotification);
     const float vals[] { m.density, m.complexity, m.repetition, m.movement, m.rhythm };
     for (size_t i = 0; i < genKnobs.size(); ++i) genKnobs[i]->setValueQuiet (vals[i]);
     bounce.setToggleState (m.rootBounce, dontSendNotification);
@@ -209,7 +212,8 @@ void MelodyPage::resized()
     bars.setBounds (x, y, 96, 28); x += 104;
     range.setBounds (x, y, 98, 28); x += 106;
     bounce.setBounds (gen.getX() + 16, y + 40, 150, 28);
-    for (int k = 0; k < 12; ++k) custom[(size_t) k].setBounds (gen.getX() + 176 + k * 44, y + 40, 40, 28);
+    shift.setBounds (gen.getX() + 176, y + 40, 150, 28);
+    for (int k = 0; k < 12; ++k) custom[(size_t) k].setBounds (gen.getX() + 336 + k * 40, y + 40, 36, 28);
     int kx = x + 8;
     for (auto& k : genKnobs) { k->setBounds (kx, gen.getY() + 34, 88, Knob::heightFor (40) + 16); kx += 92; }
     generate.setBounds (gen.getRight() - 196, gen.getY() + 46, 180, 50);

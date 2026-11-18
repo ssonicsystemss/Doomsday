@@ -142,7 +142,7 @@ int main (int argc, char** argv)
                 p.currentPresetName().toRawUTF8(), peakOf (out), (int) hasNaN (out));
         return 0;
     }
-    // RenderTest <out.mid> --melody [mode] [seed] [key] [scale] [bars]   a generated melody as a MIDI file (demos)
+    // RenderTest <out.mid> --melody [mode] [seed] [key] [scale] [bars] [shift] [rhythm]   a generated melody as a MIDI file (demos)
     if (argc > 2 && String (argv[2]) == "--melody")
     {
         melody::Settings m;
@@ -151,6 +151,8 @@ int main (int argc, char** argv)
         if (argc > 5) m.key = String (argv[5]).getIntValue();
         if (argc > 6) m.scale = String (argv[6]).getIntValue();
         if (argc > 7) m.bars = String (argv[7]).getIntValue();
+        if (argc > 8) m.shift = String (argv[8]).getIntValue();
+        if (argc > 9) m.rhythm = (float) String (argv[9]).getDoubleValue();
         melody::Generator g; auto v = g.generate (m);
         melody::writeMidi (v, 150.0, outArg);
         printf ("melody %s %s %s, %d notes -> %s\n", melody::modeName (m.mode), melody::keyName (m.key), melody::scaleName (m.scale), (int) v.size(), outArg.getFileName().toRawUTF8());
@@ -326,12 +328,12 @@ int main (int argc, char** argv)
                 for (uint32_t seed = 1; seed <= 12; ++seed)
                     for (int bars : { 1, 2, 4, 8 })
                     {
-                        melody::Settings m; m.mode = mo; m.scale = sc; m.seed = seed; m.bars = bars; m.key = (int) (seed % 12);
+                        melody::Settings m; m.mode = mo; m.scale = sc; m.seed = seed; m.bars = bars; m.key = (int) (seed % 12); m.shift = (int) (seed % 4);
                         melody::Generator g; auto v = g.generate (m);
                         double end = 0; int prev = -1; double iv = 0; int lead = 0;
                         for (auto& n : v)
                         {
-                            allOk &= melody::inScale (m, n.pitch) && n.len > 0 && n.start >= 0 && n.vel > 0 && n.vel <= 127;
+                            allOk &= melody::inKey (m, n.pitch) && n.len > 0 && n.start >= 0 && n.vel > 0 && n.vel <= 127;
                             allOk &= n.pitch >= 12 * (m.octLow + 1) - 26 && n.pitch <= 12 * (m.octHigh + 2) - 1;
                             end = jmax (end, n.start + n.len);
                             if (n.pitch >= 12 * (m.octLow + 1)) { if (prev >= 0) iv += std::abs (n.pitch - prev); prev = n.pitch; ++lead; }

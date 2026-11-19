@@ -169,7 +169,7 @@ namespace fge::gui
             { place (combo (k, cap), x, y1 - 14, 130, 22); x += 136; }
             std::vector<K> top { { "scr_level", "LEVEL", false }, { "scr_width", "WIDTH", false } };
             if (roundToInt (raw ("scr_pitch_mode")) == 2) top.push_back ({ "scr_base_hz", "BASE HZ", false });
-            knobRow (top, x + 10, 30);
+            knobRow (top, x + 14, 40);
             const int y2 = 150, y3 = 214;
             if (scrView == SvSource)
             {
@@ -412,7 +412,7 @@ namespace fge::gui
     void ScreechPage::paint (Graphics& g)
     {
         const auto& c = palette();
-        g.setColour (c.panel); g.fillRoundedRectangle (Rectangle<int> (0, 62, getWidth(), 262).toFloat(), 4.f);
+        g.setColour (c.panel); g.fillRoundedRectangle (Rectangle<int> (0, 36, getWidth(), 288).toFloat(), 4.f);     // (GUI v2: the header row with LEVEL / WIDTH sits inside)
         g.setColour (c.textDim); g.setFont (FontOptions (10.5f, Font::bold));
         for (auto& [comp, cap] : captions) if (comp->isVisible()) g.drawText (cap, comp->getX(), comp->getY() - 12, comp->getWidth() + 30, 11, Justification::centredLeft);
         for (auto& [r, t] : titles) g.drawText (t, r, Justification::centredLeft);

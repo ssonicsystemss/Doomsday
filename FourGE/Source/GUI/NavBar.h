@@ -71,6 +71,8 @@ namespace fge::gui
         // GUI v2 (owner 2026-11-19, Design/GUI_V2.md): the navigation runs along the top - row 1 = the 5 blocks,
         // row 2 = the pages of the current block (a click on a block opens the page you had there last)
         std::function<juce::Font (float height, bool bold)> font;
+        std::function<juce::Font (float height)> headFont;               // row 1 (the blocks): the wide heading font
+        juce::Font hf (float h) const { return headFont ? headFont (h) : f (h, true); }
         static constexpr int rowH = 52, row2H = 36;
         static juce::String display (const juce::String& n)
         {
@@ -89,7 +91,7 @@ namespace fge::gui
             int x = 0, n = 0;
             for (auto& b : blocks())
             {
-                const int w = juce::GlyphArrangement::getStringWidthInt (f (15.f, true), display (b.name)) + 30;
+                const int w = juce::GlyphArrangement::getStringWidthInt (hf (12.f), display (b.name)) + 30;
                 if (n == block) return { x, 0, w, rowH };
                 x += w; ++n;
             }
@@ -132,7 +134,7 @@ namespace fge::gui
                 const auto r = blockBounds (n);
                 const bool here = n == cur, hov = hover >= 0 && hover < 100 && pageAt (getMouseXYRelative()) >= 0 && r.contains (getMouseXYRelative());
                 g.setColour (here ? c.silver : (hov ? c.silver.withAlpha (0.85f) : c.textDim));
-                g.setFont (f (15.f, true));
+                g.setFont (hf (12.f));
                 g.drawText (display (blocks()[(size_t) n].name), r, juce::Justification::centred);
                 if (here) { g.setColour (c.red); g.fillRect (r.getX() + 12, r.getBottom() - 2, r.getWidth() - 24, 2); }
             }

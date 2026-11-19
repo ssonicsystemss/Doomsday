@@ -14,7 +14,7 @@ namespace fge::gui
         juce::Colour red     { 0xffe33135 };   // Blood Red - main accent
         juce::Colour hot     { 0xfff05a50 };   // Hot Red - active elements
         juce::Colour silver  { 0xffd5d7da };   // Cold Silver - text, markings
-        juce::Colour textDim { 0xff8d9299 };
+        juce::Colour textDim { 0xffa2a7ae };     // (GUI v2 + Michroma: brighter, the thin font must stay readable)
         juce::Colour grid    { 0xff23262b };
         // the part colour code (waveform, envelopes, time markers, layer editors)
         bool glass = false;                    // SMOKE (liquid glass, owner 2026-11-14): blurred glows behind translucent panels

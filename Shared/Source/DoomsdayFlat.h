@@ -63,6 +63,10 @@ namespace doomsday::flat
         // a TextButton with getProperties()["primary"] = true is drawn as the filled accent button
         static void makePrimary (juce::Button& b) { b.getProperties().set ("primary", true); }
         // a plugin may use its own type family (4GE GUI v2: Barlow Semi Condensed); every font() call follows
+        float sizeScale = 1.f;                     // a wide family (4GE: Michroma) draws every font() a little smaller
+        // a plugin may shorten knob labels (producer abbreviations) and brighten them (4GE GUI v2)
+        virtual juce::String shortLabel (const juce::String& s) const { return s; }
+        virtual juce::Colour knobLabelColour (bool hot) const;
         void setTypefaces (juce::Typeface::Ptr medium, juce::Typeface::Ptr semiBold, juce::Typeface::Ptr bold)
         {
             tf[Medium] = medium; tf[SemiBold] = semiBold; tf[Bold] = bold;

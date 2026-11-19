@@ -14,9 +14,66 @@ namespace fge::gui
         GeLook()
         {
             using namespace juce;
-            setTypefaces (Typeface::createSystemTypefaceFor (BinaryData::BarlowSemiCondensedMedium_ttf, BinaryData::BarlowSemiCondensedMedium_ttfSize),
-                          Typeface::createSystemTypefaceFor (BinaryData::BarlowSemiCondensedSemiBold_ttf, BinaryData::BarlowSemiCondensedSemiBold_ttfSize),
-                          Typeface::createSystemTypefaceFor (BinaryData::BarlowSemiCondensedBold_ttf, BinaryData::BarlowSemiCondensedBold_ttfSize));
+            // owner 2026-11-19: "B (Michroma), ale musi być ta czcionka wszędzie" - one wide technical family for everything;
+            // it is much wider than Barlow, so every font() is drawn a little smaller (sizeScale) to keep the layouts
+            auto mi = Typeface::createSystemTypefaceFor (BinaryData::MichromaRegular_ttf, BinaryData::MichromaRegular_ttfSize);
+            setTypefaces (mi, mi, mi);
+            sizeScale = 1.06f;
+            headTf = mi;
+            pctTf = Typeface::createSystemTypefaceFor (BinaryData::BarlowSemiCondensedSemiBold_ttf, BinaryData::BarlowSemiCondensedSemiBold_ttfSize);
+        }
+        juce::Typeface::Ptr pctTf;      // Michroma's "%" reads like "0/0" - every % is drawn in Barlow
+
+        void drawLabel (juce::Graphics& g, juce::Label& l) override
+        {
+            using namespace juce;
+            const auto text = l.getText();
+            if (l.isBeingEdited() || ! text.containsChar ('%')) { FlatLookAndFeel::drawLabel (g, l); return; }
+            g.fillAll (l.findColour (Label::backgroundColourId));
+            const Font f = getLabelFont (l);
+            const Font pf (FontOptions (pctTf).withHeight (f.getHeight() * 1.08f));
+            StringArray parts; parts.addTokens (text, "%", "");
+            float w = 0.f;
+            const float pw = GlyphArrangement::getStringWidth (pf, "%");
+            for (int i = 0; i < parts.size(); ++i) { w += GlyphArrangement::getStringWidth (f, parts[i]); if (i < parts.size() - 1) w += pw; }
+            auto area = getLabelBorderSize (l).subtractedFrom (l.getLocalBounds()).toFloat();
+            const auto j = l.getJustificationType();
+            float x = j.testFlags (Justification::left) ? area.getX() : j.testFlags (Justification::right) ? area.getRight() - w : area.getCentreX() - w * 0.5f;
+            g.setColour (l.findColour (Label::textColourId).withMultipliedAlpha (l.isEnabled() ? 1.f : 0.5f));
+            for (int i = 0; i < parts.size(); ++i)
+            {
+                g.setFont (f); const float pwid = GlyphArrangement::getStringWidth (f, parts[i]);
+                g.drawText (parts[i], Rectangle<float> (x, area.getY(), pwid + 1.f, area.getHeight()), Justification::centredLeft, false); x += pwid;
+                if (i < parts.size() - 1) { g.setFont (pf); g.drawText ("%", Rectangle<float> (x, area.getY(), pw + 1.f, area.getHeight()), Justification::centredLeft, false); x += pw; }
+            }
+        }
+        juce::Typeface::Ptr headTf;
+        juce::Font head (float h, float kerning = 0.02f) const { return juce::Font (juce::FontOptions (headTf).withHeight (h)).withExtraKerningFactor (kerning); }
+
+        // owner 2026-11-19: "ważne, żeby były widoczne - możesz używać skrótów, ale takich, które są znane producentom"
+        juce::String shortLabel (const juce::String& s) const override { return abbrev (s).toUpperCase(); }   // (Michroma reads best in capitals)
+        juce::Colour knobLabelColour (bool hot) const override { return hot ? palette().silver : juce::Colour (0xffb4b8be); }
+        static juce::String abbrev (const juce::String& s)
+        {
+            static const std::pair<const char*, const char*> map[] {
+                { "LENGTH", "LEN" }, { "ATTACK", "ATK" }, { "DECAY", "DEC" }, { "SUSTAIN", "SUS" }, { "RELEASE", "REL" },
+                { "RESONANCE", "RES" }, { "FREQUENCY", "FREQ" }, { "FEEDBACK", "FB" }, { "AMOUNT", "AMT" }, { "THRESHOLD", "THRESH" },
+                { "DETUNE", "DET" }, { "VELOCITY", "VEL" }, { "OUTPUT", "OUT" }, { "INPUT", "IN" }, { "LEVEL", "LVL" },
+                { "TRANSIENT", "TRANS" }, { "SMOOTH", "SMTH" }, { "DISTORTION", "DIST" }, { "SATURATION", "SAT" },
+                { "MODULATION", "MOD" }, { "ENVELOPE", "ENV" }, { "FILTER", "FLT" }, { "SPREAD", "SPRD" }, { "PRE-DELAY", "PRE-DLY" },
+                { "PREDELAY", "PRE-DLY" }, { "DELAY", "DLY" }, { "REVERB", "RVB" }, { "HARMONICS", "HARM" }, { "HARMONIC", "HARM" },
+                { "CROSSOVER", "X-OVER" }, { "FUNDAMENTAL", "FUND" }, { "OSCILLATOR", "OSC" }, { "FREQ", "FREQ" }, { "SEMITONES", "ST" },
+                { "TRACKING", "TRK" }, { "CHARACTER", "CHAR" }, { "INTENSITY", "INT" }, { "POSITION", "POS" }, 
+                { "TENSION", "TENS" }, { "FREQUENCY", "FREQ" }, { "BALANCE", "BAL" }, { "SIDECHAIN", "SC" }, { "LOOKAHEAD", "LOOK" },
+                { "PROBABILITY", "PROB" }, { "QUALITY", "QUAL" }, { "VOLUME", "VOL" } };
+            juce::StringArray w; w.addTokens (s, " ", "");
+            for (auto& x : w)
+            {
+                const auto up = x.toUpperCase();
+                for (auto& [a, b] : map)
+                    if (up == a) { x = x == up ? juce::String (b) : juce::String (b).substring (0, 1) + juce::String (b).substring (1).toLowerCase(); break; }
+            }
+            return w.joinIntoString (" ");
         }
 
         // buttons (GUI v2): a quiet outline, filled only when it is ON / selected, sentence-case text (short acronyms stay)
@@ -82,7 +139,7 @@ namespace fge::gui
         juce::Typeface::Ptr getTypefaceForFont (const juce::Font& f) override
         {
             if (f.getTypefaceName() == juce::Font::getDefaultSansSerifFontName())
-                return font (10.f, f.isBold() ? doomsday::flat::Bold : doomsday::flat::Medium).getTypefacePtr();
+                return headTf;
             return FlatLookAndFeel::getTypefaceForFont (f);
         }
 

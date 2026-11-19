@@ -47,7 +47,7 @@ FlatLookAndFeel::FlatLookAndFeel()
 
 Font FlatLookAndFeel::font (float h, Weight w, float k) const
 {
-    auto o = FontOptions (tf[w]).withHeight (h);
+    auto o = FontOptions (tf[w]).withHeight (h * sizeScale);
     if (k != 0.f) o = o.withKerningFactor (k);
     return Font (o);
 }
@@ -270,12 +270,15 @@ void Knob::setModulation (float depth, float now)
     slider.repaint();
 }
 
+Colour FlatLookAndFeel::knobLabelColour (bool hot) const { return hot ? tokens().text : tokens().textMute; }
+
 void Knob::paint (Graphics& g)
 {
     if (label.isEmpty()) return;
-    g.setFont (lnfOf (*this).font (diameter >= 80 ? 12.f : 10.5f, SemiBold, 0.02f));
-    g.setColour (slider.isMouseOverOrDragging() ? tokens().text : tokens().textMute);
-    g.drawText (label, labelArea, Justification::centred);
+    auto& lf = lnfOf (*this);
+    g.setFont (lf.font (diameter >= 80 ? 12.f : 10.5f, SemiBold, 0.02f));
+    g.setColour (lf.knobLabelColour (slider.isMouseOverOrDragging()));
+    g.drawFittedText (lf.shortLabel (label), labelArea, Justification::centred, 1, 0.85f);
 }
 
 void Knob::resized()
@@ -382,7 +385,7 @@ void Segmented::paint (Graphics& g)
         else if (i == hover) { g.setColour (t.border.withAlpha (0.5f)); g.fillRoundedRectangle (it, 6.f); }
         g.setFont (lnf.font (11.5f, SemiBold, 0.02f));
         g.setColour (sel ? t.text : t.textDim);
-        g.drawText (labels[i], it, Justification::centred);
+        g.drawFittedText (lnfOf (*this).shortLabel (labels[i]), it.toNearestInt().reduced (2, 0), Justification::centred, 1, 0.8f);
     }
 }
 

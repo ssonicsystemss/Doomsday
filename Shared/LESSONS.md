@@ -491,3 +491,8 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   sentences on screen (tooltips + a status bar), navigation on top, MAIN = a CONSOLE (one strip per part, the strip name =
   all parameters) with a LANES view. Show the owner rendered PNG mockups (he cannot open canvas links on the phone),
   3 different layouts, then build the one he picks. Rule: a new GUI starts from a mockup PNG he approved, not from code.
+
+## 4GE font: Michroma everywhere, but "ważne, żeby były widoczne" (owner 2026-11-19)
+- A wide display font (Michroma) at small sizes is thin and its lower case reads tiny; its "%" looks like "0/0" ("25%" -> "250/0").
+  Fix: labels in CAPITALS, producer abbreviations (LEN / ATK / REL / RES / AMT ...), brighter label grey, "%" drawn in a plain
+  font, full-size fonts (no shrinking), wider segmented controls. Show the owner fonts on a real crop of the plugin, not names.

@@ -16,7 +16,9 @@ Rejected: themed / glowing / ornate (the TikTok "Screecher" look) – "nie rób 
 | red | #E33135 | the ONE accent: selection, active, the fader of the selected strip |
 | parts | PUNCH #E33135, BODY #E6A23C, TAIL #9B70D5, SUB #36A9D6, SCREECH #E65B9A, TOK / CLICK #A0A5AD | only on data: arcs, faders, waveform, the strip name bar |
 
-Type: **Barlow Semi Condensed** only (Medium / SemiBold / Bold) – the vernacular of studio hardware labels.
+Type: **Michroma** everywhere (owner 2026-11-19: picked B from 15 wide fonts, "musi być ta czcionka wszędzie"; "ważne, żeby były widoczne – skróty znane producentom").
+Knob / segment labels in CAPITALS with producer abbreviations (`GeLook::abbrev`: LEN, ATK, DEC, SUS, REL, RES, FB, AMT, LVL, VEL...),
+brighter label grey, every "%" drawn in Barlow (Michroma's % reads like "0/0"). (Was: Barlow Semi Condensed.)
 Strip names = Bold caps (the console's scribble strips, the one strong typographic element); knob labels = Medium,
 values = SemiBold; no monospace, no tracked-out eyebrow labels, no middle-dot meta strings.
 

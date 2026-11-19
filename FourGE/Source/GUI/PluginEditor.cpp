@@ -145,6 +145,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     fge::gui::setTheme (uiSet.theme);
     nav.onSelect = [this] (int pg) { if (pg == 0) overview = true; showPage (pg); };     // (Main = back to the CONSOLE)
     nav.font = [this] (float h, bool bold) { return lnf.font (h, bold ? doomsday::flat::Bold : doomsday::flat::Medium); };
+    nav.headFont = [this] (float h) { return lnf.head (h); };
     for (auto* ch : presetBar.getChildren())                                   // GUI v2: the preset buttons drawn like every other button
         if (dynamic_cast<TextButton*> (ch) != nullptr) ch->setLookAndFeel (&lnf);
     nav.isActive = [this] (int pg) { return pageActive (pg); };
@@ -982,8 +983,8 @@ void GeCanvas::paint (Graphics& g)
     g.setColour (c.line); g.drawHorizontalLine (headerArea.getBottom(), 0.f, (float) W);
     doomsday::brand::drawBadge (g, doomsday::brand::headerBadgeArea (1.f, 26.f), 0.55f, RectanglePlacement::xLeft | RectanglePlacement::yMid);
     const int tx = roundToInt (doomsday::brand::headerTextX (1.f));
-    g.setColour (c.silver); g.setFont (lnf.font (26.f, doomsday::flat::Bold, 0.04f));
-    g.drawText ("4GE", tx, 10, 70, 32, Justification::centredLeft);
+    g.setColour (c.silver); g.setFont (lnf.head (24.f, 0.02f));
+    g.drawText ("4GE", tx, 10, 90, 32, Justification::centredLeft);
     g.setColour (c.textDim); g.setFont (lnf.font (11.f, doomsday::flat::Medium));
     g.drawText ("v" + String (versionText), tx, 58, 60, 24, Justification::centredLeft);
     g.setFont (lnf.font (13.f, doomsday::flat::Medium));
@@ -1004,8 +1005,8 @@ void GeCanvas::paint (Graphics& g)
         fge::gui::glassPanel (g, r.toFloat(), 5.f);
         if (title.isNotEmpty())
         {
-            g.setColour (c.silver.withAlpha (0.75f)); g.setFont (lnf.font (13.f, doomsday::flat::SemiBold));
-            g.drawText (title.substring (0, 1) + title.substring (1).toLowerCase(), r.getX() + 14, r.getY() + 8, 300, 20, Justification::left);
+            g.setColour (c.silver.withAlpha (0.75f)); g.setFont (lnf.head (10.5f));
+            g.drawText (title.toUpperCase(), r.getX() + 14, r.getY() + 9, 300, 18, Justification::left);
         }
     };
     // MACROS + GLOBAL (every page)
@@ -1178,8 +1179,8 @@ void GeCanvas::paintLanes (Graphics& g)
     {
         const auto& st = strips[(size_t) laneSel];
         g.setColour (st.col); g.fillRoundedRectangle ((float) inspArea.getX() + 14.f, (float) inspArea.getY() + 16.f, 8.f, 8.f, 2.f);
-        g.setColour (c.silver); g.setFont (lnf.font (16.f, doomsday::flat::Bold, 0.05f));
-        g.drawText (st.name, inspArea.getX() + 30, inspArea.getY() + 10, 200, 20, Justification::centredLeft);
+        g.setColour (c.silver); g.setFont (lnf.head (13.f));
+        g.drawText (st.name, inspArea.getX() + 30, inspArea.getY() + 10, 240, 20, Justification::centredLeft);
     }
     const int headW = 360;
     for (int i = 0; i < 7; ++i)
@@ -1189,8 +1190,8 @@ void GeCanvas::paintLanes (Graphics& g)
         fge::gui::glassPanel (g, a.toFloat(), 5.f);
         if (i == laneSel) { g.setColour (c.red.withAlpha (0.7f)); g.drawRoundedRectangle (a.toFloat().reduced (0.5f), 5.f, 1.f); }
         g.setColour (st.col); g.fillRoundedRectangle ((float) a.getX() + 14.f, (float) a.getY() + 12.f, 8.f, 8.f, 2.f);
-        g.setColour (c.silver); g.setFont (lnf.font (14.f, doomsday::flat::Bold, 0.05f));
-        g.drawText (st.name, a.getX() + 28, a.getY() + 6, 110, 20, Justification::centredLeft);
+        g.setColour (c.silver); g.setFont (lnf.head (11.f));
+        g.drawText (st.name, a.getX() + 28, a.getY() + 6, 120, 20, Justification::centredLeft);
         if (st.type == nullptr) { g.setColour (c.textDim); g.setFont (lnf.font (12.5f, doomsday::flat::Medium)); g.drawText (i == 3 ? "Tonal" : "Sine", a.getX() + 16, a.getY() + a.getHeight() / 2 + 2, 110, 22, Justification::centredLeft); }
         g.setColour (c.textDim); g.setFont (lnf.font (12.f, doomsday::flat::Medium));
         g.drawText ("Level", a.getX() + 146, a.getY() + 6, 50, 20, Justification::centredLeft);
@@ -1254,7 +1255,7 @@ void GeCanvas::layoutConsole()
         st.nameArea = { st.area.getX(), st.area.getBottom() - 40, st.area.getWidth(), 40 };
         const int by = st.nameArea.getY() - 30;
         if (st.buttons.size() == 2) { st.buttons[0]->setBounds (st.area.getCentreX() - 31, by, 28, 20); st.buttons[1]->setBounds (st.area.getCentreX() + 3, by, 28, 20); }
-        else if (st.buttons.size() == 1) st.buttons[0]->setBounds (st.area.getCentreX() - jmin (60, a.getWidth() / 2), by, jmin (120, a.getWidth()), 20);
+        else if (st.buttons.size() == 1) st.buttons[0]->setBounds (a.getX(), by, a.getWidth(), 20);
         const int fy = a.getY() + 42 + kh + 10;
         st.faderArea = { a.getX(), fy, a.getWidth(), by - 10 - fy };
         if (st.fader != nullptr) st.fader->setBounds (st.faderArea.getCentreX() - 10, fy, 30, st.faderArea.getHeight());
@@ -1276,8 +1277,8 @@ void GeCanvas::paintConsole (Graphics& g)
     auto title = [&] (Rectangle<int> r, const char* t)
     {
         fge::gui::glassPanel (g, r.toFloat(), 5.f);
-        g.setColour (c.silver.withAlpha (0.75f)); g.setFont (lnf.font (13.f, doomsday::flat::SemiBold));
-        g.drawText (t, r.getX() + 14, r.getY() + 8, 200, 20, Justification::left);
+        g.setColour (c.silver.withAlpha (0.75f)); g.setFont (lnf.head (10.5f));
+        g.drawText (String (t).toUpperCase(), r.getX() + 14, r.getY() + 9, 200, 18, Justification::left);
     };
     title (pitchPanel, "Pitch");
     title (masterPanel, "Master");
@@ -1301,7 +1302,7 @@ void GeCanvas::paintConsole (Graphics& g)
         const auto nb = st.nameArea;
         g.setColour (c.ground.darker (0.15f)); g.fillRect (nb.reduced (1, 0).withTrimmedBottom (1));
         g.setColour (st.col); g.fillRect (nb.getX() + 1, nb.getY(), nb.getWidth() - 2, 2);
-        g.setColour (c.silver); g.setFont (lnf.font (14.f, doomsday::flat::Bold, 0.06f));
+        g.setColour (c.silver); g.setFont (lnf.head (11.5f));
         g.drawText (st.name, nb.withTrimmedTop (3).withHeight (20), Justification::centred);
         if (st.fader != nullptr)
         {

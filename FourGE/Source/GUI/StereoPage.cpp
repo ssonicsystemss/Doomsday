@@ -22,7 +22,7 @@ namespace fge::gui
         auto r = getLocalBounds();
         g.setColour (c.panel); g.fillRoundedRectangle (r.toFloat(), 6.f);
         g.setColour (c.textDim); g.setFont (FontOptions (11.f, Font::bold));
-        g.drawText ("OUTPUT  -  VECTOR SCOPE / CORRELATION / MID - SIDE / L - R", r.getX() + 10, r.getY() + 4, r.getWidth() - 20, 14, Justification::left);
+        g.drawText ("Output", r.getX() + 10, r.getY() + 4, r.getWidth() - 20, 14, Justification::left);
         r.removeFromTop (22); r.reduce (10, 6);
         // VECTOR SCOPE: up = mid, sideways = side (a mono sound is a vertical line)
         const int sz = jmin (r.getWidth(), r.getHeight() - 150);

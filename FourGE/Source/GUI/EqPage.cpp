@@ -524,7 +524,6 @@ namespace fge::gui
                 g.setColour (c.ground); g.setFont (FontOptions (9.f, Font::bold)); g.drawText (String (i + 1), (int) pt.x - 6, (int) pt.y - 6, 12, 12, Justification::centred);
             }
         if (tabIdx == TParametric)
-        { g.setColour (c.textDim); g.setFont (FontOptions (10.f)); g.drawText ("drag = frequency / gain, wheel = Q, double-click = new band here, right-click = delete", graph.getRight() - 470, graph.getBottom() + 2, 470, 12, Justification::right); }
         // ---- multiband overview: the 4 bands, their ranges and levels
         if (tabIdx == TMultiband)
         {

@@ -144,7 +144,7 @@ namespace fge::gui
             std::vector<K> env { { "env_attack", "ATTACK", false }, { "env_decay", "DECAY", false }, { "env_sustain", "SUSTAIN", false }, { "env_release", "RELEASE", false } };
             knobRow (env, 0, yk + 96, ks, kw, o);
             knobRow ({ { "filter_xover_low", "SPLIT LOW", false }, { "filter_xover_high", "SPLIT HIGH", false } }, 360, yk + 96);
-            titles.push_back ({ { 0, yk + 84, 300, 12 }, "FILTER ENVELOPE" });
+            titles.push_back ({ { 0, yk + 84, 300, 12 }, "Filter envelope" });
             titles.push_back ({ { 360, yk + 84, 300, 12 }, "SPLIT CROSSOVERS (all filters)" });
         }
         else if (tabIdx == TResonance)
@@ -441,7 +441,7 @@ namespace fge::gui
         // the routing: what sits where (filters F1-F8 / resonators R1-R2 per place, before | after the distortion)
         auto routing = [&] (Rectangle<int> r)
         {
-            auto rr = frame (r, "ROUTING  (before | after distortion)");
+            auto rr = frame (r, "Routing");
             g.setFont (FontOptions (10.5f));
             int line = 0;
             for (int l = 0; l < m6::NumLocs; ++l)
@@ -464,22 +464,22 @@ namespace fge::gui
         if (! shown.valid) return;
         if (tabIdx == TFilters)
         {
-            auto r = frame (graphA, "FILTER RESPONSE  (bright = kick start, dim = later: the envelope moves it)");
+            auto r = frame (graphA, "Filter response");
             hzGrid (r);
             specLine (r, shown.fltLater, accent().withAlpha (0.45f), 18.f, 60.f, 1.2f);
             specLine (r, shown.fltStart, accent(), 18.f, 60.f, 1.8f);
-            auto e = frame (graphB, "FILTER ENVELOPE");
+            auto e = frame (graphB, "Filter envelope");
             Path p; for (size_t k = 0; k < shown.fltEnv.size(); ++k) { const float x = e.getX() + e.getWidth() * (float) k / (float) (shown.fltEnv.size() - 1), y = e.getBottom() - e.getHeight() * shown.fltEnv[k]; k == 0 ? p.startNewSubPath (x, y) : p.lineTo (x, y); }
             g.setColour (accent()); g.strokePath (p, PathStrokeType (1.6f));
             routing (graphC);
         }
         else if (tabIdx == TResonance)
         {
-            auto r = frame (graphA, "RESONANCE  (the resonator's real response)");
+            auto r = frame (graphA, "Resonance");
             hzGrid (r);
             const float top = shown.resResp.empty() ? 0.f : *std::max_element (shown.resResp.begin(), shown.resResp.end()) + 3.f;
             specLine (r, shown.resResp, accent(), top, 70.f, 1.6f);
-            auto e = frame (graphB, "RESONANCE PITCH over the kick");
+            auto e = frame (graphB, "Resonance pitch");
             if (! shown.resPitch.empty())
             {
                 Path p;
@@ -494,11 +494,11 @@ namespace fge::gui
                 g.drawText (String (roundToInt (shown.resPitch.front())) + " Hz -> " + String (roundToInt (shown.resPitch.back())) + " Hz", e.toNearestInt(), Justification::topRight);
             }
             if (! customEd.isVisible()) routing (graphC);
-            else { g.setColour (c.textDim); g.setFont (FontOptions (10.5f, Font::bold)); g.drawText ("CUSTOM SPECTRUM (harmonics 1 - 8)", graphC.getX(), graphC.getY(), graphC.getWidth(), 12, Justification::centredLeft); }
+            else { g.setColour (c.textDim); g.setFont (FontOptions (10.5f, Font::bold)); g.drawText ("Custom spectrum", graphC.getX(), graphC.getY(), graphC.getWidth(), 12, Justification::centredLeft); }
         }
         else
         {
-            auto r = frame (graphA, "SCREECH  (alone - the real render)");
+            auto r = frame (graphA, "Screech");
             if (! shown.scrHi.empty() && shown.scrPeak > 1.0e-6f)
             {
                 const float sc = r.getHeight() * 0.48f / shown.scrPeak;
@@ -509,7 +509,7 @@ namespace fge::gui
                 g.setColour (c.textDim); g.setFont (FontOptions (10.f)); g.drawText (String (roundToInt (shown.scrEndMs)) + " ms", r.toNearestInt(), Justification::bottomRight);
             }
             else { g.setColour (c.textDim); g.setFont (FontOptions (12.f)); g.drawText (raw ("scr_on") > 0.5f ? "silent" : "screech is OFF", r.toNearestInt(), Justification::centred); }
-            auto s = frame (graphB, "SCREECH SPECTRUM");
+            auto s = frame (graphB, "Screech spectrum");
             hzGrid (s);
             if (! shown.scrSpec.empty()) specLine (s, shown.scrSpec, accent(), *std::max_element (shown.scrSpec.begin(), shown.scrSpec.end()) + 3.f, 80.f, 1.4f);
             routing (graphC);

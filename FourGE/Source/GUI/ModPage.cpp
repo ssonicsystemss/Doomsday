@@ -690,7 +690,6 @@ namespace fge::gui
             {
                 const auto& sh = proc.modDesc().lfo[(size_t) lfoSel];
                 for (int k = 0; k < sh.n; ++k) { const auto q = ptAt (sh, k); g.setColour (c.silver); g.fillEllipse (q.x - 4.f, q.y - 4.f, 8.f, 8.f); }
-                g.setColour (c.textDim); g.setFont (FontOptions (9.f)); g.drawText ("click = add point, drag = move, right-click = remove", r.toNearestInt().reduced (6, 3), Justification::bottomLeft);
             }
             const float now = proc.getEngine().srcMon[(size_t) (mo::SLfo1 + lfoSel)].load();
             const float ny = uni ? r.getBottom() - 6.f - now * (r.getHeight() - 12.f) : r.getCentreY() - now * (r.getHeight() * 0.5f - 6.f);
@@ -715,7 +714,7 @@ namespace fge::gui
             g.drawFittedText (destinationMonitor(), r.getX(), r.getY() + 13, r.getWidth(), 24, Justification::topLeft, 2);
             r.removeFromTop (40);
             g.setColour (c.silver); g.setFont (FontOptions (10.f, Font::bold));
-            g.drawText ("SOURCE MONITOR  (drag a source onto a knob)", r.getX(), r.getY(), 280, 14, Justification::centredLeft);
+            g.drawText ("Sources", r.getX(), r.getY(), 280, 14, Justification::centredLeft);
             const int rowsN = (mo::NumSrc) / 2, colW = r.getWidth() / 2, rh = (r.getHeight() - 20) / rowsN;
             for (int s = 1; s < mo::NumSrc; ++s)
             {

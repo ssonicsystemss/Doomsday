@@ -194,7 +194,7 @@ namespace fge::gui
         paintTable (g, tableArea);
         paintFeatures (g, featArea);
         g.setColour (c.textDim); g.setFont (FontOptions (11.f, Font::bold));
-        g.drawText ("SUGGESTIONS (tick, then APPLY - one undo step; nothing changes before)", suggArea.getX(), suggArea.getY(), suggArea.getWidth(), 14, Justification::left);
+        g.drawText ("Suggestions", suggArea.getX(), suggArea.getY(), suggArea.getWidth(), 14, Justification::left);
     }
 
     namespace
@@ -311,7 +311,7 @@ namespace fge::gui
 
     void AnalysisPage::paintBands (Graphics& g, Rectangle<int> a)
     {
-        frame (g, a, "ENERGY PER BAND (dB of the whole kick)");
+        frame (g, a, "Energy per band");
         auto r = a.reduced (8, 18);
         const auto& c = palette();
         const int nb = ka::numBands, w = r.getWidth() / nb;

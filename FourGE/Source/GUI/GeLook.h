@@ -19,6 +19,68 @@ namespace fge::gui
                           Typeface::createSystemTypefaceFor (BinaryData::BarlowSemiCondensedBold_ttf, BinaryData::BarlowSemiCondensedBold_ttfSize));
         }
 
+        // buttons (GUI v2): a quiet outline, filled only when it is ON / selected, sentence-case text (short acronyms stay)
+        static juce::String caseOf (const juce::String& t)
+        {
+            static const juce::StringArray keep { "LUFS", "MIDI", "TOK", "WAV", "FLAC", "AIFF", "A/B", "EQ", "FX", "+FX", "LFO", "DC", "MS", "M/S", "OK", "RND", "FFT" };
+            juce::StringArray w; w.addTokens (t, " ", "");
+            for (auto& x : w)
+            {
+                if (keep.contains (x) || x.length() <= 3 || x.containsAnyOf ("0123456789") || x != x.toUpperCase()) continue;
+                x = x.substring (0, 1) + x.substring (1).toLowerCase();
+            }
+            return w.joinIntoString (" ");
+        }
+        // a page marks its selected tab by giving it a colour (buttonColourId): that tab = filled + a line in that colour
+        static bool marked (const juce::Button& b, juce::Colour bg)
+        {
+            const auto& c = palette();
+            return b.isColourSpecified (juce::TextButton::buttonColourId) && bg.isOpaque() && bg != c.control && bg != c.panel && bg != c.ground;
+        }
+        void drawButtonBackground (juce::Graphics& g, juce::Button& b, const juce::Colour& bg, bool hover, bool down) override
+        {
+            const auto& c = palette();
+            auto r = b.getLocalBounds().toFloat().reduced (0.5f);
+            if ((bool) b.getProperties()["primary"]) { FlatLookAndFeel::drawButtonBackground (g, b, {}, hover, down); return; }
+            if (marked (b, bg))
+            {
+                g.setColour (c.control.brighter (0.22f)); g.fillRoundedRectangle (r, 4.f);
+                g.setColour (bg == c.silver ? c.red : bg); g.fillRect (r.getX() + 6.f, r.getBottom() - 2.5f, r.getWidth() - 12.f, 2.f);
+                return;
+            }
+            const bool on = b.getToggleState();
+            if (on || hover || down) { g.setColour (on ? c.control.brighter (0.22f) : c.control.brighter (down ? 0.15f : 0.06f)); g.fillRoundedRectangle (r, 4.f); }
+            g.setColour (on ? c.line.brighter (0.6f) : c.line.brighter (0.15f)); g.drawRoundedRectangle (r, 4.f, 1.f);
+        }
+        void drawButtonText (juce::Graphics& g, juce::TextButton& b, bool hover, bool) override
+        {
+            const auto& c = palette();
+            if ((bool) b.getProperties()["primary"]) { FlatLookAndFeel::drawButtonText (g, b, hover, false); return; }
+            g.setFont (font (13.5f, doomsday::flat::SemiBold));
+            const bool sel = b.getToggleState() || marked (b, b.findColour (juce::TextButton::buttonColourId));
+            g.setColour (! b.isEnabled() ? c.textDim.withAlpha (0.5f) : (sel || hover ? c.silver : c.silver.withAlpha (0.72f)));
+            g.drawFittedText (caseOf (b.getButtonText()), b.getLocalBounds().reduced (4, 0), juce::Justification::centred, 1, 0.85f);
+        }
+        void drawComboBox (juce::Graphics& g, int w, int h, bool, int, int, int, int, juce::ComboBox& box) override
+        {
+            const auto& c = palette();
+            auto r = juce::Rectangle<float> (0.f, 0.f, (float) w, (float) h).reduced (0.5f);
+            g.setColour (c.ground.darker (0.1f)); g.fillRoundedRectangle (r, 4.f);
+            g.setColour (box.isMouseOver (true) ? c.line.brighter (0.5f) : c.line.brighter (0.15f)); g.drawRoundedRectangle (r, 4.f, 1.f);
+            juce::Path chev; const float ax = (float) w - 14.f, ay = (float) h * 0.5f;
+            chev.startNewSubPath (ax - 4.f, ay - 2.f); chev.lineTo (ax, ay + 2.f); chev.lineTo (ax + 4.f, ay - 2.f);
+            g.setColour (c.textDim); g.strokePath (chev, juce::PathStrokeType (1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        }
+        juce::Font getComboBoxFont (juce::ComboBox&) override { return font (13.5f, doomsday::flat::SemiBold); }
+
+        // every plain font of the plugin (pages that ask for FontOptions (size, bold)) = Barlow, bold = Barlow Bold
+        juce::Typeface::Ptr getTypefaceForFont (const juce::Font& f) override
+        {
+            if (f.getTypefaceName() == juce::Font::getDefaultSansSerifFontName())
+                return font (10.f, f.isBold() ? doomsday::flat::Bold : doomsday::flat::Medium).getTypefacePtr();
+            return FlatLookAndFeel::getTypefaceForFont (f);
+        }
+
         void drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h, float pos, float a0, float a1, juce::Slider& s) override
         {
             using namespace juce;

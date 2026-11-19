@@ -89,7 +89,6 @@ namespace fge::gui
                 g.setColour (i == drag ? c.hot : c.silver); g.fillEllipse (s.x - 4.f, s.y - 4.f, 8.f, 8.f);
             }
             g.setColour (c.textDim); g.setFont (FontOptions (10.f));
-            g.drawText ("drag points - double-click: add / remove", getLocalBounds().reduced (8, 6), Justification::bottomRight);
         }
     }
     void CurveEditor::mouseDown (const MouseEvent& e)
@@ -231,10 +230,10 @@ namespace fge::gui
             if (c != nullptr) { fixedCtl.push_back (std::move (stageCtl.back())); stageCtl.pop_back(); }
             return c;
         };
-        place (fixedKnob ("dist_xover_low", "LOW / MID"), 0, 548, 76, doomsday::flat::Knob::heightFor (28));
-        place (fixedKnob ("dist_xover_high", "MID / HIGH"), 80, 548, 76, doomsday::flat::Knob::heightFor (28));
-        place (fixedCombo ("dist_global_position", "GLOBAL POSITION"), 0, 638, 240, 22);
-        place (fixedCombo ("dist_offline_quality", "OFFLINE RENDER"), 0, 682, 240, 22);
+        place (fixedKnob ("dist_xover_low", "LOW / MID"), 0, 540, 76, doomsday::flat::Knob::heightFor (28));
+        place (fixedKnob ("dist_xover_high", "MID / HIGH"), 80, 540, 76, doomsday::flat::Knob::heightFor (28));
+        place (fixedCombo ("dist_global_position", "GLOBAL POSITION"), 0, 620, 240, 22);
+        place (fixedCombo ("dist_offline_quality", "OFFLINE RENDER"), 0, 662, 240, 22);
         place (fixedCombo ("dist_band_solo", ""), 1110, 304, 104, 24);
         if (auto* c = findControl ("dist_band_solo")) static_cast<ComboBox*> (c)->setTooltip ("Listen to one band of the MULTIBAND distortion (the processed band alone).");
         addAndMakeVisible (curveEd);
@@ -496,7 +495,7 @@ namespace fge::gui
         g.setColour (c.textDim); g.setFont (FontOptions (10.5f, Font::bold));
         g.drawText ("CHAIN: " + Choices::distLocations()[locSel] + "  (runs top -> bottom)", 4, 38, 236, 14, Justification::centredLeft);
         if (rows.empty()) { g.setFont (FontOptions (11.f)); g.drawText ("no stage here - ADD one", 4, 60, 236, 20, Justification::centredLeft); }
-        g.drawText ("CROSSOVERS (multiband)", 4, 534, 236, 12, Justification::centredLeft);
+        g.drawText ("Crossovers", 4, 534, 236, 12, Justification::centredLeft);
         for (auto& [comp, cap] : captions)
             if (comp->isVisible()) g.drawText (cap, comp->getX(), comp->getY() - 12, comp->getWidth() + 30, 11, Justification::centredLeft);
         if (stageSel >= 0)
@@ -510,8 +509,8 @@ namespace fge::gui
         }
         else { g.setColour (c.textDim); g.setFont (FontOptions (13.f)); g.drawText ("Select or ADD a stage", stageArea, Justification::centred); }
         g.setColour (c.textDim); g.setFont (FontOptions (10.5f, Font::bold));
-        g.drawText ("TRANSFER CURVE", transferArea.getX(), 314, 200, 12, Justification::centredLeft);
-        g.drawText ("WAVEFORM  before (line) / after (fill)", waveArea.getX(), 314, 290, 12, Justification::centredLeft);
+        g.drawText ("Transfer curve", transferArea.getX(), 314, 200, 12, Justification::centredLeft);
+        g.drawText ("Waveform", waveArea.getX(), 314, 290, 12, Justification::centredLeft);
         // waveform before / after (the real kick, this stage bypassed / active)
         g.setColour (c.ground); g.fillRoundedRectangle (waveArea.toFloat(), 4.f);
         g.setColour (c.ground); g.fillRoundedRectangle (specArea.toFloat(), 4.f);

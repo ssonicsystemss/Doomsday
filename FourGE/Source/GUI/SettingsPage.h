@@ -53,14 +53,12 @@ namespace fge::gui
             const auto& c = palette();
             glassPanel (g, getLocalBounds().toFloat(), 6.f);
             auto title = [&] (int x, int y, const juce::String& t)
-            { g.setColour (c.red); g.fillRect (x, y + 3, 3, 12); g.setColour (c.silver.withAlpha (0.8f)); g.setFont (juce::FontOptions (11.5f, juce::Font::bold)); g.drawText (t, x + 9, y, 400, 18, juce::Justification::left); };
+            { g.setColour (c.red); g.fillRoundedRectangle ((float) x, (float) y + 5.f, 7.f, 7.f, 2.f); g.setColour (c.silver.withAlpha (0.8f)); g.setFont (juce::FontOptions (11.5f, juce::Font::bold)); g.drawText (t, x + 9, y, 400, 18, juce::Justification::left); };
             title (20, 16, "INTERFACE");
             g.setColour (c.textDim); g.setFont (juce::FontOptions (11.f));
             g.drawText ("SIZE", 20, 48, 120, 16, juce::Justification::left);
             g.drawText ("OPEN ON", 20, 150, 120, 16, juce::Justification::left);
             g.drawText ("LOOK", 330, 150, 120, 16, juce::Justification::left);
-            g.drawFittedText ("The window can also be dragged bigger / smaller at its corner - the size is remembered (for every project).",
-                              20, 104, 560, 32, juce::Justification::topLeft, 2);
             title (640, 16, "MOUSE & KEYBOARD");
             static const char* rows[][2] {
                 { "Double-click a knob", "back to its default" },
@@ -92,9 +90,6 @@ namespace fge::gui
             g.setColour (c.silver); g.setFont (juce::FontOptions (12.f, juce::Font::bold));
             g.drawText (juce::String ("4GE  -  HARDSTYLE KICK DESIGNER  v") + version, 20, 390, 600, 18, juce::Justification::left);
             g.setColour (c.textDim); g.setFont (juce::FontOptions (11.f));
-            g.drawFittedText ("sonicsystems / Doomsday. 17 modules: core, envelopes, oscillators, noise & layers, distortion, filter & screech, EQ, dynamics, "
-                              "modulation, samples, stereo, export, styles, length, presets, analysis, interface. Reverse bass = RE4GE (its own plugin).",
-                              20, 412, 580, 48, juce::Justification::topLeft, 3);
         }
         void resized() override
         {

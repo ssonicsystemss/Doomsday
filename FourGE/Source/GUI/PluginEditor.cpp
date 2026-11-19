@@ -30,6 +30,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
 {
     fge::gui::setTheme (fge::ui::Settings::load().theme);                   // the look before any control takes its colours
     setLookAndFeel (&lnf);
+    LookAndFeel::setDefaultLookAndFeel (&lnf);                                   // (every plain font of every page = Barlow)
     presetBar.setLookAndFeel (&stageLnf);
     const auto& c = palette();
     addAndMakeVisible (presetBar);
@@ -597,7 +598,13 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     startTimerHz (30);
 }
 
-GeCanvas::~GeCanvas() { *alive = false; stopTimer(); presetBar.setLookAndFeel (nullptr); setLookAndFeel (nullptr); }
+GeCanvas::~GeCanvas()
+{
+    *alive = false; stopTimer();
+    for (auto* ch : presetBar.getChildren()) ch->setLookAndFeel (nullptr);
+    presetBar.setLookAndFeel (nullptr); setLookAndFeel (nullptr);
+    if (sharedLook.getReferenceCount() == 1 && &LookAndFeel::getDefaultLookAndFeel() == &lnf) LookAndFeel::setDefaultLookAndFeel (nullptr);
+}
 
 GeCanvas::Knob* GeCanvas::knob (const char* id, const String& labelIn, Colour accent, int d, bool bipolar)
 {
@@ -1837,13 +1844,11 @@ namespace
             const auto& c = palette();
             g.fillAll (c.panel);
             g.setColour (c.textDim); g.setFont (FontOptions (11.f, Font::bold));
-            g.drawText ("KICK LENGTH  -  independent of the STYLE", 12, 6, 400, 14, Justification::left);
-            g.drawText ("LENGTH SYNC (to the tempo)", 12, 112, 300, 14, Justification::left);
-            g.drawText ("EACH PART: how much it follows LENGTH  /  its own length", 12, 176, 400, 14, Justification::left);
+            g.drawText ("Kick length", 12, 6, 400, 14, Justification::left);
+            g.drawText ("Length sync", 12, 112, 300, 14, Justification::left);
+            g.drawText ("Each part", 12, 176, 400, 14, Justification::left);
             const char* nm[4] { "PUNCH", "BODY", "TAIL", "SUB" };
             for (int i = 0; i < 4; ++i) { g.setColour (palette().part[(size_t) i]); g.drawText (nm[i], 12 + i * 125, 194, 120, 14, Justification::centred); }
-            g.setColour (c.textDim); g.setFont (FontOptions (10.f));
-            g.drawText ("KICK END (header): LENGTH / NOTE / +FX - the piano-roll note can end the kick", 12, getHeight() - 18, 500, 14, Justification::left);
         }
         void resized() override
         {

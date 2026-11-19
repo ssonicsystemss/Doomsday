@@ -115,7 +115,8 @@ public:
 private:
 
     GeProcessor& proc;
-    fge::gui::GeLook lnf;                                          // GUI v2: Barlow + the clean knob (Design/GUI_V2.md)
+    juce::SharedResourcePointer<fge::gui::GeLook> sharedLook;       // GUI v2: Barlow + the clean knob (Design/GUI_V2.md), also the default look
+    fge::gui::GeLook& lnf = *sharedLook;
     std::unique_ptr<juce::TooltipWindow> tips;
     doomsday::ui::StageLookAndFeel stageLnf { makeTheme() };      // the shared preset bar draws with the stage look
     static doomsday::ui::Theme makeTheme();

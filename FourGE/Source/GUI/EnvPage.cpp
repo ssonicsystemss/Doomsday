@@ -212,7 +212,7 @@ namespace fge::gui
         {
             if (rawParam (pk + "_penv_on") < 0.5f) { why = "PITCH ENV is OFF - drawing turns it on and switches to CUSTOM"; return false; }
             const int m = roundToInt (rawParam (pitchModeId (part)));
-            if (m != customMode) { why = "Pitch mode is " + def (idOf (pitchModeId (part))).choices()[m] + " - drawing switches it to CUSTOM"; return false; }
+            if (m != customMode) { why = "Drawing switches the pitch mode to Custom"; return false; }
             return true;
         }
         const String e = paramPrefix();
@@ -391,20 +391,18 @@ namespace fge::gui
         g.drawText ("ALL ENVELOPES", left.getX() + 14, 312, 150, 18, Justification::left);
         // which envelope is being edited
         const auto col = c.part[(size_t) part];
-        g.setColour (col); g.fillRect (top.getX() + 12, top.getY() + 11, 3, 12);
-        String what = String ("EDITING:  ") + partName[part] + "  -  " + viewName[view];
+        g.setColour (col); g.fillRoundedRectangle ((float) top.getX() + 10.f, (float) top.getY() + 13.f, 8.f, 8.f, 2.f);
+        String what = String (partName[part]) + "  " + viewName[view];
         String why;
         const bool on = slotActive (why);
         if (view == Pitch) what << "  (" << def (idOf (pitchModeId (part))).choices()[roundToInt (rawParam (pitchModeId (part)))] << ")";
         else what << (on ? "  (DRAWN)" : "  (ADSR / OFF)");
-        g.setColour (c.silver); g.setFont (lnf.font (12.f, doomsday::flat::Bold, 0.08f));
+        g.setColour (c.silver); g.setFont (lnf.font (14.f, doomsday::flat::Bold, 0.04f));
         g.drawText (what, top.getX() + 22, top.getY() + 6, 560, 22, Justification::left);
         // captions over the choice boxes
         g.setFont (lnf.font (9.5f, doomsday::flat::Bold, 0.06f)); g.setColour (c.textDim);
         for (auto& comp : slotCtl)
             if (auto cap = comp->getProperties()["caption"].toString(); cap.isNotEmpty())
                 g.drawText (cap, comp->getX(), comp->getY() - 15, comp->getWidth(), 13, Justification::left);
-        g.drawText ("double-click = add / delete point   drag = move   shift = select   ALT-drag = tension   right-click = curve / value   wheel = zoom",
-                    bottom.getX() + 8, getHeight() - 14, bottom.getWidth() - 16, 12, Justification::left);
     }
 }

@@ -336,11 +336,11 @@ namespace fge::gui
         editor.setColour (viewIdx == ViewNoise ? palette().part[5] : viewIdx == ViewTransient ? palette().part[0] : groupCol (roundToInt (rawOf (proc, lid ("group")))));
         editor.setShape (proc.shape (slot), GeProcessor::slotMin (slot), 1.f);
         String why; bool on = true;
-        if (viewIdx == ViewNoise && noiseEdit == 0 && roundToInt (rawOf (proc, nid ("type"))) != dsp::NkCustom) { on = false; why = "SOURCE is not CUSTOM - drawing switches it to CUSTOM"; }
-        if (viewIdx == ViewNoise && noiseEdit == 1 && roundToInt (rawOf (proc, nid ("env"))) != dsp::NeDrawn) { on = false; why = "ENVELOPE is not DRAWN - drawing switches it to DRAWN"; }
-        if (viewIdx == ViewNoise && noiseEdit == 2 && (rawOf (proc, nid ("mod_on")) < 0.5f || roundToInt (rawOf (proc, nid ("mod_mode"))) != 1)) { on = false; why = "MOD ENV is not DRAWN - drawing switches it on (DRAWN)"; }
-        if (viewIdx == ViewTransient && roundToInt (rawOf (proc, "tr_source")) != dsp::TrCustom) { on = false; why = "SOURCE is not CUSTOM - drawing switches it to CUSTOM"; }
-        if (viewIdx == ViewLayers && roundToInt (rawOf (proc, lid ("env_mode"))) != dsp::LeMulti) { on = false; why = "ENVELOPE is not MULTIPOINT - drawing switches it"; }
+        if (viewIdx == ViewNoise && noiseEdit == 0 && roundToInt (rawOf (proc, nid ("type"))) != dsp::NkCustom) { on = false; why = "Drawing switches the source to Custom"; }
+        if (viewIdx == ViewNoise && noiseEdit == 1 && roundToInt (rawOf (proc, nid ("env"))) != dsp::NeDrawn) { on = false; why = "Drawing switches the envelope to Drawn"; }
+        if (viewIdx == ViewNoise && noiseEdit == 2 && (rawOf (proc, nid ("mod_on")) < 0.5f || roundToInt (rawOf (proc, nid ("mod_mode"))) != 1)) { on = false; why = "Drawing switches the mod envelope on"; }
+        if (viewIdx == ViewTransient && roundToInt (rawOf (proc, "tr_source")) != dsp::TrCustom) { on = false; why = "Drawing switches the source to Custom"; }
+        if (viewIdx == ViewLayers && roundToInt (rawOf (proc, lid ("env_mode"))) != dsp::LeMulti) { on = false; why = "Drawing switches the envelope to Multipoint"; }
         editor.setActive (on, why);
         resized();
     }
@@ -404,7 +404,7 @@ namespace fge::gui
     {
         const auto& c = palette();
         g.setColour (selected ? c.control.brighter (0.15f) : c.panel); g.fillRoundedRectangle (getLocalBounds().toFloat(), 4.f);
-        g.setColour (col); g.fillRect (2, 4, 3, getHeight() - 8);
+        g.setColour (col); g.fillRoundedRectangle (4.f, (float) getHeight() * 0.5f - 4.f, 8.f, 8.f, 2.f);
         g.setColour (c.silver); g.setFont (FontOptions (11.f, Font::bold));
         g.drawText (String (layer + 1), 8, 0, 18, getHeight(), Justification::centredLeft);
         if (auto* page = findParentComponentOfClass<LayerPage>())
@@ -457,8 +457,8 @@ namespace fge::gui
             drawWave (l, 10, c.part[0], "TRANSIENT alone (0 - 80 ms)");
             drawWave (waveArea, 11, c.silver, "the whole kick (0 - 500 ms)");
             g.setColour (c.textDim); g.setFont (FontOptions (10.f, Font::bold));
-            g.drawText ("ATTACK (gain from each hit, LOW / HIGH split)", 0, 166, 420, 12, Justification::left);
-            g.drawText ("TRANSIENT SHAPER (real envelope detector)", 430, 166, 260, 12, Justification::left);
+            g.drawText ("Attack", 0, 166, 420, 12, Justification::left);
+            g.drawText ("Transient shaper", 430, 166, 260, 12, Justification::left);
         }
         else
         {
@@ -466,13 +466,13 @@ namespace fge::gui
             static const char* head[14] { "ON", "GROUP", "SOURCE", "LEVEL", "PITCH", "LENGTH", "PAN", "PHASE", "FLT", "CUTOFF", "DRIVE", "M", "S", "ROUTING" };
             g.drawText ("#  NAME", 8, 40, 90, 12, Justification::left);
             for (int k = 0; k < 14; ++k) g.drawText (head[k], colX (k), 40, 90, 12, Justification::left);
-            g.drawText ("WAVE (this layer alone)", waveX, 40, 160, 12, Justification::left);
+            g.drawText ("WAVE", waveX, 40, 160, 12, Justification::left);
             if (detailIdx == DetTools)
             {
                 g.setColour (c.ground); g.fillRoundedRectangle (alignArea.toFloat(), 5.f);
                 g.setColour (c.textDim); g.setFont (FontOptions (10.f));
-                g.drawText ("RANDOMIZER (LOCKED layers stay)", 0, detailArea.getY() + 26, 400, 12, Justification::left);
-                g.drawText ("PHASE ALIGN: correlation of the TARGET with the REFERENCE for each phase - you decide with APPLY", 0, detailArea.getY() + 116, 740, 12, Justification::left);
+                g.drawText ("Randomizer", 0, detailArea.getY() + 26, 400, 12, Justification::left);
+                g.drawText ("Phase align", 0, detailArea.getY() + 116, 740, 12, Justification::left);
                 if (alignDone && ! lastAlign.corr.empty())
                 {
                     Path p;

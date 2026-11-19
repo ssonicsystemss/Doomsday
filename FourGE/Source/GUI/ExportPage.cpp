@@ -268,10 +268,6 @@ namespace fge::gui
         g.setColour (c.textDim);
         g.drawText ("NAME: " + fge::xp::makeName (s.nameTemplate, np, s.replaceSharp) + fge::xp::extOf (s.format), nameTmpl.getX(), nameTmpl.getBottom() + 2, nameTmpl.getWidth(), 14, Justification::centredLeft, true);
         g.drawText ("PRESET SEED " + String ((juce::int64) proc.presetSeed()), diceBtn.getRight() + 8, diceBtn.getY(), 160, diceBtn.getHeight(), Justification::centredLeft);
-        // the group export note
-        if (s.source > 0 && s.source < 7)
-            g.drawText ("A group export includes the master processing (MASTER CLIP, GLOBAL distortion, MASTER STEREO, MASTER OUTPUT dynamics).", leftArea.getX() + 10,
-                        named["SOURCE"]->getBottom() + 2, leftArea.getWidth() - 20, 14, Justification::centredLeft, true);
         // progress + result
         g.setColour (c.ground); g.fillRoundedRectangle (resultArea.toFloat(), 4.f);
         if (proc.exporter.busy())

@@ -180,7 +180,7 @@ namespace fge::gui
         g.drawText (info, p.reduced (8.f, 4.f).toNearestInt(), Justification::topRight);
         if (! active)
         {
-            g.setColour (c.hot.withAlpha (0.9f)); g.setFont (FontOptions (11.5f, Font::bold));
+            g.setColour (c.textDim); g.setFont (FontOptions (11.5f));                 // (quiet: an explanation, not an alarm - GUI v2)
             g.drawText (inactiveText, p.reduced (10.f, 6.f).toNearestInt(), Justification::topLeft);
         }
     }

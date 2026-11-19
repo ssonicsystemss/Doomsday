@@ -391,7 +391,7 @@ namespace fge::gui
                 if (mine && shown.curveX.size() > 1)
                 { Path p; for (size_t k = 0; k < shown.curveX.size(); ++k) { const auto s = pt (shown.curveX[k], shown.curveY[k]); k == 0 ? p.startNewSubPath (s) : p.lineTo (s); } g.setColour (c.red); g.strokePath (p, PathStrokeType (2.f)); }
                 g.setColour (c.silver); g.setFont (FontOptions (10.f, Font::bold));
-                g.drawText ("IN (dB) -> OUT (dB)   THRESHOLD " + String (thr, 1) + "  RATIO " + String (raw (id ("ratio")), 1) + ":1", r.toNearestInt().reduced (6, 3), Justification::topLeft);
+                g.drawText ("Threshold " + String (thr, 1) + " dB   Ratio " + String (raw (id ("ratio")), 1) + ":1", r.toNearestInt().reduced (6, 3), Justification::topLeft);
             }
             else if (kd == m08t::KLim)
             {
@@ -421,7 +421,7 @@ namespace fge::gui
                     g.setColour (c.grid); g.fillRect (bx, by, bw, 10.f);
                     auto mark = [&] (float v, Colour col) { g.setColour (col); g.fillRect (bx + bw * jlimit (0.f, 1.f, v / 30.f) - 2.f, by - 3.f, 4.f, 16.f); };
                     mark (shown.dryCrest, c.textDim); mark (shown.crest, c.red); if (kd == m08t::KCrest) mark (raw ("crest_target"), c.hot);
-                    g.setColour (c.textDim); g.setFont (FontOptions (9.f)); g.drawText ("0 dB (dense)                    crest                   30 dB (spiky)", (int) bx, (int) by + 14, (int) bw, 10, Justification::centred);
+                    g.setColour (c.textDim); g.setFont (FontOptions (9.f)); g.drawText ("Dense", (int) bx, (int) by + 14, 60, 10, Justification::left); g.drawText ("Spiky", (int) (bx + bw) - 60, (int) by + 14, 60, 10, Justification::right);
                 }
             }
         }
@@ -460,11 +460,11 @@ namespace fge::gui
                     }
                 }
                 if (shown.gr.empty() && kd != m08t::KCrest)
-                { g.setColour (c.textDim); g.setFont (FontOptions (11.f)); g.drawText ("(off, or on a layer: switch it on to see its gain)", gr.toNearestInt(), Justification::centred); }
+                { g.setColour (c.textDim); g.setFont (FontOptions (11.f)); g.drawText ("Off", gr.toNearestInt(), Justification::centred); }
             }
             g.setColour (c.silver); g.setFont (FontOptions (10.f, Font::bold));
             g.drawText (kd == m08t::KCrest ? "SHORT-TERM CREST (10 ms windows, 0..30 dB)" : kd == m08t::KTs ? "TRANSIENT GAIN (orange, +/-18 dB)  -  IN grey / OUT colour"
-                                          : "GAIN REDUCTION (orange, 0..-24 dB from the top)  -  IN grey / OUT colour", histArea.reduced (8, 3), Justification::topLeft);
+                                          : "Gain reduction", histArea.reduced (8, 3), Justification::topLeft);
         }
         // ---- live meters (the plugin playing): IN / OUT peak, GR now / max / average + warnings
         {

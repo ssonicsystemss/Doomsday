@@ -31,3 +31,11 @@ values = SemiBold; no monospace, no tracked-out eyebrow labels, no middle-dot me
    right column = PITCH + MASTER. A switch CONSOLE | LANES on the waveform: LANES = the parts as tracks with their
    envelopes (B) and the selected part's knobs on the right.
 6. Everything sits on an 8 px grid; equal gaps between panels (12 px).
+
+## Stage 2 (2026-11-19 evening): every page
+- Barlow is the default font of the whole plugin (`GeLook::getTypefaceForFont`, shared look = the default look while 4GE is open).
+- Buttons: an outline only, filled when ON / selected; a page's selected tab (its buttonColourId) = filled + a line in that colour.
+  Button text in sentence case (`GeLook::caseOf`, short acronyms stay). Combo boxes: dark field, hairline.
+- No instruction sentences on the pages (23 removed: "drag = ..., double-click = ..."); graph titles are short words.
+  Inactive-drawing notes are quiet grey, one short sentence ("Drawing switches the envelope to Multipoint").
+- Next: per page, bigger structural clean-ups where a page is still crowded (Layers table, Mod matrix, Export).

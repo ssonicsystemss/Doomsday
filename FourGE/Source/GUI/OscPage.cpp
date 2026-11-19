@@ -41,8 +41,6 @@ namespace fge::gui
             g.fillRect (x + 1.f, 4.f + hgt * (1.f - a), jmax (1.f, w - 2.f), hgt * a);
             if (! on) { g.setColour (c.textDim); g.drawLine (x + 1.f, 4.f + hgt, x + w - 1.f, 4.f + hgt - 6.f, 1.f); }
         }
-        g.setColour (c.textDim); g.setFont (FontOptions (9.5f));
-        g.drawText ("drag = amplitude of each harmonic (1 .. 64), right-click = harmonic on / off", getLocalBounds().reduced (6, 4), Justification::topRight);
     }
 
     // ===================================================================== page
@@ -369,7 +367,7 @@ namespace fge::gui
             g.setColour (c.panel); g.fillRoundedRectangle (a.toFloat(), 6.f);
             if (i == sel) { g.setColour (oscCol (i).withAlpha (0.85f)); g.drawRoundedRectangle (a.toFloat().reduced (0.5f), 6.f, 1.5f); }
             const bool on = rawOf (proc, "osc" + String (i + 1) + "_on") > 0.5f;
-            g.setColour (on ? oscCol (i) : c.textDim); g.fillRect (a.getX() + 10, a.getY() + 10, 3, 12);
+            g.setColour (on ? oscCol (i) : c.textDim); g.fillRoundedRectangle ((float) a.getX() + 10.f, (float) a.getY() + 12.f, 8.f, 8.f, 2.f);
             g.setColour (c.silver.withAlpha (on ? 0.9f : 0.5f)); g.setFont (lnf.font (11.5f, doomsday::flat::Bold, 0.08f));
             g.drawText ("OSC " + String (i + 1), a.getX() + 17, a.getY() + 6, 50, 20, Justification::left);
         }
@@ -393,8 +391,7 @@ namespace fge::gui
         if (tab == TabFm)
         {
             g.setColour (c.textDim); g.setFont (lnf.font (10.f, doomsday::flat::Bold));
-            g.drawText ("FM MATRIX: row = modulator, column = carrier", tabContent.getX() + 380, tabContent.getY() + 112, 400, 14, Justification::left);
-            g.drawText ("(the modulator can be MUTED and still modulate)", tabContent.getX() + 8, tabContent.getY() + 140, 360, 14, Justification::left);
+            g.drawText ("FM matrix (rows modulate columns)", tabContent.getX() + 380, tabContent.getY() + 112, 400, 14, Justification::left);
         }
         if (tab == TabTable)
         {
@@ -423,7 +420,7 @@ namespace fge::gui
                 g.setColour (c.textDim); g.setFont (FontOptions (10.f));
                 g.drawText (String (frames) + " frames", tabEditorArea.reduced (8, 4), Justification::topRight);
             }
-            else g.drawText ("set WAVEFORM to WAVETABLE to play a table", hint, Justification::left);
+            else g.drawText ("Wavetable off", hint, Justification::left);
         }
         if (tab == TabPhase)
         {

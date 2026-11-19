@@ -104,6 +104,6 @@ namespace fge::gui
             g.fillRect (bot.getX() + (float) h * bw + 1.f, bot.getBottom() - hh, jmax (1.f, bw - 2.f), hh);
         }
         g.setColour (c.textDim); g.setFont (FontOptions (9.5f));
-        g.drawText ("HARMONICS 1 - 64 (odd red, even light)   0 / -24 / -48 / -72 dB", bot.toNearestInt().removeFromTop (12), Justification::topRight);
+        g.drawText ("Harmonics 1 - 64", bot.toNearestInt().removeFromTop (12), Justification::topRight);
     }
 }

@@ -82,6 +82,7 @@ namespace fge::gui
         diceBtn.setTooltip ("Give this preset a new SEED (noise, random sources, the sequencer probability) - you hear it at once; UNDO goes back.");
         previewBtn.onClick = [this] { previewNow(); };
         exportBtn.onClick = [this] { exportNow (false); };
+        doomsday::flat::FlatLookAndFeel::makePrimary (exportBtn);                 // (GUI v2: the one main action of the page)
         batchBtn.onClick = [this] { exportNow (true); };
         cancelBtn.onClick = [this] { cancel(); proc.samples().stopPreview(); };
         diceBtn.onClick = [this] { proc.setPresetSeed ((uint32_t) Random::getSystemRandom().nextInt (99999) + 1u); repaint(); };
@@ -254,7 +255,7 @@ namespace fge::gui
     {
         const auto& c = palette();
         auto panel = [&] (Rectangle<int> r, const String& t) { g.setColour (c.panel); g.fillRoundedRectangle (r.toFloat(), 6.f); g.setColour (c.textDim); g.setFont (FontOptions (11.f, Font::bold)); g.drawText (t, r.getX() + 10, r.getY() + 4, r.getWidth() - 20, 14, Justification::left); };
-        panel (leftArea, "EXPORT  -  SOURCE / LENGTH / FORMAT / QUALITY / NORMALIZATION / SEED / DESTINATION / BATCH");
+        panel (leftArea, "EXPORT");
         panel (masterArea, "MASTER OUTPUT");
         panel (meterArea, "MASTER METERS");
         panel (histArea, "EXPORT HISTORY");
@@ -276,7 +277,7 @@ namespace fge::gui
             g.setColour (c.red.withAlpha (0.5f)); g.fillRect (resultArea.withWidth ((int) (resultArea.getWidth() * pr)).reduced (2));
             g.setColour (c.silver); g.drawText ("EXPORTING " + String (proc.exporter.current.load() + 1) + " / " + String (proc.exporter.total.load()), resultArea.reduced (8, 4), Justification::topLeft);
         }
-        else { g.setColour (lastOut.existsAsFile() ? c.silver : c.textDim); g.setFont (FontOptions (11.f)); g.drawFittedText (result.isEmpty() ? String ("PREVIEW = listen + measure, EXPORT = write the file.") : result, resultArea.reduced (8, 4), Justification::topLeft, 5); }
+        else { g.setColour (lastOut.existsAsFile() ? c.silver : c.textDim); g.setFont (FontOptions (11.f)); g.drawFittedText (result.isEmpty() ? String() : result, resultArea.reduced (8, 4), Justification::topLeft, 5); }
         // MASTER OUTPUT warnings
         g.setFont (FontOptions (11.f));
         auto on = [this] (const char* id) { return proc.apvts.getRawParameterValue (id)->load() > 0.5f; };
@@ -286,7 +287,7 @@ namespace fge::gui
         if (on ("master_safety_clip")) warn << "SAFETY CLIP ON (it shapes the peaks)  ";
         if (on ("master_safety_limiter")) warn << (proc.getEngine().safetyActive.exchange (false) ? "SAFETY LIMITER REDUCING  " : "SAFETY LIMITER ON  ");
         g.setColour (warn.isEmpty() ? c.textDim : c.hot);
-        g.drawFittedText (warn.isEmpty() ? String ("no safety processing (the export never adds any by itself)") : warn, masterArea.getX() + 10, masterArea.getBottom() - 34, masterArea.getWidth() - 20, 30, Justification::left, 2);
+        g.drawFittedText (warn.isEmpty() ? String() : warn, masterArea.getX() + 10, masterArea.getBottom() - 34, masterArea.getWidth() - 20, 30, Justification::left, 2);
         // METERS
         auto& m = proc.meter;
         auto r = meterArea.reduced (10).withTrimmedTop (18);

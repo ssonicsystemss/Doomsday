@@ -49,6 +49,7 @@ namespace fge::gui
                 return;
             }
             const bool on = b.getToggleState();
+            if ((bool) b.getProperties()["quiet"] && ! on && ! hover && ! down) return;      // (a table cell: no box until the mouse is on it)
             if (on || hover || down) { g.setColour (on ? c.control.brighter (0.22f) : c.control.brighter (down ? 0.15f : 0.06f)); g.fillRoundedRectangle (r, 4.f); }
             g.setColour (on ? c.line.brighter (0.6f) : c.line.brighter (0.15f)); g.drawRoundedRectangle (r, 4.f, 1.f);
         }
@@ -65,8 +66,12 @@ namespace fge::gui
         {
             const auto& c = palette();
             auto r = juce::Rectangle<float> (0.f, 0.f, (float) w, (float) h).reduced (0.5f);
-            g.setColour (c.ground.darker (0.1f)); g.fillRoundedRectangle (r, 4.f);
-            g.setColour (box.isMouseOver (true) ? c.line.brighter (0.5f) : c.line.brighter (0.15f)); g.drawRoundedRectangle (r, 4.f, 1.f);
+            const bool quiet = (bool) box.getProperties()["quiet"], hov = box.isMouseOver (true);   // (a table cell: no box until the mouse is on it)
+            if (! quiet || hov)
+            {
+                g.setColour (c.ground.darker (0.1f)); g.fillRoundedRectangle (r, 4.f);
+                g.setColour (hov ? c.line.brighter (0.5f) : c.line.brighter (0.15f)); g.drawRoundedRectangle (r, 4.f, 1.f);
+            }
             juce::Path chev; const float ax = (float) w - 14.f, ay = (float) h * 0.5f;
             chev.startNewSubPath (ax - 4.f, ay - 2.f); chev.lineTo (ax, ay + 2.f); chev.lineTo (ax + 4.f, ay - 2.f);
             g.setColour (c.textDim); g.strokePath (chev, juce::PathStrokeType (1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));

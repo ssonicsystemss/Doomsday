@@ -38,6 +38,7 @@ namespace fge::gui
         cb->addItemList (def (idx).choices(), 1);
         comboAtt[cb.get()] = std::make_unique<AudioProcessorValueTreeState::ComboBoxAttachment> (proc.apvts, id, *cb);
         cb->setTooltip (fge::tooltip (idx));
+        if (caption.isEmpty()) cb->getProperties().set ("quiet", true);          // (a cell of the layer table)
         auto* r = cb.get(); addAndMakeVisible (r); byId.insert ({ id, r }); if (caption.isNotEmpty()) captions[r] = caption; own.push_back (std::move (cb)); return r;
     }
     Component* LayerPage::bar (std::vector<std::unique_ptr<Component>>& own, const String& id)
@@ -382,7 +383,7 @@ namespace fge::gui
             layoutRows();
             detailArea = { 0, listArea.getBottom() + 6, w, h - listArea.getBottom() - 6 };
             for (int i = 0; i < 3; ++i) detailBtn[(size_t) i].setBounds (i * 90, detailArea.getY(), 86, 24);
-            editArea = { 780, detailArea.getY() + 30, w - 780, 190 };
+            editArea = { 780, detailArea.getY() + 42, w - 780, 190 };
             int bx = 280;
             for (auto* b : { &copyBtn, &pasteBtn, &dupBtn, &delBtn, &upBtn, &downBtn, &renameBtn, &lockBtn }) { b->setBounds (bx, detailArea.getY(), 78, 24); bx += 82; }
             const int ty = detailArea.getY() + 40;
@@ -396,7 +397,7 @@ namespace fge::gui
         for (auto& [c, r] : layoutMap)
         {
             const bool det = std::find_if (detCtl.begin(), detCtl.end(), [cc = c] (auto& u) { return u.get() == cc; }) != detCtl.end();
-            c->setBounds (det ? r.translated (0, detailArea.getY()) : r);
+            c->setBounds (det ? r.translated (0, detailArea.getY() + 12) : r);      // (GUI v2: air under the LAYER / GROUPS / TOOLS row)
         }
     }
 

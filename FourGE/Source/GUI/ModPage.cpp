@@ -38,6 +38,8 @@ namespace fge::gui
             for (auto* b : { &on, &mute, &solo }) { b->setClickingTogglesState (true); addAndMakeVisible (*b); }
             on.setButtonText ("ON"); mute.setButtonText ("M"); solo.setButtonText ("S");
             on.setTooltip ("Switch this connection on / off (the settings stay)."); mute.setTooltip ("Mute this connection."); solo.setTooltip ("Hear only the soloed connections.");
+            for (auto* b : { &src, &pol, &curve, &mode }) b->getProperties().set ("quiet", true);   // (table cells, GUI v2)
+            dst.getProperties().set ("quiet", true);
             src.addItemList (mo::sourceNames(), 1); src.setTooltip ("SOURCE: what moves the target (macro, LFO, sequencer, random, velocity, key, envelopes).");
             pol.addItemList (mo::polNames(), 1); pol.setTooltip ("POLARITY: BIPOLAR = the source's own range, UNIPOLAR + / - = folded into 0..1 / -1..0.");
             curve.addItemList (mo::curveNames(), 1); curve.setTooltip ("CURVE of the response.");
@@ -106,7 +108,7 @@ namespace fge::gui
             g.setColour (c.textDim); g.setFont (FontOptions (10.f, Font::bold));
             g.drawText (String (slot + 1), 0, 0, 24, getHeight(), Justification::centred);
             const auto& d = page.proc.modDesc().slot[(size_t) slot];
-            if (d.src > 0) { g.setColour (srcCol (d.src)); g.fillRect (24, 3, 2, getHeight() - 6); }
+            if (d.src > 0) { g.setColour (srcCol (d.src)); g.fillEllipse (22.f, (float) getHeight() * 0.5f - 2.5f, 5.f, 5.f); }
             // live: BASE (tick) and FINAL (bar) of the target, normalised
             const auto r = Rectangle<float> ((float) liveX, 6.f, (float) (getWidth() - liveX - 4), (float) getHeight() - 12.f);
             g.setColour (c.ground); g.fillRect (r);
@@ -363,7 +365,7 @@ namespace fge::gui
     }
     juce::String ModPage::destinationMonitor() const
     {
-        if (! isPositiveAndBelow (selSlot, mo::numSlots)) return "click a slot number in the matrix: BASE / MODULATION / FINAL of its target";
+        if (! isPositiveAndBelow (selSlot, mo::numSlots)) return "Pick a slot number";
         const auto& d = proc.modDesc().slot[(size_t) selSlot];
         const int id = d.dst.isEmpty() ? -1 : idOf (d.dst);
         if (id < 0 || ! mo::modulatable (id)) return "SLOT " + String (selSlot + 1) + ": no target";

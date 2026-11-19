@@ -41,6 +41,8 @@ namespace fge::gui
         // the last rendered kick (tests): peak per part, length in ms
         std::array<float, 5> lastPeaks() const;
         bool hasRender() const { return ready.load(); }
+        // GUI v2 LANES: the peak envelope of a part (0 PUNCH 1 BODY 2 TAIL 3 SUB) of the last render, 'points' bins, 0..1 of the full kick's peak
+        std::vector<float> partEnvelope (int part, int points, float& msOut) const;
         juce::File writeWav (const juce::File& folder);      // the full kick as 24-bit WAV (also the drag-and-drop file)
         std::function<void()> onRendered;
         static constexpr double rate = 44100.0;

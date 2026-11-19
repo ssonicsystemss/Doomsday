@@ -15,7 +15,8 @@ namespace fge::ui
         bool infoLine = true;
         int startPage = 0;            // -1 = the last page used
         int lastPage = 0;
-        int theme = 1;                // 0 FLAT, 1 SMOKE (liquid glass, owner 2026-11-14)
+        int mainView = 0;             // MAIN: 0 CONSOLE, 1 LANES (GUI v2, owner 2026-11-19 "C z możliwością przełączenia na B")
+        int theme = 0;                // 0 CLEAN (GUI v2, owner 2026-11-19), 1 SMOKE (liquid glass, 2026-11-14)
 
         static juce::File defaultFile()
         {
@@ -35,7 +36,8 @@ namespace fge::ui
                 s.infoLine = xml->getBoolAttribute ("infoLine", true);
                 s.startPage = juce::jlimit (-1, 14, xml->getIntAttribute ("startPage", 0));
                 s.lastPage = juce::jlimit (0, 14, xml->getIntAttribute ("lastPage", 0));
-                s.theme = juce::jlimit (0, 1, xml->getIntAttribute ("theme", 1));
+                s.theme = juce::jlimit (0, 1, xml->getIntAttribute ("look", 0));
+                s.mainView = juce::jlimit (0, 1, xml->getIntAttribute ("mainView", 0));     // ("theme" = the old SMOKE default: GUI v2 starts CLEAN)
             }
             return s;
         }
@@ -43,7 +45,7 @@ namespace fge::ui
         {
             juce::XmlElement x ("FGE_INTERFACE");
             x.setAttribute ("scale", scale); x.setAttribute ("tooltips", tooltips); x.setAttribute ("infoLine", infoLine);
-            x.setAttribute ("startPage", startPage); x.setAttribute ("lastPage", lastPage); x.setAttribute ("theme", theme);
+            x.setAttribute ("startPage", startPage); x.setAttribute ("lastPage", lastPage); x.setAttribute ("look", theme); x.setAttribute ("mainView", mainView);
             return f.getParentDirectory().createDirectory() && x.writeTo (f);
         }
         // the editor scale for a screen area (FIT = the largest of the list that leaves room for the host around it, never above 100 %)

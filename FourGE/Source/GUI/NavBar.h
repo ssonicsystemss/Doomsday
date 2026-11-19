@@ -60,7 +60,7 @@ namespace fge::gui
         std::function<void (int page)> onSelect;
         std::function<bool (int page)> isActive;            // a dot: this page changes the sound now (optional)
 
-        void setCurrent (int p) { if (p != current) { current = p; repaint(); } }
+        void setCurrent (int p) { if (p != current) { current = p; lastIn[(size_t) blockOfPage (p)] = p; repaint(); } }
         int getCurrent() const { return current; }
         void refresh()                                       // (timer) repaint when an active dot changed
         {
@@ -68,53 +68,85 @@ namespace fge::gui
             std::vector<bool> now; for (auto p : order()) now.push_back (isActive (p));
             if (now != lastOn) { lastOn = now; repaint(); }
         }
-        juce::Rectangle<int> itemBounds (int page) const
+        // GUI v2 (owner 2026-11-19, Design/GUI_V2.md): the navigation runs along the top - row 1 = the 5 blocks,
+        // row 2 = the pages of the current block (a click on a block opens the page you had there last)
+        std::function<juce::Font (float height, bool bold)> font;
+        static constexpr int rowH = 52, row2H = 36;
+        static juce::String display (const juce::String& n)
         {
-            int y = 0;
+            if (n == "EQ") return n;
+            return n.substring (0, 1) + n.substring (1).toLowerCase();
+        }
+        juce::Font f (float h, bool bold) const { return font ? font (h, bold) : juce::Font (juce::FontOptions (h, bold ? juce::Font::bold : juce::Font::plain)); }
+        int blockOfPage (int page) const
+        {
+            int n = 0;
+            for (auto& b : blocks()) { for (auto& i : b.items) if (i.page == page) return n; ++n; }
+            return 0;
+        }
+        juce::Rectangle<int> blockBounds (int block) const
+        {
+            int x = 0, n = 0;
             for (auto& b : blocks())
             {
-                y += headH;
-                for (auto& i : b.items) { if (i.page == page) return { 0, y, getWidth(), itemH }; y += itemH; }
-                y += gap;
+                const int w = juce::GlyphArrangement::getStringWidthInt (f (15.f, true), display (b.name)) + 30;
+                if (n == block) return { x, 0, w, rowH };
+                x += w; ++n;
+            }
+            return {};
+        }
+        juce::Rectangle<int> itemBounds (int page) const                // (row 2 of the page's own block)
+        {
+            const auto& b = blocks()[(size_t) blockOfPage (page)];
+            int x = 0;
+            for (auto& i : b.items)
+            {
+                const int w = juce::GlyphArrangement::getStringWidthInt (f (13.5f, false), display (i.name)) + 34;
+                if (i.page == page) return { x, rowH, w, row2H };
+                x += w;
             }
             return {};
         }
         int pageAt (juce::Point<int> p) const
         {
-            for (auto pg : order()) if (itemBounds (pg).contains (p)) return pg;
+            if (p.y < rowH)
+            {
+                for (int n = 0; n < (int) blocks().size(); ++n)
+                    if (blockBounds (n).contains (p))
+                    {
+                        const auto& items = blocks()[(size_t) n].items;
+                        for (auto& i : items) if (i.page == lastIn[(size_t) n]) return i.page;
+                        return items.front().page;
+                    }
+                return -1;
+            }
+            for (auto& i : blocks()[(size_t) blockOfPage (current)].items) if (itemBounds (i.page).contains (p)) return i.page;
             return -1;
         }
         void paint (juce::Graphics& g) override
         {
             const auto& c = palette();
-            int y = 0, n = 1;
-            for (auto& b : blocks())
+            const int cur = blockOfPage (current);
+            for (int n = 0; n < (int) blocks().size(); ++n)
             {
-                bool here = false; for (auto& i : b.items) here |= i.page == current;
-                auto head = juce::Rectangle<int> (0, y, getWidth(), headH - 4);
-                g.setColour (here ? c.panel.brighter (0.06f) : c.panel); g.fillRoundedRectangle (head.toFloat(), 4.f);
-                if (here) { g.setColour (c.red); g.fillRect (head.getX(), head.getY(), 3, head.getHeight()); }
-                g.setColour (here ? c.red : c.textDim); g.setFont (juce::FontOptions (10.f, juce::Font::bold));
-                g.drawText (juce::String (n).paddedLeft ('0', 2), head.withTrimmedLeft (10).withWidth (22), juce::Justification::centredLeft);
-                g.setColour (here ? c.silver : c.silver.withAlpha (0.7f)); g.setFont (juce::FontOptions (11.5f, juce::Font::bold));
-                g.drawText (b.name, head.withTrimmedLeft (36), juce::Justification::centredLeft);
-                y += headH;
-                for (auto& i : b.items)
-                {
-                    auto r = juce::Rectangle<int> (0, y, getWidth(), itemH);
-                    const bool sel = i.page == current, hov = i.page == hover;
-                    if (sel) { g.setColour (c.red.withAlpha (0.16f)); g.fillRect (r.withTrimmedLeft (14)); g.setColour (c.red); g.fillRect (r.getX() + 14, r.getY() + 3, 2, r.getHeight() - 6); }
-                    else if (hov) { g.setColour (c.control.withAlpha (0.6f)); g.fillRect (r.withTrimmedLeft (14)); }
-                    g.setColour (sel ? c.silver : (hov ? c.silver.withAlpha (0.9f) : c.silver.withAlpha (0.62f)));
-                    g.setFont (juce::FontOptions (12.f, sel ? juce::Font::bold : juce::Font::plain));
-                    g.drawText (i.name, r.withTrimmedLeft (26).withTrimmedRight (52), juce::Justification::centredLeft, true);
-                    g.setColour (c.textDim.withAlpha (sel ? 0.9f : 0.55f)); g.setFont (juce::FontOptions (9.f));
-                    g.drawText (i.modules, r.withTrimmedRight (18).withTrimmedLeft (r.getWidth() - 70), juce::Justification::centredRight);
-                    if (isActive && isActive (i.page))
-                    { g.setColour (c.hot); g.fillEllipse ((float) r.getRight() - 12.f, (float) r.getCentreY() - 2.5f, 5.f, 5.f); }
-                    y += itemH;
-                }
-                y += gap; ++n;
+                const auto r = blockBounds (n);
+                const bool here = n == cur, hov = hover >= 0 && hover < 100 && pageAt (getMouseXYRelative()) >= 0 && r.contains (getMouseXYRelative());
+                g.setColour (here ? c.silver : (hov ? c.silver.withAlpha (0.85f) : c.textDim));
+                g.setFont (f (15.f, true));
+                g.drawText (display (blocks()[(size_t) n].name), r, juce::Justification::centred);
+                if (here) { g.setColour (c.red); g.fillRect (r.getX() + 12, r.getBottom() - 2, r.getWidth() - 24, 2); }
+            }
+            g.setColour (c.line); g.drawHorizontalLine (rowH, 0.f, (float) getWidth());
+            for (auto& i : blocks()[(size_t) cur].items)
+            {
+                const auto r = itemBounds (i.page);
+                const bool sel = i.page == current, hov = i.page == hover;
+                g.setColour (sel ? c.silver : (hov ? c.silver.withAlpha (0.85f) : c.textDim));
+                g.setFont (f (13.5f, sel));
+                g.drawText (display (i.name), r, juce::Justification::centred);
+                if (sel) { g.setColour (c.silver.withAlpha (0.6f)); g.fillRect (r.getX() + 14, r.getBottom() - 6, r.getWidth() - 28, 1); }
+                if (isActive && isActive (i.page))
+                { g.setColour (c.hot); g.fillEllipse ((float) r.getRight() - 12.f, (float) r.getY() + 10.f, 4.f, 4.f); }
             }
         }
         void mouseMove (const juce::MouseEvent& e) override { const int h = pageAt (e.getPosition()); if (h != hover) { hover = h; repaint(); } setMouseCursor (h >= 0 ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor); }
@@ -123,13 +155,13 @@ namespace fge::gui
         juce::String getTooltip() override
         {
             const auto p = getMouseXYRelative();
-            const int pg = pageAt (p);
+            const int pg = p.y >= rowH ? pageAt (p) : -1;
             return pg >= 0 ? pageTip (pg) : juce::String();
         }
-        static constexpr int headH = 32, itemH = 27, gap = 10;
-        int contentHeight() const { int h = 0; for (auto& b : blocks()) h += headH + (int) b.items.size() * itemH + gap; return h; }
+        int contentWidth() const { return blockBounds ((int) blocks().size() - 1).getRight(); }
     private:
         int current = 0, hover = -1;
+        std::array<int, 8> lastIn { -1, -1, -1, -1, -1, -1, -1, -1 };
         std::vector<bool> lastOn;
     };
 

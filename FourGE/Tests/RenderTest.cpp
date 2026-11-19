@@ -248,6 +248,13 @@ int main (int argc, char** argv)
             PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
             FileOutputStream os (File (argv[1]).getChildFile ("page" + String (pg).paddedLeft ('0', 2) + ".png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
         }
+        {                                                                                   // GUI v2: the LANES view of MAIN
+            ge->canvas.setMainView (1); ge->canvas.selectLane (2);
+            for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+            PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os (File (argv[1]).getChildFile ("page00_lanes.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            ge->canvas.setMainView (0);
+        }
         ge->canvas.showPage (0); ge->canvas.selectPart (0);
         { PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
           FileOutputStream os (File (argv[1]).getChildFile ("page00_punch.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); } }
@@ -4469,7 +4476,7 @@ int main (int argc, char** argv)
         // LENGTH panel (module 14)
         {
             auto* lp = ge->canvas.openLengthPanel();
-            const bool ok = lp != nullptr && lp->getNumChildComponents() >= 14 && ge->canvas.lengthButton().isVisible();
+            const bool ok = lp != nullptr && lp->getNumChildComponents() >= 14;     // (GUI v2: the panel opens from the LENGTH right-click)
             if (lp != nullptr)
             {
                 PNGImageFormat png; auto img = lp->createComponentSnapshot (lp->getLocalBounds());
@@ -4624,8 +4631,9 @@ int main (int argc, char** argv)
             bool clicks = true;
             for (int pg : order)
             {
-                const auto r = cv.navigation().itemBounds (pg);
-                cv.navigation().onSelect (cv.navigation().pageAt (r.getCentre()));
+                auto& nv = cv.navigation();                                     // GUI v2: the block on top, then its page in row 2
+                nv.onSelect (nv.pageAt (nv.blockBounds (nv.blockOfPage (pg)).getCentre()));
+                nv.onSelect (nv.pageAt (nv.itemBounds (pg).getCentre()));
                 clicks &= cv.page() == pg && cv.navigation().getCurrent() == pg;
             }
             // the bottom bar (8 MASTER MACROS + GLOBAL) on every page
@@ -4639,6 +4647,27 @@ int main (int argc, char** argv)
             check (order.size() == 15 && pages.size() == 15 && allMods && clicks && bottom,
                    "M17 NAVIGATION: 5 blocks / 15 pages / all 17 modules placed, a click opens the page, MACROS + GLOBAL on every page",
                    String ((int) order.size()) + " pages" + (allMods ? "" : " modules!") + (clicks ? "" : " clicks!") + (bottom ? "" : " bottom!"));
+            {   // GUI v2 (owner 2026-11-19): MAIN = CONSOLE - 7 strips, a fader moves its level, the name opens the part
+                cv.showPage (0);
+                bool ok = cv.consoleShown();
+                auto* f = dynamic_cast<Slider*> (cv.findControl ("mix_tail_level"));
+                ok &= f != nullptr && f->isVisible() && f->getSliderStyle() == Slider::LinearVertical;
+                const float before = p.apvts.getRawParameterValue ("mix_tail_level")->load();
+                if (f != nullptr) f->setValue (f->getMinimum() + (f->getMaximum() - f->getMinimum()) * 0.25, sendNotificationSync);
+                const float after = p.apvts.getRawParameterValue ("mix_tail_level")->load();
+                ok &= std::abs (after - before) > 1.f;
+                if (f != nullptr) f->setValue (before, sendNotificationSync);
+                for (auto* id : { "tk_level", "clk_level", "mix_punch_level", "mix_body_level", "mix_sub_level", "scr_level", "punch_drive", "tail_tone", "pe_start" })
+                    ok &= cv.findControl (id) != nullptr && cv.findControl (id)->isVisible();
+                MouseEvent me (Desktop::getInstance().getMainMouseSource(), cv.stripNameArea (4).getCentre().toFloat(), ModifierKeys(), 0.f, 0.f, 0.f, 0.f, 0.f,
+                               &cv, &cv, Time::getCurrentTime(), cv.stripNameArea (4).getCentre().toFloat(), Time::getCurrentTime(), 1, false);
+                cv.mouseDown (me);
+                ok &= ! cv.consoleShown() && cv.selectedPart() == 2;
+                cv.navigation().onSelect (0);
+                ok &= cv.consoleShown();
+                check (ok, "GUI v2 CONSOLE: MAIN shows 7 strips (TOK .. SCREECH), a fader moves its level, the strip name opens all parameters",
+                       String (before, 1) + " -> " + String (after, 1) + " dB");
+            }
             // top bar: STYLE strip and LENGTH strip (one click = one undo)
             cv.showPage (0);
             const float len0 = p.apvts.getRawParameterValue ("core_length")->load();

@@ -7,9 +7,10 @@ namespace fge::gui
 {
     struct Palette
     {
-        juce::Colour ground  { 0xff101113 };   // Obsidian Black - main background
-        juce::Colour panel   { 0xff1b1d21 };   // Industrial Graphite - panels
-        juce::Colour control { 0xff292c31 };   // Steel Grey - controls
+        juce::Colour ground  { 0xff111214 };   // Obsidian Black - main background (GUI v2, Design/GUI_V2.md)
+        juce::Colour panel   { 0xff17181b };   // Industrial Graphite - panels
+        juce::Colour control { 0xff1d1f23 };   // Steel Grey - controls, knob caps
+        juce::Colour line    { 0xff26292e };   // borders, dividers, knob tracks
         juce::Colour red     { 0xffe33135 };   // Blood Red - main accent
         juce::Colour hot     { 0xfff05a50 };   // Hot Red - active elements
         juce::Colour silver  { 0xffd5d7da };   // Cold Silver - text, markings
@@ -26,7 +27,7 @@ namespace fge::gui
     };
     inline Palette& paletteMut() { static Palette p; return p; }
     inline const Palette& palette() { return paletteMut(); }
-    // THEME (module 17 settings): 0 FLAT (the original black industrial), 1 SMOKE (liquid glass, owner 2026-11-14 "dawaj tego smoke")
+    // THEME (module 17 settings): 0 CLEAN (GUI v2, owner 2026-11-19, the default), 1 SMOKE (liquid glass, owner 2026-11-14 "dawaj tego smoke")
     inline void setTheme (int t)
     {
         auto& p = paletteMut();
@@ -48,7 +49,12 @@ namespace fge::gui
     inline void glassPanel (juce::Graphics& g, juce::Rectangle<float> r, float radius = 6.f)
     {
         const auto& c = palette();
-        if (! c.glass) { g.setColour (c.panel); g.fillRoundedRectangle (r, radius); return; }
+        if (! c.glass)                                   // CLEAN (GUI v2): a flat panel with a hairline edge
+        {
+            g.setColour (c.panel); g.fillRoundedRectangle (r, juce::jmin (radius, 5.f));
+            g.setColour (c.line); g.drawRoundedRectangle (r.reduced (0.5f), juce::jmin (radius, 5.f), 1.f);
+            return;
+        }
         const float rr = juce::jmax (radius, 12.f);
         g.setColour (c.panel); g.fillRoundedRectangle (r, rr);
         g.setColour (juce::Colours::white.withAlpha (0.09f)); g.drawRoundedRectangle (r.reduced (0.5f), rr, 1.f);

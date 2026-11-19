@@ -482,3 +482,12 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   Fixed: PREVIEW / PLAY only while the window is open (closing it stops both), PLAY lets go after 4 s by itself, host reset /
   release / prepare = every voice off, PREVIEW clamps a garbage host BPM. Rule for every Doomsday instrument: any note the
   plugin makes by itself (audition, preview, sequencer) needs an owner (open window), a timeout and a panic on host reset.
+
+## 4GE "żeby nie wyglądał jak AI slop, tylko kompleksowy VST" – "clean", "czytelne, uporządkowane i nie nasrane" (owner 2026-11-19)
+- What read as AI slop: every control the same small knob, dozens of identical cards with a coloured bar on the title,
+  explanatory sentences printed on the panels, a web-admin side menu with module numbers, glows / glass, letter-spaced buttons.
+  A themed / ornate look (glowing frames, decorated knobs - a TikTok "Screecher") was rejected too: "nie rób takiego".
+- Fix (Design/GUI_V2.md): one type family (Barlow Semi Condensed), flat panels with a hairline, colour only on data, no
+  sentences on screen (tooltips + a status bar), navigation on top, MAIN = a CONSOLE (one strip per part, the strip name =
+  all parameters) with a LANES view. Show the owner rendered PNG mockups (he cannot open canvas links on the phone),
+  3 different layouts, then build the one he picks. Rule: a new GUI starts from a mockup PNG he approved, not from code.

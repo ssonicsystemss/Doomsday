@@ -31,12 +31,13 @@
 #include "NavBar.h"
 #include "SettingsPage.h"
 #include "Palette.h"
+#include "GeLook.h"
 
 class GeCanvas : public juce::Component, public juce::DragAndDropContainer, public juce::DragAndDropTarget, public juce::FileDragAndDropTarget, private juce::Timer
 {
 public:
     static constexpr int W = 1456, H = 942;
-    static constexpr int navW = 176, X0 = 192, Y0 = 104, CW = 1248, CH = 718;       // the navigation, the page area
+    static constexpr int navW = 0, X0 = 20, Y0 = 100, CW = 1416, CH = 698;          // GUI v2: the navigation on top, the page area
     explicit GeCanvas (GeProcessor&);
     ~GeCanvas() override;
     void paint (juce::Graphics&) override;
@@ -114,7 +115,7 @@ public:
 private:
 
     GeProcessor& proc;
-    doomsday::flat::FlatLookAndFeel lnf;
+    fge::gui::GeLook lnf;                                          // GUI v2: Barlow + the clean knob (Design/GUI_V2.md)
     std::unique_ptr<juce::TooltipWindow> tips;
     doomsday::ui::StageLookAndFeel stageLnf { makeTheme() };      // the shared preset bar draws with the stage look
     static doomsday::ui::Theme makeTheme();
@@ -204,6 +205,39 @@ private:
     int styleShown = -2;
     std::shared_ptr<std::atomic<bool>> alive = std::make_shared<std::atomic<bool>> (true);
     void styleMenu();
+    // GUI v2 (owner 2026-11-19, Design/GUI_V2.md): MAIN = CONSOLE - one strip per part of the kick, PITCH + MASTER on the right
+    struct Strip
+    {
+        juce::String name; juce::Colour col; juce::Component* type = nullptr; std::vector<juce::Component*> knobs;
+        juce::Slider* fader = nullptr; std::vector<juce::Component*> buttons; int meter = -1; std::function<void()> open;
+        juce::Rectangle<int> area, nameArea, faderArea;
+    };
+    std::array<Strip, 7> strips;
+    std::vector<juce::Component*> pitchSide, masterSide;
+    juce::Rectangle<int> pitchPanel, masterPanel, outMeterArea;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> faderAtt;
+    juce::Slider* fader (const char* id, juce::Colour accent);
+    void buildConsole();
+    void layoutConsole();
+    void paintConsole (juce::Graphics&);
+    // the second view (B): the parts as tracks with their real envelopes, the selected part's knobs on the right
+    juce::TextButton viewConsole { "Console" }, viewLanes { "Lanes" }, inspAll { "All parameters" };
+    int laneSel = 2;
+    std::array<juce::Slider*, 7> laneLevel {};
+    std::array<std::vector<juce::Component*>, 7> inspector;
+    std::array<juce::Rectangle<int>, 7> laneArea;
+    juce::Rectangle<int> inspArea;
+    std::vector<juce::Component*> inspectorNow() const;
+    void layoutLanes();
+    void paintLanes (juce::Graphics&);
+public:
+    bool consoleShown() const { return pageIdx == 0 && overview && uiSet.mainView == 0; }       // (tests)
+    bool lanesShown() const { return pageIdx == 0 && overview && uiSet.mainView == 1; }
+    void setMainView (int v);
+    void selectLane (int i);
+    juce::Rectangle<int> laneBounds (int i) const { return laneArea[(size_t) i]; }
+    juce::Rectangle<int> stripNameArea (int i) const { return strips[(size_t) i].nameArea; }
+private:
     std::array<float, 4> meter {};
     float outMeter = 0.f;
 };

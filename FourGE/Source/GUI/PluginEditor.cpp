@@ -142,7 +142,10 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     // module 17: the navigation + the interface settings
     uiSet = fge::ui::Settings::load();
     fge::gui::setTheme (uiSet.theme);
-    nav.onSelect = [this] (int pg) { showPage (pg); };
+    nav.onSelect = [this] (int pg) { if (pg == 0) overview = true; showPage (pg); };     // (Main = back to the CONSOLE)
+    nav.font = [this] (float h, bool bold) { return lnf.font (h, bold ? doomsday::flat::Bold : doomsday::flat::Medium); };
+    for (auto* ch : presetBar.getChildren())                                   // GUI v2: the preset buttons drawn like every other button
+        if (dynamic_cast<TextButton*> (ch) != nullptr) ch->setLookAndFeel (&lnf);
     nav.isActive = [this] (int pg) { return pageActive (pg); };
     addAndMakeVisible (nav);
     {
@@ -540,7 +543,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     // module 09: the 8 MASTER MACROS (sources only - what they move = the MACRO MAPPING on the MOD page)
     for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "macro_impact", "IMPACT" }, { "macro_body", "BODY" }, { "macro_tail", "TAIL" },
              { "macro_pitch", "PITCH" }, { "macro_grit", "GRIT" }, { "macro_scream", "SCREAM" }, { "macro_weight", "WEIGHT" }, { "macro_chaos", "CHAOS" } })
-        macroRow.push_back (knob (id, lab, c.red, 30));
+        macroRow.push_back (knob (id, lab, c.red, 36));
+    buildConsole();
     for (auto& [id, comp] : byId)
     {
         const int idx = [&] { for (int i = 0; i < P::count; ++i) if (id == def (i).id) return i; return -1; }();
@@ -653,7 +657,7 @@ Component* GeCanvas::findControl (const String& id)                     // (a pa
 
 int GeCanvas::punchTypeIdx() const { const int m = (int) raw (proc, P::punchMode); return m <= 1 || m == 5 ? 0 : m == 2 ? 1 : m == 3 ? 2 : 3; }
 int GeCanvas::tailTypeIdx() const  { return jlimit (0, 2, (int) raw (proc, P::tailEngine)); }
-void GeCanvas::applyOverview()                                                      // MAIN: the overview or the full detail view
+void GeCanvas::applyOverview()                                                      // MAIN: the CONSOLE or the full detail view of a part
 {
     const bool main = pageIdx == 0, ov = main && overview;
     for (int p = 0; p < 4; ++p)
@@ -663,17 +667,34 @@ void GeCanvas::applyOverview()                                                  
         if (ov) for (auto* c : detail[(size_t) p]) if (c != nullptr && c != &detailPageMark) c->setVisible (false);
     }
     for (auto* c : masterRow) c->setVisible (main && ! ov);
-    if (ov) { for (auto& t : detTab) t.setVisible (false); detDice.setVisible (false); if (liveSpec != nullptr) liveSpec->setVisible (false); tokNote.setVisible (false); }
-    for (int t = 0; t < 4; ++t) for (auto* c : ovPunch[(size_t) t]) c->setVisible (ov && t == punchTypeIdx());
-    for (int t = 0; t < 3; ++t)
+    if (ov) { for (auto& t : detTab) t.setVisible (false); detDice.setVisible (false); if (liveSpec != nullptr) liveSpec->setVisible (false); tokNote.setVisible (false); punchSub.setVisible (false); }
+    // (the old overview's knobs stay hidden - the CONSOLE replaced it, GUI v2)
+    for (auto& v : ovPunch) for (auto* c : v) c->setVisible (false);
+    for (auto& v : ovTail) for (auto* c : v) c->setVisible (false);
+    for (auto& v : ovStrip) for (auto* c : v) c->setVisible (false);
+    for (auto* c : ovMaster) c->setVisible (false);
+    for (auto* b : { &ovAllP, &ovAllT, &ovDiceP, &ovDiceT }) b->setVisible (false);
+    const bool con = ov && uiSet.mainView == 0, ln = ov && uiSet.mainView == 1;
+    for (auto& st : strips)
     {
-        for (auto* c : ovTail[(size_t) t]) c->setVisible (ov && t == tailTypeIdx());
+        for (auto* c : st.knobs) c->setVisible (con);
+        for (auto* c : st.buttons) c->setVisible (ov);
+        if (st.type != nullptr) st.type->setVisible (ov);
+        if (st.fader != nullptr) st.fader->setVisible (con);
     }
-    for (auto& v : ovStrip) for (auto* c : v) c->setVisible (ov);
-    for (auto* c : ovMaster) c->setVisible (ov);
-    for (auto* b : { &ovAllP, &ovAllT, &ovDiceP, &ovDiceT }) b->setVisible (ov);
+    for (auto* c : laneLevel) if (c != nullptr) c->setVisible (ln);
+    for (auto& v : inspector) for (auto* c : v) c->setVisible (false);
+    if (ln) for (auto* c : inspectorNow()) c->setVisible (true);
+    inspAll.setVisible (ln);
+    for (auto* c : pitchSide) c->setVisible (con);
+    for (auto* c : masterSide) c->setVisible (con);
+    viewConsole.setVisible (ov); viewLanes.setVisible (ov);
+    viewConsole.setColour (TextButton::buttonColourId, con ? palette().control.brighter (0.25f) : palette().control);
+    viewLanes.setColour (TextButton::buttonColourId, ln ? palette().control.brighter (0.25f) : palette().control);
+    ovBack.setButtonText ("Console");
     ovBack.setVisible (main && ! overview);
-    if (ov) { punchType->setVisible (true); tailType->setVisible (true); layoutOverview(); }
+    if (ov) { punchType->setVisible (false); tailType->setVisible (false); if (con) layoutConsole(); else layoutLanes(); }
+    else wave.setBounds (waveArea);
 }
 void GeCanvas::layoutOverview()
 {
@@ -726,8 +747,8 @@ void GeCanvas::showPage (int i)
         for (auto* c : detail[(size_t) p]) if (c != nullptr && c != &detailPageMark) c->setVisible (main && p == selected);
     }
     for (auto* c : masterRow) c->setVisible (main);
-    for (auto* c : pitchRow) c->setVisible (kick);
-    header[5]->setVisible (kick);                                                    // PITCH TRACKING sits in the pitch engine
+    for (auto* c : pitchRow) c->setVisible (false);                                  // (GUI v2: PITCH sits in the console)
+    header[5]->setVisible (false);
     tokNote.setVisible (main && selected == 0);
     layoutDetail();
     envPage->setVisible (pageIdx == 1);
@@ -756,11 +777,9 @@ void GeCanvas::mouseDown (const MouseEvent& e)
 {
     if (pageIdx != 0) return;
     if (overview)
-    {   // the strip: BODY / SUB PUNCH open their full view
-        if (ovStripArea[2].contains (e.getPosition())) selectPart (1);
-        else if (ovStripArea[1].contains (e.getPosition())) { selectPart (0); detailPage = 3; layoutDetail(); repaint(); }
-        else if (ovStripArea[0].contains (e.getPosition())) { selectPart (0); detailPage = 3; layoutDetail(); repaint(); }
-        else if (ovStripArea[3].contains (e.getPosition())) showPage (5);
+    {   // CONSOLE: a click on a strip's name = every parameter of that part
+        for (auto& st : strips) if (st.nameArea.contains (e.getPosition()) && st.open) { st.open(); return; }
+        if (lanesShown()) for (int i = 0; i < 7; ++i) if (laneArea[(size_t) i].contains (e.getPosition())) { selectLane (i); return; }
         return;
     }
     for (int i = 0; i < 4; ++i)
@@ -769,53 +788,53 @@ void GeCanvas::mouseDown (const MouseEvent& e)
 
 void GeCanvas::resized()
 {
-    headerArea = { 0, 0, W, 96 };
-    presetBar.setBounds (W - 16 - 300, 5, 300, 90);
-    // top bar: STYLE, LENGTH (+ the ms panel), the INFO LINE under them
-    styleStrip.setBounds (300, 28, 220, 30);
-    lengthStrip.setBounds (540, 28, 170, 30);
-    lengthSlider.setBounds (540, 28, 170, 30);
-    lengthBtn.setBounds (720, 28, 120, 30);
-    if (kickEndTop != nullptr) kickEndTop->setBounds (852, 30, 190, 26);
-    rndStrength.setBounds (W - 16 - 300 - 64, 8, 56, 56); rndLabel.setBounds (W - 16 - 300 - 74, 64, 76, 16);
-    infoArea = { 300, 66, W - 16 - 300 - 300 - 14, 26 };
-    // the navigation (left)
-    nav.setBounds (16, Y0, navW - 16, CH);
-    // bottom: MASTER MACROS + GLOBAL (always visible)
-    macroArea = { 16, Y0 + CH + 8, 924, 104 };
-    for (size_t i = 0; i < macroRow.size(); ++i) macroRow[i]->setBounds (macroArea.getX() + 170 + (int) i * 94, macroArea.getY() + 8, 84, Knob::heightFor (40));
-    globalArea = { macroArea.getRight() + 12, macroArea.getY(), W - 16 - macroArea.getRight() - 12, 104 };
+    // GUI v2 (Design/GUI_V2.md): row 1 = logo, the blocks, the presets; row 2 = the pages, STYLE / LENGTH / KICK END
+    headerArea = { 0, 0, W, 88 };
+    const int tx = roundToInt (doomsday::brand::headerTextX (1.f));
+    nav.setBounds (tx + 70, 0, nav.contentWidth() + 20, 88);
+    presetBar.setBounds (W - 20 - 640, 10, 640, 32);
+    rndStrength.setBounds (presetBar.getX() - 40, 9, 34, 34); rndLabel.setBounds (presetBar.getX() - 112, 18, 72, 16);
     {
-        int x = globalArea.getX() + 8;
-        for (int k : { 0, 1, 2 }) { header[(size_t) k]->setBounds (x, globalArea.getY() + 22, 68, Knob::heightFor (40)); x += 70; }
-        x += 6;
-        header[6]->setBounds (x, globalArea.getY() + 8, 146, 20);           // VOICE
-        header[7]->setBounds (x, globalArea.getY() + 31, 146, 20);          // KICK END
-        header[4]->setBounds (x, globalArea.getY() + 54, 146, 20);          // PHASE RESET
-        header[3]->setBounds (x, globalArea.getY() + 77, 146, 20);          // AUTO LENGTH
-        meterArea = { globalArea.getRight() - 34, globalArea.getY() + 8, 24, globalArea.getHeight() - 26 };
+        int x = W - 20;
+        auto place = [&] (Component* c, int w, int h) { if (c == nullptr) return; x -= w; c->setBounds (x, 52 + (36 - h) / 2, w, h); x -= 78; };
+        place (kickEndTop, 170, 24);
+        place (&lengthSlider, 130, 24);
+        lengthStrip.setBounds (lengthSlider.getBounds());
+        place (&styleStrip, 190, 26);
+        lengthBtn.setBounds (0, 0, 0, 0); lengthBtn.setVisible (false);
     }
-    // MAIN: pitch engine
-    pitchArea = { X0, Y0, CW, 84 };
-    pitchRow[0]->setBounds (pitchArea.getX() + 14, pitchArea.getY() + 40, 550, 28);
-    header[5]->setBounds (pitchArea.getX() + 140, pitchArea.getY() + 7, 146, 20);  // PITCH TRACKING
-    pitchRow[9]->setBounds (pitchArea.getX() + 340, pitchArea.getY() + 5, 160, 24);   // TOK: FOLLOW MIDI / FIXED
-    for (int i = 1; i < 9; ++i) pitchRow[(size_t) i]->setBounds (pitchArea.getX() + 570 + (i - 1) * 80, pitchArea.getY() + 4, 76, Knob::heightFor (38));
-    // the central waveform
-    waveArea = { X0, Y0 + 92, CW, 134 };
+    viewConsole.setBounds (nav.getX() + 330, 58, 82, 24);
+    viewLanes.setBounds (nav.getX() + 414, 58, 82, 24);
+    infoArea = { 0, H - 26, W, 26 };
+    // bottom: MACROS + GLOBAL (always visible)
+    macroArea = { X0, H - 26 - 8 - 100, 900, 100 };
+    for (size_t i = 0; i < macroRow.size(); ++i) macroRow[i]->setBounds (macroArea.getX() + 82 + (int) i * 100, macroArea.getY() + 14, 80, Knob::heightFor (36));
+    globalArea = { macroArea.getRight() + 12, macroArea.getY(), W - 20 - macroArea.getRight() - 12, 100 };
+    {
+        int x = globalArea.getX() + 10;
+        for (int k : { 0, 1, 2 }) { header[(size_t) k]->setBounds (x, globalArea.getY() + 14, 68, Knob::heightFor (36)); x += 70; }
+        x += 8;
+        header[6]->setBounds (x, globalArea.getY() + 10, 146, 20);          // VOICE
+        header[7]->setBounds (x, globalArea.getY() + 32, 146, 20);          // KICK END
+        header[4]->setBounds (x, globalArea.getY() + 54, 146, 20);          // PHASE RESET
+        header[3]->setBounds (x, globalArea.getY() + 76, 146, 20);          // AUTO LENGTH
+        meterArea = { globalArea.getRight() - 34, globalArea.getY() + 10, 24, globalArea.getHeight() - 28 };
+    }
+    pitchArea = {};
+    waveArea = { X0, Y0, CW, 134 };                                        // (the full detail view; the console sets its own)
     wave.setBounds (waveArea);
     // part cards
     const int cw = (CW - 3 * 12) / 4;
     for (int i = 0; i < 4; ++i)
     {
-        cardArea[(size_t) i] = { X0 + i * (cw + 12), Y0 + 234, cw, 160 };
+        cardArea[(size_t) i] = { X0 + i * (cw + 12), Y0 + 146, cw, 150 };
         const auto a = cardArea[(size_t) i];
         for (int k = 0; k < 4; ++k) card[(size_t) i][(size_t) k]->setBounds (a.getX() + 8 + k * 72, a.getY() + 28, 70, Knob::heightFor (40));
         card[(size_t) i][4]->setBounds (a.getRight() - 136, a.getY() + 4, 60, 20);
         card[(size_t) i][5]->setBounds (a.getRight() - 70, a.getY() + 4, 60, 20);
     }
-    detailArea = { X0, Y0 + 404, 860, 314 };
-    mixerArea = { detailArea.getRight() + 12, detailArea.getY(), X0 + CW - detailArea.getRight() - 12, 314 };
+    detailArea = { X0, Y0 + 308, CW - 12 - 340, CH - 308 };
+    mixerArea = { detailArea.getRight() + 12, detailArea.getY(), X0 + CW - detailArea.getRight() - 12, CH - 308 };
     if (masterRow.size() == 2)
     {
         masterRow[0]->setBounds (mixerArea.getX() + 90, mixerArea.getBottom() - 86, 80, Knob::heightFor (34));
@@ -831,10 +850,11 @@ void GeCanvas::resized()
         mixMeterArea[(size_t) i] = { mx + mw - 16, mixerArea.getY() + 44, 6, 132 };
     }
     layoutDetail();
-    ovBack.setBounds (X0 + CW - 150, Y0 + 98, 140, 22);
+    ovBack.setBounds (X0 + CW - 130, Y0 + 8, 120, 24);
+    layoutConsole();
     applyOverview();
     const Rectangle<int> pageArea (X0, Y0, CW, CH);
-    if (envPage != nullptr) envPage->setBounds (pageArea.withTrimmedTop (234));
+    if (envPage != nullptr) envPage->setBounds (pageArea.withTrimmedTop (146));
     for (Component* pg : { (Component*) oscPage.get(), (Component*) layerPage.get(), (Component*) distortionPage.get(), (Component*) eqPg.get(), (Component*) dynPg.get(),
                            (Component*) modPg.get(), (Component*) smpPg.get(), (Component*) stPg.get(), (Component*) exPg.get(), (Component*) prPg.get(),
                            (Component*) anPg.get(), (Component*) scrPage.get(), (Component*) setPg.get() })
@@ -948,97 +968,360 @@ void GeCanvas::layoutDetail()
 void GeCanvas::paint (Graphics& g)
 {
     const auto& c = palette();
-    if (c.glass)                                                            // SMOKE: glows behind smoked glass (owner 2026-11-14)
-    {
-        fge::gui::glassBackground (g, getLocalBounds().toFloat());
-        fge::gui::glassPanel (g, Rectangle<float> (6.f, 6.f, (float) W - 12.f, 86.f), 14.f);
-    }
-    else
-    {
-        g.fillAll (c.ground);
-        // top bar
-        g.setColour (c.panel.darker (0.25f)); g.fillRect (0, 0, W, 96);
-        g.setColour (c.grid); g.drawHorizontalLine (96, 0.f, (float) W);
-    }
-    doomsday::brand::drawHeaderBadge (g, 1.f, 0.55f);
-    const float tx = doomsday::brand::headerTextX (1.f);
-    g.setColour (c.silver); g.setFont (lnf.font (30.f, doomsday::flat::Bold, 0.12f));
-    g.drawText ("4GE", (int) tx, 14, 200, 34, Justification::left);
-    g.setColour (c.red); g.setFont (lnf.font (11.f, doomsday::flat::Bold, 0.18f));
-    g.drawText ("HARDSTYLE KICK DESIGNER", (int) tx, 50, 180, 16, Justification::left);
+    if (c.glass) fge::gui::glassBackground (g, getLocalBounds().toFloat());     // SMOKE (optional, SETTINGS)
+    else g.fillAll (c.ground);
+    // the header: row 1 logo / blocks / presets, row 2 pages / STYLE / LENGTH / KICK END (GUI v2)
+    g.setColour (c.glass ? Colours::black.withAlpha (0.35f) : c.panel.darker (0.12f)); g.fillRect (headerArea);
+    g.setColour (c.line); g.drawHorizontalLine (headerArea.getBottom(), 0.f, (float) W);
+    doomsday::brand::drawBadge (g, doomsday::brand::headerBadgeArea (1.f, 26.f), 0.55f, RectanglePlacement::xLeft | RectanglePlacement::yMid);
+    const int tx = roundToInt (doomsday::brand::headerTextX (1.f));
+    g.setColour (c.silver); g.setFont (lnf.font (26.f, doomsday::flat::Bold, 0.04f));
+    g.drawText ("4GE", tx, 10, 70, 32, Justification::centredLeft);
     g.setColour (c.textDim); g.setFont (lnf.font (11.f, doomsday::flat::Medium));
-    g.drawText ("v" + String (versionText), (int) tx, 68, 40, 16, Justification::left);
-    g.setFont (lnf.font (10.f, doomsday::flat::Bold, 0.14f));
-    g.drawText ("STYLE", styleStrip.getX(), 10, 100, 14, Justification::left);
-    g.drawText ("LENGTH", lengthStrip.getX(), 10, 100, 14, Justification::left);
-    if (kickEndTop != nullptr) g.drawText ("KICK END", kickEndTop->getX(), 10, 100, 14, Justification::left);
-    // the INFO LINE
+    g.drawText ("v" + String (versionText), tx, 58, 60, 24, Justification::centredLeft);
+    g.setFont (lnf.font (13.f, doomsday::flat::Medium));
+    auto label = [&] (Component* comp, const char* t) { if (comp != nullptr) g.drawText (t, comp->getX() - 72, 52, 64, 36, Justification::centredRight); };
+    label (&styleStrip, "Style"); label (&lengthSlider, "Length"); label (kickEndTop, "Kick end");
+    // the INFO LINE = the status bar at the bottom (what is under the mouse)
+    g.setColour (c.panel.darker (0.12f)); g.fillRect (infoArea);
+    g.setColour (c.line); g.drawHorizontalLine (infoArea.getY(), 0.f, (float) W);
     if (uiSet.infoLine)
     {
-        g.setColour (c.ground); g.fillRoundedRectangle (infoArea.toFloat(), 4.f);
-        g.setColour (c.red); g.fillEllipse ((float) infoArea.getX() + 8.f, (float) infoArea.getCentreY() - 2.5f, 5.f, 5.f);
-        g.setColour (c.silver.withAlpha (0.85f)); g.setFont (lnf.font (11.f, doomsday::flat::Medium));
-        g.drawFittedText (infoText, infoArea.withTrimmedLeft (20).withTrimmedRight (8), Justification::centredLeft, 1, 0.85f);
+        g.setColour (c.textDim); g.setFont (lnf.font (12.5f, doomsday::flat::Medium));
+        g.drawFittedText (infoText, infoArea.withTrimmedLeft (20).withTrimmedRight (20), Justification::centredLeft, 1, 0.9f);
     }
 
-    // panels
-    auto panel = [&] (Rectangle<int> r, const String& title, Colour dot)
+    // panels: flat, a quiet title, no colour bars (GUI v2)
+    auto panel = [&] (Rectangle<int> r, const String& title, Colour)
     {
-        fge::gui::glassPanel (g, r.toFloat(), 6.f);
+        fge::gui::glassPanel (g, r.toFloat(), 5.f);
         if (title.isNotEmpty())
         {
-            g.setColour (dot); g.fillRect (r.getX() + 12, r.getY() + 12, 3, 12);
-            g.setColour (c.silver.withAlpha (0.8f)); g.setFont (lnf.font (11.5f, doomsday::flat::Bold, 0.1f));
-            g.drawText (title, r.getX() + 20, r.getY() + 8, 300, 20, Justification::left);
+            g.setColour (c.silver.withAlpha (0.75f)); g.setFont (lnf.font (13.f, doomsday::flat::SemiBold));
+            g.drawText (title.substring (0, 1) + title.substring (1).toLowerCase(), r.getX() + 14, r.getY() + 8, 300, 20, Justification::left);
         }
     };
-    if (pageIdx < 2)
-    {
-        panel (pitchArea, "PITCH ENGINE", c.part[2]);
-        g.setColour (c.textDim); g.setFont (lnf.font (10.5f, doomsday::flat::Medium));
-        g.setFont (lnf.font (10.f, doomsday::flat::Bold, 0.1f));
-        g.drawText ("START", pitchArea.getX() + 296, pitchArea.getY() + 8, 44, 20, Justification::left);
-    }
-    // MASTER MACROS + GLOBAL (every page)
-    panel (macroArea, "MASTER MACROS", c.red);
-    g.setColour (c.textDim); g.setFont (lnf.font (9.5f, doomsday::flat::Medium));
-    g.drawFittedText ("drag  >  onto any knob\nright-click a knob = modulate\nMOD MATRIX = what they move", macroArea.getX() + 14, macroArea.getY() + 34, 150, 44, Justification::topLeft, 3);
+    // MACROS + GLOBAL (every page)
+    panel (macroArea, "Macros", c.red);
     for (auto* m : macroRow)
     {
-        const auto h = Rectangle<float> ((float) m->getRight() + 2.f, (float) m->getY() + 12.f, 14.f, 14.f);
+        const auto h = Rectangle<float> ((float) m->getRight() - 4.f, (float) m->getY() + 4.f, 13.f, 13.f);
         g.setColour (c.control); g.fillRoundedRectangle (h, 3.f);
-        g.setColour (c.red); g.drawText (">", h, Justification::centred);
+        g.setColour (c.textDim); g.setFont (lnf.font (11.f, doomsday::flat::Bold)); g.drawText (">", h, Justification::centred);
     }
     panel (globalArea, "", c.red);
-    if (pageIdx == 0 && overview)
-    {   // MAIN OVERVIEW (ARCHITECTURE.md)
-        const auto& c = palette();
-        panel (ovPArea, "PUNCH", c.part[0]); panel (ovTArea, "TAIL", c.part[2]);
-        g.setColour (c.textDim); g.setFont (lnf.font (10.f, doomsday::flat::Medium));
-        static const char* pChain[] { "PUNCH / TOK: a waveform with a pitch glide (+ the tok)", "EUPHORIC: source -> mid boost -> drive -> tape stop -> shape -> low cut",
-                                      "PVC: tube / kloenk -> phaser -> drive -> shape", "ZAAG: click -> PIEP -> TRASK -> punch reverb" };
-        static const char* tChain[] { "CLASSIC: sine / triangle -> pitch drop -> body -> distortion -> harmonics -> decay",
-                                      "PVC: source -> REVERB -> high cut -> drive -> clip -> GATE -> drive -> spectrum -> stereo",
-                                      "ZAAG: saws -> pitch -> EQ1 / DIST 1 -> moving shelf / DIST 2 -> sweep -> resonator -> DIST 3 -> clip -> stereo -> sub" };
-        g.drawText (pChain[punchTypeIdx()], ovPArea.getX() + 14, ovPArea.getY() + 40, ovPArea.getWidth() - 28, 20, Justification::left);
-        g.drawText (tChain[tailTypeIdx()], ovTArea.getX() + 14, ovTArea.getY() + 40, ovTArea.getWidth() - 28, 20, Justification::left);
-        g.drawText ("TYPE", ovPArea.getX() + 76, ovPArea.getY() + 8, 34, 16, Justification::left);
-        g.drawText ("TYPE", ovTArea.getX() + 76, ovTArea.getY() + 8, 34, 16, Justification::left);
-        static const char* sn[] { "CLICK", "SUB PUNCH", "BODY", "SCREECH", "MIX" };
-        const Colour sc[] { c.silver, c.part[3], c.part[1], c.red, c.silver };
-        for (int i = 0; i < 5; ++i) panel (ovStripArea[(size_t) i], sn[i], sc[i]);
-        panel (ovMasterArea, "MASTER", c.red);
-    }
+    if (consoleShown()) paintConsole (g);
+    else if (lanesShown()) paintLanes (g);
     else if (pageIdx == 0) paintMain (g, panel);
     // output meter
     {
         const float m = jlimit (0.f, 1.f, (Decibels::gainToDecibels (outMeter, -60.f) + 60.f) / 66.f);
-        auto r = meterArea.reduced (6, 2);
-        g.setColour (c.control); g.fillRect (r);
+        auto r = meterArea.reduced (8, 2);
+        g.setColour (c.ground.darker (0.3f)); g.fillRect (r);
         g.setColour (outMeter > 1.f ? c.hot : c.silver.withAlpha (0.85f));
         g.fillRect (r.withTop (r.getBottom() - roundToInt ((float) r.getHeight() * m)));
-        g.setColour (c.textDim); g.setFont (lnf.font (9.f, doomsday::flat::Bold));
-        g.drawText ("OUT", meterArea.getX() - 4, meterArea.getBottom() + 2, meterArea.getWidth() + 8, 12, Justification::centred);
+        g.setColour (c.textDim); g.setFont (lnf.font (11.f, doomsday::flat::Medium));
+        g.drawText ("Out", meterArea.getX() - 6, meterArea.getBottom() + 1, meterArea.getWidth() + 12, 14, Justification::centred);
+    }
+}
+
+// ------------------------------------------------------------ GUI v2: the CONSOLE (owner 2026-11-19, Design/GUI_V2.md)
+Slider* GeCanvas::fader (const char* id, Colour accent)
+{
+    auto s = std::make_unique<Slider> (Slider::LinearVertical, Slider::NoTextBox);
+    s->getProperties().set ("accent", (int64) accent.getARGB());
+    s->setSliderSnapsToMousePosition (false);
+    faderAtt.push_back (std::make_unique<AudioProcessorValueTreeState::SliderAttachment> (proc.apvts, id, *s));
+    if (auto* p = proc.apvts.getParameter (id)) s->setDoubleClickReturnValue (true, p->convertFrom0to1 (p->getDefaultValue()));
+    s->onValueChange = [this] { repaint(); };
+    auto* raw = s.get(); addChildComponent (raw); byId.insert ({ id, raw }); owned.push_back (std::move (s)); return raw;
+}
+
+void GeCanvas::buildConsole()
+{
+    const auto& c = palette();
+    const Colour grey (0xffa0a5ad);
+    auto K = [this] (const char* id, const char* lab, Colour col) -> Component*
+    {
+        auto* k = knob (id, lab, col, 34); k->setVisible (false);
+        k->slider.getProperties().set ("valueSize", 11.5f);                     // (a strip is narrow: a smaller value)
+        k->slider.setTextBoxStyle (Slider::TextBoxBelow, false, 64, 16);
+        return k;
+    };
+    auto hide = [] (Component* comp) { comp->setVisible (false); return comp; };
+    auto ms = [&] (const char* part, Colour col) -> std::vector<Component*>
+    {
+        return { hide (toggle (("mix_" + String (part) + "_mute").toRawUTF8(), "M", Toggle::Chip, col)),
+                 hide (toggle (("mix_" + String (part) + "_solo").toRawUTF8(), "S", Toggle::Chip, col)) };
+    };
+    auto& s = strips;
+    s[0].name = "TOK";     s[0].col = grey;      s[0].type = hide (combo ("tk_type"));
+    s[0].knobs = { K ("tk_tune", "Pitch", grey), K ("tk_length", "Length", grey), K ("tk_drive", "Drive", grey) };
+    s[0].fader = fader ("tk_level", grey);       s[0].buttons = { hide (seg ("tk_mode", { "AUTO", "ON", "OFF" }, grey)) };
+    s[0].open = [this] { selectPart (0); detailPage = 5; layoutDetail(); repaint(); };
+    s[1].name = "CLICK";   s[1].col = grey;      s[1].type = hide (combo ("clk_type"));
+    s[1].knobs = { K ("clk_tone", "Tone", grey), K ("clk_length", "Length", grey), K ("clk_drive", "Drive", grey) };
+    s[1].fader = fader ("clk_level", grey);      s[1].buttons = { hide (seg ("clk_mode", { "AUTO", "ON", "OFF" }, grey)) };
+    s[1].open = s[0].open;
+    s[2].name = "PUNCH";   s[2].col = c.part[0]; s[2].type = hide (combo ("punch_mode"));
+    s[2].knobs = { K ("punch_pitch", "Pitch", c.part[0]), K ("punch_length", "Length", c.part[0]), K ("punch_drive", "Drive", c.part[0]) };
+    s[2].fader = fader ("mix_punch_level", c.part[0]); s[2].buttons = ms ("punch", c.part[0]); s[2].meter = 0;
+    s[2].open = [this] { selectPart (0); };
+    s[3].name = "BODY";    s[3].col = c.part[1];
+    s[3].knobs = { K ("body_pitch", "Pitch", c.part[1]), K ("body_length", "Length", c.part[1]), K ("body_drive", "Drive", c.part[1]) };
+    s[3].fader = fader ("mix_body_level", c.part[1]); s[3].buttons = ms ("body", c.part[1]); s[3].meter = 1;
+    s[3].open = [this] { selectPart (1); };
+    s[4].name = "TAIL";    s[4].col = c.part[2]; s[4].type = hide (combo ("tail_engine"));
+    s[4].knobs = { K ("tail_length", "Length", c.part[2]), K ("tail_drive", "Drive", c.part[2]), K ("tail_tone", "Tone", c.part[2]) };
+    s[4].fader = fader ("mix_tail_level", c.part[2]); s[4].buttons = ms ("tail", c.part[2]); s[4].meter = 2;
+    s[4].open = [this] { selectPart (2); };
+    s[5].name = "SUB";     s[5].col = c.part[3];
+    s[5].knobs = { K ("sub_pitch", "Pitch", c.part[3]), K ("sub_length", "Length", c.part[3]), K ("sub_drive", "Drive", c.part[3]) };
+    s[5].fader = fader ("mix_sub_level", c.part[3]); s[5].buttons = ms ("sub", c.part[3]); s[5].meter = 3;
+    s[5].open = [this] { selectPart (3); };
+    s[6].name = "SCREECH"; s[6].col = c.part[4]; s[6].type = hide (combo ("scr_mode"));
+    s[6].knobs = { K ("scr_base_hz", "Freq", c.part[4]), K ("scr_length", "Length", c.part[4]), K ("scr_fb_drive", "Drive", c.part[4]) };
+    s[6].fader = fader ("scr_level", c.part[4]); s[6].buttons = { hide (toggle ("scr_on", "ON", Toggle::Chip, c.part[4])) };
+    s[6].open = [this] { showPage (5); };
+    pitchSide = { hide (combo ("pe_mode")), hide (toggle ("core_key_track", "Tracking", Toggle::Pill, c.red)),
+                  K ("pe_start", "Start", c.silver), K ("pe_end", "End", c.silver), K ("pe_time", "Time", c.silver), K ("pe_curve", "Curve", c.silver),
+                  hide (seg ("pe_start_mode", { "FOLLOW MIDI", "FIXED" }, c.red)) };
+    masterSide = { K ("master_clip_drive", "Clip", c.silver), K ("master_clip_soft", "Soft", c.silver) };
+
+    // ---- LANES (view B): a level slider per lane, the inspector knobs of each part (PUNCH / TAIL = the knobs of their TYPE)
+    const char* levelIds[7] { "tk_level", "clk_level", "mix_punch_level", "mix_body_level", "mix_tail_level", "mix_sub_level", "scr_level" };
+    for (int i = 0; i < 7; ++i)
+    {
+        auto sl = std::make_unique<Slider> (Slider::LinearHorizontal, Slider::NoTextBox);
+        sl->getProperties().set ("accent", (int64) strips[(size_t) i].col.getARGB());
+        sl->setSliderSnapsToMousePosition (false);
+        faderAtt.push_back (std::make_unique<AudioProcessorValueTreeState::SliderAttachment> (proc.apvts, levelIds[i], *sl));
+        sl->onValueChange = [this] { repaint(); };
+        laneLevel[(size_t) i] = sl.get(); addChildComponent (sl.get()); byId.insert ({ levelIds[i], sl.get() }); owned.push_back (std::move (sl));
+    }
+    using LI = std::initializer_list<std::pair<const char*, const char*>>;
+    auto insp = [&] (int lane, LI l)
+    {
+        for (auto [id, lab] : l) { auto* k = knob (id, lab, strips[(size_t) lane].col, 40); k->setVisible (false); inspector[(size_t) lane].push_back (k); }
+    };
+    insp (0, { { "tk_tune", "Pitch" }, { "tk_length", "Length" }, { "tk_drive", "Drive" }, { "tk_tone", "Tone" },
+               { "tk_peak", "Peak" }, { "tk_fade", "Fade" }, { "tk_penv_start", "Bend start" }, { "tk_penv_end", "Bend end" }, { "tk_penv_time", "Bend time" } });
+    insp (1, { { "clk_tone", "Tone" }, { "clk_length", "Length" }, { "clk_drive", "Drive" }, { "clk_decay", "Decay" }, { "clk_pitch", "Pitch" }, { "clk_mix", "Mix" } });
+    insp (3, { { "body_level", "Level" }, { "body_pitch", "Pitch" }, { "body_length", "Length" }, { "body_decay", "Decay" }, { "body_drive", "Drive" }, { "body_tone", "Tone" } });
+    insp (5, { { "sub_level", "Level" }, { "sub_pitch", "Pitch" }, { "sub_length", "Length" }, { "sub_decay", "Decay" }, { "sub_drive", "Drive" } });
+    insp (6, { { "scr_level", "Level" }, { "scr_base_hz", "Freq" }, { "scr_length", "Length" }, { "scr_decay", "Decay" }, { "scr_fb_drive", "Drive" }, { "scr_width", "Width" } });
+    viewConsole.setClickingTogglesState (false); viewLanes.setClickingTogglesState (false);
+    viewConsole.setTooltip ("MAIN as a mixing console: one strip per part of the kick.");
+    viewLanes.setTooltip ("MAIN as lanes: every part as a track with its real envelope, the selected part's knobs on the right.");
+    viewConsole.onClick = [this] { setMainView (0); };
+    viewLanes.onClick = [this] { setMainView (1); };
+    inspAll.onClick = [this] { if (strips[(size_t) laneSel].open) strips[(size_t) laneSel].open(); };
+    inspAll.setTooltip ("Every parameter of this part (the full view with its tabs).");
+    for (auto* b : { &viewConsole, &viewLanes, &inspAll }) addChildComponent (b);
+    wave.onRendered = [this] { if (lanesShown()) repaint(); };
+}
+
+std::vector<Component*> GeCanvas::inspectorNow() const
+{
+    if (laneSel == 2) return ovPunch[(size_t) punchTypeIdx()];
+    if (laneSel == 4) return ovTail[(size_t) tailTypeIdx()];
+    return inspector[(size_t) laneSel];
+}
+void GeCanvas::setMainView (int v)
+{
+    uiSet.mainView = jlimit (0, 1, v);
+    if (isShowing()) uiSet.save();
+    overview = true;
+    showPage (0);
+}
+void GeCanvas::selectLane (int i)
+{
+    laneSel = jlimit (0, 6, i);
+    applyOverview();
+    repaint();
+}
+
+void GeCanvas::layoutLanes()
+{
+    const int inspW = 340, gap = 12, waveH = 150;
+    const int areaW = CW - inspW - gap;
+    if (lanesShown()) wave.setBounds (X0, Y0, areaW, waveH);
+    inspArea = { X0 + areaW + gap, Y0, inspW, CH };
+    const int top = Y0 + waveH + gap, lh = (CH - waveH - gap - 6 * 6) / 7;
+    for (int i = 0; i < 7; ++i)
+    {
+        auto& st = strips[(size_t) i];
+        const auto a = laneArea[(size_t) i] = { X0, top + i * (lh + 6), areaW, lh };
+        if (! lanesShown()) continue;
+        if (st.type != nullptr) st.type->setBounds (a.getX() + 14, a.getY() + lh / 2 + 2, 118, 22);
+        laneLevel[(size_t) i]->setBounds (a.getX() + 146, a.getY() + lh / 2 + 2, 112, 22);
+        if (st.buttons.size() == 2) { st.buttons[0]->setBounds (a.getX() + 270, a.getY() + lh / 2 - 10, 28, 20); st.buttons[1]->setBounds (a.getX() + 302, a.getY() + lh / 2 - 10, 28, 20); }
+        else if (st.buttons.size() == 1) st.buttons[0]->setBounds (a.getX() + 268, a.getY() + lh / 2 - 10, 84, 20);
+    }
+    auto v = inspectorNow();
+    for (size_t k = 0; k < v.size(); ++k)
+        v[k]->setBounds (inspArea.getX() + 10 + (int) (k % 4) * 80, inspArea.getY() + 50 + (int) (k / 4) * (Knob::heightFor (40) + 14), 80, Knob::heightFor (40));
+    inspAll.setBounds (inspArea.getX() + 14, inspArea.getBottom() - 40, inspArea.getWidth() - 28, 26);
+}
+
+void GeCanvas::paintLanes (Graphics& g)
+{
+    const auto& c = palette();
+    fge::gui::glassPanel (g, inspArea.toFloat(), 5.f);
+    {
+        const auto& st = strips[(size_t) laneSel];
+        g.setColour (st.col); g.fillRoundedRectangle ((float) inspArea.getX() + 14.f, (float) inspArea.getY() + 16.f, 8.f, 8.f, 2.f);
+        g.setColour (c.silver); g.setFont (lnf.font (16.f, doomsday::flat::Bold, 0.05f));
+        g.drawText (st.name, inspArea.getX() + 30, inspArea.getY() + 10, 200, 20, Justification::centredLeft);
+    }
+    const int headW = 360;
+    for (int i = 0; i < 7; ++i)
+    {
+        const auto& st = strips[(size_t) i];
+        const auto a = laneArea[(size_t) i];
+        fge::gui::glassPanel (g, a.toFloat(), 5.f);
+        if (i == laneSel) { g.setColour (c.red.withAlpha (0.7f)); g.drawRoundedRectangle (a.toFloat().reduced (0.5f), 5.f, 1.f); }
+        g.setColour (st.col); g.fillRoundedRectangle ((float) a.getX() + 14.f, (float) a.getY() + 12.f, 8.f, 8.f, 2.f);
+        g.setColour (c.silver); g.setFont (lnf.font (14.f, doomsday::flat::Bold, 0.05f));
+        g.drawText (st.name, a.getX() + 28, a.getY() + 6, 110, 20, Justification::centredLeft);
+        if (st.type == nullptr) { g.setColour (c.textDim); g.setFont (lnf.font (12.5f, doomsday::flat::Medium)); g.drawText (i == 3 ? "Tonal" : "Sine", a.getX() + 16, a.getY() + a.getHeight() / 2 + 2, 110, 22, Justification::centredLeft); }
+        g.setColour (c.textDim); g.setFont (lnf.font (12.f, doomsday::flat::Medium));
+        g.drawText ("Level", a.getX() + 146, a.getY() + 6, 50, 20, Justification::centredLeft);
+        g.setColour (c.silver.withAlpha (0.85f));
+        g.drawText (laneLevel[(size_t) i]->getTextFromValue (laneLevel[(size_t) i]->getValue()), a.getX() + 196, a.getY() + 6, 62, 20, Justification::centredRight);
+        g.setColour (c.line); g.drawVerticalLine (a.getX() + headW, (float) a.getY() + 1.f, (float) a.getBottom() - 1.f);
+        // the body: the part's real envelope (PUNCH / BODY / TAIL / SUB from the rendered kick), TOK / CLICK / SCREECH from their lengths
+        const auto body = a.withTrimmedLeft (headW + 1).reduced (0, 6).toFloat();
+        float ms = 500.f;
+        std::vector<float> env;
+        if (i >= 2 && i <= 5)
+        {   // ~3 ms bins, then a short hold so one cycle of the tone does not show as a saw
+            env = wave.partEnvelope (i - 2, 160, ms);
+            auto held = env;
+            for (size_t k = 0; k < env.size(); ++k) for (size_t j = k; j < jmin (env.size(), k + 3); ++j) held[k] = jmax (held[k], env[j]);
+            env = held;
+        }
+        else wave.partEnvelope (0, 1, ms);
+        if (ms < 50.f) ms = 500.f;
+        g.setColour (c.line.withAlpha (0.5f));
+        for (float t = 50.f; t < ms; t += 50.f) g.drawVerticalLine (roundToInt (body.getX() + body.getWidth() * t / ms), body.getY(), body.getBottom());
+        if (env.empty())
+        {   // a simple shape from the part's own timing
+            const String pre = i == 0 ? "tk_" : i == 1 ? "clk_" : "scr_";
+            const float len = proc.apvts.getRawParameterValue (pre + "length")->load();
+            const float start = i == 6 ? jmax (0.f, proc.apvts.getRawParameterValue ("scr_start")->load()) : 0.f;
+            const bool on = i == 6 ? raw (proc, P::scrOn) > 0.5f : (int) proc.apvts.getRawParameterValue (pre + "mode")->load() != 2;
+            env.assign ((size_t) roundToInt (body.getWidth() / 2.f), 0.f);
+            for (size_t k = 0; k < env.size(); ++k)
+            {
+                const float t = ms * (float) k / (float) env.size() - start;
+                env[k] = ! on || t < 0.f || t > len ? 0.f : (t < 1.f ? t : 1.f - 0.85f * t / jmax (1.f, len));
+            }
+        }
+        Path p; p.startNewSubPath (body.getX(), body.getBottom());
+        for (size_t k = 0; k < env.size(); ++k)
+            p.lineTo (body.getX() + body.getWidth() * (float) k / (float) jmax ((size_t) 1, env.size() - 1), body.getBottom() - body.getHeight() * jlimit (0.f, 1.f, env[k]));
+        p.lineTo (body.getRight(), body.getBottom()); p.closeSubPath();
+        g.setColour (st.col.withAlpha (0.16f)); g.fillPath (p);
+        g.setColour (st.col.withAlpha (0.9f)); g.strokePath (p, PathStrokeType (1.3f));
+    }
+}
+
+void GeCanvas::layoutConsole()
+{
+    const int sideW = 262, gap = 12, waveH = 200;
+    const int areaW = CW - sideW - gap, top = Y0 + waveH + gap;
+    if (pageIdx == 0 && overview) wave.setBounds (X0, Y0, areaW, waveH);
+    pitchPanel = { X0 + areaW + gap, Y0, sideW, waveH };
+    masterPanel = { pitchPanel.getX(), top, sideW, Y0 + CH - top };
+    const int sw = (areaW - 6 * 8) / 7, kh = Knob::heightFor (34);
+    for (int i = 0; i < 7; ++i)
+    {
+        auto& st = strips[(size_t) i];
+        st.area = { X0 + i * (sw + 8), top, sw, Y0 + CH - top };
+        if (! consoleShown()) { st.nameArea = {}; continue; }
+        const auto a = st.area.reduced (8, 0);
+        if (st.type != nullptr) st.type->setBounds (a.getX(), a.getY() + 10, a.getWidth(), 24);
+        const int kw = (st.area.getWidth() - 4) / 3;                              // (the value boxes may overlap a little)
+        for (size_t k = 0; k < st.knobs.size(); ++k) st.knobs[k]->setBounds (st.area.getX() + 2 + (int) k * kw - 5, a.getY() + 42, kw + 10, kh);
+        st.nameArea = { st.area.getX(), st.area.getBottom() - 40, st.area.getWidth(), 40 };
+        const int by = st.nameArea.getY() - 30;
+        if (st.buttons.size() == 2) { st.buttons[0]->setBounds (st.area.getCentreX() - 31, by, 28, 20); st.buttons[1]->setBounds (st.area.getCentreX() + 3, by, 28, 20); }
+        else if (st.buttons.size() == 1) st.buttons[0]->setBounds (st.area.getCentreX() - jmin (60, a.getWidth() / 2), by, jmin (120, a.getWidth()), 20);
+        const int fy = a.getY() + 42 + kh + 10;
+        st.faderArea = { a.getX(), fy, a.getWidth(), by - 10 - fy };
+        if (st.fader != nullptr) st.fader->setBounds (st.faderArea.getCentreX() - 10, fy, 30, st.faderArea.getHeight());
+    }
+    const auto pp = pitchPanel;
+    pitchSide[0]->setBounds (pp.getX() + 14, pp.getY() + 36, 140, 24);
+    pitchSide[1]->setBounds (pp.getX() + 164, pp.getY() + 38, 86, 20);
+    for (int k = 0; k < 4; ++k) pitchSide[(size_t) k + 2]->setBounds (pp.getX() + 8 + k * 62, pp.getY() + 68, 62, Knob::heightFor (34));
+    pitchSide[6]->setBounds (pp.getX() + 14, pp.getBottom() - 32, pp.getWidth() - 28, 22);
+    const auto mp = masterPanel;
+    masterSide[0]->setBounds (mp.getX() + 10, mp.getY() + 36, 80, Knob::heightFor (34));
+    masterSide[1]->setBounds (mp.getX() + 92, mp.getY() + 36, 80, Knob::heightFor (34));
+    outMeterArea = { mp.getRight() - 50, mp.getY() + 40, 30, mp.getHeight() - 74 };
+}
+
+void GeCanvas::paintConsole (Graphics& g)
+{
+    const auto& c = palette();
+    auto title = [&] (Rectangle<int> r, const char* t)
+    {
+        fge::gui::glassPanel (g, r.toFloat(), 5.f);
+        g.setColour (c.silver.withAlpha (0.75f)); g.setFont (lnf.font (13.f, doomsday::flat::SemiBold));
+        g.drawText (t, r.getX() + 14, r.getY() + 8, 200, 20, Justification::left);
+    };
+    title (pitchPanel, "Pitch");
+    title (masterPanel, "Master");
+    {   // the output meter (big)
+        const float m = jlimit (0.f, 1.f, (Decibels::gainToDecibels (outMeter, -60.f) + 60.f) / 66.f);
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            auto r = outMeterArea.withWidth (12).translated (ch * 16, 0);
+            g.setColour (c.ground.darker (0.3f)); g.fillRect (r);
+            g.setColour (outMeter > 1.f ? c.hot : c.silver.withAlpha (0.85f));
+            g.fillRect (r.withTop (r.getBottom() - roundToInt ((float) r.getHeight() * m)));
+        }
+        g.setColour (c.silver); g.setFont (lnf.font (13.f, doomsday::flat::SemiBold));
+        const float db = Decibels::gainToDecibels (outMeter, -60.f);
+        g.drawText (db <= -59.f ? String ("-inf") : String (db, 1) + " dB", outMeterArea.getX() - 70, outMeterArea.getBottom() + 6, 100, 18, Justification::centredRight);
+    }
+    for (auto& st : strips)
+    {
+        fge::gui::glassPanel (g, st.area.toFloat(), 5.f);
+        // the name bar (the scribble strip): click = every parameter of the part
+        const auto nb = st.nameArea;
+        g.setColour (c.ground.darker (0.15f)); g.fillRect (nb.reduced (1, 0).withTrimmedBottom (1));
+        g.setColour (st.col); g.fillRect (nb.getX() + 1, nb.getY(), nb.getWidth() - 2, 2);
+        g.setColour (c.silver); g.setFont (lnf.font (14.f, doomsday::flat::Bold, 0.06f));
+        g.drawText (st.name, nb.withTrimmedTop (3).withHeight (20), Justification::centred);
+        if (st.fader != nullptr)
+        {
+            g.setColour (c.textDim); g.setFont (lnf.font (11.5f, doomsday::flat::Medium));
+            g.drawText (st.fader->getTextFromValue (st.fader->getValue()), nb.withTrimmedTop (21).withHeight (16), Justification::centred);
+            // the dB scale left of the fader
+            auto* f = st.fader;
+            g.setFont (lnf.font (10.5f, doomsday::flat::Medium));
+            float lastY = -100.f;
+            for (double v : { 6.0, 0.0, -6.0, -12.0, -24.0, -48.0 })
+            {
+                if (v < f->getMinimum() || v > f->getMaximum()) continue;
+                const float y = (float) f->getY() + (float) f->getPositionOfValue (v);
+                if (y - lastY < 16.f) continue;                                  // (a skewed range: no labels on top of each other)
+                lastY = y;
+                g.setColour (c.line.brighter (0.3f)); g.drawHorizontalLine (roundToInt (y), (float) f->getX() - 12.f, (float) f->getX() - 2.f);
+                g.setColour (c.textDim.withAlpha (0.8f));
+                g.drawText (v > 0 ? "+" + String ((int) v) : String ((int) v), f->getX() - 44, roundToInt (y) - 7, 30, 14, Justification::centredRight);
+            }
+            if (st.meter >= 0)
+            {
+                const float m = jlimit (0.f, 1.f, (Decibels::gainToDecibels (meter[(size_t) st.meter], -60.f) + 60.f) / 66.f);
+                auto r = Rectangle<int> (f->getRight() + 4, f->getY() + 15, 5, f->getHeight() - 30);
+                g.setColour (c.ground.darker (0.3f)); g.fillRect (r);
+                g.setColour (c.silver.withAlpha (0.7f)); g.fillRect (r.withTop (r.getBottom() - roundToInt ((float) r.getHeight() * m)));
+            }
+        }
     }
 }
 

@@ -97,6 +97,23 @@ namespace fge::gui
         return pk;
     }
 
+    std::vector<float> WaveView::partEnvelope (int part, int points, float& msOut) const
+    {
+        std::vector<float> e ((size_t) jmax (1, points), 0.f);
+        auto& self = const_cast<WaveView&> (*this);
+        std::lock_guard<std::mutex> l (self.lock);
+        msOut = shown.ms;
+        const auto& v = shown.part[(size_t) jlimit (0, 3, part)];
+        float top = 1.0e-6f; for (auto x : shown.full) top = jmax (top, std::abs (x));
+        if (v.empty()) return e;
+        for (size_t i = 0; i < v.size(); ++i)
+        {
+            auto& b = e[jmin (e.size() - 1, i * e.size() / v.size())];
+            b = jmax (b, std::abs (v[i]) / top);
+        }
+        return e;
+    }
+
     void WaveView::paint (Graphics& g)
     {
         const auto& c = palette();

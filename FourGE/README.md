@@ -4,6 +4,17 @@ Syntezator kicków hardstyle (instrument VST3, FL Studio). **Nowy 4GE zbudowany 
 17 modułów (`SPEC.md`, `MODULE01.md`…`MODULE12.md`, `MODULES13-17_overview.md`, zasady nadrzędne w `RULES.md`, plan w `PLAN.md`).
 **v0.6 = wszystkie 17 modułów** – od CORE KICK ENGINE (moduł 01) po docelowy interfejs (moduł 17).
 
+## NOWY WYGLĄD – GUI v2 (2026-11-19)
+Czysto i czytelnie: płaskie grafitowe panele, kolor tylko na dźwięku (fala, łuki gałek, suwaki), jedna czcionka (Barlow),
+bez zdań z objaśnieniami na ekranie – opis tego, co jest pod myszką, jest w pasku na samym dole.
+- **Nawigacja na górze**: Kick / Synthesis / Processing / Modulation / System, pod spodem strony wybranego bloku.
+- **MAIN = KONSOLA**: na górze fala kicka, pod nią kanały TOK / CLICK / PUNCH / BODY / TAIL / SUB / SCREECH – typ, 3 najważniejsze
+  gałki, suwak głośności z miernikiem, M / S (albo AUTO / ON / OFF). **Klik w nazwę kanału = wszystkie parametry tej części**
+  (powrót: przycisk Console albo zakładka Main). Z prawej PITCH i MASTER.
+- **Przełącznik Console | Lanes** (obok zakładek): LANES = każda część jako ścieżka z jej prawdziwym kształtem w czasie,
+  klik w ścieżkę = jej gałki w panelu z prawej. Wtyczka pamięta wybrany widok.
+- SETTINGS → wygląd: CLEAN (nowy, domyślny) albo SMOKE (stary szklany).
+
 ## INTERFEJS (moduł 17)
 - **Lewa strona = nawigacja w 5 blokach**: 01 KICK (MAIN, ENVELOPES) · 02 SYNTHESIS (OSCILLATORS, LAYERS, SAMPLES) ·
   03 PROCESSING (DISTORTION, SCREECH, EQ, DYNAMICS, STEREO) · 04 MODULATION (MOD MATRIX) · 05 SYSTEM (PRESETS, ANALYZE, EXPORT, SETTINGS).

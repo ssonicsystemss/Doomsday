@@ -62,6 +62,12 @@ namespace doomsday::flat
 
         // a TextButton with getProperties()["primary"] = true is drawn as the filled accent button
         static void makePrimary (juce::Button& b) { b.getProperties().set ("primary", true); }
+        // a plugin may use its own type family (4GE GUI v2: Barlow Semi Condensed); every font() call follows
+        void setTypefaces (juce::Typeface::Ptr medium, juce::Typeface::Ptr semiBold, juce::Typeface::Ptr bold)
+        {
+            tf[Medium] = medium; tf[SemiBold] = semiBold; tf[Bold] = bold;
+            setDefaultSansSerifTypeface (medium);
+        }
     private:
         juce::Typeface::Ptr tf[3];
     };

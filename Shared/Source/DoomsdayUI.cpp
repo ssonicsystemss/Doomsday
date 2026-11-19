@@ -589,6 +589,20 @@ bool PresetBar::keyPressed (const KeyPress& k, Component*)
 void PresetBar::resized()
 {
     const int w = getWidth();
+    if (getHeight() < 50)                                    // one row (4GE GUI v2): < name > RANDOMIZE SAVE PLAY UNDO REDO
+    {
+        const int h = getHeight(), bh = h;
+        int right = w;
+        auto place = [&] (Component& c, int bw) { right -= bw; c.setBounds (right, 0, bw, bh); right -= 6; };
+        if (host.undoManager() != nullptr) { place (redoBtn, 54); place (undoBtn, 54); }
+        if (withPlay) place (play, 58);
+        place (save, 58);
+        if (withRandom) place (random, 84);
+        next.setBounds (right - h, 0, h, h);
+        name.setBounds (h + 4, 0, right - h - 4 - h - 4, h);
+        prev.setBounds (0, 0, h, h);
+        return;
+    }
     prev.setBounds (0, 18, 32, 32);
     name.setBounds (38, 18, w - 76, 32);
     next.setBounds (w - 32, 18, 32, 32);
@@ -609,6 +623,7 @@ void PresetBar::resized()
 }
 void PresetBar::paint (Graphics& g)
 {
+    if (getHeight() < 50) return;                            // (one row: no caption)
     auto& lnf = lnfOf (*this);
     g.setFont (lnf.labelFont (11.f, 0.35f));
     g.setColour (lnf.theme.dim);

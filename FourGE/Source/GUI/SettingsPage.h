@@ -21,8 +21,8 @@ namespace fge::gui
             size->tipFor = [] (int i) { return i == 0 ? juce::String ("FIT: the largest size that fits your screen (never above 100 %)") : "The whole window at " + fge::ui::Settings::scaleName (fge::ui::Settings::scales()[i]); };
             size->onPick = [this] (int i) { st.scale = fge::ui::Settings::scales()[i]; changed(); };
             addAndMakeVisible (*size);
-            theme = std::make_unique<ChoiceStrip> (juce::StringArray { "FLAT", "SMOKE" });
-            theme->tipFor = [] (int i) { return i == 0 ? juce::String ("FLAT: the original black industrial look") : juce::String ("SMOKE: liquid glass - smoked translucent panels over soft glows"); };
+            theme = std::make_unique<ChoiceStrip> (juce::StringArray { "CLEAN", "SMOKE" });
+            theme->tipFor = [] (int i) { return i == 0 ? juce::String ("CLEAN: flat graphite panels, colour only on the sound (the default)") : juce::String ("SMOKE: liquid glass - smoked translucent panels over soft glows"); };
             theme->onPick = [this] (int i) { st.theme = i; setTheme (i); changed(); if (auto* t = getTopLevelComponent()) t->repaint(); };
             addAndMakeVisible (*theme);
             for (auto* b : { &tips, &info }) { b->setClickingTogglesState (true); addAndMakeVisible (b); }

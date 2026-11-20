@@ -24,9 +24,31 @@ namespace fge::gui
         }
         juce::Typeface::Ptr pctTf;      // Michroma's "%" reads like "0/0" - every % is drawn in Barlow
 
+        // a table cell (a "quiet" combo): the choice in producer shorthand, fitted - the open list keeps the full names
+        static juce::String abbrevChoice (const juce::String& t)
+        {
+            static const std::pair<const char*, const char*> map[] {
+                { "UNIPOLAR +", "UNI +" }, { "UNIPOLAR -", "UNI -" }, { "UNIPOLAR", "UNI" }, { "BIPOLAR", "BI" },
+                { "EXPONENTIAL", "EXP" }, { "LOGARITHMIC", "LOG" }, { "LINEAR", "LIN" }, { "S-CURVE", "S-CRV" }, { "INVERTED", "INV" },
+                { "MULTIPLY", "MULT" }, { "REPLACE", "REPL" }, { "TEXTURE", "TXT" }, { "SINGLE (GROUP)", "SINGLE" }, { "MULTI (SENDS)", "MULTI" },
+                { "VELOCITY", "VEL" }, { "ENVELOPE", "ENV" }, { "RANDOM", "RND" }, { "FOLLOWER", "FOLLOW" }, { "KEYTRACK", "KEY" } };
+            const auto up = t.toUpperCase();
+            for (auto& [a, b] : map) if (up == a) return b;
+            juce::StringArray w; w.addTokens (t, " ", "");
+            for (auto& x : w) for (auto& [a, b] : map) if (x.toUpperCase() == a) { x = b; break; }
+            return abbrev (w.joinIntoString (" "));
+        }
+
         void drawLabel (juce::Graphics& g, juce::Label& l) override
         {
             using namespace juce;
+            if (auto* cb = dynamic_cast<ComboBox*> (l.getParentComponent()); cb != nullptr && (bool) cb->getProperties()["quiet"] && ! l.isBeingEdited())
+            {
+                g.setFont (getLabelFont (l));
+                g.setColour (l.findColour (Label::textColourId).withMultipliedAlpha (l.isEnabled() ? 1.f : 0.5f));
+                g.drawFittedText (abbrevChoice (l.getText()), getLabelBorderSize (l).subtractedFrom (l.getLocalBounds()), l.getJustificationType(), 1, 0.8f);
+                return;
+            }
             const auto text = l.getText();
             if (l.isBeingEdited() || ! text.containsChar ('%')) { FlatLookAndFeel::drawLabel (g, l); return; }
             g.fillAll (l.findColour (Label::backgroundColourId));

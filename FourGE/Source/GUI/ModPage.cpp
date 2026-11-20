@@ -58,7 +58,7 @@ namespace fge::gui
             depth.textFromValueFunction = offset.textFromValueFunction = [] (double v) { return (v > 0 ? "+" : "") + String (roundToInt (v * 100.0)) + " %"; };
             smooth.textFromValueFunction = lag.textFromValueFunction = [] (double v) { return String (roundToInt (v)) + " ms"; };
             for (auto* sl : { &depth, &offset, &smooth, &lag }) sl->updateText();
-            label.setTooltip ("LABEL: your own name for this connection."); label.setFont (FontOptions (11.f)); addAndMakeVisible (label);
+            label.setTooltip ("LABEL: your own name for this connection."); label.setFont (FontOptions (10.f)); label.setJustification (Justification::centredLeft); addAndMakeVisible (label);
             // edits -> the processor (one undo step per click / drag)
             on.onClick = [this] { edit ([&] (auto& s) { s.on = on.getToggleState(); }); };
             mute.onClick = [this] { edit ([&] (auto& s) { s.mute = mute.getToggleState(); }); };

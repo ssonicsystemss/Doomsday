@@ -248,6 +248,12 @@ int main (int argc, char** argv)
             PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
             FileOutputStream os (File (argv[1]).getChildFile ("page" + String (pg).paddedLeft ('0', 2) + ".png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
         }
+        {                                                                                   // HELP (owner 2026-11-20)
+            ge->canvas.openHelp();
+            PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+            FileOutputStream os (File (argv[1]).getChildFile ("help.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); }
+            ge->canvas.helpPanel()->setVisible (false);
+        }
         {                                                                                   // GUI v2: the LANES view of MAIN
             ge->canvas.setMainView (1); ge->canvas.selectLane (2);
             for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
@@ -4647,6 +4653,13 @@ int main (int argc, char** argv)
             check (order.size() == 15 && pages.size() == 15 && allMods && clicks && bottom,
                    "M17 NAVIGATION: 5 blocks / 15 pages / all 17 modules placed, a click opens the page, MACROS + GLOBAL on every page",
                    String ((int) order.size()) + " pages" + (allMods ? "" : " modules!") + (clicks ? "" : " clicks!") + (bottom ? "" : " bottom!"));
+            {   // HELP (owner 2026-11-20): a small "?" opens the help with the TEST BUILD notice, Esc closes it
+                cv.openHelp();
+                bool ok = cv.helpPanel() != nullptr && cv.helpPanel()->isVisible() && fge::gui::HelpPanel::sections().size() >= 6;
+                cv.helpPanel()->keyPressed (KeyPress (KeyPress::escapeKey));
+                ok &= ! cv.helpPanel()->isVisible();
+                check (ok, "HELP: the ? button opens the help (TEST BUILD notice + 7 sections), Esc closes it");
+            }
             {   // GUI v2 (owner 2026-11-19): MAIN = CONSOLE - 7 strips, a fader moves its level, the name opens the part
                 cv.showPage (0);
                 bool ok = cv.consoleShown();

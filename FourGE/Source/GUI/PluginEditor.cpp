@@ -811,6 +811,8 @@ void GeCanvas::resized()
         place (&styleStrip, 190, 26);
         lengthBtn.setBounds (0, 0, 0, 0); lengthBtn.setVisible (false);
     }
+    helpBtn.setBounds (tx + 40, 59, 24, 22);
+    if (help != nullptr) help->setBounds (getLocalBounds());
     viewConsole.setBounds (nav.getX() + 330, 58, 82, 24);
     viewLanes.setBounds (nav.getX() + 414, 58, 82, 24);
     infoArea = { 0, H - 26, W, 26 };
@@ -1126,7 +1128,18 @@ void GeCanvas::buildConsole()
     inspAll.onClick = [this] { if (strips[(size_t) laneSel].open) strips[(size_t) laneSel].open(); };
     inspAll.setTooltip ("Every parameter of this part (the full view with its tabs).");
     for (auto* b : { &viewConsole, &viewLanes, &inspAll }) addChildComponent (b);
+    helpBtn.setTooltip ("Help: navigation, knobs, modulation, files and shortcuts. (Test build - not the final version.)");
+    helpBtn.onClick = [this] { openHelp(); };
+    addAndMakeVisible (helpBtn);
+    help = std::make_unique<fge::gui::HelpPanel> (lnf, String ("v") + versionText);
+    addChildComponent (help.get());
     wave.onRendered = [this] { if (lanesShown()) repaint(); };
+}
+
+void GeCanvas::openHelp()
+{
+    help->setBounds (getLocalBounds());
+    help->show();
 }
 
 std::vector<Component*> GeCanvas::inspectorNow() const

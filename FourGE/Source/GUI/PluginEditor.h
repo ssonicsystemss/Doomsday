@@ -32,6 +32,7 @@
 #include "SettingsPage.h"
 #include "Palette.h"
 #include "GeLook.h"
+#include "HelpPanel.h"
 
 class GeCanvas : public juce::Component, public juce::DragAndDropContainer, public juce::DragAndDropTarget, public juce::FileDragAndDropTarget, private juce::Timer
 {
@@ -223,6 +224,12 @@ private:
     void paintConsole (juce::Graphics&);
     // the second view (B): the parts as tracks with their real envelopes, the selected part's knobs on the right
     juce::TextButton viewConsole { "Console" }, viewLanes { "Lanes" }, inspAll { "All parameters" };
+    juce::TextButton helpBtn { "?" };                                    // HELP (owner 2026-11-20)
+    std::unique_ptr<fge::gui::HelpPanel> help;
+public:
+    fge::gui::HelpPanel* helpPanel() const { return help.get(); }       // (tests)
+    void openHelp();
+private:
     int laneSel = 2;
     std::array<juce::Slider*, 7> laneLevel {};
     std::array<std::vector<juce::Component*>, 7> inspector;

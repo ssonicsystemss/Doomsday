@@ -13,6 +13,8 @@ bez zdań z objaśnieniami na ekranie – opis tego, co jest pod myszką, jest w
   (powrót: przycisk Console albo zakładka Main). Z prawej PITCH i MASTER.
 - **Przełącznik Console | Lanes** (obok zakładek): LANES = każda część jako ścieżka z jej prawdziwym kształtem w czasie,
   klik w ścieżkę = jej gałki w panelu z prawej. Wtyczka pamięta wybrany widok.
+- **Przycisk „?”** (obok numeru wersji) = okno pomocy po angielsku: informacja, że to wersja testowa, i skrót obsługi
+  (nawigacja, konsola, gałki, modulacja, pliki, skróty klawiszowe). Zamykanie: Close, Esc albo klik obok.
 - SETTINGS → wygląd: CLEAN (nowy, domyślny) albo SMOKE (stary szklany).
 
 ## INTERFEJS (moduł 17)

@@ -528,3 +528,6 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   Filters AFTER the final hard clip round the square into a saw (no crack). The owner's refs: hard-clipped to the rails, irregular.
 - Splitting HIS reference worked where synthesis guesses failed: "is the crack still there without >1.5 kHz?" got a one-word answer.
 - When he sends a spec, build THAT, with SOLO / routing switches so he can hear each path; do not tune presets first.
+- (later, owner's rawstyle-kick_G_major) The ref punch = a hard-clipped square at ~±0.85, but its cycles are VERY irregular (period
+  spread 50-85 %, peaks not harmonic: ~430 / 650-700 / 1300-1700 / 100-150 Hz at once). One tone into a clip = "pup" every time.
+  A sketch with 4-5 inharmonic tones + band noise clipped together matched the spread, but sounded "dziwnie" - not solved yet.

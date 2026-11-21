@@ -11,12 +11,14 @@
 //      BODY COUPLING: a distorted bridge that carries the crack's energy into the body (no hole between KRAK and the body)
 //   SNAP = how hard the very start hits; CRACK = how harmonically aggressive that start is (a separate harmonic process, not a drive).
 //   Distortion is a tool in several places (punch / crack / bridge), never "the whole kick -> distortion".
-//   DYNAMIC DISTORTED CRUNCH (owner 2026-11-21, RAW_CRUNCH.md): a PARALLEL path of the same punch source - "CZZZZ / GRRRR", a held,
-//      dense distorted grind that runs from the punch into the body (never a click, never a second "DUM"):
-//      SOURCE (the punch's tone + the SNARE / NOISE / HYBRID broadband source) -> WINDOW -> PRE-SHAPING (no lows) -> ASYMMETRIC
-//      WAVESHAPING -> MULTISTAGE SATURATION (EQ between the stages) -> CONTROLLED HARD CLIP -> TONE FILTER -> DYNAMIC ENVELOPE
-//      (start = the punch, held to the PUNCH END, then into the BODY: end = PUNCH END + BODY DURATION x BODY FOLLOW) -> HYBRID
-//      coupling (in the body it loses its edge and turns rougher / grainier, no level step) -> level-held CRUNCH -> + the punch.
+//   DISTORTED CRUNCH = a CRACK IMPULSE ENGINE (owner 2026-11-21 rework, RAW_CRUNCH.md: "CZ-KR-CZ-KRR", a series of distorted
+//      impulses, NEVER a continuous noise): a parallel path of the punch. IMPULSE SEQUENCE locked to the punch's own cycles (rhythmic
+//      with it), irregular but repeatable (a fixed hash, no random generator), the first impulse the strongest, the next ones weaker;
+//      DENSITY = how close they come. Each impulse: a short tonal burst (saw / square + the punch's tone; SNARE / NOISE / HYBRID only
+//      colours it) -> PRE-SHAPING -> ASYMMETRIC WAVESHAPING (GRIT) -> MULTISTAGE SATURATION -> HARD CLIP -> CRUNCH TONE -> ITS OWN
+//      ENVELOPE after the distortion (so the impulse stays an impulse) -> the SEQUENCE MIX -> CRUNCH. The whole series lives from the
+//      punch start to PUNCH END + BODY DURATION x BODY FOLLOW, fading toward the end; inside the body the impulses get softer and
+//      darker (BODY TRANSITION), no level step.
 //  Mono. DSP only; reset() per kick, no allocation.
 // =====================================================================
 #include <cmath>
@@ -48,9 +50,9 @@ namespace fge::dsp::rawpunch
         void prepare (double rate) { fs = rate; reset(); }
         void reset()
         {
-            p = 0.0; blk = 0; seed = 0x7a3c19e5u; envIn = envOut = 0.f; follow = 0.f; snPh = 0.0; holdN = 0; held = 0.f;
-            for (auto* b : { &cpre1, &cpre2, &clowCut, &ctoneBell, &ctoneLp }) b->clear();
-            for (auto& m : cmid) m.clear();
+            p = 0.0; blk = 0; seed = 0x7a3c19e5u; envIn = envOut = 0.f; follow = 0.f; impCount = 0; sinceImp = 0.f; lastP = 0.0;
+            for (auto& v : imp) { v.on = false; v.lp.clear(); v.hp.clear(); }
+            cOut1.clear(); cOut2.clear();
             for (auto* b : { &pre1, &pre2, &band1, &band2, &bridgeLp, &tilt, &tilt2, &edgeHp, &snapBp, &dcb, &outLp }) b->clear();
         }
 
@@ -130,39 +132,61 @@ namespace fge::dsp::rawpunch
             return dcb.tick (outLp.tick (std::tanh (y * 1.3f) / std::tanh (1.3f)) * 0.8f + 0.6f * sn);   // (the SNAP on top: never squashed by the crack's saturation)
         }
 
-        // ---------------- DYNAMIC DISTORTED CRUNCH (a parallel path of the punch source)
+        // ---------------- DISTORTED CRUNCH: the CRACK IMPULSE ENGINE (a parallel path of the punch)
+        static float hashU (uint32_t k)                       // a fixed, repeatable "irregularity" (-1..1): the same kick = the same series
+        {
+            k ^= k >> 16; k *= 0x7feb352du; k ^= k >> 15; k *= 0x846ca68bu; k ^= k >> 16;
+            return (float) (k & 0xffffff) / 8388607.5f - 1.f;
+        }
         float crunchPath (const Settings& s, float ms, float src, float n)
         {
             const float pEnd = std::max (10.f, s.decayMs), end = crunchEnd (s);
-            // DYNAMIC ENVELOPE: a fast attack (1 ms), HELD while the punch lasts, then it decays into the body (BODY FOLLOW)
-            float env;
-            if (ms < 1.f) env = ms;
-            else if (ms < pEnd) env = 1.f - 0.15f * (ms - 1.f) / (pEnd - 1.f);
-            else { const float u = (ms - pEnd) / std::max (8.f, end - pEnd); env = u >= 1.f ? 0.f : 0.85f * std::pow (1.f - u, 1.5f); }
-            if (env <= 0.f) return 0.f;
-            // SOURCE: the punch's own tone + the broadband SNARE / NOISE / HYBRID source (a held grain, not a decaying hit)
-            snPh += 190.0 / fs; if (snPh >= 1.0) snPh -= 1.0;
-            const float body = (float) std::sin (6.283185307 * snPh);
-            float bb = s.crunchSource == 1 ? n : s.crunchSource == 0 ? 0.6f * n + 0.7f * body : 0.45f * n + 0.4f * body;
-            float x = 0.8f * src + bb;
-            // PRE-SHAPING: no lows (the body keeps the mass), the level into the shapers
-            x = cpre2.tick (cpre1.tick (x));
-            // ASYMMETRIC WAVESHAPING (GRIT = how hard)
-            const float g = 2.f + 12.f * s.grit;
-            x = x >= 0.f ? 1.f - std::exp (-g * x) : -(1.f - std::exp (g * 0.55f * x)) * 0.6f;
-            // MULTISTAGE SATURATION (DENSITY = how many), an EQ between the stages so no stage piles up mud
-            for (int k = 0; k < cStages; ++k) { x = cmid[(size_t) k].tick (x); x = std::tanh (x * (1.8f + 1.2f * s.crunchDensity)) * 0.9f; }
-            // CONTROLLED HARD CLIP (independent of the kick's drive, a stable level)
-            x = std::clamp (x * 1.4f, -0.75f, 0.75f) / 0.75f;
-            // HYBRID coupling: inside the body it loses its edge and gets rougher / grainier (a sample-and-hold), no level step
+            if (ms > end + 10.f) return 0.f;
+            // the series' own envelope: full while the punch lasts, then it fades through the body (BODY FOLLOW); 0 at the end
+            const float seriesEnv = ms < pEnd ? 1.f - 0.25f * ms / pEnd : std::max (0.f, 0.75f * std::pow (1.f - (ms - pEnd) / std::max (8.f, end - pEnd), 1.3f));
             const float inBody = std::clamp ((ms - std::max (pEnd, s.bodyStartMs)) / std::max (8.f, end - pEnd), 0.f, 1.f);
-            const int hold = 1 + (int) (inBody * (2.f + 10.f * s.grit) * (float) (fs / 176400.0));
-            if (++holdN >= hold) { holdN = 0; held = x; }
-            x = held;
-            // TONE FILTER: dark .. bright, the aggressive mids up, no hiss (the top closes as it goes into the body)
-            x = ctoneLp.tick (ctoneBell.tick (clowCut.tick (x)));
-            // the level: after the hard clip the layer is level-stable, so CRUNCH = how much of it (never "more drive = louder")
-            return x * env * s.crunch * 1.1f * (1.f - 0.35f * inBody);
+            // ---- IMPULSE SEQUENCE: fire on a punch cycle once the (irregular) interval has passed - rhythmic with the punch
+            const bool wrap = p < lastP;
+            lastP = p;
+            sinceImp += 1000.f / (float) fs;
+            const float baseMs = 9.f - 6.5f * std::clamp (s.crunchDensity, 0.f, 1.f);               // DENSITY: ~9 ms .. ~2.5 ms apart
+            const float want = baseMs * (1.f + 0.45f * hashU (0x51u + (uint32_t) impCount * 2654435761u));
+            if (ms < end && (impCount == 0 || (wrap && sinceImp >= want)))
+            {
+                auto& v = imp[(size_t) (impCount % (int) imp.size())];
+                const float r1 = hashU (0xA3u + (uint32_t) impCount * 40503u), r2 = hashU (0x7Fu + (uint32_t) impCount * 9973u);
+                v.on = true; v.t = 0.f; v.ph = 0.0;
+                v.amp = (impCount == 0 ? 1.f : std::clamp (0.62f - 0.03f * (float) impCount + 0.15f * r1, 0.2f, 0.75f)) * seriesEnv;   // the first the strongest
+                v.hz = (700.0 + 2600.0 * s.crunchTone) * (1.0 + 0.25 * r2) * (1.0 - 0.45 * inBody);
+                v.dec = impCount == 0 ? 2.2f + 1.2f * (1.f - s.crunchTone)                         // ms: the first a bit longer, the rest short -
+                                      : std::min (1.0f + 1.2f * (1.f - s.crunchTone) + 0.8f * inBody, 0.3f * want);   // never smeared into each other
+                v.lp.lp (fs, std::clamp ((4500.0 + 9000.0 * s.crunchTone) * (1.0 - 0.6 * inBody), 1200.0, fs * 0.45), 0.7071);   // BODY TRANSITION: less sharp
+                v.hp.hp (fs, 350.0, 0.7071);
+                ++impCount; sinceImp = 0.f;
+            }
+            // ---- each impulse: a tonal burst -> distortion -> CRUNCH TONE -> ITS OWN ENVELOPE (after the distortion: it stays an impulse)
+            const float g = 2.5f + 14.f * s.grit;
+            float out = 0.f;
+            for (auto& v : imp)
+            {
+                if (! v.on) continue;
+                const float e = v.t < 0.15f ? v.t / 0.15f : std::exp (-(v.t - 0.15f) / v.dec);
+                if (v.t > 0.15f + 7.f * v.dec) { v.on = false; continue; }
+                const double ph = v.ph; v.ph += v.hz / fs; if (v.ph >= 1.0) v.ph -= 1.0;
+                const float saw = (float) (2.0 * ph - 1.0), sq = ph < 0.5 ? 1.f : -1.f;
+                float x = 0.55f * saw + 0.45f * sq + 0.5f * src;                                   // harmonic material (+ the punch's tone)
+                if (s.crunchSource != 2) x += (s.crunchSource == 1 ? 0.35f : 0.2f) * n;           // NOISE / SNARE only colour it (never the source)
+                x = v.hp.tick (x);                                                                 // PRE-SHAPING: no lows (no second DUM)
+                x = x >= 0.f ? 1.f - std::exp (-g * x) : -(1.f - std::exp (g * 0.55f * x)) * 0.62f;   // ASYMMETRIC WAVESHAPING
+                for (int k = 0; k < 2 + (int) (s.grit * 2.f); ++k) x = std::tanh (x * 2.2f) * 0.92f;  // MULTISTAGE SATURATION
+                x = std::clamp (x * 1.5f, -0.8f, 0.8f) / 0.8f;                                     // HARD CLIP
+                x = v.lp.tick (x);                                                                 // CRUNCH TONE
+                out += x * e * v.amp;                                                              // IMPULSE ENVELOPE (+ the sequence mix)
+                v.t += 1000.f / (float) fs;
+            }
+            // no lows: the impulse RATE itself (and the asymmetric shaper's DC) would make a low thump - cut after the sequence mix
+            out = cOut2.tick (cOut1.tick (out));
+            return out * s.crunch * 3.2f;
         }
         float noise() { seed = seed * 1664525u + 1013904223u; return (float) (int32_t) seed * (1.f / 2147483648.f); }
         void cook (const Settings& s, float ms, float noteHz)
@@ -205,17 +229,7 @@ namespace fge::dsp::rawpunch
                 snapBp.bp (fs, 4500.0, 0.8);
                 outLp.lp (fs, 9000.0 + 6000.0 * s.tone, 0.7071);
             }
-            if (s.crunchOn)
-            {
-                cpre1.hp (fs, 260.0, 0.7071); cpre2.hp (fs, 260.0, 0.7071);
-                cStages = 2 + (int) std::lround (3.f * std::clamp (s.crunchDensity, 0.f, 1.f));
-                for (auto& m : cmid) m.hp (fs, 300.0, 0.6);
-                const float pEnd = std::max (10.f, s.decayMs), end = crunchEnd (s);
-                const float inBody = std::clamp ((ms - pEnd) / std::max (8.f, end - pEnd), 0.f, 1.f);
-                clowCut.hp (fs, 400.0, 0.7071);
-                ctoneBell.bell (fs, 900.0 + 2400.0 * s.crunchTone, 6.0, 0.9);
-                ctoneLp.lp (fs, std::clamp ((5000.0 + 8000.0 * s.crunchTone) * (1.0 - 0.6 * inBody), 1500.0, fs * 0.45), 0.7071);
-            }
+            cOut1.hp (fs, 300.0, 0.7071); cOut2.hp (fs, 300.0, 0.7071);
             bridgeLp.lp (fs, std::clamp (2200.0 - 1800.0 * std::clamp (ms / (cd * 3.f + 30.f), 0.f, 1.f), 250.0, 2400.0), 0.7071);
             dcb.hp (fs, 18.0, 0.7071);
             driveG = std::pow (10.f, s.driveDb / 20.f);
@@ -225,11 +239,12 @@ namespace fge::dsp::rawpunch
         int blk = 0, folds = 1;
         uint32_t seed = 0x7a3c19e5u;
         float punchEnv = 1.f, crackEnv = 0.f, bridgeEnv = 0.f, crackG = 1.f, driveG = 1.f, envIn = 0.f, envOut = 0.f, follow = 0.f;
-        double snPh = 0.0;
-        int cStages = 2, holdN = 0;
-        float held = 0.f;
-        bq::Biquad cpre1, cpre2, clowCut, ctoneBell, ctoneLp;
-        std::array<bq::Biquad, 5> cmid;
+        struct Impulse { bool on = false; float t = 0.f, amp = 0.f, dec = 1.f; double ph = 0.0, hz = 1000.0; bq::Biquad lp, hp; };
+        std::array<Impulse, 6> imp;
+        int impCount = 0;
+        float sinceImp = 0.f;
+        double lastP = 0.0;
+        bq::Biquad cOut1, cOut2;
         bq::Biquad pre1, pre2, band1, band2, bridgeLp, tilt, tilt2, edgeHp, snapBp, dcb, outLp;
     };
 }

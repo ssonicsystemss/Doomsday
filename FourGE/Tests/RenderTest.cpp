@@ -2952,7 +2952,21 @@ int main (int argc, char** argv)
             };
             const auto l0 = layer ({ { "cn_follow", 0.4f } });
             const float pEnd = def (P::rcDecay).def;                                      // (RAW CLASSIC punch decay = the PUNCH END)
-            const bool held = bandDb (l0, 40, 90, 1000, 6000) > bandDb (l0, 3, 25, 1000, 6000) - 10.f && bandDb (l0, 40, 90, 1000, 6000) > -50.f;
+            const bool held = bandDb (l0, 40, 90, 1000, 6000) > bandDb (l0, 3, 25, 1000, 6000) - 15.f && bandDb (l0, 40, 90, 1000, 6000) > -55.f;
+            // the rework (owner 2026-11-21): a SERIES OF IMPULSES, not a noise - the 1-6 kHz envelope (0.5 ms frames, 5-80 ms) is spiky
+            // (peak vs median), the first impulse the strongest, the spectrum not flat like a noise
+            float spiky = 0.f, firstVsRest = 0.f;
+            {
+                fge::dsp::bq::Biquad h1, l1; h1.hp (44100.0, 1000.0, 0.7071); l1.lp (44100.0, 6000.0, 0.7071);
+                std::vector<float> fr; double acc = 0.0; int cnt = 0;
+                for (int i = 0; i < (int) (80 * 44.1f); ++i) { const float y = l1.tick (h1.tick (l0.getSample (0, i))); acc += (double) y * y; if (++cnt == 22) { fr.push_back ((float) std::sqrt (acc / 22.0)); acc = 0.0; cnt = 0; } }
+                std::vector<float> mid (fr.begin() + 10, fr.end()); auto med = mid; std::nth_element (med.begin(), med.begin() + (long) med.size() / 2, med.end());
+                const float m = med[med.size() / 2], pk = *std::max_element (mid.begin(), mid.end());
+                spiky = Decibels::gainToDecibels (pk / jmax (1.0e-9f, m));
+                const float first = *std::max_element (fr.begin(), fr.begin() + 8), rest = *std::max_element (fr.begin() + 12, fr.end());
+                firstVsRest = Decibels::gainToDecibels (first / jmax (1.0e-9f, rest));
+            }
+            const bool impulses = spiky > 6.f && firstVsRest > 0.f;
             const bool noBass = bandDb (l0, 0, 150, 20, 120) < bandDb (l0, 0, 150, 1000, 6000) - 20.f;
             const auto f0 = layer ({ { "cn_follow", 0.f } });
             const bool endsWithPunch = bandDb (f0, pEnd + 20.f, pEnd + 60.f, 300, 12000) < bandDb (f0, 20, 60, 300, 12000) - 30.f;
@@ -2960,9 +2974,9 @@ int main (int argc, char** argv)
             const bool followsBody = bandDb (b1, pEnd + 120.f, pEnd + 200.f, 300, 12000) > bandDb (b2, pEnd + 120.f, pEnd + 200.f, 300, 12000) + 10.f;
             const float step = std::abs (bandDb (l0, pEnd - 8.f, pEnd, 300, 12000) - bandDb (l0, pEnd, pEnd + 8.f, 300, 12000));   // no level step at the punch end
             const bool smooth = step < 3.f;
-            check (held && noBass && endsWithPunch && followsBody && smooth,
-                   "DYNAMIC DISTORTED CRUNCH: a held grind (not a click), no bass, BODY FOLLOW from the real phases, no step at the punch / body boundary",
-                   String ("held ") + String (bandDb (l0, 40, 90, 1000, 6000) - bandDb (l0, 3, 25, 1000, 6000), 1) + " dB, step " + String (step, 1) + " dB"
+            check (held && impulses && noBass && endsWithPunch && followsBody && smooth,
+                   "DISTORTED CRUNCH = CRACK IMPULSE ENGINE: a series of impulses (spiky, the first the strongest, not a noise), no bass, BODY FOLLOW from the real phases, no step at the punch / body boundary",
+                   String ("held ") + String (bandDb (l0, 40, 90, 1000, 6000) - bandDb (l0, 3, 25, 1000, 6000), 1) + " dB, spiky " + String (spiky, 1) + " dB, first +" + String (firstVsRest, 1) + " dB, step " + String (step, 1) + " dB" + (impulses ? "" : " IMPULSES!")
                        + (held ? "" : " HELD!") + (noBass ? "" : " BASS!") + (endsWithPunch ? "" : " END!") + (followsBody ? "" : " FOLLOW!") + (smooth ? "" : " STEP!"));
         }
         // RAW PUNCH EXTENSION - CRACK / SNAP / BODY COUPLING (owner 2026-11-21, RAW_CRACK.md): tests A-G, OFF = the RAW punch as before, never with other punch types

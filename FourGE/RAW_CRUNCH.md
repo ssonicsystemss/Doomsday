@@ -24,3 +24,33 @@ A parallel path of the existing RAW punch source. Code: `DSP/Core/RawPunch.h` `c
   | 40–120 ms | +5.1 dB |
   | 120–250 ms | +6.7 dB |
   | the lows | -0.3 dB |
+
+## Rework 2026-11-21: CRACK IMPULSE ENGINE
+
+Owner: "przypomina ciągły szum, a nie trzask". The crunch is now **a series of distorted impulses, never a continuous noise**
+("CZ-KR-CZ-KRR").
+- **The series:**
+  - it fires on the punch's own cycles, so it stays rhythmic with the punch;
+  - the gaps are irregular but repeatable (a fixed hash, not a random generator); DENSITY sets them at ~9 → ~2.5 ms apart;
+  - the first impulse is the strongest and the later ones get weaker;
+  - each impulse decays within 30 % of the gap, so they never smear into each other.
+- **Each impulse:**
+  - a short tonal burst: saw / square + the punch's tone; SNARE / NOISE / HYBRID only colour it;
+  - → HP 350 → ASYMMETRIC shaper (GRIT) → 2–4 saturation stages → HARD CLIP → TONE lowpass;
+  - → its OWN envelope applied **after** the distortion, so it stays an impulse;
+  - → an HP 300 Hz ×2 after the sequence mix: the impulse rate itself must not make a low "thump".
+- **BODY TRANSITION:** in the body the impulses get softer, darker and lower; the series fades to its end, with no level step.
+- **Tests:**
+  - spiky envelope: 1–6 kHz in 0.5 ms frames, peak vs median ~30 dB;
+  - the first impulse is the strongest (+2 dB);
+  - no bass;
+  - BODY FOLLOW follows the real phases;
+  - no step at the punch / body boundary.
+- **In "2016 Standard"** (ON vs OFF, 1–6 kHz):
+
+  | Window | Change |
+  |---|---|
+  | 5–40 ms | +2.9 dB |
+  | 40–120 ms | +2.6 dB |
+  | 120–250 ms | +3.5 dB |
+  | lows | +0.2 dB |

@@ -20,6 +20,7 @@
 #include "Core/ClassicPunch.h"
 #include "Core/RawPunch.h"
 #include "Tone/TailRise.h"
+#include "Front/Crack.h"
 #include "Tone/RawTail.h"
 #include "Tone/ExpTail.h"
 #include "Front/Click.h"
@@ -69,7 +70,8 @@ namespace fge
         dsp::raw::Settings raw;
         dsp::exper::Settings exp;                 // TAIL TYPE EXPERIMENTAL (owner 2026-11-16, TAIL_RAW_EXP.md)                   // TAIL TYPE RAW (owner 2026-11-16, TAIL_RAW_EXP.md)
         dsp::zaag::Settings zaag;                 // TAIL TYPE ZAAG (owner 2026-11-14 / 15)
-        dsp::front::ClickSettings click; dsp::front::TokSettings tok; dsp::front::SubPunchSettings spk; float zgSend = 0.f;   // the FRONT (owner 2026-11-16)
+        dsp::front::ClickSettings click; dsp::front::TokSettings tok; dsp::front::SubPunchSettings spk; float zgSend = 0.f;
+        dsp::front::CrackSettings crack;         // RAW PUNCH EXTENSION (owner 2026-11-21): CRACK + SNAP + BODY COUPLING, mixed after the master clip   // the FRONT (owner 2026-11-16)
         dsp::classicpunch::Settings cpunch;      // PUNCH TYPE CLASSIC (EARLY REWORK, owner 2026-11-16)
         dsp::rawpunch::Settings rpunch;
         dsp::rise::Settings rise;                // TAIL RISE (owner 2026-11-21): the end of the tail grows, BPM-grid synced          // PUNCH TYPE RAW: RAW CLASSIC / RAW 2015-2017 CRACKING (owner 2026-11-21)
@@ -449,8 +451,9 @@ namespace fge
             muteG = 1.f;
             tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor); tailColor.reset();
             shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor); zaagU.prepare (sampleRate * osFactor); rawU.prepare (sampleRate * osFactor); expU.prepare (sampleRate * osFactor); zpU.prepare (sampleRate * osFactor); cpU.prepare (sampleRate * osFactor); rpU.prepare (sampleRate * osFactor); riseU.prepare (sampleRate * osFactor);
-            clkU.prepare (sampleRate * osFactor); tokU.prepare (sampleRate * osFactor); spkU.prepare (sampleRate * osFactor);
+            clkU.prepare (sampleRate * osFactor); tokU.prepare (sampleRate * osFactor); spkU.prepare (sampleRate * osFactor); crU.prepare (sampleRate * osFactor);
             sendBuf.assign ((size_t) (maxBlockSize * osFactor), 0.f);
+            atkBuf.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -558,7 +561,7 @@ namespace fge
             }
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
-            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); rawU.reset(); expU.resetFor (cfg.exp); expU.seedFor (note, cfg.exp.fixedSeed, (uint32_t) counter); zpU.reset(); cpU.reset(); rpU.reset(); riseU.reset(); clkU.reset(); tokU.reset(); spkU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); rawU.reset(); expU.resetFor (cfg.exp); expU.seedFor (note, cfg.exp.fixedSeed, (uint32_t) counter); zpU.reset(); cpU.reset(); rpU.reset(); riseU.reset(); clkU.reset(); tokU.reset(); spkU.reset(); crU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
@@ -1068,6 +1071,16 @@ namespace fge
                     sp.delayMs = f[P::spkDelay]; sp.lengthMs = f[P::spkLength] * pf.subLenMul;
                     sp.drive = juce::jlimit (0.f, 1.f, f[P::spkDrive] + pf.subDrive); sp.tone = juce::jlimit (0.f, 1.f, f[P::spkTone] + pf.subTone);
                     cfg.zgSend = f.idx (P::tailEngine) == 2 ? f[P::zgSend] : 0.f;      // (only into a ZAAG tail)
+                    auto& cr = cfg.crack;                                             // RAW PUNCH EXTENSION: CRACK + SNAP + BODY COUPLING (only with PUNCH TYPE RAW)
+                    cr.on = f.on (P::ckOn) && f.idx (P::punchMode) == 6 && f[P::ckLevel] > -59.9f;
+                    cr.gain = dbGain (f[P::ckLevel]); cr.cracking = f.idx (P::rpType) == 1;
+                    cr.snap = f[P::ckSnap]; cr.crack = f[P::ckCrack]; cr.density = f[P::ckDensity]; cr.edge = f[P::ckEdge]; cr.coupling = f[P::ckCoupling];
+                    cr.snapLenMs = f[P::ckSnapLen]; cr.snapTone = f[P::ckSnapTone]; cr.snapBody = f[P::ckSnapBody]; cr.snapEdge = f[P::ckSnapEdge];
+                    cr.pitchMode = f.idx (P::ckPitchMode); cr.pitchSt = f[P::ckPitch]; cr.fixedHz = f[P::ckToneHz]; cr.pitchMod = f[P::ckPitchMod];
+                    cr.srcPunch = f[P::ckSrcPunch]; cr.srcTrans = f[P::ckSrcTrans]; cr.srcNoise = f[P::ckSrcNoise];
+                    cr.attackMs = f[P::ckAttack]; cr.decayMs = f[P::ckDecay]; cr.sustain = f[P::ckSustain]; cr.releaseMs = f[P::ckRelease]; cr.lengthMs = f[P::ckLength];
+                    cr.driveDb = f[P::ckDrive]; cr.shape = f.idx (P::ckShape); cr.clip = f[P::ckClip]; cr.lowDb = f[P::ckLow]; cr.midDb = f[P::ckMid]; cr.highDb = f[P::ckHigh];
+                    cr.bodyStartMs = f[P::bodyAmpDelay] + f[P::bodyAttack];
                 }
                 {                                                                   // PUNCH TYPE CLASSIC (EARLY REWORK, owner 2026-11-16)
                     auto& q = cfg.cpunch;
@@ -1276,6 +1289,8 @@ namespace fge
                 {
                     for (int i = 0; i < on; ++i) { L[i] = doomsday::kick::masterClip (L[i], cfg.clipG, cfg.clipSoft); R[i] = doomsday::kick::masterClip (R[i], cfg.clipG, cfg.clipSoft); }
                 }
+                if (c == 3 && cfg.crack.on)                                           // the RAW ATTACK BUS: after the master clip (the kick's DRIVE never touches the crack)
+                    for (int i = 0; i < on; ++i) { L[i] += atkBuf[(size_t) i]; R[i] += atkBuf[(size_t) i]; atkBuf[(size_t) i] = 0.f; }
                 const auto g0 = gainNow[(size_t) c], g1 = gainTarget[(size_t) c];
                 const float* x = b[c];
                 const bool wideTail = c == 2 && cfg.wide;
@@ -1322,6 +1337,12 @@ namespace fge
                         }
                         else front = tk;
                         front += clkU.process (cfg.click, ms) + spkU.process (cfg.spk, ms);
+                        if (cfg.crack.on)                                             // RAW PUNCH EXTENSION: CRACK + SNAP -> the attack bus (added after the master clip, below)
+                        {
+                            float a = crU.process (cfg.crack, ms, 0.5f * (yl + yr), rpU.lastHz(), b[1][i], noteNow);
+                            if (cfg.noteCut && relMs >= 0.f) a *= juce::jlimit (0.f, 1.f, 1.f - (ms - relMs) / 5.f);
+                            atkBuf[(size_t) i] = a;
+                        }
                         if (cfg.noteCut && relMs >= 0.f) front *= juce::jlimit (0.f, 1.f, 1.f - (ms - relMs) / 5.f);
                     }
                     if (pvcHere && cfg.noteCut && relMs >= 0.f)                                   // KICK END = NOTE: the engines stop with the note too (5 ms fade)
@@ -1535,7 +1556,8 @@ namespace fge
         dsp::classicpunch::Unit cpU;
         dsp::rawpunch::Unit rpU;
         dsp::rise::Unit riseU;
-        dsp::front::ClickUnit clkU; dsp::front::TokUnit tokU; dsp::front::SubPunchUnit spkU;
+        dsp::front::ClickUnit clkU; dsp::front::TokUnit tokU; dsp::front::SubPunchUnit spkU; dsp::front::CrackUnit crU;
+        std::vector<float> atkBuf;                                          // RAW CRACK ENGINE: the RAW ATTACK BUS of this block
         std::vector<float> sendBuf;                                         // ZAAG SEND: TOK + PUNCH of this block -> the ZAAG cascade
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};

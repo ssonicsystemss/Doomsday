@@ -96,10 +96,10 @@ namespace fge
                 for (auto& [id, x] : punch) fp.values.push_back ({ id, x });
                 return fp;
             };
-            l.push_back (raw ("RAW PUNCH - Classic Clean",  { { "rp_type", 0.f }, { "rc_snap", 0.5f }, { "rc_crack", 0.2f }, { "rc_crack_decay", 22.f }, { "rc_coupling", 0.6f } }));
-            l.push_back (raw ("RAW PUNCH - Classic Crack",  { { "rp_type", 0.f }, { "rc_snap", 0.7f }, { "rc_crack", 0.8f }, { "rc_crack_decay", 32.f }, { "rc_coupling", 0.7f } }));
-            l.push_back (raw ("RAW PUNCH - 2016 Standard",  { { "rp_type", 1.f }, { "rk_snap", 0.8f }, { "rk_crack", 0.8f }, { "rk_density", 0.65f }, { "rk_edge", 0.45f } }));
-            l.push_back (raw ("RAW PUNCH - 2016 Extreme",   { { "rp_type", 1.f }, { "rk_snap", 0.95f }, { "rk_crack", 0.95f }, { "rk_density", 0.85f }, { "rk_edge", 0.85f }, { "rk_tone", 0.6f }, { "rk_crack_decay", 24.f } }));
+            l.push_back (raw ("RAW PUNCH - Classic Clean",  { { "cr_crack", 0.35f }, { "rp_type", 0.f }, { "rc_snap", 0.5f }, { "rc_crack", 0.2f }, { "rc_crack_decay", 22.f }, { "rc_coupling", 0.6f } }));
+            l.push_back (raw ("RAW PUNCH - Classic Crack",  { { "cr_crack", 0.75f }, { "cr_snap", 0.7f }, { "rp_type", 0.f }, { "rc_snap", 0.7f }, { "rc_crack", 0.8f }, { "rc_crack_decay", 32.f }, { "rc_coupling", 0.7f } }));
+            l.push_back (raw ("RAW PUNCH - 2016 Standard",  { { "cr_snap", 0.75f }, { "cr_crack", 0.75f }, { "cr_density", 0.6f }, { "cr_coupling", 0.8f }, { "rp_type", 1.f }, { "rk_snap", 0.8f }, { "rk_crack", 0.8f }, { "rk_density", 0.65f }, { "rk_edge", 0.45f } }));
+            l.push_back (raw ("RAW PUNCH - 2016 Extreme",   { { "cr_snap", 0.9f }, { "cr_crack", 0.95f }, { "cr_density", 0.85f }, { "cr_edge", 0.8f }, { "cr_coupling", 0.85f }, { "rp_type", 1.f }, { "rk_snap", 0.95f }, { "rk_crack", 0.95f }, { "rk_density", 0.85f }, { "rk_edge", 0.85f }, { "rk_tone", 0.6f }, { "rk_crack_decay", 24.f } }));
             return l; }();
         return list;
     }

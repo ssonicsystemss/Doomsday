@@ -56,6 +56,8 @@ namespace fge::dsp::rawpunch
             return s.type == 0 ? classic (s, ms, src, n) : cracking (s, ms, src, n);
         }
 
+        float lastHz() const { return (float) hz; }             // (the crack layer follows the punch's pitch)
+
     private:
         // ---------------- RAW CLASSIC
         float classic (const Settings& s, float ms, float src, float n)

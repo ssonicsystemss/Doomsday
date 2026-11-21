@@ -101,6 +101,8 @@ namespace fge
         const juce::StringArray& riseCurves()     { static const juce::StringArray a { "LINEAR", "EXPONENTIAL", "S-CURVE", "FAST" }; return a; }
         const juce::StringArray& riseModes()      { static const juce::StringArray a { "POWER", "RAW", "PITCH", "HARMONIC", "HYBRID" }; return a; }
         const juce::StringArray& riseReleases()   { static const juce::StringArray a { "FADE", "HARD STOP", "TAIL FOLLOW" }; return a; }
+        const juce::StringArray& crackPitchModes() { static const juce::StringArray a { "FOLLOW PUNCH", "FIXED" }; return a; }
+        const juce::StringArray& crackShapes()    { static const juce::StringArray a { "SOFT", "HARD", "FOLD", "ASYM" }; return a; }
         const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "OFFSET" }; return a; }
         const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE", "HYBRID" }; return a; }
         const juce::StringArray& pvcSources()   { static const juce::StringArray a { "SAW", "NOISE", "SNARE", "HYBRID" }; return a; }
@@ -301,6 +303,28 @@ namespace fge
             case rsGain: case rsPitch: case rsDrive: case rsHarm: case rsFilter: case rsNoise:
                             return "HYBRID RISE layer: how much this layer grows (only in RISE MODE HYBRID; the other modes set the layers themselves).";
             case rsPitchRange: return "RISE PITCH RANGE: how far the tail's pitch goes up at the top of the rise (PITCH layer).";
+            case ckOn:       return "CRACK (RAW PUNCH extension): an own harmonic CRACK layer + SNAP + BODY COUPLING - the RAW 2015-2017 'KRAK!'. Only with PUNCH TYPE RAW; OFF = the RAW punch as before. Mixed after the master clip: the kick's DRIVE never touches it.";
+            case ckLevel:    return "CRACK LEVEL: the level of the crack layer (SNAP + CRACK) - never changes the PUNCH, BODY or TAIL.";
+            case ckSnap:     return "SNAP: the sharpness and force of the very first hit (works with the crack, never replaces it).";
+            case ckCrack:    return "CRACK: the characteristic harmonic crack - harmonics + drive + clip + level together. Not the kick's drive.";
+            case ckDensity:  return "DENSITY: the harmonic density of the crack (fold stages).";
+            case ckEdge:     return "EDGE: the sharpness of the crack - its upper harmonics.";
+            case ckCoupling: return "BODY COUPLING: 0 = the crack stands alone; up = its end is synced to the start of the BODY and it decays into it (one hit, never a glued-on sound). The body's own envelope is never changed.";
+            case ckPitchMode:return "CRACK PITCH: FOLLOW PUNCH = tuned against the RAW punch's own pitch (CRACK PITCH st above it), FIXED = from FIXED PITCH down to the note.";
+            case ckPitch:    return "CRACK PITCH (FOLLOW PUNCH): semitones above / below the punch.";
+            case ckToneHz:   return "FIXED PITCH: where the crack's tone starts in FIXED mode.";
+            case ckPitchMod: return "PITCH MOD: a fast, rough pitch modulation of the crack - more aggressive.";
+            case ckDrive: case ckShape: return "CRACK DRIVE (+ its type): the crack's own distortion - it never raises the distortion of the whole kick.";
+            case ckClip:     return "CRACK CLIP: the crack's own clipper - a sharper, cracking corner, the output level kept.";
+            case ckLow: case ckMid: case ckHigh: return "CRACK TONE: low / mid / high of the crack only (cut the low: room for the punch and the body; push the aggressive harmonics).";
+            case ckSnapLen:  return "SNAP LENGTH: how long the first impulse lasts (1-15 ms).";
+            case ckSnapTone: return "SNAP TONE: the tonal colour of the snap.";
+            case ckSnapBody: return "SNAP BODY: how much low / mid the snap has (more = a hit, less = sharper).";
+            case ckSnapEdge: return "SNAP EDGE: how fast / sharp the snap's attack is.";
+            case ckSrcPunch: case ckSrcTrans: case ckSrcNoise:
+                             return "CRACK SOURCE: its own harmonic tone (always) + a bit of the processed PUNCH, a TRANSIENT burst, a little NOISE texture (never the main source).";
+            case ckAttack: case ckDecay: case ckSustain: case ckRelease: case ckLength:
+                             return "CRACK ENVELOPE: the crack's own short envelope (attack 0-2 ms, decay 10-50 ms, sustain 0-30 %, release after LENGTH).";
             case kvHumanize:   return "KICK VARIATION - HUMANIZE: every hit a tiny bit different (pitch up to +-12 cents, level up to +-0.8 dB) - like a real recorded kick, never the same twice. 0 = every kick identical.";
             case peMode:       return "Shape of the pitch movement from START to END.";
             case peStart:      return "Where the tail pitch starts (held for HOLD, then the drop to the note). Type a note (\"G4\"). The tok = PUNCH in TOK mode.";

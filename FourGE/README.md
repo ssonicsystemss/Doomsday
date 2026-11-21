@@ -24,6 +24,11 @@ Nowy typ puncha **RAW** z dwoma osobnymi silnikami (przełącznik RAW PUNCH TYPE
 - **SNAP** = jak mocno uderza sam początek, **CRACK** = jak bardzo ten początek trzeszczy (osobny proces, nie drive).
   **BODY COUPLING** = jak trzask łączy się z body. W CRACKING dodatkowo **DENSITY**, **EDGE**, **DARK/BRIGHT**.
 - Presety testowe: `RAW PUNCH - Classic Clean`, `Classic Crack`, `2016 Standard`, `2016 Extreme`.
+- **RAW CRACK** (zakładka obok RAW): osobna warstwa **trzasku** do puncha RAW (Twoja uwaga: „trzasku za mało”). Ma własne źródło
+  harmoniczne (nie szum, nie click), **CRACK PITCH** (za punchem albo stała wysokość, + PITCH MOD), własny **CRACK DRIVE**, **CRACK CLIP**,
+  **CRACK TONE** (LOW / MID / HIGH), **CRACK LEVEL**, do tego **SNAP** (pierwsze uderzenie) i **BODY COUPLING** (trzask wchodzi w body,
+  bez dziury). Jest dokładany po master clipie – główny DRIVE kicka go nie zmienia i nie zamula. Przycisk CRACK wyłącza go
+  (wtedy RAW brzmi jak wcześniej). Działa tylko z typem puncha RAW.
 
 ## TAIL RISE (2026-11-21)
 Zakładka **RISE** przy każdym typie taila: końcówka taila **narasta** zamiast tylko gasnąć.

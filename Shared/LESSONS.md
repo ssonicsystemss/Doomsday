@@ -508,3 +508,10 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 ## Note-length sync is impossible live (2026-11-21, TAIL RISE)
 - A plugin learns a MIDI note's length only at NOTE OFF; FL's render has no lookahead either. "Rise at 75 % of the note" needs the future.
   Sync to the BPM grid instead (known at NOTE ON, same in playback and render). The owner agreed: NOTE OFF stays independent.
+
+## RAW "trzasku za mało" (owner 2026-11-21, 4GE RAW PUNCH demos)
+- A crack folded into the punch is buried by a loud RAW tail (+1.5–3 dB of presence at 5–40 ms). More drive only thickens and muddies it.
+- What works: an **own harmonic layer** (saw/square tone tuned against the punch, its own drive / clip / tone and a short envelope),
+  added **after the master clip** so the kick's drive cannot squash it. Plus SNAP in parallel, and BODY COUPLING so it does not sound glued on.
+- The owner wrote three specs in an hour that partly contradicted each other (separate engines → one engine → an extension of RAW).
+  When specs collide, ask which one wins before building. He answered clearly: an extension, never a second RAW engine.

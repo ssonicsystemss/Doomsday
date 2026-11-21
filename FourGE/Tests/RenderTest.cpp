@@ -271,6 +271,7 @@ int main (int argc, char** argv)
                                                  FileOutputStream o2 (File (argv[1]).getChildFile (name)); if (o2.openedOk()) { o2.setPosition (0); o2.truncate(); png.writeImageToStream (im, o2); } };
             setv ("punch_mode", 6.f); setv ("rp_type", 0.f); ge->canvas.selectPart (0); ge->canvas.tailTab (7); shot ("page00_rawpunch_classic.png");
             setv ("rp_type", 1.f); ge->canvas.tailTab (7); shot ("page00_rawpunch_cracking.png");
+            ge->canvas.tailTab (8); shot ("page00_rawcrack.png");
             setv ("rp_type", 0.f); setv ("punch_mode", 0.f);
             setv ("rs_on", 1.f); ge->canvas.selectPart (2); ge->canvas.tailTab (16); shot ("page00_rise.png");
             setv ("rs_on", 0.f);
@@ -1234,6 +1235,16 @@ int main (int argc, char** argv)
                     if (sid == "cp_trans_ms" || sid == "cp_trans_hz") set2 ("cp_trans", 1.5f);
                     if (sid == "cp_res_hz" || sid == "cp_res_q") set2 ("cp_res", 1.f);
                     if (sid == "cp_noise_hz") set2 ("cp_noise", 0.6f);
+                }
+                if (sid.startsWith ("cr_"))                                                                    // RAW PUNCH EXTENSION (owner 2026-11-21): RAW punch, crack on
+                {
+                    set2 ("punch_mode", 6.f);
+                    if (sid != "cr_on") set2 ("cr_on", 1.f);
+                    if (sid == "cr_pitch") set2 ("cr_pitch_mode", 0.f);
+                    if (sid == "cr_tone_hz") set2 ("cr_pitch_mode", 1.f);
+                    if (sid != "cr_level") set2 ("cr_level", 0.f);
+                    if (sid == "cr_sustain" || sid == "cr_release") { set2 ("cr_crack", 1.f); set2 ("cr_sustain", 0.3f); set2 ("cr_length", 30.f); }
+                    if (sid.startsWith ("cr_snap_")) { set2 ("cr_snap", 1.f); set2 ("cr_crack", 0.f); }
                 }
                 if (sid.startsWith ("rs_"))                                                                    // TAIL RISE (owner 2026-11-21): on, strong, in the kick (TAIL sync)
                 {
@@ -2905,6 +2916,71 @@ int main (int argc, char** argv)
             check (independent && density && coupling && presets,
                    "PUNCH TYPE RAW: CLASSIC + CRACKING, SNAP and CRACK independent, DENSITY keeps the level, BODY COUPLING fills the gap, 4 presets readable",
                    ind + (density ? "" : " DENSITY!") + (coupling ? "" : " COUPLING!") + " | " + pr);
+        }
+        // RAW PUNCH EXTENSION - CRACK / SNAP / BODY COUPLING (owner 2026-11-21, RAW_CRACK.md): tests A-G, OFF = the RAW punch as before, never with other punch types
+        {
+            auto kickWith = [&] (std::initializer_list<std::pair<const char*, float>> kv, std::initializer_list<std::pair<const char*, float>> more = {})
+            {
+                auto f = ParamFrame::defaults(); f[P::punchMode] = 6.f;
+                for (auto& [id, x] : kv) f[fge::modstate::indexOf (id)] = x;
+                for (auto& [id, x] : more) f[fge::modstate::indexOf (id)] = x;
+                return renderKick (f, 31, 44100.0, 0.4);
+            };
+            auto layer = [&] (std::initializer_list<std::pair<const char*, float>> kv)        // the crack layer alone = ON - OFF (it is added after everything that bends)
+            {
+                auto on = kickWith (kv, { { "cr_on", 1.f } }); const auto off = kickWith (kv, { { "cr_on", 0.f } });
+                for (int c = 0; c < on.getNumChannels(); ++c) on.addFrom (c, 0, off, c, 0, on.getNumSamples(), -1.f);
+                return on;
+            };
+            auto bandDb = [] (const AudioBuffer<float>& b, float fromMs, float toMs, float lo, float hi)
+            {
+                fge::dsp::bq::Biquad h1, h2, l1, l2; h1.hp (44100.0, lo, 0.7071); h2.hp (44100.0, lo, 0.7071); l1.lp (44100.0, hi, 0.7071); l2.lp (44100.0, hi, 0.7071);
+                double e = 0.0; const int a = (int) (fromMs * 44.1f), z = jmin (b.getNumSamples(), (int) (toMs * 44.1f));
+                for (int i = 0; i < b.getNumSamples(); ++i) { const float y = l2.tick (l1.tick (h2.tick (h1.tick (b.getSample (0, i))))); if (i >= a && i < z) e += (double) y * y; }
+                return 10.f * std::log10 ((float) (e / jmax (1, z - a)) + 1.0e-14f);
+            };
+            auto flatness = [] (const float* x, int n)                                        // spectral flatness (geometric / arithmetic mean of the power), 1 = white noise
+            {
+                constexpr int order = 11, N = 1 << order; ::juce::dsp::FFT fft (order); std::vector<float> d (2 * N, 0.f);
+                for (int i = 0; i < jmin (n, N); ++i) d[(size_t) i] = x[i] * (0.5f - 0.5f * std::cos (6.2831853f * (float) i / (float) jmin (n, N)));
+                fft.performFrequencyOnlyForwardTransform (d.data());
+                double lg = 0.0, ar = 0.0; int m = 0;
+                for (int k = 10; k < N / 2 - 10; ++k) { const double pw = (double) d[(size_t) k] * d[(size_t) k] + 1.0e-20; lg += std::log (pw); ar += pw; ++m; }
+                return (float) (std::exp (lg / m) / (ar / m));
+            };
+            // OFF = the RAW punch as before; other punch types never get it; ON with PUNCH TYPE RAW = there
+            auto same = [] (const AudioBuffer<float>& a, const AudioBuffer<float>& b) { double d = 0.0; for (int i = 0; i < a.getNumSamples(); ++i) d += std::abs (a.getSample (0, i) - b.getSample (0, i)); return d < 1.0e-9; };
+            const bool off = same (kickWith ({ { "punch_mode", 0.f }, { "cr_on", 1.f } }), kickWith ({ { "punch_mode", 0.f }, { "cr_on", 0.f } })) && ! same (kickWith ({ { "cr_on", 1.f } }), kickWith ({ { "cr_on", 0.f } }));
+            const auto all = layer ({}), snapOnly = layer ({ { "cr_crack", 0.f } }), crackOnly = layer ({ { "cr_snap", 0.f } });
+            // A SNAP ONLY: a hit with a low/mid part, never a bare click
+            const bool a = bandDb (snapOnly, 0, 15, 100, 600) > bandDb (snapOnly, 0, 15, 2000, 12000) - 12.f && bandDb (snapOnly, 0, 15, 100, 12000) > -60.f;
+            // B CRACK ONLY: harmonic, not noise (flatter = noise)
+            AudioBuffer<float> wn (1, 1400); { Random r (3); for (int i = 0; i < 1400; ++i) wn.setSample (0, i, r.nextFloat() * 2.f - 1.f); }
+            const float fCrack = flatness (crackOnly.getReadPointer (0) + (int) (5 * 44.1f), 1323), fNoise = flatness (wn.getReadPointer (0), 1323);
+            const bool b = fCrack < 0.6f * fNoise;
+            // C SNAP + CRACK: the crack band well above the snap alone
+            const bool c = bandDb (all, 5, 40, 1000, 6000) > bandDb (snapOnly, 5, 40, 1000, 6000) + 6.f;
+            // D BODY COUPLING: one shared hit - more energy at 20-60 ms in the body's band at 100 % than at 0 %
+            const bool d = bandDb (layer ({ { "cr_coupling", 1.f } }), 20, 60, 200, 1500) > bandDb (layer ({ { "cr_coupling", 0.f } }), 20, 60, 200, 1500) + 3.f;
+            // E HIGH CRACK: the body keeps its mass (60-200 ms, 150-400 Hz within 0.5 dB) and the crack has no sustain
+            const auto k3 = kickWith ({ { "cr_on", 1.f }, { "cr_crack", 0.3f } }), k1 = kickWith ({ { "cr_on", 1.f }, { "cr_crack", 1.f } }), l1 = layer ({ { "cr_crack", 1.f } });
+            const float bodyMove = std::abs (bandDb (k1, 60, 200, 150, 400) - bandDb (k3, 60, 200, 150, 400));
+            const bool e = bodyMove < 0.5f && bandDb (l1, 100, 200, 1000, 6000) < bandDb (l1, 5, 40, 1000, 6000) - 20.f;
+            // F RAW CLASSIC vs RAW CRACKING: clearly different
+            const auto v0 = layer ({ { "rp_type", 0.f } }), v1 = layer ({ { "rp_type", 1.f } });
+            float fd = 0.f; for (auto [lo, hi] : { std::pair<float, float> { 1000, 3000 }, { 3000, 6000 }, { 6000, 14000 } }) fd += std::abs (bandDb (v1, 5, 40, lo, hi) - bandDb (v0, 5, 40, lo, hi));
+            const bool fv = fd > 3.f;
+            // G DISTORTION SEPARATION: the kick's master clip / tail drive never change the crack
+            const auto g0 = layer ({ { "master_clip_drive", 0.f } }), g1 = layer ({ { "master_clip_drive", def (fge::modstate::indexOf ("master_clip_drive")).max }, { "tail_drive", 1.f } });
+            double gd = 0.0, ge = 0.0; for (int i = 0; i < g0.getNumSamples(); ++i) { gd += std::abs (g1.getSample (0, i) - g0.getSample (0, i)); ge += std::abs (g0.getSample (0, i)); }
+            const bool g = gd < 1.0e-3 * ge;
+            // peaks: the RAW ATTACK BUS ceiling at the top of everything
+            const auto hot = layer ({ { "cr_level", 6.f }, { "cr_crack", 1.f }, { "cr_snap", 1.f }, { "cr_drive", 36.f }, { "cr_high", 12.f } });
+            const bool peaks = hot.getMagnitude (0, 0, hot.getNumSamples()) <= 2.01f;
+            check (off && a && b && c && d && e && fv && g && peaks,
+                   "RAW PUNCH + CRACK: OFF = as before (never other punch types), A snap = a hit, B crack = harmonic (not noise), C, D coupling, E no mud, F CLASSIC != CRACKING, G main drive never touches the crack",
+                   String ("flatness ") + String (fCrack, 2) + " vs noise " + String (fNoise, 2) + ", body move " + String (bodyMove, 2) + " dB, variants " + String (fd, 1) + " dB"
+                       + (off ? "" : " OFF!") + (a ? "" : " A!") + (b ? "" : " B!") + (c ? "" : " C!") + (d ? "" : " D!") + (e ? "" : " E!") + (fv ? "" : " F!") + (g ? "" : " G!") + (peaks ? "" : " PEAK!"));
         }
         // TAIL RISE (owner 2026-11-21, TAIL_RISE.md): BPM grid sync (the window follows the tempo), peaks controlled, PITCH goes up, style defaults
         {

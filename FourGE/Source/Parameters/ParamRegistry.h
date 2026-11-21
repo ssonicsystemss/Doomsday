@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs(); const juce::StringArray& zgVariants(); const juce::StringArray& zgRsnModes(); const juce::StringArray& zgRsnPositions(); const juce::StringArray& zgDistTypes(); const juce::StringArray& tokTypes(); const juce::StringArray& tokPitchModes(); const juce::StringArray& frontModes(); const juce::StringArray& rawOsc1s(); const juce::StringArray& rawOsc2s(); const juce::StringArray& rawNoises(); const juce::StringArray& rawStages(); const juce::StringArray& rawFltShapes(); const juce::StringArray& tailSyncs(); const juce::StringArray& expOscs(); const juce::StringArray& expNoises(); const juce::StringArray& expPitchCurves(); const juce::StringArray& expFxTypes(); const juce::StringArray& expModSrcs(); const juce::StringArray& expSeeds(); const juce::StringArray& cpWsTypes(); const juce::StringArray& clickTypes(); const juce::StringArray& rawPunchTypes(); const juce::StringArray& riseSyncs(); const juce::StringArray& riseGrids(); const juce::StringArray& riseCurves(); const juce::StringArray& riseModes(); const juce::StringArray& riseReleases();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs(); const juce::StringArray& zgVariants(); const juce::StringArray& zgRsnModes(); const juce::StringArray& zgRsnPositions(); const juce::StringArray& zgDistTypes(); const juce::StringArray& tokTypes(); const juce::StringArray& tokPitchModes(); const juce::StringArray& frontModes(); const juce::StringArray& rawOsc1s(); const juce::StringArray& rawOsc2s(); const juce::StringArray& rawNoises(); const juce::StringArray& rawStages(); const juce::StringArray& rawFltShapes(); const juce::StringArray& tailSyncs(); const juce::StringArray& expOscs(); const juce::StringArray& expNoises(); const juce::StringArray& expPitchCurves(); const juce::StringArray& expFxTypes(); const juce::StringArray& expModSrcs(); const juce::StringArray& expSeeds(); const juce::StringArray& cpWsTypes(); const juce::StringArray& clickTypes(); const juce::StringArray& rawPunchTypes(); const juce::StringArray& riseSyncs(); const juce::StringArray& riseGrids(); const juce::StringArray& riseCurves(); const juce::StringArray& riseModes(); const juce::StringArray& riseReleases(); const juce::StringArray& crackPitchModes(); const juce::StringArray& crackShapes();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -851,7 +851,37 @@ namespace fge
     F (rsHarm, "rs_harm", "Rise Harmonics", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
     F (rsFilter, "rs_filter", "Rise Filter", Unit::Pct, 0.0f, 1.0f, 0.2f, 0.0f, FNone) \
     F (rsNoise, "rs_noise", "Rise Noise", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
-    F (rsPitchRange, "rs_pitch_range", "Rise Pitch Range", Unit::Semi, 1.0f, 24.0f, 7.0f, 0.0f, FNone)
+    F (rsPitchRange, "rs_pitch_range", "Rise Pitch Range", Unit::Semi, 1.0f, 24.0f, 7.0f, 0.0f, FNone) \
+    /* ================= owner 2026-11-21: RAW PUNCH ENGINE EXTENSION - CRACK SOURCE + SNAP + BODY COUPLING (RAW_CRACK.md) ================= */ \
+    B (ckOn, "cr_on", "Crack On", true, FNone) \
+    F (ckLevel, "cr_level", "Crack Level", Unit::Db, -60.0f, 6.0f, 0.0f, -12.0f, FNone) \
+    F (ckSnap, "cr_snap", "Snap", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (ckCrack, "cr_crack", "Crack", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (ckDensity, "cr_density", "Crack Density", Unit::Pct, 0.0f, 1.0f, 0.4f, 0.0f, FNone) \
+    F (ckEdge, "cr_edge", "Crack Edge", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (ckCoupling, "cr_coupling", "Crack Body Coupling", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    C (ckPitchMode, "cr_pitch_mode", "Crack Pitch Mode", crackPitchModes, 0, FNone) \
+    F (ckPitch, "cr_pitch", "Crack Pitch", Unit::Semi, -24.0f, 36.0f, 19.0f, 0.0f, FNone) \
+    F (ckToneHz, "cr_tone_hz", "Crack Fixed Pitch", Unit::Hz, 300.0f, 3000.0f, 1200.0f, 1000.0f, FNone) \
+    F (ckPitchMod, "cr_pitch_mod", "Crack Pitch Mod", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
+    F (ckDrive, "cr_drive", "Crack Drive", Unit::Db, 0.0f, 36.0f, 14.0f, 0.0f, FNone) \
+    C (ckShape, "cr_shape", "Crack Drive Type", crackShapes, 3, FNone) \
+    F (ckClip, "cr_clip", "Crack Clip", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (ckLow, "cr_low", "Crack Tone Low", Unit::Db, -24.0f, 6.0f, -12.0f, 0.0f, FNone) \
+    F (ckMid, "cr_mid", "Crack Tone Mid", Unit::Db, -12.0f, 12.0f, 3.0f, 0.0f, FNone) \
+    F (ckHigh, "cr_high", "Crack Tone High", Unit::Db, -12.0f, 12.0f, 4.0f, 0.0f, FNone) \
+    F (ckSnapLen, "cr_snap_len", "Snap Length", Unit::Ms, 1.0f, 15.0f, 4.0f, 4.0f, FNone) \
+    F (ckSnapTone, "cr_snap_tone", "Snap Tone", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (ckSnapBody, "cr_snap_body", "Snap Body", Unit::Pct, 0.0f, 1.0f, 0.4f, 0.0f, FNone) \
+    F (ckSnapEdge, "cr_snap_edge", "Snap Edge", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (ckSrcPunch, "cr_src_punch", "Crack Source Punch", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
+    F (ckSrcTrans, "cr_src_trans", "Crack Source Transient", Unit::Pct, 0.0f, 1.0f, 0.4f, 0.0f, FNone) \
+    F (ckSrcNoise, "cr_src_noise", "Crack Source Noise", Unit::Pct, 0.0f, 1.0f, 0.1f, 0.0f, FNone) \
+    F (ckAttack, "cr_attack", "Crack Attack", Unit::Ms, 0.0f, 2.0f, 0.3f, 0.0f, FNone) \
+    F (ckDecay, "cr_decay", "Crack Decay", Unit::Ms, 10.0f, 50.0f, 25.0f, 25.0f, FNone) \
+    F (ckSustain, "cr_sustain", "Crack Sustain", Unit::Pct, 0.0f, 0.3f, 0.05f, 0.0f, FNone) \
+    F (ckRelease, "cr_release", "Crack Release", Unit::Ms, 5.0f, 80.0f, 20.0f, 20.0f, FNone) \
+    F (ckLength, "cr_length", "Crack Length", Unit::Ms, 20.0f, 150.0f, 60.0f, 60.0f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

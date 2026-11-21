@@ -351,6 +351,26 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                      { "rc_start", "START" }, { "rc_drop", "DROP" }, { "rc_end", "END" }, { "rc_decay", "DECAY" }, { "rc_density", "DENSITY" }, { "rc_crack_hz", "CRACK FREQ" }, { "rc_drive", "PUNCH DRIVE" },
                      { "rk_start", "START" }, { "rk_drop", "DROP" }, { "rk_end", "END" }, { "rk_decay", "DECAY" }, { "rk_dynamic", "DYNAMIC" }, { "rk_drive", "BRIDGE DRIVE" } })
                 d.push_back (knob (id, lab, col));
+            // 9th tab: RAW PUNCH EXTENSION - CRACK SOURCE + SNAP + BODY COUPLING (owner 2026-11-21, RAW_CRACK.md); with PUNCH TYPE RAW only
+            d.push_back (&detailPageMark);
+            d.push_back (toggle ("cr_on", "CRACK", Toggle::Chip, col));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cr_level", "CRACK LEVEL" }, { "cr_snap", "SNAP" }, { "cr_crack", "CRACK" }, { "cr_density", "DENSITY" }, { "cr_edge", "EDGE" }, { "cr_coupling", "BODY COUPLING" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (combo ("cr_pitch_mode"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "cr_pitch", "CRACK PITCH" }, { "cr_tone_hz", "FIXED PITCH" }, { "cr_pitch_mod", "PITCH MOD" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            d.push_back (combo ("cr_shape"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cr_drive", "CRACK DRIVE" }, { "cr_clip", "CRACK CLIP" }, { "cr_low", "LOW" }, { "cr_mid", "MID" }, { "cr_high", "HIGH" },
+                     { "cr_src_punch", "SRC PUNCH" }, { "cr_src_trans", "SRC TRANS" }, { "cr_src_noise", "SRC NOISE" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cr_snap_len", "SNAP LEN" }, { "cr_snap_tone", "SNAP TONE" }, { "cr_snap_body", "SNAP BODY" }, { "cr_snap_edge", "SNAP EDGE" },
+                     { "cr_attack", "ATK" }, { "cr_decay", "DEC" }, { "cr_sustain", "SUS" }, { "cr_release", "REL" }, { "cr_length", "LENGTH" } })
+                d.push_back (knob (id, lab, col));
         }
         if (i == 3) d.push_back (knob ("sub_amp_env_delay", "START", col));      // SUB START: its own time, may enter under the tok
         if (i != 0) d.push_back (knob ((s + "_phase").toRawUTF8(), "PHASE", col));
@@ -951,7 +971,7 @@ void GeCanvas::layoutDetail()
     {
         detTab[t].setVisible (tabs && isAllowed (t) && nTabs > 1 && (pageIdx == 0 && ! overview));
         detDice.setVisible ((pageIdx == 0 && ! overview));
-        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "FRONT", "CLASSIC", "RAW", "", "", "", "", "", "", "", "", "" };
+        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "FRONT", "CLASSIC", "RAW", "RAW CRACK", "", "", "", "", "", "", "", "" };
         static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG", "ZAAG SWEEP / FX", "ZAAG OUT", "RAW STACK", "RAW SWEEP / CHAR", "RAW SPACE / OUT", "EXP SOURCE", "EXP FX 1-2", "EXP FX 3-4", "EXP FX 5-6", "EXP FX 7-8", "EXP MOD / OUT", "RISE" };
         static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
                                          "EUPHORIC model (punch mode EUPHORIC): a broadband source -> mid boost -> asymmetric distortion -> tape stop -> volume shaper.",
@@ -959,7 +979,8 @@ void GeCanvas::layoutDetail()
                                          "The shared part of the PUNCH ENGINE: the SUB PUNCH (own wave / pitch / delay / decay) and the BLEND (tonal / click / sub / body / tail).",
                                          "PUNCH TYPE ZAAG: a 2 ms click, the PIEP first, then the TRASK, and a reverb on them only.",
                                          "THE FRONT of the kick, with every PUNCH TYPE: TOK (its own layer before the punch, a fixed pitch), CLICK (the 'ts', straight to the punch bus, never through ZAAG) and SUB PUNCH (a short low hit, gone before the SUB). ZAAG SEND: TOK + PUNCH into the ZAAG tail cascade.", "PUNCH TYPE CLASSIC (EARLY): the old, hard, short punch built from its attack - a hybrid source (tone + its own transient + a resonant low-mid + attack noise), a 3-stage pitch (start -> hit -> glide -> fundamental), pre-EQ -> saturation -> waveshaper -> post-EQ -> transient control.",
-                                         "PUNCH TYPE RAW: RAW CLASSIC (punch source + SNAP, a controlled crack: fold -> clip -> band -> envelope, BODY COUPLING - KRAK -> DUM) or RAW 2015-2017 CRACKING (snap -> crack generator: dark/bright tilt, DENSITY folds, controlled distortion, EDGE -> a distorted bridge into the body - KRAK! -> BRUTAL BODY).", "", "", "", "", "", "", "", "", "" };
+                                         "PUNCH TYPE RAW: RAW CLASSIC (punch source + SNAP, a controlled crack: fold -> clip -> band -> envelope, BODY COUPLING - KRAK -> DUM) or RAW 2015-2017 CRACKING (snap -> crack generator: dark/bright tilt, DENSITY folds, controlled distortion, EDGE -> a distorted bridge into the body - KRAK! -> BRUTAL BODY).",
+                                         "RAW PUNCH EXTENSION: an own CRACK layer (harmonic source, CRACK PITCH, CRACK DRIVE / CLIP / TONE, LEVEL) + SNAP + BODY COUPLING - after the master clip, so the kick's drive never touches it. OFF = the RAW punch as before.", "", "", "", "", "", "", "", "" };
         detTab[t].setButtonText (selected == 0 ? punchTabs[t] : tailTabs[t]);
         detTab[t].setTooltip (selected == 0 ? punchTips[t]
                                             : (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -1579,7 +1600,7 @@ std::vector<int> GeCanvas::allowedTabs() const                                //
         const int m = (int) raw (proc, P::punchMode);
         if (m == 4) return { 4, 5 };                                              // PUNCH TYPE ZAAG + THE FRONT
         if (m == 5) return { 6, 5 };                                              // PUNCH TYPE CLASSIC (EARLY) + THE FRONT
-        if (m == 6) return { 7, 5 };                                              // PUNCH TYPE RAW + THE FRONT
+        if (m == 6) return { 7, 8, 5 };                                           // PUNCH TYPE RAW + its CRACK extension + THE FRONT
         return { m <= 1 ? 0 : m == 2 ? 1 : 2, 3, 5 };                               // + SUB / BLEND + THE FRONT (TOK / CLICK / SUB PUNCH)
     }
     if (selected == 2)
@@ -1599,9 +1620,14 @@ bool GeCanvas::hiddenByVariant (Component* c) const
     // RESONANT shows the whole sweep + resonator, the others hide what they do not use.
     if (selected == 0 && (int) raw (proc, P::punchMode) == 6)                         // PUNCH TYPE RAW: only the picked architecture's knobs
     {
-        const bool cracking = (int) raw (proc, P::rpType) == 1;
+        const bool cracking = (int) raw (proc, P::rpType) == 1, fixed = (int) raw (proc, P::ckPitchMode) == 1;
         for (auto& [id, comp] : byId)
-            if (comp == c && (id.startsWith ("rc_") || id.startsWith ("rk_"))) return cracking ? id.startsWith ("rc_") : id.startsWith ("rk_");
+        {
+            if (comp != c) continue;
+            if (id.startsWith ("rc_") || id.startsWith ("rk_")) return cracking ? id.startsWith ("rc_") : id.startsWith ("rk_");
+            if (id == "cr_tone_hz") return ! fixed;                                  // CRACK PITCH: FIXED PITCH only in FIXED, CRACK PITCH only in FOLLOW PUNCH
+            if (id == "cr_pitch") return fixed;
+        }
         return false;
     }
     if (selected != 2 || (int) raw (proc, P::tailEngine) != 2) return false;
@@ -1621,7 +1647,7 @@ bool GeCanvas::hiddenByVariant (Component* c) const
 void GeCanvas::timerCallback()
 {
     {   // the TYPE changed (a click, undo, a preset): show its tabs
-        const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine), zv = (int) raw (proc, P::zgVariant) + 10 * (int) raw (proc, P::rpType);
+        const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine), zv = (int) raw (proc, P::zgVariant) + 10 * (int) raw (proc, P::rpType) + 100 * (int) raw (proc, P::ckPitchMode);
         if (pm != shownPunchType || te != shownTailType || zv != shownZgVariant)
         { shownPunchType = pm; shownTailType = te; shownZgVariant = zv; layoutDetail(); applyOverview(); repaint(); }
     }

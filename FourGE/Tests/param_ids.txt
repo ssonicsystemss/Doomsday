@@ -4105,3 +4105,5 @@ cr_rv_gate
 cr_rv_hp
 cr_rv_lp
 cr_rv_res
+cr_hi_gain
+cr_hi_freq

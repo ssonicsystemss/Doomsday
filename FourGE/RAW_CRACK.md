@@ -10,6 +10,8 @@ with `cr_asym` -> BANDPASS `cr_bp_freq` / `cr_bp_width` (oct) / `cr_bp_res` (fol
 5-40 ms, lightly distorted. `cr_position`: 0 = the punch start, 1 = the body start. `cr_raw` RAW CRACK macro (non-linear: amplitude,
 density, asymmetry, sharpness, a little length). The PUNCH level scales it (PUNCH off = no crack).
 
+**HI EQ** `cr_hi_gain` / `cr_hi_freq`: a high shelf on the whole crack (dry + wet), owner 2026-11-21 ("boost hi eq" on PARALLEL).
+
 **CRACK REVERB** (`DSP/Front/CrackReverb.h`, owner spec "RAW CRACK REVERB ENGINE"): a mono short room (pre-delay, 8 early taps by SIZE,
 4 damped combs = DECAY RT60, 2 allpasses = DIFFUSION), then REVERB FILTER (HP / LP / RES) -> REVERB DRIVE (SOFT / HARD / ASYM / FOLD).
 `cr_rv_route`: PRE-DISTORTION (source -> pre-EQ -> reverb -> the crack's distortion -> final envelope), POST-DISTORTION (the distorted

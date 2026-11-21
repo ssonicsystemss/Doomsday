@@ -379,7 +379,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (toggle ("cr_rv_gate", "GATE", Toggle::Chip, col));
             d.push_back (combo ("cr_rv_drive_type"));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
-                     { "cr_rv_drive", "RV DRIVE" }, { "cr_rv_hp", "RV HP" }, { "cr_rv_lp", "RV LP" }, { "cr_rv_res", "RV RES" } })
+                     { "cr_rv_drive", "RV DRIVE" }, { "cr_rv_hp", "RV HP" }, { "cr_rv_lp", "RV LP" }, { "cr_rv_res", "RV RES" }, { "cr_hi_gain", "HI EQ" }, { "cr_hi_freq", "HI FREQ" } })
                 d.push_back (knob (id, lab, col));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
                      { "cr_level", "CRACK LEVEL" }, { "cr_snap", "SNAP" }, { "cr_crack", "CRACK" }, { "cr_density", "DENSITY" }, { "cr_edge", "EDGE" }, { "cr_coupling", "BODY COUPLING" } })
@@ -1655,7 +1655,7 @@ bool GeCanvas::hiddenByVariant (Component* c) const
             if (id.startsWith ("cr_") && id != "cr_on" && id != "cr_model" && id != "cr_level")              // CRACK MODEL: only its own knobs
             {
                 static const juce::StringArray tc { "cr_listen", "cr_rv_on", "cr_rv_route", "cr_rv_mix", "cr_rv_size", "cr_rv_decay", "cr_rv_predelay", "cr_rv_early",
-                    "cr_rv_late", "cr_rv_diff", "cr_rv_damp", "cr_rv_gate", "cr_rv_drive_type", "cr_rv_drive", "cr_rv_hp", "cr_rv_lp", "cr_rv_res", "cr_source", "cr_raw", "cr_position", "cr_width", "cr_pitch_off", "cr_pitch_env", "cr_ws", "cr_asym", "cr_bp_freq", "cr_bp_width", "cr_bp_res", "cr_cbody" };
+                    "cr_rv_late", "cr_rv_diff", "cr_rv_damp", "cr_rv_gate", "cr_rv_drive_type", "cr_rv_drive", "cr_rv_hp", "cr_rv_lp", "cr_rv_res", "cr_hi_gain", "cr_hi_freq", "cr_source", "cr_raw", "cr_position", "cr_width", "cr_pitch_off", "cr_pitch_env", "cr_ws", "cr_asym", "cr_bp_freq", "cr_bp_width", "cr_bp_res", "cr_cbody" };
                 const bool transientModel = (int) raw (proc, P::ckModel) == 0;
                 if (tc.contains (id) != transientModel) return true;
                 if (transientModel) return false;

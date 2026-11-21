@@ -49,6 +49,7 @@ namespace fge::dsp::front
         bool rvOn = true, rvGate = true; int rvRoute = 2, rvDriveType = 2;
         float rvMix = 0.4f, rvSize = 0.4f, rvDecayMs = 120.f, rvPreMs = 2.f, rvEarly = 0.7f, rvLate = 0.5f, rvDiffusion = 0.5f, rvDamping = 0.4f;
         float rvDrive = 0.3f, rvHpHz = 400.f, rvLpHz = 7000.f, rvRes = 0.1f;
+        float hiGainDb = 0.f, hiHz = 5000.f;  // HI EQ: a high shelf on the whole crack (dry + wet)
     };
     // TRANSIENT CRACK timing: where it starts (CRACK POSITION: 0 = the punch start, 1 = the body start) and how long it lives
     inline float tcStartMs (const CrackSettings& s) { return std::clamp (s.position, 0.f, 1.f) * std::max (0.f, s.bodyStartMs); }
@@ -63,7 +64,7 @@ namespace fge::dsp::front
         void reset()
         {
             p = 0.0; ps = 0.0; mph = 0.0; pb = 0.0; tcHz = 0.0; seed = 0x6a09e667u; blk = 0; shN = 0; sh = 0.f;
-            for (auto* b : { &lc, &loSh, &midB, &hiSh, &slideLp, &snapBp, &edgeHp, &pre1, &cpLp, &bodyHp, &bodyLp, &rvHp, &rvLp, &rvPre }) b->clear();
+            for (auto* b : { &lc, &loSh, &midB, &hiSh, &slideLp, &snapBp, &edgeHp, &pre1, &cpLp, &bodyHp, &bodyLp, &rvHp, &rvLp, &rvPre, &tcHi }) b->clear();
             dDry.clear(); dMain.clear(); dWet.clear(); rev.clear(); rvBlk = 0;
         }
         float layerEndMs (const CrackSettings& s) const
@@ -249,6 +250,7 @@ namespace fge::dsp::front
                     out = dry + mix * wet;
                 }
             }
+            if (s.hiGainDb > 0.05f) out = tcHi.tick (out);                                      // HI EQ (the shelf is cooked in cookTc)
             const float amp = (0.45f + 0.75f * raw) * std::clamp (s.punchAmt, 0.f, 1.25f);
             out *= amp;
             // CRACK BODY: 5-40 ms, very lightly distorted, below the crack (the "micro crunch" after the KRAK, never a 2nd punch)
@@ -293,6 +295,7 @@ namespace fge::dsp::front
             const double lo = std::clamp (fc / std::exp2 (w * 0.5), 150.0, fs * 0.3), hi = std::clamp (fc * std::exp2 (w * 0.5), 800.0, fs * 0.45);
             for (auto* d : { &dDry, &dMain, &dWet }) { d->hp.hp (fs, lo, q); d->hp2.hp (fs, lo, 0.7071); d->lp.lp (fs, hi, q); }
             bodyHp.hp (fs, 120.0, 0.7071); bodyLp.lp (fs, 2500.0, 0.7071);
+            tcHi.shelf (fs, std::clamp ((double) s.hiHz, 1000.0, fs * 0.4), s.hiGainDb, true);
         }
         float crackEnv (const CrackSettings& s, float ms) const
         {
@@ -341,7 +344,7 @@ namespace fge::dsp::front
         uint32_t seed = 0x6a09e667u;
         int blk = 0, folds = 1, shN = 0;
         float preG = 1.f, clipAmt = 0.f, crackLevel = 0.f, sh = 0.f;
-        bq::Biquad lc, loSh, midB, hiSh, slideLp, snapBp, edgeHp, pre1, cpLp, bodyHp, bodyLp, rvHp, rvLp, rvPre;
+        bq::Biquad lc, loSh, midB, hiSh, slideLp, snapBp, edgeHp, pre1, cpLp, bodyHp, bodyLp, rvHp, rvLp, rvPre, tcHi;
         Dist dDry, dMain, dWet;
         CrackReverb rev;
         int rvBlk = 0;

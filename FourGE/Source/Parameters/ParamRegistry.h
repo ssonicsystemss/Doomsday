@@ -925,7 +925,10 @@ namespace fge
     B (ckRvGate, "cr_rv_gate", "Crack Reverb Gate", true, FNone) \
     F (ckRvHp, "cr_rv_hp", "Crack Reverb HP", Unit::Hz, 20.0f, 2000.0f, 400.0f, 300.0f, FNone) \
     F (ckRvLp, "cr_rv_lp", "Crack Reverb LP", Unit::Hz, 1000.0f, 16000.0f, 7000.0f, 5000.0f, FNone) \
-    F (ckRvRes, "cr_rv_res", "Crack Reverb Filter Res", Unit::Pct, 0.0f, 1.0f, 0.1f, 0.0f, FNone)
+    F (ckRvRes, "cr_rv_res", "Crack Reverb Filter Res", Unit::Pct, 0.0f, 1.0f, 0.1f, 0.0f, FNone) \
+    /* owner 2026-11-21: "boost hi eq" on the PARALLEL crack - a high shelf on the whole crack (dry + wet) */ \
+    F (ckHiGain, "cr_hi_gain", "Crack Hi EQ Gain", Unit::Db, 0.0f, 18.0f, 0.0f, 0.0f, FNone) \
+    F (ckHiFreq, "cr_hi_freq", "Crack Hi EQ Freq", Unit::Hz, 2000.0f, 12000.0f, 5000.0f, 5000.0f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

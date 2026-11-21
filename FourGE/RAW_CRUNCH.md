@@ -1,3 +1,18 @@
+# RAW CRUNCH - CRACK SOURCE REWORK (owner spec 2026-11-21, the current one)
+
+A short TONAL layer, never noise / random impulses (`DSP/Core/RawPunch.h crunchPath`, its own bus after the master clip):
+SOURCE `cn_src` SINE / SAW / 909-BD (default) / SINE + SAW (`cn_src_mix`), pitched from the PUNCH START x `cn_pitch_off` (-24..+12 st,
+default -12), stable (no punch drop; 909 has its own short knock), `cn_phase` start phase, `cn_offset` = CRUNCH DELAY 0-80 ms (20)
+-> ENVELOPE `cn_attack` -> hold to PUNCH END + BODY x `cn_follow` (LENGTH) -> `cn_decay`
+-> PRE-SHAPE `cn_low_cut`, `cn_mid_boost` (1 kHz), `cn_high_cut`, `cn_pre_emph` -> TUBE `cn_tube` (0.3) -> ASYMMETRIC `cn_grit` (0.6,
+the negative half more drive + offset) -> WAVESHAPER `cn_ws` SOFT / HARD / FOLD / CRUSH / CUSTOM -> HARD CLIP `cn_clip`
+-> DISTORTION MIX `cn_dist_mix` (0.85) -> POST EQ `cn_tone` (LP 2-14 kHz) + BODY LIMIT `cn_body_limit` (low shelf) -> CRUNCH MIX `cn_crunch`
+(level only). `cn_solo` SOLO CRUNCH. Retired: cn_density, cn_source, cn_pitch.
+Why (owner's rawstyle-kick_G_major, fitted in 10 ms windows): the punch = ~600-700 Hz + a second, lower, steadier tone (e.g. 534 + 625,
+713 + 409 + 158 Hz), clipped together -> irregular square cycles = the crack. One tone into a clip = "pup".
+
+---
+
 # RAW CRUNCH – rework #2 (owner 2026-11-21): a TONAL layer
 
 **This replaces the CRACK IMPULSE ENGINE below (kept only as history).** After RAW kick tutorials (Teknovault: the crunch = its own

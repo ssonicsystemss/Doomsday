@@ -353,8 +353,20 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);                                                // DYNAMIC DISTORTED CRUNCH (owner 2026-11-21): the 3rd row of the RAW tab
             d.push_back (toggle ("cn_on", "CRUNCH", Toggle::Chip, col));
+            d.push_back (toggle ("cn_solo", "SOLO CRUNCH", Toggle::Chip, col));
+            d.push_back (combo ("cn_src"));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
-                     { "cn_crunch", "CRUNCH" }, { "cn_pitch", "PITCH" }, { "cn_tube", "TUBE" }, { "cn_grit", "ASYM" }, { "cn_tone", "TONE" }, { "cn_offset", "OFFSET" }, { "cn_follow", "BODY FOLLOW" } })
+                     { "cn_src_mix", "SOURCE MIX" }, { "cn_pitch_off", "PITCH" }, { "cn_offset", "DELAY" }, { "cn_phase", "PHASE" }, { "cn_attack", "ATTACK" },
+                     { "cn_follow", "LENGTH" }, { "cn_decay", "DECAY" }, { "cn_crunch", "CRUNCH MIX" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cn_low_cut", "LOW CUT" }, { "cn_mid_boost", "MID BOOST" }, { "cn_high_cut", "HIGH CUT" }, { "cn_pre_emph", "PRE EMPH" }, { "cn_tube", "TUBE" },
+                     { "cn_grit", "ASYMMETRY" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (combo ("cn_ws"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cn_clip", "CLIP" }, { "cn_dist_mix", "DIST MIX" }, { "cn_tone", "POST TONE" }, { "cn_body_limit", "BODY LIMIT" } })
                 d.push_back (knob (id, lab, col));
             // 9th tab: RAW PUNCH EXTENSION - CRACK SOURCE + SNAP + BODY COUPLING (owner 2026-11-21, RAW_CRACK.md); with PUNCH TYPE RAW only
             d.push_back (&detailPageMark);

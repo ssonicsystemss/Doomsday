@@ -824,7 +824,7 @@ int main (int argc, char** argv)
             bool retired = false;
             // RETIRED by the ZAAG ENGINE (owner's tutorial 2026-11-15): kept for old projects, not on any page, no sound (ZAAG_ENGINE.md)
             for (auto* r : { "zg_saw", "zg_sawb_oct", "zg_sawb_detune", "zg_s2_low", "zg_s2_low_mid", "zg_s2_mid", "zg_s2_hi_mid", "zg_bits", "zg_fold", "zg_tone", "zg_focus",
-                             "cn_density", "cn_source", "zg_flt_type", "zg_flt_start", "zg_flt_end", "zg_flt_time", "zg_flt_curve", "zg_flt_reso", "zg_flt_lfo", "zg_flt_lfo_rate" })
+                             "cn_density", "cn_source", "cn_pitch", "zg_flt_type", "zg_flt_start", "zg_flt_end", "zg_flt_time", "zg_flt_curve", "zg_flt_reso", "zg_flt_lfo", "zg_flt_lfo_rate" })
                 if (String (d.id) == r) { retired = true; break; }
             if (retired) continue;
             if (id == P::coreVoice || id == P::coreVelocity) continue;                 // MIDI behaviour, checked above
@@ -1242,6 +1242,9 @@ int main (int argc, char** argv)
                     if (sid != "cn_on") set2 ("cn_on", 1.f);
                     if (sid != "cn_crunch") set2 ("cn_crunch", 1.f);
                     if (sid == "cn_follow") set2 ("body_length", 300.f);
+                    if (sid == "cn_src_mix") set2 ("cn_src", 3.f);
+                    if (sid == "cn_decay" || sid == "cn_follow") set2 ("cn_offset", 0.f);
+                    if (sid == "cn_low_cut" || sid == "cn_mid_boost" || sid == "cn_high_cut" || sid == "cn_dist_mix") { set2 ("cn_ws", 0.f); set2 ("cn_clip", 0.f); }
                 }
                 if (sid.startsWith ("cr_"))                                                                    // RAW PUNCH EXTENSION (owner 2026-11-21): RAW punch, crack on
                 {
@@ -2969,8 +2972,8 @@ int main (int argc, char** argv)
             // rework #2 (owner 2026-11-21): a TONAL crunch - the first hit the strongest, then a held dirty CZZ (never silence, never a 2nd punch),
             // its energy in the mids (200 Hz - 3 kHz, like the owner's 4 RAW references), not a noise (low spectral flatness)
             // (the owner's 4 RAW references: the level HELD ~150 ms, near square; the hit = a bright first 0-5 ms, then the top goes)
-            const float hit = bandDb (l0, 0, 10, 200, 3000), tail = bandDb (l0, 40, 90, 200, 3000);
-            const float bright = bandDb (l0, 0, 5, 4000, 16000) - bandDb (l0, 40, 90, 4000, 16000);
+            const float hit = bandDb (l0, 20, 30, 200, 3000), tail = bandDb (l0, 50, 90, 200, 3000);   // (CRUNCH DELAY 20 ms: PUNCH -> CRUNCH)
+            const float bright = bandDb (l0, 20, 25, 4000, 16000) - bandDb (l0, 50, 90, 4000, 16000);
             const bool shaped = hit > tail - 1.f && tail > hit - 12.f && tail > -50.f;          // (the bright 0-5 ms = the SNAP / CRACK layer, not the crunch)
             const bool mids = bandDb (l0, 0, 90, 200, 3000) > bandDb (l0, 0, 90, 3000, 16000) + 6.f;
             float flat = 1.f;
@@ -2985,9 +2988,9 @@ int main (int argc, char** argv)
             }
             const bool tonal = flat < 0.2f;
             const bool noBass = bandDb (l0, 0, 150, 20, 120) < bandDb (l0, 0, 150, 200, 3000) - 15.f;
-            const auto f0 = layer ({ { "cn_follow", 0.f } });
-            const bool endsWithPunch = bandDb (f0, pEnd + 20.f, pEnd + 60.f, 200, 12000) < bandDb (f0, 20, 60, 200, 12000) - 30.f;
-            const auto b1 = layer ({ { "cn_follow", 1.f }, { "body_length", 300.f } }), b2 = layer ({ { "cn_follow", 1.f }, { "body_length", 100.f } });
+            const auto f0 = layer ({ { "cn_follow", 0.f }, { "cn_decay", 5.f } });
+            const bool endsWithPunch = bandDb (f0, pEnd + 40.f, pEnd + 80.f, 200, 12000) < bandDb (f0, 25, 60, 200, 12000) - 30.f;
+            const auto b1 = layer ({ { "cn_follow", 1.f }, { "body_length", 300.f }, { "cn_decay", 5.f } }), b2 = layer ({ { "cn_follow", 1.f }, { "body_length", 100.f }, { "cn_decay", 5.f } });
             const bool followsBody = bandDb (b1, pEnd + 120.f, pEnd + 200.f, 200, 12000) > bandDb (b2, pEnd + 120.f, pEnd + 200.f, 200, 12000) + 10.f;
             check (shaped && mids && tonal && noBass && endsWithPunch && followsBody,
                    "RAW CRUNCH = a TONAL layer (own sine below the punch -> tube -> asym -> hard clip): a hit + a dirty CZZ, mids, not a noise, no bass, BODY FOLLOW from the real phases",

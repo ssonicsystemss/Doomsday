@@ -108,6 +108,8 @@ namespace fge
         const juce::StringArray& crackListens()   { static const juce::StringArray a { "KICK", "SOLO SOURCE", "SOLO DRY", "SOLO WET", "SOLO REVERB", "SOLO FINAL" }; return a; }
         const juce::StringArray& crackRoutes()    { static const juce::StringArray a { "PRE-DISTORTION", "POST-DISTORTION", "PARALLEL" }; return a; }
         const juce::StringArray& crackRvDrives()  { static const juce::StringArray a { "SOFT", "HARD CLIP", "ASYMMETRIC", "FOLD" }; return a; }
+        const juce::StringArray& crunchSources()  { static const juce::StringArray a { "SINE", "SAW", "909 / BD", "SINE + SAW" }; return a; }
+        const juce::StringArray& crunchWs()       { static const juce::StringArray a { "SOFT", "HARD", "FOLD", "CRUSH", "CUSTOM" }; return a; }
         const juce::StringArray& crackWs()        { static const juce::StringArray a { "SOFT", "HARD", "ASYMMETRIC", "FOLD", "RECTIFY" }; return a; }
         const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "OFFSET" }; return a; }
         const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE", "HYBRID" }; return a; }

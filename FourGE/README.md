@@ -35,12 +35,10 @@ Nowy typ puncha **RAW** z dwoma osobnymi silnikami (przełącznik RAW PUNCH TYPE
   **CRACK REVERB**: krótki pokój tylko dla cracku – **ROUTING** PRE (pogłos PRZED przesterem) / POST / PARALLEL, MIX, SIZE, DECAY,
   PRE-DELAY, EARLY, LATE, DIFFUSION, DAMPING, GATE, RV DRIVE (+ typ), RV HP / LP / RES. **LISTEN**: KICK albo SOLO SOURCE / DRY / WET /
   REVERB / FINAL (słychać sam crack). **HI EQ** + **HI FREQ**: podbicie góry całego cracku. **RUCH** na pogłosie: SWEEP (filtr w górę / w dół), FLANGER, PHASER, POGO (pogłos zjeżdża w dół), RATE, MOVE TIME. Model CLASSIC LAYER = stara warstwa (dla starych projektów).
-- **CRUNCH** (trzeci rząd zakładki RAW): tonalna warstwa trzasku – własny sinus (wysokość z tonacji, niżej od startu puncha),
-  własna obwiednia, potem TUBE → EQ środka → ASYMETRYCZNY przester → twardy clip → końcowe EQ. Bez szumu i bez serii impulsów:
-  ton + przester = crunch. Dopasowane do 4 referencji RAW (ton ~450–700 Hz trzymany ~150 ms, prawie kwadrat).
-  **CRUNCH** (ile), **PITCH** (wysokość), **TUBE**, **ASYM** (asymetryczny przester = sam crunch), **TONE** (środek 350–1400 Hz
-  i jasność), **OFFSET** (start po kicku, ms), **BODY FOLLOW** (jak długo – z prawdziwych obwiedni puncha i body).
-  Bez dodatkowego basu. Przycisk CRUNCH wyłącza.
+- **CRUNCH** (zakładka RAW): krótka tonalna warstwa „CZZZZ / CRRRAK”, bez szumu. **SOURCE** SINE / SAW / 909-BD / SINE+SAW
+  (+ SOURCE MIX), **PITCH** względem startu puncha, **DELAY** (wchodzi po punchu), **PHASE**, **ATTACK / LENGTH / DECAY**,
+  **LOW CUT / MID BOOST / HIGH CUT / PRE EMPH**, **TUBE**, **ASYMMETRY**, **WAVESHAPER**, **CLIP**, **DIST MIX**, **POST TONE**,
+  **BODY LIMIT**, **CRUNCH MIX** (sam poziom). **SOLO CRUNCH** = słychać sam crunch. Przycisk CRUNCH wyłącza.
 
 ## TAIL RISE (2026-11-21)
 Zakładka **RISE** przy każdym typie taila: końcówka taila **narasta** zamiast tylko gasnąć.

@@ -71,7 +71,7 @@ namespace fge
         dsp::exper::Settings exp;                 // TAIL TYPE EXPERIMENTAL (owner 2026-11-16, TAIL_RAW_EXP.md)                   // TAIL TYPE RAW (owner 2026-11-16, TAIL_RAW_EXP.md)
         dsp::zaag::Settings zaag;                 // TAIL TYPE ZAAG (owner 2026-11-14 / 15)
         dsp::front::ClickSettings click; dsp::front::TokSettings tok; dsp::front::SubPunchSettings spk; float zgSend = 0.f;
-        bool crackSolo = false;                  // SOLO CRACK: only the crack (diagnostics)
+        bool crackSolo = false, crunchSolo = false;                  // SOLO CRACK: only the crack (diagnostics)
         dsp::front::CrackSettings crack;         // RAW PUNCH EXTENSION (owner 2026-11-21): CRACK + SNAP + BODY COUPLING, mixed after the master clip   // the FRONT (owner 2026-11-16)
         dsp::classicpunch::Settings cpunch;      // PUNCH TYPE CLASSIC (EARLY REWORK, owner 2026-11-16)
         dsp::rawpunch::Settings rpunch;
@@ -1113,7 +1113,12 @@ namespace fge
                     q.on = f.idx (P::punchMode) == 6; q.type = f.idx (P::rpType); q.kickMs = cfg.ks.lengthMs;
                     q.crunchOn = f.on (P::cnOn); q.crunch = f[P::cnCrunch]; q.grit = f[P::cnGrit];   // DYNAMIC DISTORTED CRUNCH
                     q.crunchTone = f[P::cnTone]; q.bodyFollow = f[P::cnFollow];
-                    q.crunchPitchSt = f[P::cnPitch]; q.crunchOffsetMs = f[P::cnOffset]; q.crunchTube = f[P::cnTube];
+                    q.crunchOffsetMs = f[P::cnOffset]; q.crunchTube = f[P::cnTube];
+                    q.cnSrc = f.idx (P::cnSrc); q.cnSrcMix = f[P::cnSrcMix]; q.cnPitchOff = f[P::cnPitchOff]; q.cnPhaseDeg = f[P::cnPhase];   // RAW CRUNCH spec
+                    q.cnAttackMs = f[P::cnAttack]; q.cnDecayMs = f[P::cnDecay]; q.cnLowCut = f[P::cnLowCut]; q.cnBodyLimit = f[P::cnBodyLimit];
+                    q.cnMidBoost = f[P::cnMidBoost]; q.cnHighCut = f[P::cnHighCut]; q.cnPreEmph = f[P::cnPreEmph]; q.cnWs = f.idx (P::cnWs);
+                    q.cnClip = f[P::cnClip]; q.cnDistMix = f[P::cnDistMix];
+                    cfg.crunchSolo = f.on (P::cnSolo) && q.crunchOn && f.idx (P::punchMode) == 6;
                     q.bodyStartMs = f[P::bodyAmpDelay]; q.bodyEndMs = f[P::bodyAmpDelay] + f[P::bodyLen];
                     if (q.type == 0)
                     {
@@ -1361,7 +1366,7 @@ namespace fge
                         {
                             float a = cfg.crack.on ? crU.process (cfg.crack, ms, 0.5f * (yl + yr), rpU.lastHz(), b[1][i], noteNow) : 0.f;
                             crkBuf[(size_t) i] = a;
-                            if (atkCrunch) a += rpU.lastCrunch();
+                            if (atkCrunch) { a += rpU.lastCrunch(); if (cfg.crunchSolo) crkBuf[(size_t) i] = rpU.lastCrunch(); }
                             if (cfg.noteCut && relMs >= 0.f) a *= juce::jlimit (0.f, 1.f, 1.f - (ms - relMs) / 5.f);
                             atkBuf[(size_t) i] = a;
                         }
@@ -1411,7 +1416,7 @@ namespace fge
                 for (int i = 0; i < on; ++i) { L[i] += b[6 + 2 * dsp::BusMaster][i]; R[i] += b[7 + 2 * dsp::BusMaster][i]; }
             if (cfg.spc.t[dsp::spatial::TMaster].on && ! cfg.masterBypass)    // module 11: MASTER STEREO (before the output dynamics)
                 for (int i = 0; i < on; ++i) (*spcUnits)[dsp::spatial::TMaster].process (cfg.spc.t[dsp::spatial::TMaster], L[i], R[i]);
-            if (cfg.crackSolo)                                                // SOLO CRACK: the crack alone (no TOK / PUNCH / BODY / TAIL / SUB / crunch)
+            if (cfg.crackSolo || cfg.crunchSolo)                              // SOLO CRACK / SOLO CRUNCH: the crack alone (no TOK / PUNCH / BODY / TAIL / SUB / crunch)
                 for (int i = 0; i < on; ++i) { L[i] = R[i] = crkBuf[(size_t) i]; crkBuf[(size_t) i] = 0.f; }
             sinceHitOs += on; sinceHitMs = msAt (0);          // (a sample counter: the same at any block size)
             os->processSamplesDown (blk);

@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs(); const juce::StringArray& zgVariants(); const juce::StringArray& zgRsnModes(); const juce::StringArray& zgRsnPositions(); const juce::StringArray& zgDistTypes(); const juce::StringArray& tokTypes(); const juce::StringArray& tokPitchModes(); const juce::StringArray& frontModes(); const juce::StringArray& rawOsc1s(); const juce::StringArray& rawOsc2s(); const juce::StringArray& rawNoises(); const juce::StringArray& rawStages(); const juce::StringArray& rawFltShapes(); const juce::StringArray& tailSyncs(); const juce::StringArray& expOscs(); const juce::StringArray& expNoises(); const juce::StringArray& expPitchCurves(); const juce::StringArray& expFxTypes(); const juce::StringArray& expModSrcs(); const juce::StringArray& expSeeds(); const juce::StringArray& cpWsTypes(); const juce::StringArray& clickTypes(); const juce::StringArray& rawPunchTypes(); const juce::StringArray& riseSyncs(); const juce::StringArray& riseGrids(); const juce::StringArray& riseCurves(); const juce::StringArray& riseModes(); const juce::StringArray& riseReleases(); const juce::StringArray& crackPitchModes(); const juce::StringArray& crackShapes(); const juce::StringArray& crackModels(); const juce::StringArray& crackSources(); const juce::StringArray& crackWs(); const juce::StringArray& crackListens(); const juce::StringArray& crackRoutes(); const juce::StringArray& crackRvDrives();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs(); const juce::StringArray& zgVariants(); const juce::StringArray& zgRsnModes(); const juce::StringArray& zgRsnPositions(); const juce::StringArray& zgDistTypes(); const juce::StringArray& tokTypes(); const juce::StringArray& tokPitchModes(); const juce::StringArray& frontModes(); const juce::StringArray& rawOsc1s(); const juce::StringArray& rawOsc2s(); const juce::StringArray& rawNoises(); const juce::StringArray& rawStages(); const juce::StringArray& rawFltShapes(); const juce::StringArray& tailSyncs(); const juce::StringArray& expOscs(); const juce::StringArray& expNoises(); const juce::StringArray& expPitchCurves(); const juce::StringArray& expFxTypes(); const juce::StringArray& expModSrcs(); const juce::StringArray& expSeeds(); const juce::StringArray& cpWsTypes(); const juce::StringArray& clickTypes(); const juce::StringArray& rawPunchTypes(); const juce::StringArray& riseSyncs(); const juce::StringArray& riseGrids(); const juce::StringArray& riseCurves(); const juce::StringArray& riseModes(); const juce::StringArray& riseReleases(); const juce::StringArray& crackPitchModes(); const juce::StringArray& crackShapes(); const juce::StringArray& crackModels(); const juce::StringArray& crackSources(); const juce::StringArray& crackWs(); const juce::StringArray& crackListens(); const juce::StringArray& crackRoutes(); const juce::StringArray& crackRvDrives(); const juce::StringArray& crunchSources(); const juce::StringArray& crunchWs();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -884,16 +884,16 @@ namespace fge
     F (ckLength, "cr_length", "Crack Length", Unit::Ms, 20.0f, 150.0f, 60.0f, 60.0f, FNone) \
     /* ================= owner 2026-11-21: RAW PUNCH - DYNAMIC DISTORTED CRUNCH, a parallel path of the punch source (RAW_CRUNCH.md) ================= */ \
     B (cnOn, "cn_on", "Crunch On", false, FNone) \
-    F (cnCrunch, "cn_crunch", "Crunch", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
-    F (cnGrit, "cn_grit", "Crunch Grit", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (cnCrunch, "cn_crunch", "Crunch Mix", Unit::Pct, 0.0f, 1.0f, 0.7f, 0.0f, FNone) \
+    F (cnGrit, "cn_grit", "Crunch Asymmetry", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
     F (cnDensity, "cn_density", "Crunch Density", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
     F (cnTone, "cn_tone", "Crunch Tone", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
-    F (cnFollow, "cn_follow", "Crunch Body Follow", Unit::Pct, 0.0f, 1.0f, 0.4f, 0.0f, FNone) \
+    F (cnFollow, "cn_follow", "Crunch Length", Unit::Pct, 0.0f, 1.0f, 0.4f, 0.0f, FNone) \
     C (cnSource, "cn_source", "Crunch Source", pshSources, 2, FNone) \
     /* owner 2026-11-21 rework #2: the crunch = a TONAL layer (cn_density / cn_source RETIRED, kept for old projects) */ \
     F (cnPitch, "cn_pitch", "Crunch Pitch", Unit::Semi, -24.0f, 0.0f, -6.0f, 0.0f, FNone) \
-    F (cnOffset, "cn_offset", "Crunch Offset", Unit::Ms, 0.0f, 20.0f, 0.0f, 0.0f, FNone) \
-    F (cnTube, "cn_tube", "Crunch Tube", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (cnOffset, "cn_offset", "Crunch Delay", Unit::Ms, 0.0f, 80.0f, 20.0f, 0.0f, FNone) \
+    F (cnTube, "cn_tube", "Crunch Tube", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
     /* owner 2026-11-21 RAW CRACK REWORK (RAW_CRACK.md): TRANSIENT CRACK = one short event (2-25 ms), not a layer / noise / tail */ \
     C (ckModel, "cr_model", "Crack Model", crackModels, 0, FNone) \
     C (ckSource, "cr_source", "Crack Source", crackSources, 5, FNone) \
@@ -935,7 +935,23 @@ namespace fge
     F (ckMvPhaser, "cr_mv_phaser", "Crack Move Phaser", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
     F (ckMvPitch, "cr_mv_pitch", "Crack Move Pitch Drop", Unit::Semi, -24.0f, 0.0f, 0.0f, 0.0f, FNone) \
     F (ckMvRate, "cr_mv_rate", "Crack Move Rate", Unit::Hz, 0.1f, 20.0f, 2.0f, 2.0f, FNone) \
-    F (ckMvTime, "cr_mv_time", "Crack Move Time", Unit::Ms, 20.0f, 600.0f, 200.0f, 150.0f, FNone)
+    F (ckMvTime, "cr_mv_time", "Crack Move Time", Unit::Ms, 20.0f, 600.0f, 200.0f, 150.0f, FNone) \
+    /* owner spec 2026-11-21 "RAW CRUNCH / CRACK SOURCE REWORK" (RAW_CRUNCH.md); cn_pitch RETIRED (now cn_pitch_off against the punch) */ \
+    C (cnSrc, "cn_src", "Crunch Source Type", crunchSources, 2, FNone) \
+    F (cnSrcMix, "cn_src_mix", "Crunch Source Mix", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
+    F (cnPitchOff, "cn_pitch_off", "Crunch Pitch Offset", Unit::Semi, -24.0f, 12.0f, -12.0f, 0.0f, FNone) \
+    F (cnPhase, "cn_phase", "Crunch Phase", Unit::Deg, 0.0f, 360.0f, 0.0f, 0.0f, FNone) \
+    F (cnAttack, "cn_attack", "Crunch Attack", Unit::Ms, 0.0f, 10.0f, 0.5f, 0.0f, FNone) \
+    F (cnDecay, "cn_decay", "Crunch Decay", Unit::Ms, 5.0f, 200.0f, 40.0f, 40.0f, FNone) \
+    F (cnLowCut, "cn_low_cut", "Crunch Low Cut", Unit::Hz, 20.0f, 800.0f, 150.0f, 150.0f, FNone) \
+    F (cnBodyLimit, "cn_body_limit", "Crunch Body Limit", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (cnMidBoost, "cn_mid_boost", "Crunch Mid Boost", Unit::Db, 0.0f, 18.0f, 6.0f, 0.0f, FNone) \
+    F (cnHighCut, "cn_high_cut", "Crunch High Cut", Unit::Hz, 1000.0f, 18000.0f, 8000.0f, 5000.0f, FNone) \
+    F (cnPreEmph, "cn_pre_emph", "Crunch Pre Emphasis", Unit::Pct, 0.0f, 1.0f, 0.2f, 0.0f, FNone) \
+    C (cnWs, "cn_ws", "Crunch Waveshaper", crunchWs, 1, FNone) \
+    F (cnClip, "cn_clip", "Crunch Clip", Unit::Pct, 0.0f, 1.0f, 0.7f, 0.0f, FNone) \
+    F (cnDistMix, "cn_dist_mix", "Crunch Distortion Mix", Unit::Pct, 0.0f, 1.0f, 0.85f, 0.0f, FNone) \
+    B (cnSolo, "cn_solo", "Solo Crunch", false, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

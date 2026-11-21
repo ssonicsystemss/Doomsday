@@ -24,6 +24,7 @@
 #include <algorithm>
 #include "../Tone/Biquad.h"
 #include "CrackReverb.h"
+#include "CrackMove.h"
 
 namespace fge::dsp::front
 {
@@ -49,7 +50,8 @@ namespace fge::dsp::front
         bool rvOn = true, rvGate = true; int rvRoute = 2, rvDriveType = 2;
         float rvMix = 0.4f, rvSize = 0.4f, rvDecayMs = 120.f, rvPreMs = 2.f, rvEarly = 0.7f, rvLate = 0.5f, rvDiffusion = 0.5f, rvDamping = 0.4f;
         float rvDrive = 0.3f, rvHpHz = 400.f, rvLpHz = 7000.f, rvRes = 0.1f;
-        float hiGainDb = 0.f, hiHz = 5000.f;  // HI EQ: a high shelf on the whole crack (dry + wet)
+        float hiGainDb = 0.f, hiHz = 5000.f;
+        CrackMoveSettings move;               // CRACK MOVEMENT on the wet path (SWEEP / FLANGER / PHASER / PITCH)  // HI EQ: a high shelf on the whole crack (dry + wet)
     };
     // TRANSIENT CRACK timing: where it starts (CRACK POSITION: 0 = the punch start, 1 = the body start) and how long it lives
     inline float tcStartMs (const CrackSettings& s) { return std::clamp (s.position, 0.f, 1.f) * std::max (0.f, s.bodyStartMs); }
@@ -60,12 +62,12 @@ namespace fge::dsp::front
     class CrackUnit
     {
     public:
-        void prepare (double rate) { fs = rate; rev.prepare (rate); reset(); }
+        void prepare (double rate) { fs = rate; rev.prepare (rate); mv.prepare (rate); reset(); }
         void reset()
         {
             p = 0.0; ps = 0.0; mph = 0.0; pb = 0.0; tcHz = 0.0; seed = 0x6a09e667u; blk = 0; shN = 0; sh = 0.f;
             for (auto* b : { &lc, &loSh, &midB, &hiSh, &slideLp, &snapBp, &edgeHp, &pre1, &cpLp, &bodyHp, &bodyLp, &rvHp, &rvLp, &rvPre, &tcHi }) b->clear();
-            dDry.clear(); dMain.clear(); dWet.clear(); rev.clear(); rvBlk = 0;
+            dDry.clear(); dMain.clear(); dWet.clear(); rev.clear(); mv.clear(); rvBlk = 0;
         }
         float layerEndMs (const CrackSettings& s) const
         {
@@ -224,7 +226,7 @@ namespace fge::dsp::front
                 cookRv (s);
                 const float mix = std::clamp (s.rvMix, 0.f, 1.f);
                 const float gate = s.rvGate ? std::clamp ((len + s.rvPreMs + 0.35f * s.rvDecayMs - t) / 1.f, 0.f, 1.f) : 1.f;   // GATE: cut while still loud (~ -20 dB)
-                auto filt = [&] (float x) { return rvLp.tick (rvHp.tick (x)); };
+                auto filt = [&] (float x) { const float y = rvLp.tick (rvHp.tick (x)); return s.move.any() ? mv.process (s.move, y, t, s.rvLpHz) : y; };   // REVERB FILTER -> MOVEMENT
                 if (s.rvRoute == 0)            // PRE-DISTORTION: the reflections go INTO the distortion
                 {
                     const float pin = rvPre.tick (src);
@@ -347,6 +349,7 @@ namespace fge::dsp::front
         bq::Biquad lc, loSh, midB, hiSh, slideLp, snapBp, edgeHp, pre1, cpLp, bodyHp, bodyLp, rvHp, rvLp, rvPre, tcHi;
         Dist dDry, dMain, dWet;
         CrackReverb rev;
+        CrackMove mv;
         int rvBlk = 0;
     };
 }

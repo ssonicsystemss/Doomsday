@@ -12,6 +12,12 @@ density, asymmetry, sharpness, a little length). The PUNCH level scales it (PUNC
 
 **HI EQ** `cr_hi_gain` / `cr_hi_freq`: a high shelf on the whole crack (dry + wet), owner 2026-11-21 ("boost hi eq" on PARALLEL).
 
+**CRACK MOVEMENT** (`DSP/Front/CrackMove.h`, owner "brakuje ruchu" 2026-11-21) on the wet path after the reverb filter: `cr_mv_sweep`
+(LP up / down 3 oct over MOVE TIME), `cr_mv_flange` (HL6- like flanger, delay sweeps down + LFO), `cr_mv_phaser` (6 all-passes), `cr_mv_pitch`
+("POGO": a doppler delay pulls the wet down, up to -24 st), `cr_mv_rate` (LFO), `cr_mv_time`. Research: On Point Samples (punch through
+Serum Flg HL6- with drive maxed, crunch with a long downward pitch envelope), Serum hardstyle kick guides (flanger + phaser = movement).
+RAW presets (owner 2026-11-21): PARALLEL, bright + hard, HI EQ +12 dB @ 4.5 kHz, BIG reverb (size 0.95, decay 380, mix 0.8, no gate).
+
 **CRACK REVERB** (`DSP/Front/CrackReverb.h`, owner spec "RAW CRACK REVERB ENGINE"): a mono short room (pre-delay, 8 early taps by SIZE,
 4 damped combs = DECAY RT60, 2 allpasses = DIFFUSION), then REVERB FILTER (HP / LP / RES) -> REVERB DRIVE (SOFT / HARD / ASYM / FOLD).
 `cr_rv_route`: PRE-DISTORTION (source -> pre-EQ -> reverb -> the crack's distortion -> final envelope), POST-DISTORTION (the distorted

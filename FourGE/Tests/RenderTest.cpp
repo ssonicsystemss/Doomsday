@@ -1250,7 +1250,13 @@ int main (int argc, char** argv)
                     static const StringArray tcIds { "cr_on", "cr_level", "cr_model", "cr_listen", "cr_source", "cr_raw", "cr_position", "cr_width", "cr_pitch_off",
                         "cr_pitch_env", "cr_ws", "cr_asym", "cr_bp_freq", "cr_bp_width", "cr_bp_res", "cr_cbody", "cr_hi_gain", "cr_hi_freq" };
                     if (sid == "cr_hi_freq") set2 ("cr_hi_gain", 12.f);
-                    if (! tcIds.contains (sid) && ! sid.startsWith ("cr_rv_")) set2 ("cr_model", 1.f);                 // the CLASSIC LAYER's own knobs
+                    if (! tcIds.contains (sid) && ! sid.startsWith ("cr_rv_") && ! sid.startsWith ("cr_mv_")) set2 ("cr_model", 1.f);                 // the CLASSIC LAYER's own knobs
+                    if (sid.startsWith ("cr_mv_"))                                                                   // MOVEMENT: heard on the wet, reverb up
+                    {
+                        set2 ("cr_listen", 3.f); set2 ("cr_rv_mix", 1.f); set2 ("cr_rv_gate", 0.f); set2 ("cr_rv_decay", 300.f);
+                        if (sid == "cr_mv_rate") { set2 ("cr_mv_flange", 1.f); set2 ("cr_mv_phaser", 1.f); }
+                        if (sid == "cr_mv_time") { set2 ("cr_mv_sweep", -1.f); set2 ("cr_mv_pitch", -12.f); }
+                    }
                     if (sid.startsWith ("cr_rv_")) { set2 ("cr_rv_mix", sid == "cr_rv_mix" ? 0.f : 1.f); set2 ("cr_rv_drive", sid == "cr_rv_drive" ? 0.f : 0.6f); }
                     if (sid == "cr_rv_hp" || sid == "cr_rv_lp" || sid == "cr_rv_res" || sid == "cr_rv_late" || sid == "cr_rv_diff" || sid == "cr_rv_damp" || sid == "cr_rv_decay")
                     { set2 ("cr_rv_drive", 0.f); set2 ("cr_rv_route", 2.f); set2 ("cr_listen", 3.f); set2 ("cr_rv_gate", 0.f); }   // (heard in SOLO WET)

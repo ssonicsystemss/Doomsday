@@ -928,7 +928,14 @@ namespace fge
     F (ckRvRes, "cr_rv_res", "Crack Reverb Filter Res", Unit::Pct, 0.0f, 1.0f, 0.1f, 0.0f, FNone) \
     /* owner 2026-11-21: "boost hi eq" on the PARALLEL crack - a high shelf on the whole crack (dry + wet) */ \
     F (ckHiGain, "cr_hi_gain", "Crack Hi EQ Gain", Unit::Db, 0.0f, 18.0f, 0.0f, 0.0f, FNone) \
-    F (ckHiFreq, "cr_hi_freq", "Crack Hi EQ Freq", Unit::Hz, 2000.0f, 12000.0f, 5000.0f, 5000.0f, FNone)
+    F (ckHiFreq, "cr_hi_freq", "Crack Hi EQ Freq", Unit::Hz, 2000.0f, 12000.0f, 5000.0f, 5000.0f, FNone) \
+    /* owner 2026-11-21 "brakuje ruchu": CRACK MOVEMENT on the reverb's wet path */ \
+    F (ckMvSweep, "cr_mv_sweep", "Crack Move Sweep", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (ckMvFlange, "cr_mv_flange", "Crack Move Flanger", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (ckMvPhaser, "cr_mv_phaser", "Crack Move Phaser", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (ckMvPitch, "cr_mv_pitch", "Crack Move Pitch Drop", Unit::Semi, -24.0f, 0.0f, 0.0f, 0.0f, FNone) \
+    F (ckMvRate, "cr_mv_rate", "Crack Move Rate", Unit::Hz, 0.1f, 20.0f, 2.0f, 2.0f, FNone) \
+    F (ckMvTime, "cr_mv_time", "Crack Move Time", Unit::Ms, 20.0f, 600.0f, 200.0f, 150.0f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

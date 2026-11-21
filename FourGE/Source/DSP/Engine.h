@@ -1094,6 +1094,8 @@ namespace fge
                     cr.rvDiffusion = f[P::ckRvDiff]; cr.rvDamping = f[P::ckRvDamp]; cr.rvDrive = f[P::ckRvDrive]; cr.rvDriveType = f.idx (P::ckRvDriveType);
                     cr.rvGate = f.on (P::ckRvGate); cr.rvHpHz = f[P::ckRvHp]; cr.rvLpHz = f[P::ckRvLp]; cr.rvRes = f[P::ckRvRes];
                     cr.hiGainDb = f[P::ckHiGain]; cr.hiHz = f[P::ckHiFreq];
+                    cr.move.sweep = f[P::ckMvSweep]; cr.move.flange = f[P::ckMvFlange]; cr.move.phaser = f[P::ckMvPhaser];     // CRACK MOVEMENT
+                    cr.move.pitchSt = f[P::ckMvPitch]; cr.move.rateHz = f[P::ckMvRate]; cr.move.timeMs = f[P::ckMvTime];
                 }
                 {                                                                   // PUNCH TYPE CLASSIC (EARLY REWORK, owner 2026-11-16)
                     auto& q = cfg.cpunch;

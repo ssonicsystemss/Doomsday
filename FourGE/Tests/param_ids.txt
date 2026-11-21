@@ -4107,3 +4107,9 @@ cr_rv_lp
 cr_rv_res
 cr_hi_gain
 cr_hi_freq
+cr_mv_sweep
+cr_mv_flange
+cr_mv_phaser
+cr_mv_pitch
+cr_mv_rate
+cr_mv_time

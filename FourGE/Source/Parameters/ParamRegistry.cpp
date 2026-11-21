@@ -103,6 +103,12 @@ namespace fge
         const juce::StringArray& riseReleases()   { static const juce::StringArray a { "FADE", "HARD STOP", "TAIL FOLLOW" }; return a; }
         const juce::StringArray& crackPitchModes() { static const juce::StringArray a { "FOLLOW PUNCH", "FIXED" }; return a; }
         const juce::StringArray& crackShapes()    { static const juce::StringArray a { "SOFT", "HARD", "FOLD", "ASYM" }; return a; }
+        const juce::StringArray& crackModels()    { static const juce::StringArray a { "TRANSIENT CRACK", "CLASSIC LAYER" }; return a; }
+        const juce::StringArray& crackSources()   { static const juce::StringArray a { "IMPULSE", "CLICK", "SHORT SAW", "SHORT SQUARE", "NOISE BURST", "HYBRID" }; return a; }
+        const juce::StringArray& crackListens()   { static const juce::StringArray a { "KICK", "SOLO SOURCE", "SOLO DRY", "SOLO WET", "SOLO REVERB", "SOLO FINAL" }; return a; }
+        const juce::StringArray& crackRoutes()    { static const juce::StringArray a { "PRE-DISTORTION", "POST-DISTORTION", "PARALLEL" }; return a; }
+        const juce::StringArray& crackRvDrives()  { static const juce::StringArray a { "SOFT", "HARD CLIP", "ASYMMETRIC", "FOLD" }; return a; }
+        const juce::StringArray& crackWs()        { static const juce::StringArray a { "SOFT", "HARD", "ASYMMETRIC", "FOLD", "RECTIFY" }; return a; }
         const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "OFFSET" }; return a; }
         const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE", "HYBRID" }; return a; }
         const juce::StringArray& pvcSources()   { static const juce::StringArray a { "SAW", "NOISE", "SNARE", "HYBRID" }; return a; }

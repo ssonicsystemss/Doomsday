@@ -522,3 +522,9 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   (near square, crest 2-4 dB), energy in 200-1500 Hz. The 0-5 ms brightness of the refs is a separate snap.
 - Measure the reference first (band per window, crest, f0 track) and fit a tiny Python prototype before touching C++: the fit pointed
   to the answer (a clipped tone with a mid boost) long before more specs did.
+
+## "Trzask" hunt (owner 2026-11-21, 4GE RAW CRACK) - what failed
+- A clean tone under the crack (480 Hz sine, even clipped) = "piep". A periodic 70 Hz chop = "bzzz". A long held layer = a 2nd punch.
+  Filters AFTER the final hard clip round the square into a saw (no crack). The owner's refs: hard-clipped to the rails, irregular.
+- Splitting HIS reference worked where synthesis guesses failed: "is the crack still there without >1.5 kHz?" got a one-word answer.
+- When he sends a spec, build THAT, with SOLO / routing switches so he can hear each path; do not tune presets first.

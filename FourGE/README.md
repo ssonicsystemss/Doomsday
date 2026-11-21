@@ -29,6 +29,12 @@ Nowy typ puncha **RAW** z dwoma osobnymi silnikami (przełącznik RAW PUNCH TYPE
   **CRACK TONE** (LOW / MID / HIGH), **CRACK LEVEL**, do tego **SNAP** (pierwsze uderzenie) i **BODY COUPLING** (trzask wchodzi w body,
   bez dziury). Jest dokładany po master clipie – główny DRIVE kicka go nie zmienia i nie zamula. Przycisk CRACK wyłącza go
   (wtedy RAW brzmi jak wcześniej). Działa tylko z typem puncha RAW.
+- **RAW CRACK – TRANSIENT CRACK** (zakładka RAW CRACK, domyślny model): jedno krótkie „KRAK” 2–25 ms. **SOURCE** (IMPULSE / CLICK /
+  SAW / SQUARE / NOISE BURST / HYBRID), **RAW CRACK** (makro charakteru), **POSITION** (od startu puncha do startu body), **WIDTH**
+  (długość), **PITCH** + **PITCH DROP**, **WAVESHAPER** + **ASYMMETRY**, pasmo **BAND FREQ / WIDTH / RESONANCE**, **CRACK BODY**.
+  **CRACK REVERB**: krótki pokój tylko dla cracku – **ROUTING** PRE (pogłos PRZED przesterem) / POST / PARALLEL, MIX, SIZE, DECAY,
+  PRE-DELAY, EARLY, LATE, DIFFUSION, DAMPING, GATE, RV DRIVE (+ typ), RV HP / LP / RES. **LISTEN**: KICK albo SOLO SOURCE / DRY / WET /
+  REVERB / FINAL (słychać sam crack). Model CLASSIC LAYER = stara warstwa (dla starych projektów).
 - **CRUNCH** (trzeci rząd zakładki RAW): tonalna warstwa trzasku – własny sinus (wysokość z tonacji, niżej od startu puncha),
   własna obwiednia, potem TUBE → EQ środka → ASYMETRYCZNY przester → twardy clip → końcowe EQ. Bez szumu i bez serii impulsów:
   ton + przester = crunch. Dopasowane do 4 referencji RAW (ton ~450–700 Hz trzymany ~150 ms, prawie kwadrat).

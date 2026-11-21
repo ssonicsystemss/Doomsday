@@ -1247,6 +1247,13 @@ int main (int argc, char** argv)
                 {
                     set2 ("punch_mode", 6.f);
                     if (sid != "cr_on") set2 ("cr_on", 1.f);
+                    static const StringArray tcIds { "cr_on", "cr_level", "cr_model", "cr_listen", "cr_source", "cr_raw", "cr_position", "cr_width", "cr_pitch_off",
+                        "cr_pitch_env", "cr_ws", "cr_asym", "cr_bp_freq", "cr_bp_width", "cr_bp_res", "cr_cbody" };
+                    if (! tcIds.contains (sid) && ! sid.startsWith ("cr_rv_")) set2 ("cr_model", 1.f);                 // the CLASSIC LAYER's own knobs
+                    if (sid.startsWith ("cr_rv_")) { set2 ("cr_rv_mix", sid == "cr_rv_mix" ? 0.f : 1.f); set2 ("cr_rv_drive", sid == "cr_rv_drive" ? 0.f : 0.6f); }
+                    if (sid == "cr_rv_hp" || sid == "cr_rv_lp" || sid == "cr_rv_res" || sid == "cr_rv_late" || sid == "cr_rv_diff" || sid == "cr_rv_damp" || sid == "cr_rv_decay")
+                    { set2 ("cr_rv_drive", 0.f); set2 ("cr_rv_route", 2.f); set2 ("cr_listen", 3.f); set2 ("cr_rv_gate", 0.f); }   // (heard in SOLO WET)
+                    if (sid == "cr_rv_gate") { set2 ("cr_listen", 3.f); set2 ("cr_rv_decay", 300.f); }
                     if (sid == "cr_pitch") set2 ("cr_pitch_mode", 0.f);
                     if (sid == "cr_tone_hz") set2 ("cr_pitch_mode", 1.f);
                     if (sid != "cr_level") set2 ("cr_level", 0.f);
@@ -2931,14 +2938,14 @@ int main (int argc, char** argv)
         {
             auto kick = [&] (std::initializer_list<std::pair<const char*, float>> kv)
             {
-                auto f = ParamFrame::defaults(); f[P::punchMode] = 6.f; f[P::ckOn] = 0.f;
+                auto f = ParamFrame::defaults(); f[P::punchMode] = 6.f; f[P::ckOn] = 0.f; f[P::cnOn] = 1.f;
                 for (auto& [id, x] : kv) f[fge::modstate::indexOf (id)] = x;
                 return renderKick (f, 31, 44100.0, 0.5);
             };
             auto layer = [&] (std::initializer_list<std::pair<const char*, float>> kv)
             {
                 auto on = kick (kv); std::vector<std::pair<const char*, float>> v (kv); v.push_back ({ "cn_on", 0.f });
-                auto f = ParamFrame::defaults(); f[P::punchMode] = 6.f; f[P::ckOn] = 0.f; for (auto& [id, x] : v) f[fge::modstate::indexOf (id)] = x;
+                auto f = ParamFrame::defaults(); f[P::punchMode] = 6.f; f[P::ckOn] = 0.f; f[P::cnOn] = 1.f; for (auto& [id, x] : v) f[fge::modstate::indexOf (id)] = x;
                 const auto off = renderKick (f, 31, 44100.0, 0.5);
                 for (int c = 0; c < on.getNumChannels(); ++c) on.addFrom (c, 0, off, c, 0, on.getNumSamples(), -1.f);
                 return on;
@@ -2984,7 +2991,7 @@ int main (int argc, char** argv)
         {
             auto kickWith = [&] (std::initializer_list<std::pair<const char*, float>> kv, std::initializer_list<std::pair<const char*, float>> more = {})
             {
-                auto f = ParamFrame::defaults(); f[P::punchMode] = 6.f;
+                auto f = ParamFrame::defaults(); f[P::punchMode] = 6.f; f[P::ckModel] = 1.f;          // (the CLASSIC LAYER model)
                 for (auto& [id, x] : kv) f[fge::modstate::indexOf (id)] = x;
                 for (auto& [id, x] : more) f[fge::modstate::indexOf (id)] = x;
                 return renderKick (f, 31, 44100.0, 0.4);
@@ -3044,6 +3051,52 @@ int main (int argc, char** argv)
                    "RAW PUNCH + CRACK: OFF = as before (never other punch types), A snap = a hit, B crack = harmonic (not noise), C, D coupling, E no mud, F CLASSIC != CRACKING, G main drive never touches the crack",
                    String ("flatness ") + String (fCrack, 2) + " vs noise " + String (fNoise, 2) + ", body move " + String (bodyMove, 2) + " dB, variants " + String (fd, 1) + " dB"
                        + (off ? "" : " OFF!") + (a ? "" : " A!") + (b ? "" : " B!") + (c ? "" : " C!") + (d ? "" : " D!") + (e ? "" : " E!") + (fv ? "" : " F!") + (g ? "" : " G!") + (peaks ? "" : " PEAK!"));
+        }
+        // TRANSIENT CRACK + CRACK REVERB (owner 2026-11-21 REWORK): one short event (2-25 ms), a high peak, the PUNCH scales it,
+        // CRACK REVERB routing PRE / POST / PARALLEL each its own sound, MIX 0 = the dry crack exactly, SOLO plays only the crack
+        {
+            auto solo = [&] (std::initializer_list<std::pair<const char*, float>> kv)
+            {
+                auto f = ParamFrame::defaults(); f[P::punchMode] = 6.f; f[P::ckOn] = 1.f; f[P::ckModel] = 0.f; f[P::ckListen] = 5.f;   // SOLO FINAL
+                for (auto& [id, x] : kv) f[fge::modstate::indexOf (id)] = x;
+                return renderKick (f, 31, 44100.0, 0.4);
+            };
+            auto rmsDb = [] (const AudioBuffer<float>& b, float fromMs, float toMs)
+            {
+                double e = 0.0; const int a = (int) (fromMs * 44.1f), z = jmin (b.getNumSamples(), (int) (toMs * 44.1f));
+                for (int i = a; i < z; ++i) e += (double) b.getSample (0, i) * b.getSample (0, i);
+                return 10.f * std::log10 ((float) (e / jmax (1, z - a)) + 1.0e-14f);
+            };
+            auto diffDb = [&] (const AudioBuffer<float>& x, const AudioBuffer<float>& y)
+            {
+                AudioBuffer<float> d (x); d.addFrom (0, 0, y, 0, 0, d.getNumSamples(), -1.f);
+                return rmsDb (d, 0, 300) - rmsDb (x, 0, 300);
+            };
+            // the DRY crack (reverb off): short - its energy is gone ~5 ms after its width (WIDTH 50 % ~ 10 ms), a high crest
+            const auto dry = solo ({ { "cr_rv_on", 0.f }, { "cr_cbody", 0.f } });
+            int pk = 0; float pv = 0.f; for (int i = 0; i < dry.getNumSamples(); ++i) if (std::abs (dry.getSample (0, i)) > pv) { pv = std::abs (dry.getSample (0, i)); pk = i; }
+            const float pkMs = (float) pk / 44.1f;
+            const bool shortEv = rmsDb (dry, pkMs + 16.f, pkMs + 60.f) < rmsDb (dry, pkMs - 1.f, pkMs + 6.f) - 40.f;
+            const bool punchScales = solo ({ { "punch_level", -60.f } }).getMagnitude (0, 0, 4000) < 1.0e-5f;
+            const auto mix0 = solo ({ { "cr_rv_mix", 0.f }, { "cr_cbody", 0.f } });
+            AudioBuffer<float> dm (dry); dm.addFrom (0, 0, mix0, 0, 0, dm.getNumSamples(), -1.f);
+            const auto dry2 = solo ({ { "cr_rv_on", 0.f }, { "cr_cbody", 0.f } });
+            AudioBuffer<float> dd (dry); dd.addFrom (0, 0, dry2, 0, 0, dd.getNumSamples(), -1.f);
+            const bool mixZeroDry = rmsDb (dm, 0, 300) < jmax (-150.f, rmsDb (dd, 0, 300) + 1.f);     // (as close as two renders of the same dry crack)
+            const auto pre = solo ({ { "cr_rv_route", 0.f }, { "cr_rv_mix", 0.6f } }), post = solo ({ { "cr_rv_route", 1.f }, { "cr_rv_mix", 0.6f } }),
+                       par = solo ({ { "cr_rv_route", 2.f }, { "cr_rv_mix", 0.6f } });
+            const float dPrePost = diffDb (pre, post), dPrePar = diffDb (pre, par), dPostPar = diffDb (post, par);
+            const bool routes = dPrePost > -12.f && dPrePar > -12.f && dPostPar > -20.f;
+            // never a long noise: with the GATE the wet is gone after its DECAY; no sub from the crack
+            const auto wet = solo ({ { "cr_listen", 3.f }, { "cr_rv_mix", 1.f }, { "cr_rv_decay", 300.f } });
+            const bool gated = rmsDb (wet, 130.f, 260.f) < rmsDb (wet, 0.f, 30.f) - 45.f;          // (the output DC blocker leaves a far, harmless residue)
+            fge::dsp::bq::Biquad l1, l2; l1.lp (44100.0, 100.0, 0.7071); l2.lp (44100.0, 100.0, 0.7071);
+            AudioBuffer<float> lo (pre); for (int i = 0; i < lo.getNumSamples(); ++i) lo.setSample (0, i, l2.tick (l1.tick (lo.getSample (0, i))));
+            const bool noSub = rmsDb (lo, 0, 200) < rmsDb (pre, 0, 200) - 20.f;
+            check (shortEv && punchScales && mixZeroDry && routes && gated && noSub,
+                   "TRANSIENT CRACK + CRACK REVERB: a short event, PUNCH 0 = no crack, MIX 0 = the dry crack, PRE / POST / PARALLEL differ, GATE ends the wet, no sub",
+                   String ("peak at ") + String (pkMs, 1) + " ms, mix0 " + String (rmsDb (dm, 0, 300), 1) + " / same " + String (rmsDb (dd, 0, 300), 1) + " dB" + ", dry " + String (rmsDb (dry, 0, 30), 1) + " ms, routes PRE-POST " + String (dPrePost, 1) + " PRE-PAR " + String (dPrePar, 1) + " POST-PAR " + String (dPostPar, 1) + " dB"
+                       + (shortEv ? "" : " LONG!") + (punchScales ? "" : " PUNCH!") + (mixZeroDry ? "" : " MIX0!") + (routes ? "" : " ROUTES!") + (gated ? "" : " GATE!") + (noSub ? "" : " SUB!"));
         }
         // TAIL RISE (owner 2026-11-21, TAIL_RISE.md): BPM grid sync (the window follows the tempo), peaks controlled, PITCH goes up, style defaults
         {

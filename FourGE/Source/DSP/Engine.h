@@ -71,6 +71,7 @@ namespace fge
         dsp::exper::Settings exp;                 // TAIL TYPE EXPERIMENTAL (owner 2026-11-16, TAIL_RAW_EXP.md)                   // TAIL TYPE RAW (owner 2026-11-16, TAIL_RAW_EXP.md)
         dsp::zaag::Settings zaag;                 // TAIL TYPE ZAAG (owner 2026-11-14 / 15)
         dsp::front::ClickSettings click; dsp::front::TokSettings tok; dsp::front::SubPunchSettings spk; float zgSend = 0.f;
+        bool crackSolo = false;                  // SOLO CRACK: only the crack (diagnostics)
         dsp::front::CrackSettings crack;         // RAW PUNCH EXTENSION (owner 2026-11-21): CRACK + SNAP + BODY COUPLING, mixed after the master clip   // the FRONT (owner 2026-11-16)
         dsp::classicpunch::Settings cpunch;      // PUNCH TYPE CLASSIC (EARLY REWORK, owner 2026-11-16)
         dsp::rawpunch::Settings rpunch;
@@ -454,6 +455,7 @@ namespace fge
             clkU.prepare (sampleRate * osFactor); tokU.prepare (sampleRate * osFactor); spkU.prepare (sampleRate * osFactor); crU.prepare (sampleRate * osFactor);
             sendBuf.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             atkBuf.assign ((size_t) (maxBlockSize * osFactor), 0.f);
+            crkBuf.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             for (auto& u : *spcUnits)
             {
                 u.reset();
@@ -1081,6 +1083,16 @@ namespace fge
                     cr.attackMs = f[P::ckAttack]; cr.decayMs = f[P::ckDecay]; cr.sustain = f[P::ckSustain]; cr.releaseMs = f[P::ckRelease]; cr.lengthMs = f[P::ckLength];
                     cr.driveDb = f[P::ckDrive]; cr.shape = f.idx (P::ckShape); cr.clip = f[P::ckClip]; cr.lowDb = f[P::ckLow]; cr.midDb = f[P::ckMid]; cr.highDb = f[P::ckHigh];
                     cr.bodyStartMs = f[P::bodyAmpDelay] + f[P::bodyAttack];
+                    cr.model = f.idx (P::ckModel); cr.source = f.idx (P::ckSource); cr.ws = f.idx (P::ckWs);          // TRANSIENT CRACK (owner REWORK)
+                    cr.raw = f[P::ckRaw]; cr.position = f[P::ckPosition]; cr.width = f[P::ckWidth]; cr.pitchOff = f[P::ckPitchOff]; cr.pitchEnv = f[P::ckPitchEnv];
+                    cr.asym = f[P::ckAsym]; cr.bpHz = f[P::ckBpHz]; cr.bpWidth = f[P::ckBpWidth]; cr.bpRes = f[P::ckBpRes]; cr.cbody = f[P::ckBody];
+                    cr.punchAmt = f[P::punchLevel] <= -59.9f ? 0.f : juce::jlimit (0.f, 1.25f, dbGain (f[P::punchLevel]));   // CRACK follows the PUNCH
+                    cr.listen = f.idx (P::ckListen);
+                    cfg.crackSolo = cr.on && cr.model == 0 && cr.listen != 0;                          // SOLO SOURCE / DRY / WET / REVERB / FINAL: only the crack
+                    cr.rvOn = f.on (P::ckRvOn); cr.rvRoute = f.idx (P::ckRvRoute); cr.rvMix = f[P::ckRvMix]; cr.rvSize = f[P::ckRvSize];   // CRACK REVERB
+                    cr.rvDecayMs = f[P::ckRvDecay]; cr.rvPreMs = f[P::ckRvPre]; cr.rvEarly = f[P::ckRvEarly]; cr.rvLate = f[P::ckRvLate];
+                    cr.rvDiffusion = f[P::ckRvDiff]; cr.rvDamping = f[P::ckRvDamp]; cr.rvDrive = f[P::ckRvDrive]; cr.rvDriveType = f.idx (P::ckRvDriveType);
+                    cr.rvGate = f.on (P::ckRvGate); cr.rvHpHz = f[P::ckRvHp]; cr.rvLpHz = f[P::ckRvLp]; cr.rvRes = f[P::ckRvRes];
                 }
                 {                                                                   // PUNCH TYPE CLASSIC (EARLY REWORK, owner 2026-11-16)
                     auto& q = cfg.cpunch;
@@ -1345,6 +1357,7 @@ namespace fge
                         if (cfg.crack.on || atkCrunch)                                // RAW PUNCH: CRACK + SNAP + DISTORTED CRUNCH -> the attack bus (after the master clip, below)
                         {
                             float a = cfg.crack.on ? crU.process (cfg.crack, ms, 0.5f * (yl + yr), rpU.lastHz(), b[1][i], noteNow) : 0.f;
+                            crkBuf[(size_t) i] = a;
                             if (atkCrunch) a += rpU.lastCrunch();
                             if (cfg.noteCut && relMs >= 0.f) a *= juce::jlimit (0.f, 1.f, 1.f - (ms - relMs) / 5.f);
                             atkBuf[(size_t) i] = a;
@@ -1395,6 +1408,8 @@ namespace fge
                 for (int i = 0; i < on; ++i) { L[i] += b[6 + 2 * dsp::BusMaster][i]; R[i] += b[7 + 2 * dsp::BusMaster][i]; }
             if (cfg.spc.t[dsp::spatial::TMaster].on && ! cfg.masterBypass)    // module 11: MASTER STEREO (before the output dynamics)
                 for (int i = 0; i < on; ++i) (*spcUnits)[dsp::spatial::TMaster].process (cfg.spc.t[dsp::spatial::TMaster], L[i], R[i]);
+            if (cfg.crackSolo)                                                // SOLO CRACK: the crack alone (no TOK / PUNCH / BODY / TAIL / SUB / crunch)
+                for (int i = 0; i < on; ++i) { L[i] = R[i] = crkBuf[(size_t) i]; crkBuf[(size_t) i] = 0.f; }
             sinceHitOs += on; sinceHitMs = msAt (0);          // (a sample counter: the same at any block size)
             os->processSamplesDown (blk);
             const float m0 = masterNow, m1 = masterTarget, invN = 1.f / (float) n;
@@ -1563,7 +1578,7 @@ namespace fge
         dsp::rawpunch::Unit rpU;
         dsp::rise::Unit riseU;
         dsp::front::ClickUnit clkU; dsp::front::TokUnit tokU; dsp::front::SubPunchUnit spkU; dsp::front::CrackUnit crU;
-        std::vector<float> atkBuf;                                          // RAW CRACK ENGINE: the RAW ATTACK BUS of this block
+        std::vector<float> atkBuf, crkBuf;                                          // RAW CRACK ENGINE: the RAW ATTACK BUS of this block
         std::vector<float> sendBuf;                                         // ZAAG SEND: TOK + PUNCH of this block -> the ZAAG cascade
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11
         float scBuf[6] {};

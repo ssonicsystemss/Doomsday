@@ -359,6 +359,28 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             // 9th tab: RAW PUNCH EXTENSION - CRACK SOURCE + SNAP + BODY COUPLING (owner 2026-11-21, RAW_CRACK.md); with PUNCH TYPE RAW only
             d.push_back (&detailPageMark);
             d.push_back (toggle ("cr_on", "CRACK", Toggle::Chip, col));
+            d.push_back (combo ("cr_model"));                                     // TRANSIENT CRACK (owner REWORK) / CLASSIC LAYER
+            d.push_back (combo ("cr_listen"));
+            d.push_back (combo ("cr_source"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cr_raw", "RAW CRACK" }, { "cr_position", "POSITION" }, { "cr_width", "WIDTH" }, { "cr_pitch_off", "PITCH" }, { "cr_pitch_env", "PITCH DROP" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (combo ("cr_ws"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cr_asym", "ASYMMETRY" }, { "cr_bp_freq", "BAND FREQ" }, { "cr_bp_width", "BAND WIDTH" }, { "cr_bp_res", "RESONANCE" }, { "cr_cbody", "CRACK BODY" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);                                                // CRACK REVERB (owner 2026-11-21): routing + listen first, then the room
+            d.push_back (toggle ("cr_rv_on", "CRACK REVERB", Toggle::Chip, col));
+            d.push_back (combo ("cr_rv_route"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cr_rv_mix", "MIX" }, { "cr_rv_size", "SIZE" }, { "cr_rv_decay", "DECAY" }, { "cr_rv_predelay", "PRE-DELAY" }, { "cr_rv_early", "EARLY" },
+                     { "cr_rv_late", "LATE" }, { "cr_rv_diff", "DIFFUSION" }, { "cr_rv_damp", "DAMPING" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (toggle ("cr_rv_gate", "GATE", Toggle::Chip, col));
+            d.push_back (combo ("cr_rv_drive_type"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "cr_rv_drive", "RV DRIVE" }, { "cr_rv_hp", "RV HP" }, { "cr_rv_lp", "RV LP" }, { "cr_rv_res", "RV RES" } })
+                d.push_back (knob (id, lab, col));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
                      { "cr_level", "CRACK LEVEL" }, { "cr_snap", "SNAP" }, { "cr_crack", "CRACK" }, { "cr_density", "DENSITY" }, { "cr_edge", "EDGE" }, { "cr_coupling", "BODY COUPLING" } })
                 d.push_back (knob (id, lab, col));
@@ -1630,6 +1652,14 @@ bool GeCanvas::hiddenByVariant (Component* c) const
         {
             if (comp != c) continue;
             if (id.startsWith ("rc_") || id.startsWith ("rk_")) return cracking ? id.startsWith ("rc_") : id.startsWith ("rk_");
+            if (id.startsWith ("cr_") && id != "cr_on" && id != "cr_model" && id != "cr_level")              // CRACK MODEL: only its own knobs
+            {
+                static const juce::StringArray tc { "cr_listen", "cr_rv_on", "cr_rv_route", "cr_rv_mix", "cr_rv_size", "cr_rv_decay", "cr_rv_predelay", "cr_rv_early",
+                    "cr_rv_late", "cr_rv_diff", "cr_rv_damp", "cr_rv_gate", "cr_rv_drive_type", "cr_rv_drive", "cr_rv_hp", "cr_rv_lp", "cr_rv_res", "cr_source", "cr_raw", "cr_position", "cr_width", "cr_pitch_off", "cr_pitch_env", "cr_ws", "cr_asym", "cr_bp_freq", "cr_bp_width", "cr_bp_res", "cr_cbody" };
+                const bool transientModel = (int) raw (proc, P::ckModel) == 0;
+                if (tc.contains (id) != transientModel) return true;
+                if (transientModel) return false;
+            }
             if (id == "cr_tone_hz") return ! fixed;                                  // CRACK PITCH: FIXED PITCH only in FIXED, CRACK PITCH only in FOLLOW PUNCH
             if (id == "cr_pitch") return fixed;
         }
@@ -1652,7 +1682,7 @@ bool GeCanvas::hiddenByVariant (Component* c) const
 void GeCanvas::timerCallback()
 {
     {   // the TYPE changed (a click, undo, a preset): show its tabs
-        const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine), zv = (int) raw (proc, P::zgVariant) + 10 * (int) raw (proc, P::rpType) + 100 * (int) raw (proc, P::ckPitchMode);
+        const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine), zv = (int) raw (proc, P::zgVariant) + 10 * (int) raw (proc, P::rpType) + 100 * (int) raw (proc, P::ckPitchMode) + 1000 * (int) raw (proc, P::ckModel);
         if (pm != shownPunchType || te != shownTailType || zv != shownZgVariant)
         { shownPunchType = pm; shownTailType = te; shownZgVariant = zv; layoutDetail(); applyOverview(); repaint(); }
     }

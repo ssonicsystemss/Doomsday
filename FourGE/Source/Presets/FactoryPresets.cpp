@@ -92,14 +92,15 @@ namespace fge
                 FactoryPreset fp; fp.name = name;
                 for (auto& [i, x] : fge::style::values (fge::style::Raw)) fp.values.push_back ({ def (i).id, x });
                 fp.values.push_back ({ "punch_mode", 6.f }); fp.values.push_back ({ "punch_level", 0.f }); fp.values.push_back ({ "core_master", -11.f });
-                fp.values.push_back ({ "rw_attack", 28.f }); fp.values.push_back ({ "tk_level", -20.f });   // (TOK -> PUNCH + CRACK -> the RAW tail comes in after the crack)
+                fp.values.push_back ({ "rw_attack", 28.f }); fp.values.push_back ({ "tk_level", -20.f });
+                fp.values.push_back ({ "cn_on", 0.f });                                                    // (the tonal crunch: off - the TRANSIENT CRACK is the KRAK)   // (TOK -> PUNCH + CRACK -> the RAW tail comes in after the crack)
                 for (auto& [id, x] : punch) fp.values.push_back ({ id, x });
                 return fp;
             };
-            l.push_back (raw ("RAW PUNCH - Classic Clean",  { { "cr_crack", 0.35f }, { "rp_type", 0.f }, { "rc_snap", 0.5f }, { "rc_crack", 0.2f }, { "rc_crack_decay", 22.f }, { "rc_coupling", 0.6f } }));
-            l.push_back (raw ("RAW PUNCH - Classic Crack",  { { "cr_crack", 0.75f }, { "cr_snap", 0.7f }, { "rp_type", 0.f }, { "rc_snap", 0.7f }, { "rc_crack", 0.8f }, { "rc_crack_decay", 32.f }, { "rc_coupling", 0.7f } }));
-            l.push_back (raw ("RAW PUNCH - 2016 Standard",  { { "cr_snap", 0.75f }, { "cr_crack", 0.75f }, { "cr_density", 0.6f }, { "cr_coupling", 0.8f }, { "rp_type", 1.f }, { "rk_snap", 0.8f }, { "rk_crack", 0.8f }, { "rk_density", 0.65f }, { "rk_edge", 0.45f } }));
-            l.push_back (raw ("RAW PUNCH - 2016 Extreme",   { { "cr_snap", 0.9f }, { "cr_crack", 0.95f }, { "cr_density", 0.85f }, { "cr_edge", 0.8f }, { "cr_coupling", 0.85f }, { "rp_type", 1.f }, { "rk_snap", 0.95f }, { "rk_crack", 0.95f }, { "rk_density", 0.85f }, { "rk_edge", 0.85f }, { "rk_tone", 0.6f }, { "rk_crack_decay", 24.f } }));
+            l.push_back (raw ("RAW PUNCH - Classic Clean",  { { "cr_raw", 0.3f }, { "cr_crack", 0.35f }, { "rp_type", 0.f }, { "rc_snap", 0.5f }, { "rc_crack", 0.2f }, { "rc_crack_decay", 22.f }, { "rc_coupling", 0.6f } }));
+            l.push_back (raw ("RAW PUNCH - Classic Crack",  { { "cr_raw", 0.6f }, { "cr_crack", 0.75f }, { "cr_snap", 0.7f }, { "rp_type", 0.f }, { "rc_snap", 0.7f }, { "rc_crack", 0.8f }, { "rc_crack_decay", 32.f }, { "rc_coupling", 0.7f } }));
+            l.push_back (raw ("RAW PUNCH - 2016 Standard",  { { "cr_raw", 0.55f }, { "cr_snap", 0.75f }, { "cr_crack", 0.75f }, { "cr_density", 0.6f }, { "cr_coupling", 0.8f }, { "rp_type", 1.f }, { "rk_snap", 0.8f }, { "rk_crack", 0.8f }, { "rk_density", 0.65f }, { "rk_edge", 0.45f } }));
+            l.push_back (raw ("RAW PUNCH - 2016 Extreme",   { { "cr_raw", 0.9f }, { "cr_width", 0.6f }, { "cr_snap", 0.9f }, { "cr_crack", 0.95f }, { "cr_density", 0.85f }, { "cr_edge", 0.8f }, { "cr_coupling", 0.85f }, { "rp_type", 1.f }, { "rk_snap", 0.95f }, { "rk_crack", 0.95f }, { "rk_density", 0.85f }, { "rk_edge", 0.85f }, { "rk_tone", 0.6f }, { "rk_crack_decay", 24.f } }));
             return l; }();
         return list;
     }

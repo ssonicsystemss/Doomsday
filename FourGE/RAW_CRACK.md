@@ -1,3 +1,28 @@
+# RAW CRACK REWORK (owner 2026-11-21): TRANSIENT CRACK + CRACK REVERB
+
+`cr_model` TRANSIENT CRACK (default) / CLASSIC LAYER (the old layer below, kept for old projects; its knobs only show in that model).
+
+**TRANSIENT CRACK** (`DSP/Front/Crack.h transient`): ONE short event, 2-25 ms (`cr_width`: 0 = 2.5, 50 % ~ 10, 100 % = 22 ms),
+ATTACK 0 / DECAY = length / hard termination. SOURCE `cr_source` IMPULSE / CLICK / SHORT SAW / SHORT SQUARE / NOISE BURST / HYBRID
+(default: 70 % impulse + saw, 30 % a very short burst). Own pitch = the punch's pitch x `cr_pitch_off` (+9 st) with a fast fall
+`cr_pitch_env` (+12 -> 0 inside the length). PRE GAIN -> WAVESHAPER `cr_ws` SOFT / HARD / ASYMMETRIC (default) / FOLD / RECTIFY
+with `cr_asym` -> BANDPASS `cr_bp_freq` / `cr_bp_width` (oct) / `cr_bp_res` (follows the pitch) -> HARD CLIP. `cr_cbody` = CRACK BODY
+5-40 ms, lightly distorted. `cr_position`: 0 = the punch start, 1 = the body start. `cr_raw` RAW CRACK macro (non-linear: amplitude,
+density, asymmetry, sharpness, a little length). The PUNCH level scales it (PUNCH off = no crack).
+
+**CRACK REVERB** (`DSP/Front/CrackReverb.h`, owner spec "RAW CRACK REVERB ENGINE"): a mono short room (pre-delay, 8 early taps by SIZE,
+4 damped combs = DECAY RT60, 2 allpasses = DIFFUSION), then REVERB FILTER (HP / LP / RES) -> REVERB DRIVE (SOFT / HARD / ASYM / FOLD).
+`cr_rv_route`: PRE-DISTORTION (source -> pre-EQ -> reverb -> the crack's distortion -> final envelope), POST-DISTORTION (the distorted
+crack -> reverb), PARALLEL (default: dry crack untouched + wet). MIX 0 / OFF = the dry crack exactly. GATE cuts the wet at
+pre-delay + 0.35 x DECAY (still loud, a gated room). Only the crack, never the tail / master.
+**LISTEN** `cr_listen`: KICK / SOLO SOURCE / SOLO DRY / SOLO WET / SOLO REVERB (raw) / SOLO FINAL - the SOLO ones play only the crack.
+Owner (2026-11-21): first the 3 routings + SOLO to HEAR whether reverb before distortion makes the crack; no preset tuning yet.
+Not yet: stereo width (the crack bus is mono), REVERB ATTACK / RELEASE and envelope-driven MIX / DRIVE, RAW CRACK -> reverb send / drive,
+the ROOM CRACK / RAW CRUNCH / METALLIC CRACK starting points.
+The tonal CRUNCH (`cn_*`, RAW_CRUNCH.md) is now OFF by default (the owner: "piep", not an industrial crack).
+
+---
+
 # 4GE – RAW PUNCH ENGINE EXTENSION: CRACK + SNAP + BODY COUPLING (owner's specs 2026-11-21)
 
 Owner, after the first RAW PUNCH demos: "trzasku za mało". The aim is the RAW 2015–2017 "KRAK!", reached with an independent harmonic

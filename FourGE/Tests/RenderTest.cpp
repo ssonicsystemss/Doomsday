@@ -241,7 +241,7 @@ int main (int argc, char** argv)
         ed->setSize (GeCanvas::W, GeCanvas::H);
         ge->canvas.waveView().update (p.frame(), p.auditionNote);
         for (int i = 0; i < 300 && ! ge->canvas.waveView().hasRender(); ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (10); }
-        for (int pg = 0; pg <= 14; ++pg)
+        for (int pg = 0; pg <= 15; ++pg)
         {
             ge->canvas.showPage (pg);
             for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
@@ -264,6 +264,17 @@ int main (int argc, char** argv)
         ge->canvas.showPage (0); ge->canvas.selectPart (0);
         { PNGImageFormat png; auto img = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
           FileOutputStream os (File (argv[1]).getChildFile ("page00_punch.png")); if (os.openedOk()) { os.setPosition (0); os.truncate(); png.writeImageToStream (img, os); } }
+        {                                                                                   // PUNCH TYPE RAW (both architectures) + TAIL RISE tab (2026-11-21)
+            auto setv = [&] (const char* id, float v) { if (auto* a = p.apvts.getParameter (id)) a->setValueNotifyingHost (a->convertTo0to1 (v)); };
+            auto shot = [&] (const char* name) { for (int i = 0; i < 30; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (5); }
+                                                 PNGImageFormat png; auto im = ge->canvas.createComponentSnapshot (ge->canvas.getLocalBounds());
+                                                 FileOutputStream o2 (File (argv[1]).getChildFile (name)); if (o2.openedOk()) { o2.setPosition (0); o2.truncate(); png.writeImageToStream (im, o2); } };
+            setv ("punch_mode", 6.f); setv ("rp_type", 0.f); ge->canvas.selectPart (0); ge->canvas.tailTab (7); shot ("page00_rawpunch_classic.png");
+            setv ("rp_type", 1.f); ge->canvas.tailTab (7); shot ("page00_rawpunch_cracking.png");
+            setv ("rp_type", 0.f); setv ("punch_mode", 0.f);
+            setv ("rs_on", 1.f); ge->canvas.selectPart (2); ge->canvas.tailTab (16); shot ("page00_rise.png");
+            setv ("rs_on", 0.f);
+        }
         {                                                                                   // PUNCH: the SHAPED tab (punch mode SHAPED)
             if (auto* pm = p.apvts.getParameter ("punch_mode")) pm->setValueNotifyingHost (pm->convertTo0to1 (2.f));
             ge->canvas.selectPart (0); ge->canvas.tailTab (1);
@@ -306,7 +317,14 @@ int main (int argc, char** argv)
     if (argc > 4 && String (argv[2]) == "--midi")                              // RenderTest <out.wav> --midi <preset.4gp | -> <file.mid> [bpm] [k=v ...]: a MIDI line through the plugin
     {                                                                          // (the owner's test MIDI: the bass line = the kicks; the tempo is given, FL writes a broken one)
         GeProcessor p;
-        if (String (argv[3]) != "-" && ! p.loadUserPresetFile (File (argv[3]))) { printf ("!! preset not loaded\n"); return 1; }
+        if (String (argv[3]).startsWith ("factory:"))                          // a factory preset by name ("factory:RAW PUNCH - 2016 Standard")
+        {
+            const String nm = String (argv[3]).fromFirstOccurrenceOf (":", false, false); int k = -1;
+            for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i) == nm) k = i;
+            if (k < 0) { printf ("!! factory preset not found\n"); return 1; }
+            p.setCurrentProgram (k);
+        }
+        else if (String (argv[3]) != "-" && ! p.loadUserPresetFile (File (argv[3]))) { printf ("!! preset not loaded\n"); return 1; }
         const double bpm = argc > 5 ? String (argv[5]).getDoubleValue() : 150.0;
         for (int i = 6; i < argc; ++i) { const String kv (argv[i]); setP (p, kv.upToFirstOccurrenceOf ("=", false, false).toRawUTF8(), kv.fromFirstOccurrenceOf ("=", false, false).getFloatValue()); }
         FileInputStream in ((File (argv[4]))); MidiFile mf; if (! in.openedOk() || ! mf.readFrom (in)) { printf ("!! midi not read\n"); return 1; }
@@ -1216,6 +1234,21 @@ int main (int argc, char** argv)
                     if (sid == "cp_trans_ms" || sid == "cp_trans_hz") set2 ("cp_trans", 1.5f);
                     if (sid == "cp_res_hz" || sid == "cp_res_q") set2 ("cp_res", 1.f);
                     if (sid == "cp_noise_hz") set2 ("cp_noise", 0.6f);
+                }
+                if (sid.startsWith ("rs_"))                                                                    // TAIL RISE (owner 2026-11-21): on, strong, in the kick (TAIL sync)
+                {
+                    if (sid != "rs_on") set2 ("rs_on", 1.f);
+                    set2 ("rs_amount", 1.f); set2 ("rs_start", 0.4f);
+                    if (sid != "rs_sync") set2 ("rs_sync", 1.f);
+                    if (sid == "rs_grid" || sid == "rs_release") { set2 ("rs_sync", 0.f); set2 ("rs_grid", 1.f); }   // (BPM: 1/8 = the window ends inside the kick)
+                    if (sid == "rs_gain" || sid == "rs_pitch" || sid == "rs_drive" || sid == "rs_harm" || sid == "rs_filter" || sid == "rs_noise") set2 ("rs_mode", 4.f);
+                    if (sid == "rs_pitch_range") set2 ("rs_mode", 2.f);
+                    if (sid == "rs_amount") set2 ("rs_mode", 1.f);
+                }
+                if (sid.startsWith ("rc_") || sid.startsWith ("rk_") || sid == "rp_type")                       // PUNCH TYPE RAW (owner 2026-11-21): each architecture its own knobs
+                {
+                    set2 ("punch_mode", 6.f); set2 ("punch_level", 0.f);
+                    if (sid.startsWith ("rk_")) set2 ("rp_type", 1.f);
                 }
                 if (sid.startsWith ("ex_"))                                                                    // TAIL TYPE EXPERIMENTAL (owner 2026-11-16)
                 {
@@ -2808,6 +2841,174 @@ int main (int argc, char** argv)
             const float g = p.getEngine().srcMon[(size_t) (mo::SMacro1 + 4)].load(), bo = p.getEngine().srcMon[(size_t) (mo::SMacro1 + 1)].load();
             check (std::abs (a) < 1e-4f && std::abs (b + 0.5f) < 1e-4f && std::abs (c - 1.f) < 1e-4f && std::abs (g - 0.5f) < 1e-3f && std::abs (bo - 0.2f) < 1e-3f,
                    "M09 CUSTOM LFO (points, linear / cubic) + MACRO MORPH (A -> B)", "custom " + String (a, 2) + " / " + String (b, 2) + " / " + String (c, 2) + ", morph GRIT " + String (g, 2) + " BODY " + String (bo, 2));
+        }
+        // PUNCH TYPE RAW (owner 2026-11-21, RAW_PUNCH.md): two architectures; SNAP != CRACK; DENSITY never raises the level; BODY COUPLING fills
+        // the gap; the 4 acceptance presets keep PITCH -> PUNCH -> BODY -> TAIL readable (the crack is a short event, never a continuous noise)
+        {
+            auto punchOnly = [&] (std::initializer_list<std::pair<const char*, float>> kv)
+            {
+                auto f = ParamFrame::defaults();
+                f[P::punchMode] = 6.f; f[P::mixBodyMute] = 1.f; f[P::mixTailMute] = 1.f; f[P::mixSubMute] = 1.f; f[P::tkMode] = 2.f; f[P::clkMode] = 2.f; f[P::spkMode] = 2.f;
+                for (auto& [id, x] : kv) f[fge::modstate::indexOf (id)] = x;
+                return renderKick (f, 31, 44100.0, 0.4);
+            };
+            auto bandDb = [] (const AudioBuffer<float>& b, float fromMs, float toMs, float lo, float hi)
+            {
+                AudioBuffer<float> x (1, b.getNumSamples()); x.copyFrom (0, 0, b, 0, 0, b.getNumSamples());
+                fge::dsp::bq::Biquad h1, h2, l1, l2; h1.hp (44100.0, lo, 0.7071); h2.hp (44100.0, lo, 0.7071); l1.lp (44100.0, hi, 0.7071); l2.lp (44100.0, hi, 0.7071);
+                double e = 0.0; const int a = (int) (fromMs * 44.1f), z = jmin (b.getNumSamples(), (int) (toMs * 44.1f));
+                for (int i = 0; i < b.getNumSamples(); ++i) { const float y = l2.tick (l1.tick (h2.tick (h1.tick (x.getSample (0, i))))); if (i >= a && i < z) e += (double) y * y; }
+                return 10.f * std::log10 ((float) (e / jmax (1, z - a)) + 1.0e-12f);
+            };
+            auto peakDb = [] (const AudioBuffer<float>& b, float toMs) { float m = 0.f; for (int i = 0; i < jmin (b.getNumSamples(), (int) (toMs * 44.1f)); ++i) m = jmax (m, std::abs (b.getSample (0, i))); return Decibels::gainToDecibels (m, -120.f); };
+            auto rmsDb = [] (const AudioBuffer<float>& b) { return Decibels::gainToDecibels (b.getRMSLevel (0, 0, b.getNumSamples()), -120.f); };
+            // SNAP vs CRACK (both types): SNAP moves the first 3 ms more than the crack band at 5-40 ms; CRACK the other way
+            bool independent = true; String ind;
+            for (int t = 0; t < 2; ++t)
+            {
+                const char* snap = t == 0 ? "rc_snap" : "rk_snap"; const char* crack = t == 0 ? "rc_crack" : "rk_crack";
+                const auto lo = punchOnly ({ { "rp_type", (float) t }, { snap, 0.1f }, { crack, 0.5f } }), hiS = punchOnly ({ { "rp_type", (float) t }, { snap, 1.f }, { crack, 0.5f } });
+                const auto loC = punchOnly ({ { "rp_type", (float) t }, { snap, 0.5f }, { crack, 0.f } }), hiC = punchOnly ({ { "rp_type", (float) t }, { snap, 0.5f }, { crack, 1.f } });
+                const float sTr = bandDb (hiS, 0, 2, 2000, 12000) - bandDb (lo, 0, 2, 2000, 12000), sCr = bandDb (hiS, 5, 40, 1000, 6000) - bandDb (lo, 5, 40, 1000, 6000);
+                const float cTr = bandDb (hiC, 0, 2, 2000, 12000) - bandDb (loC, 0, 2, 2000, 12000), cCr = bandDb (hiC, 5, 40, 1000, 6000) - bandDb (loC, 5, 40, 1000, 6000);
+                independent &= sTr > sCr + 1.f && cCr > cTr + 1.f && cCr > 3.f;
+                ind << (t == 0 ? "CLASSIC" : " CRACKING") << " snap " << String (sTr, 1) << "/" << String (sCr, 1) << " crack " << String (cTr, 1) << "/" << String (cCr, 1);
+            }
+            // DENSITY (CRACKING): more harmonics at 5-40 ms, the punch level within 2 dB
+            const auto d0 = punchOnly ({ { "rp_type", 1.f }, { "rk_density", 0.f } }), d1 = punchOnly ({ { "rp_type", 1.f }, { "rk_density", 1.f } });
+            const bool density = std::abs (rmsDb (d1) - rmsDb (d0)) < 2.f && bandDb (d1, 5, 40, 3000, 12000) > bandDb (d0, 5, 40, 3000, 12000) + 1.f;
+            // BODY COUPLING: more energy in the gap after the crack (40-90 ms, 150-1500 Hz) at 100 % than at 0 %
+            bool coupling = true;
+            for (int t = 0; t < 2; ++t)
+            {
+                const char* cp = t == 0 ? "rc_coupling" : "rk_coupling";
+                coupling &= bandDb (punchOnly ({ { "rp_type", (float) t }, { cp, 1.f } }), 40, 90, 150, 1500) > bandDb (punchOnly ({ { "rp_type", (float) t }, { cp, 0.f } }), 40, 90, 150, 1500) + 3.f;
+            }
+            // the 4 acceptance presets (whole kicks): readable, the crack short (5-40 ms presence >> 200-350 ms presence), the note at the end
+            bool presets = true; String pr;
+            const auto& fp = fge::factoryPresets();
+            for (auto* nm : { "RAW PUNCH - Classic Clean", "RAW PUNCH - Classic Crack", "RAW PUNCH - 2016 Standard", "RAW PUNCH - 2016 Extreme" })
+            {
+                auto it = std::find_if (fp.begin(), fp.end(), [nm] (auto& x) { return x.name == nm; });
+                if (it == fp.end()) { presets = false; pr << nm << " missing "; continue; }
+                auto f = ParamFrame::defaults(); for (auto& [id, x] : it->values) if (const int k = fge::modstate::indexOf (id); k >= 0) f[k] = x;
+                const auto b = renderKick (f, 31, 44100.0, 0.6);
+                auto fm = f; fm[P::mixPunchMute] = 1.f;
+                const auto bm = renderKick (fm, 31, 44100.0, 0.6);
+                const auto r = fge::dsp::analysis::analyse (b, 44100.0);
+                // the RAW punch adds its crack at 5-40 ms and (almost) nothing at 150-350 ms: a short event, never a continuous noise
+                const float early = bandDb (b, 5, 40, 1500, 6000) - bandDb (bm, 5, 40, 1500, 6000), late = bandDb (b, 150, 350, 1500, 6000) - bandDb (bm, 150, 350, 1500, 6000);
+                const bool ok = early > 1.5f && late < 1.f && r.endHz > 40.f && r.endHz < 60.f && peakDb (b, 600) < 0.5f;
+                presets &= ok;
+                pr << String (nm).fromFirstOccurrenceOf ("- ", false, false) << " +" << String (early, 1) << " / +" << String (late, 1) << " dB, " << String (r.endHz, 0) << " Hz, peak " << String (peakDb (b, 600), 1) << (ok ? "; " : " FAIL; ");
+            }
+            check (independent && density && coupling && presets,
+                   "PUNCH TYPE RAW: CLASSIC + CRACKING, SNAP and CRACK independent, DENSITY keeps the level, BODY COUPLING fills the gap, 4 presets readable",
+                   ind + (density ? "" : " DENSITY!") + (coupling ? "" : " COUPLING!") + " | " + pr);
+        }
+        // TAIL RISE (owner 2026-11-21, TAIL_RISE.md): BPM grid sync (the window follows the tempo), peaks controlled, PITCH goes up, style defaults
+        {
+            auto kick = [&] (std::initializer_list<std::pair<const char*, float>> kv, double bpm)
+            {
+                auto f = ParamFrame::defaults(); f[P::coreLength] = 700.f; f[P::coreAutoLen] = 0.f;
+                for (auto& [id, x] : kv) f[fge::modstate::indexOf (id)] = x;
+                return renderKick (f, 31, 44100.0, 0.75, -1, 1.f, nullptr, bpm);
+            };
+            auto win = [] (const AudioBuffer<float>& b, float a, float z) { const int i0 = (int) (a * 44.1f), n = jmin (b.getNumSamples(), (int) (z * 44.1f)) - i0; return Decibels::gainToDecibels (b.getRMSLevel (0, i0, n), -120.f); };
+            auto pk = [] (const AudioBuffer<float>& b) { return Decibels::gainToDecibels (b.getMagnitude (0, 0, b.getNumSamples()), -120.f); };
+            const std::initializer_list<std::pair<const char*, float>> power { { "rs_on", 1.f }, { "rs_mode", 0.f }, { "rs_amount", 1.f }, { "rs_start", 0.75f } };
+            const auto off150 = kick ({}, 150.0), on150 = kick (power, 150.0), off200 = kick ({}, 200.0), on200 = kick (power, 200.0);
+            // 150 BPM, 1/4 = 400 ms: the rise lives at 300-400 ms; at 200 BPM (300 ms) at 225-300 ms, gone (FADE 30 ms) by 340
+            const float g150 = win (on150, 340, 400) - win (off150, 340, 400), pre150 = std::abs (win (on150, 100, 290) - win (off150, 100, 290));
+            const float g200 = win (on200, 260, 300) - win (off200, 260, 300), after200 = std::abs (win (on200, 345, 400) - win (off200, 345, 400));
+            const bool sync = g150 > 3.f && pre150 < 0.1f && g200 > 1.5f && after200 < 0.1f;
+            const bool peaks = pk (on150) <= pk (off150) + 1.f;
+            // PITCH: the tail goes up inside the window
+            const auto pf = kick ({ { "rs_on", 1.f }, { "rs_mode", 2.f }, { "rs_amount", 1.f }, { "rs_start", 0.5f }, { "rs_pitch_range", 12.f } }, 150.0);
+            const auto ra = fge::dsp::analysis::analyse (pf, 44100.0);
+            auto pitchAt = [&] (float ms) { const int k = (int) (ms / 5.f); return k < (int) ra.pitch.size() ? ra.pitch[(size_t) k] : 0.f; };
+            const bool pitch = pitchAt (380) > pitchAt (180) * 1.25f;
+            // the style defaults (TAIL_RISE.md 9)
+            bool styles = false;
+            { float mode = -1, amt = -1, on = -1; for (auto& [i, x] : fge::style::values (fge::style::Raw)) { if (i == P::rsMode) mode = x; if (i == P::rsAmount) amt = x; if (i == P::rsOn) on = x; }
+              float eon = -1; for (auto& [i, x] : fge::style::values (fge::style::Early)) if (i == P::rsOn) eon = x;
+              styles = on == 1.f && mode == 1.f && std::abs (amt - 0.55f) < 0.01f && eon == 0.f; }
+            check (sync && peaks && pitch && styles, "TAIL RISE: synced to the BPM grid (150 vs 200 BPM), nothing before the window, peaks controlled, PITCH goes up, style defaults",
+                   "150: +" + String (g150, 1) + " dB (before " + String (pre150, 2) + "), 200: +" + String (g200, 1) + " dB (after " + String (after200, 2) + "), peak " + String (pk (on150) - pk (off150), 2)
+                       + " dB, pitch " + String (pitchAt (180), 0) + " -> " + String (pitchAt (380), 0) + " Hz" + (styles ? "" : " STYLES!"));
+        }
+        // KICK VARIATION (owner 2026-11-20/21, VARIATION_DNA.md): KEEP stays (knobs AND measured), versions repeatable / different,
+        // every version rendered + measured + checked (the note never moves), directions measured, 7 different picks, pick / undo / morph / back,
+        // NEW KICK IN STYLE, HUMANIZE per hit (never a knob)
+        {
+            namespace kv = fge::kv;
+            GeProcessor p;
+            fge::style::apply (p, fge::variant::Euphoric, false);
+            auto s = kv::load (p);
+            s.mode.fill (kv::Free); s.mode[kv::GPitch] = kv::Keep; s.mode[kv::GLength] = kv::Keep;
+            s.mode[kv::GTail] = kv::Evolve; s.dir[kv::GTail] = 1; s.mode[kv::GDirt] = kv::Evolve; s.dir[kv::GDirt] = 0;
+            s.variation = 0.6f; kv::save (p, s);
+            const auto base = p.frame();
+            const auto v1 = kv::mutateOne (base, s, fge::variant::Euphoric, 11), v1b = kv::mutateOne (base, s, fge::variant::Euphoric, 11), v2 = kv::mutateOne (base, s, fge::variant::Euphoric, 12);
+            bool keep = true; for (int k : kv::geneIds()[kv::GPitch]) keep &= v1[k] == base[k];
+            const bool same = v1.v == v1b.v, differ = v1.v != v2.v;
+            // the whole pipeline offline
+            auto q = kv::makeRequest (p, false);
+            bool anyDealt = true; { int up = 0, dn = 0; for (auto& sg : q->signs) { up += sg[kv::GDirt] > 0; dn += sg[kv::GDirt] < 0; } anyDealt = up >= 5 && dn >= 5; }
+            const auto t0 = Time::getMillisecondCounterHiRes();
+            const auto r = kv::VariationWorker::process (*q);
+            const double ms = Time::getMillisecondCounterHiRes() - t0;
+            kv::accept (p, r);
+            // re-measure every pick: the note, KEEP PITCH, BRIGHTER reached
+            bool noteOk = true, keepOk = true, brighter = true, notCopies = true;
+            {
+                auto meas = [&] (const ParamFrame& f) { kv::Probe x; x.r = fge::dsp::analysis::analyse (renderKick (f, q->note, 44100.0, q->seconds, -1, 1.f, &q->bank), 44100.0); return x; };
+                const auto B = meas (base);
+                std::vector<kv::Probe> ps;
+                for (auto& v : p.kvWork.versions)
+                {
+                    const auto P = meas (v); ps.push_back (P);
+                    noteOk &= kv::hardRule (P, B) != "note moved";
+                    keepOk &= std::abs (kv::partMetric (kv::GPitch, P, B)) <= kv::keepTolerance[kv::GPitch] * (r.relaxed ? 2.f : 1.f);
+                    brighter &= kv::partMetric (kv::GTail, P, B) >= kv::dirThreshold[kv::GTail] / (r.relaxed ? 2.f : 1.f);
+                }
+                for (size_t i = 0; i < ps.size(); ++i) for (size_t j = i + 1; j < ps.size(); ++j) notCopies &= kv::heardDistance (ps[i], ps[j]) > 0.05f;
+            }
+            const bool seven = p.kvWork.versions.size() == 7 && p.frame().v == base.v && p.kvWork.waveHi.size() == 8;
+            kv::select (p, 2); const bool picked = p.frame().v != base.v;
+            p.undo.undo(); const bool undone = p.frame().v == base.v;
+            kv::select (p, 2); kv::commit (p, p.frame(), kv::morphFrame (p.kvWork.base, p.kvWork.versions[2], 0.5f), "Morph");
+            const auto half = p.frame();
+            kv::select (p, -1); const bool back = p.frame().v == base.v;
+            bool between = false; for (int k = 0; k < P::count; ++k) between |= def (k).kind == Kind::Float && half[k] != base[k] && half[k] != p.kvWork.versions[2][k];
+            // NEW KICK IN STYLE: from scratch within ZAAG - the ZAAG tail type, the BASE not used, still the note
+            kv::setStyle (p, fge::variant::Zaag);
+            auto qf = kv::makeRequest (p, true);
+            const auto rf = kv::VariationWorker::process (*qf);
+            kv::accept (p, rf);
+            int zaag = 0; for (auto& v : p.kvWork.versions) zaag += v.idx (P::tailEngine) == 2 ? 1 : 0;
+            // HUMANIZE: two hits differ, 0 = identical (the engine, per hit)
+            auto hits = [&] (float h)
+            {
+                auto f = ParamFrame::defaults(); f[P::kvHumanize] = h;
+                auto e = std::make_unique<Engine>(); e->prepare (44100.0, 512);
+                AudioBuffer<float> b (2, 44544); b.clear();
+                for (int pos = 0; pos < b.getNumSamples(); pos += 512)
+                {
+                    AudioBuffer<float> blk (b.getArrayOfWritePointers(), 2, pos, 512); MidiBuffer m;
+                    if (pos == 0 || pos == 22016) m.addEvent (MidiMessage::noteOn (1, 31, 1.f), 0);
+                    e->process (blk, m, f);
+                }
+                double d = 0.0; for (int i = 0; i < 8000; ++i) d += std::abs (b.getSample (0, i) - b.getSample (0, 22016 + i));
+                return d;
+            };
+            const double h0 = hits (0.f), h1 = hits (1.f);
+            check (keep && same && differ && anyDealt && seven && noteOk && keepOk && brighter && notCopies && picked && undone && back && between
+                       && rf.picked.size() == 7 && zaag >= 4 && h1 > h0 * 2.0 + 1.0e-3,
+                   "KICK VARIATION: KEEP (knobs + measured), the note locked, TAIL BRIGHTER measured, ANY dealt both ways, 7 different picks, pick / undo / morph / back, NEW KICK IN STYLE, HUMANIZE per hit",
+                   String (r.passed) + " of " + String (r.tried) + " passed" + (r.relaxed ? " (relaxed)" : "") + ", " + String (ms / 1000.0, 1) + " s; rejects: "
+                       + r.rejects.joinIntoString (", ").substring (0, 160) + "; zaag tails " + String (zaag) + "/7; humanize " + String (h0, 4) + " -> " + String (h1, 3)
+                       + (noteOk ? "" : " NOTE!") + (keepOk ? "" : " KEEP!") + (brighter ? "" : " BRIGHT!") + (notCopies ? "" : " COPIES!") + (anyDealt ? "" : " ANY!"));
         }
         // part 2 - VARIANT RANDOMIZER: styles keep their ranges, seed repeatable, locks, level matched, one undo step, regenerate
         {
@@ -4475,8 +4676,8 @@ int main (int argc, char** argv)
             auto* a = p.apvts.getParameter ("tail_tone"); a->beginChangeGesture(); a->setValueNotifyingHost (a->convertTo0to1 (3333.f)); a->endChangeGesture();
             ge->canvas.chooseStyle (fge::style::Early);
             const bool ok = p.currentStyle() == fge::style::Early && std::abs (p.apvts.getRawParameterValue ("tail_tone")->load() - 3333.f) < 1.f
-                            && ge->canvas.styleStatus().contains ("kept") && ge->canvas.styleSelector().isVisible();
-            check (ok, "M13 GUI: STYLE selector in the header applies the style and keeps the knob you moved", ge->canvas.styleStatus());
+                            && ge->canvas.styleStatus().contains ("kept") && ! ge->canvas.styleSelector().isVisible();   // (owner 2026-11-21: STYLE only on the VARIATION page)
+            check (ok, "M13 GUI: STYLE applies the style and keeps the knob you moved; not on the main screen any more (VARIATION page)", ge->canvas.styleStatus());
             p.undo.undo(); p.forgetTouched();
         }
         // LENGTH panel (module 14)
@@ -4650,8 +4851,8 @@ int main (int argc, char** argv)
                 for (auto* id : { "macro_impact", "macro_chaos", "core_master", "core_velocity", "core_voice_mode", "core_note_cut" })
                     if (auto* c = cv.findControl (id)) bottom &= c->isShowing() || c->isVisible(); else bottom = false;
             }
-            check (order.size() == 15 && pages.size() == 15 && allMods && clicks && bottom,
-                   "M17 NAVIGATION: 5 blocks / 15 pages / all 17 modules placed, a click opens the page, MACROS + GLOBAL on every page",
+            check (order.size() == 16 && pages.size() == 16 && allMods && clicks && bottom,
+                   "M17 NAVIGATION: 5 blocks / 16 pages / all 17 modules placed, a click opens the page, MACROS + GLOBAL on every page",
                    String ((int) order.size()) + " pages" + (allMods ? "" : " modules!") + (clicks ? "" : " clicks!") + (bottom ? "" : " bottom!"));
             {   // HELP (owner 2026-11-20): a small "?" opens the help with the TEST BUILD notice, Esc closes it
                 cv.openHelp();

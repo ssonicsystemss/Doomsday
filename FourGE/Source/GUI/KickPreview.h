@@ -17,12 +17,13 @@ namespace fge::gui
     {
     public:
         struct Job { std::function<void (ParamFrame&)> edit; float seconds = 0.4f; };
-        struct Wave { std::vector<float> lo, hi; float peak = 0.f; bool silent = true; };
+        struct Wave { std::vector<float> lo, hi; float peak = 0.f, rms = 0.f; bool silent = true; };
         using Tables = std::array<dsp::TablePtr, 8>;
 
         KickPreview() : juce::Thread ("4GE previews") { startThread (juce::Thread::Priority::low); }
         ~KickPreview() override { signalThreadShouldExit(); wake.signal(); stopThread (4000); }
-        void setJobs (std::vector<Job> j) { std::lock_guard<std::mutex> l (lock); jobs = std::move (j); dirty = true; wake.signal(); }
+        void setJobs (std::vector<Job> j, uint32_t tag = 0) { std::lock_guard<std::mutex> l (lock); jobs = std::move (j); jobsTag = tag; dirty = true; wake.signal(); }
+        uint32_t resultTag() const { std::lock_guard<std::mutex> l (lock); return outTag; }   // (the tag of the job list the last result came from)
         // re-render when the parameters / shapes / tables change
         void update (const ParamFrame& f, const env::Bank& bank, uint32_t bankVersion, const Tables& t, const dsp::dist::DistData* dist = nullptr, uint32_t distVersion = 0)
         {
@@ -45,11 +46,11 @@ namespace fge::gui
             while (! threadShouldExit())
             {
                 wake.wait (250);
-                std::vector<Job> j; ParamFrame f; Tables t; env::Bank b; bool doRender = false; AlignReq a; dsp::dist::DistData dd;
+                std::vector<Job> j; ParamFrame f; Tables t; env::Bank b; bool doRender = false; uint32_t tag = 0; AlignReq a; dsp::dist::DistData dd;
                 {
                     std::lock_guard<std::mutex> l (lock);
                     dd = distData;
-                    if (dirty && bankCopy) { j = jobs; f = frame; t = tables; b = *bankCopy; dirty = false; doRender = true; }
+                    if (dirty && bankCopy) { j = jobs; tag = jobsTag; f = frame; t = tables; b = *bankCopy; dirty = false; doRender = true; }
                     a = align; align.on = false;
                     if (a.on && bankCopy) { f = frame; t = tables; b = *bankCopy; }
                 }
@@ -76,10 +77,12 @@ namespace fge::gui
                         for (int i = k * n / points; i < (k + 1) * n / points; ++i) { const float v = 0.5f * (x.getSample (0, i) + x.getSample (1, i)); lo = juce::jmin (lo, v); hi = juce::jmax (hi, v); }
                         w.lo[(size_t) k] = lo; w.hi[(size_t) k] = hi; w.peak = juce::jmax (w.peak, -lo, hi);
                     }
+                    double e = 0.0; for (int c = 0; c < x.getNumChannels(); ++c) for (int i = 0; i < n; ++i) e += (double) x.getSample (c, i) * x.getSample (c, i);
+                    w.rms = (float) std::sqrt (e / juce::jmax (1, n * x.getNumChannels()));
                     w.silent = w.peak < 1.0e-5f;
                     out.push_back (std::move (w));
                 }
-                { std::lock_guard<std::mutex> l (lock); result = std::move (out); }
+                { std::lock_guard<std::mutex> l (lock); result = std::move (out); outTag = tag; }
                 triggerAsyncUpdate();
             }
         }
@@ -87,6 +90,7 @@ namespace fge::gui
         struct AlignReq { bool on = false; int ref = 0, target = 1; float fromMs = 0.f, lenMs = 50.f, search = 360.f; int note = 31; };
         mutable std::mutex lock;
         std::vector<Job> jobs;
+        uint32_t jobsTag = 0, outTag = 0;
         ParamFrame frame, lastF; Tables tables, lastTables; uint32_t lastBank = 0, lastDist = 0xffffffffu;
         dsp::dist::DistData distData;
         std::unique_ptr<env::Bank> bankCopy;

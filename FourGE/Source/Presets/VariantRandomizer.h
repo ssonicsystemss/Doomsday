@@ -11,6 +11,7 @@
 //   The level is matched after every randomize (an offline render: louder is not better) - one click = one UNDO step.
 // =====================================================================
 #include "../PluginProcessor.h"
+#include "KickDna.h"
 
 namespace fge::variant
 {
@@ -167,7 +168,7 @@ namespace fge::variant
     {
         const auto& t = p.apvts.state;
         Settings s;
-        s.style = juce::jlimit (0, NumStyles - 1, (int) t.getProperty ("vrStyle", (int) Modern)); s.scope = juce::jlimit (0, (int) NumAreas, (int) t.getProperty ("vrScope", 0));
+        s.style = juce::jlimit (0, NumStyles - 1, (int) t.getProperty ("vrStyle", juce::jmax ((int) Modern, (int) t.getProperty ("style", -1)))); s.scope = juce::jlimit (0, (int) NumAreas, (int) t.getProperty ("vrScope", 0));
         s.amount = juce::jlimit (0.f, 1.f, (float) (double) t.getProperty ("vrAmount", 1.0)); s.seed = (int) t.getProperty ("vrSeed", 1);
         s.locks = (uint32_t) (int) t.getProperty ("vrLocks", 0); s.routing = (bool) t.getProperty ("vrRouting", false);
         return s;
@@ -201,37 +202,49 @@ namespace fge::variant
         const auto& tb = table (s.style);
         juce::StringArray touched;
         for (auto& area : tb) for (auto& r : area) touched.addIfNotAlreadyThere (r.id);
+        for (int g = 0; g < fge::kv::NumGenes; ++g) for (auto& x : fge::kv::dirIds (g)) touched.addIfNotAlreadyThere (x.first);   // (what a DIRECTION moves)
         touched.add ("core_master");
         const auto f0 = p.frame();
         for (auto& id : touched) { const int k = fge::modstate::indexOf (id); if (k >= 0) { auto* e = snap->createNewChildElement ("V"); e->setAttribute ("id", id); e->setAttribute ("v", f0[k]); } }
 
         p.apvts.state.setProperty ("vrStart", snap->toString (juce::XmlElement::TextFormat().singleLine()), nullptr);
+        const auto dna = fge::kv::loadDna (p.apvts.state);                 // the kick's DNA (owner 2026-11-20): KEEP / EVOLVE (+ direction) / FREE per part
+        const auto dirs = fge::kv::loadDirs (p.apvts.state);
         for (int a = 0; a < NumAreas; ++a)
-        {
-            const bool inScope = s.scope == 0 || s.scope - 1 == a;
-            const bool locked = (s.locks >> a) & 1u;
             for (auto& r : tb[(size_t) a])
             {
                 const float u = rng.nextFloat(), w = rng.nextFloat();          // (drawn for every range: a lock / scope never shifts the others)
+                const bool inScope = s.scope == 0 || s.scope - 1 == a;
+                const bool locked = (s.locks >> a) & 1u;
                 if (! inScope || locked) continue;
                 const int k = fge::modstate::indexOf (r.id);
                 if (k < 0) continue;
+                const int gene = fge::kv::geneOf (r.id, a), gm = dna[(size_t) gene];
+                if (gm == fge::kv::Keep) continue;
+                if (gm == fge::kv::Evolve && dirs[(size_t) gene] != 0 && fge::kv::isDirId (gene, r.id)) continue;   // (moved by its direction below)
+                const float amount = s.amount * (gm == fge::kv::Evolve ? fge::kv::evolveShare : 1.f);
                 const float cur = f0[k];
                 float v;
                 if (! r.choices.empty())
                 {
-                    if (w > s.amount && std::find (r.choices.begin(), r.choices.end(), (int) std::lround (cur)) != r.choices.end()) continue;   // (small AMOUNT: keep a legal choice)
+                    if (gm == fge::kv::Evolve) continue;                       // (EVOLVE never flips a switch / a type)
+                    if (w > amount && std::find (r.choices.begin(), r.choices.end(), (int) std::lround (cur)) != r.choices.end()) continue;   // (small AMOUNT: keep a legal choice)
                     v = (float) r.choices[(size_t) juce::jlimit (0, (int) r.choices.size() - 1, (int) (u * (float) r.choices.size()))];
                 }
                 else
                 {
                     const float target = r.lo + (r.hi - r.lo) * u;
-                    v = cur + (target - cur) * s.amount;
+                    v = cur + (target - cur) * amount;
                     if (def (k).kind == Kind::Float && def (k).unit == Unit::None) v = std::round (v);      // (counts: unison voices)
                 }
                 const float hi = def (k).kind == Kind::Choice ? (float) (def (k).choices().size() - 1) : def (k).max;
                 p.setParamInUndoStep (r.id, juce::jlimit (def (k).kind == Kind::Choice ? 0.f : def (k).min, hi, v));
             }
+        {   // EVOLVE with a DIRECTION: that part moves that way (DARKER / BRIGHTER, CLEANER / DIRTIER ...)
+            auto f = p.frame(); const auto before = f;
+            for (int g = 0; g < fge::kv::NumGenes; ++g)
+                if (dna[(size_t) g] == fge::kv::Evolve && dirs[(size_t) g] != 0) fge::kv::push (f, g, (float) dirs[(size_t) g] * s.amount * (0.12f + 0.38f * rng.nextFloat()));
+            for (int k = 0; k < P::count; ++k) if (std::abs (f[k] - before[k]) > 1.0e-6f) p.setParamInUndoStep (def (k).id, f[k]);
         }
         // ROUTING: a few movements in free matrix slots (LFO / sequencer / random on musical targets)
         if (s.routing)

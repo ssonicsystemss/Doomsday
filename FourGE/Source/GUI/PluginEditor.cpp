@@ -41,7 +41,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     styleStrip.onPick = [this] (int st) { chooseStyle (st, true); };
     styleStrip.onMenu = [this] (int) { styleMenu(); };
     lengthStrip.emptyText = "SYNC";
-    addAndMakeVisible (styleStrip);
+    addChildComponent (styleStrip);                 // (owner 2026-11-21: STYLE only on the VARIATION page - it is for randomizing, not for the main screen)
     // module 14: LENGTH profiles (one click = one undo) + the ms button = the LENGTH panel
     lengthStrip.tipFor = [] (int i) { return "LENGTH " + fge::length::names()[i] + ": " + String (roundToInt (fge::length::profileMs (i))) + " ms with AUTO LENGTH (the parts scale with it) - independent of the STYLE"; };
     lengthStrip.onPick = [this] (int i) { fge::length::applyProfile (proc, i); };
@@ -76,8 +76,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     rndStrength.onValueChange = [this] { fge::pagernd::setStrength (proc, (float) rndStrength.getValue() / 100.f); rndLabel.setText ("RND " + juce::String ((int) rndStrength.getValue()) + " %", juce::dontSendNotification); };
     rndLabel.setText ("RND " + juce::String ((int) rndStrength.getValue()) + " %", juce::dontSendNotification);
     rndLabel.setJustificationType (juce::Justification::centred); rndLabel.setFont (juce::FontOptions (11.f));
-    addAndMakeVisible (rndStrength); addAndMakeVisible (rndLabel);
-    detDice.setTooltip ("RANDOMIZE this tab only (its visible knobs; the engine / mode switches stay). Strength = RND POWER in the top bar. One undo step, the level stays.");
+    addChildComponent (rndStrength); addChildComponent (rndLabel);            // (KICK VARIATION 2026-11-20: the amount = VARIATION on that page)
+    detDice.setTooltip ("RANDOMIZE this tab only (its visible knobs; the engine / mode switches stay). Strength = VARIATION (page VARIATION). One undo step, the level stays.");
     detDice.onClick = [this]
     {
         std::set<juce::Component*> mine (detail[(size_t) selected].begin(), detail[(size_t) selected].end());
@@ -124,6 +124,9 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         mk (ovPunch[3], { { "zg_click", "CLICK" }, { "zg_piep", "PIEP" }, { "zg_piep_hz", "PIEP HZ" }, { "zg_piep_ms", "PIEP LEN" },
                           { "zg_trask", "TRASK" }, { "zg_trask_delay", "TRASK AT" }, { "zg_trask_ms", "TRASK LEN" }, { "zg_verb", "PUNCH VERB" },
                           { "zg_verb_decay", "VERB DECAY" }, { "zg_verb_send", "VERB SEND" }, { "zg_verb_pre", "PRE-DELAY" }, { "zg_verb_gate", "VERB GATE" } }, pc.part[0], 40);
+        mk (ovPunch[4], { { "rc_snap", "SNAP" }, { "rc_crack", "CRACK" }, { "rc_crack_decay", "CRACK DECAY" }, { "rc_coupling", "BODY COUPLING" },
+                          { "rc_start", "PUNCH START" }, { "rc_decay", "PUNCH DECAY" }, { "rk_snap", "SNAP" }, { "rk_crack", "CRACK" },
+                          { "rk_density", "DENSITY" }, { "rk_edge", "EDGE" }, { "rk_tone", "DARK/BRIGHT" }, { "rk_coupling", "BODY COUPLING" } }, pc.part[0], 40);
         mk (ovStrip[0], { { "psh_click", "LEVEL" }, { "psh_click_len", "LENGTH" }, { "psh_click_tone", "TONE" } }, pc.silver, 30);
         mk (ovStrip[1], { { "psh_sub", "LEVEL" }, { "psh_sub_delay", "DELAY" }, { "psh_sub_decay", "DECAY" } }, pc.part[3], 30);
         mk (ovStrip[2], { { "body_level", "LEVEL" }, { "body_pitch", "PITCH" }, { "body_length", "LENGTH" } }, pc.part[1], 30);
@@ -136,7 +139,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         auto ids = [this] (const std::vector<Component*>& v) { StringArray a; for (auto& [id, c] : byId) if (std::find (v.begin(), v.end(), c) != v.end() && c->isEnabled()) a.addIfNotAlreadyThere (id); return a; };
         ovDiceP.onClick = [this, ids] { fge::pagernd::randomizeIds (proc, ids (ovPunch[(size_t) punchTypeIdx()]), "punch"); };
         ovDiceT.onClick = [this, ids] { fge::pagernd::randomizeIds (proc, ids (ovTail[(size_t) tailTypeIdx()]), "tail"); };
-        for (auto* b : { &ovAllP, &ovAllT, &ovDiceP, &ovDiceT }) b->setTooltip (b == &ovAllP || b == &ovAllT ? "Every parameter of this part (the full view with its tabs)." : "RANDOMIZE these knobs (strength = RND POWER).");
+        for (auto* b : { &ovAllP, &ovAllT, &ovDiceP, &ovDiceT }) b->setTooltip (b == &ovAllP || b == &ovAllT ? "Every parameter of this part (the full view with its tabs)." : "RANDOMIZE these knobs (strength = VARIATION, page VARIATION).");
         ovBack.setTooltip ("Back to the overview: PUNCH | TAIL, the strip, MASTER.");
         for (auto* b : { &ovAllP, &ovAllT, &ovBack, &ovDiceP, &ovDiceT }) addChildComponent (b);
     }
@@ -187,7 +190,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             proc.setParamInUndoStep ("punch_pitch", 440.f * std::exp2 ((float) (m - 69) / 12.f));
         };
         addAndMakeVisible (tokNote);
-        for (int t = 0; t < 16; ++t)
+        for (int t = 0; t < 17; ++t)
         {
             detTab[t].setButtonText (t == 0 ? "TONE" : "ROOM / COLOR"); detTab[t].setClickingTogglesState (false);
             detTab[t].setTooltip (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -335,6 +338,19 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (combo ("cp_ws_type"));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> { { "cp_ws_drive", "SHAPER" }, { "cp_high_cut", "HIGH CUT" }, { "cp_trans_ctrl", "TR CONTROL" } })
                 d.push_back (knob (id, lab, col, 40, String (id) == "cp_trans_ctrl"));
+            // 8th tab: PUNCH TYPE RAW (owner 2026-11-21, RAW_PUNCH.md) - two architectures, each shows only its own knobs (hiddenByVariant)
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("rp_type"));
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "rc_snap", "SNAP" }, { "rc_crack", "CRACK" }, { "rc_crack_decay", "CRACK DECAY" }, { "rc_coupling", "BODY COUPLING" },
+                     { "rk_snap", "SNAP" }, { "rk_crack", "CRACK" }, { "rk_density", "DENSITY" }, { "rk_edge", "EDGE" }, { "rk_tone", "DARK/BRIGHT" },
+                     { "rk_crack_decay", "CRACK DECAY" }, { "rk_coupling", "BODY COUPLING" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
+                     { "rc_start", "START" }, { "rc_drop", "DROP" }, { "rc_end", "END" }, { "rc_decay", "DECAY" }, { "rc_density", "DENSITY" }, { "rc_crack_hz", "CRACK FREQ" }, { "rc_drive", "PUNCH DRIVE" },
+                     { "rk_start", "START" }, { "rk_drop", "DROP" }, { "rk_end", "END" }, { "rk_decay", "DECAY" }, { "rk_dynamic", "DYNAMIC" }, { "rk_drive", "BRIDGE DRIVE" } })
+                d.push_back (knob (id, lab, col));
         }
         if (i == 3) d.push_back (knob ("sub_amp_env_delay", "START", col));      // SUB START: its own time, may enter under the tok
         if (i != 0) d.push_back (knob ((s + "_phase").toRawUTF8(), "PHASE", col));
@@ -537,6 +553,17 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             for (auto [id, lab] : LZ { { "ex_sub", "SUB" }, { "ex_sub_hz", "SUB HZ" }, { "ex_width", "WIDTH" }, { "ex_drive", "OUT DRIVE" }, { "ex_attack", "ATTACK" },
                                        { "ex_body", "BODY" }, { "ex_tail_decay", "DECAY" }, { "ex_fade", "FADE" } })
                 d.push_back (knob (id, lab, col));
+            // 17th tab: TAIL RISE (owner 2026-11-21, TAIL_RISE.md) - with every TAIL TYPE
+            d.push_back (&detailPageMark);
+            d.push_back (toggle ("rs_on", "RISE", Toggle::Chip, col));
+            d.push_back (combo ("rs_sync")); d.push_back (combo ("rs_grid")); d.push_back (combo ("rs_mode"));
+            d.push_back (nullptr);
+            for (auto [id, lab] : LZ { { "rs_start", "START" }, { "rs_amount", "AMOUNT" }, { "rs_pitch_range", "PITCH RANGE" } })
+                d.push_back (knob (id, lab, col));
+            d.push_back (combo ("rs_curve")); d.push_back (combo ("rs_release"));
+            d.push_back (nullptr);
+            for (auto [id, lab] : LZ { { "rs_gain", "GAIN" }, { "rs_pitch", "PITCH" }, { "rs_drive", "DRIVE" }, { "rs_harm", "HARMONICS" }, { "rs_filter", "FILTER" }, { "rs_noise", "NOISE" } })
+                d.push_back (knob (id, lab, col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };
@@ -589,6 +616,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
     setPg->version = fge::versionText;
     setPg->onChanged = [this] { uiSet.save(); applyTooltips(); if (onSettingsChanged) onSettingsChanged(); };
     addChildComponent (*setPg);
+    varPg = std::make_unique<fge::gui::VariationPage> (proc, lnf);                    // KICK VARIATION (owner 2026-11-20)
+    addChildComponent (*varPg);
     presetBar.onBrowse = [this] { if (pageIdx != 12) pageBeforePresets = pageIdx; showPage (pageIdx == 12 ? pageBeforePresets : 12); };
     wave.onScreechStart = [this] (float ms, bool first) { if (first) proc.undo.beginNewTransaction ("Screech start"); proc.setParamInUndoStep ("scr_start", ms); };
     applyTooltips();
@@ -663,7 +692,7 @@ Component* GeCanvas::findControl (const String& id)                     // (a pa
     return range.first == range.second ? nullptr : range.first->second;
 }
 
-int GeCanvas::punchTypeIdx() const { const int m = (int) raw (proc, P::punchMode); return m <= 1 || m == 5 ? 0 : m == 2 ? 1 : m == 3 ? 2 : 3; }
+int GeCanvas::punchTypeIdx() const { const int m = (int) raw (proc, P::punchMode); return m <= 1 || m == 5 ? 0 : m == 2 ? 1 : m == 3 ? 2 : m == 6 ? 4 : 3; }
 int GeCanvas::tailTypeIdx() const  { return jlimit (0, 2, (int) raw (proc, P::tailEngine)); }
 void GeCanvas::applyOverview()                                                      // MAIN: the CONSOLE or the full detail view of a part
 {
@@ -715,7 +744,7 @@ void GeCanvas::layoutOverview()
         for (size_t i = 0; i < v.size(); ++i)
             v[i]->setBounds (a.getX() + 10 + (int) (i % (size_t) cols) * cw, a.getY() + 74 + (int) (i / (size_t) cols) * (Knob::heightFor (d) + 14), cw - 4, Knob::heightFor (d));
     };
-    for (int t = 0; t < 4; ++t) grid (ovPunch[(size_t) t], ovPArea, 6, 40);
+    for (int t = 0; t < 5; ++t) grid (ovPunch[(size_t) t], ovPArea, 6, 40);
     for (int t = 0; t < 3; ++t) grid (ovTail[(size_t) t], ovTArea, 6, 40);
     for (auto [a, cb, all, dice] : { std::make_tuple (ovPArea, punchType, &ovAllP, &ovDiceP), std::make_tuple (ovTArea, tailType, &ovAllT, &ovDiceT) })
     {
@@ -746,7 +775,7 @@ void GeCanvas::selectPart (int i)
 
 void GeCanvas::showPage (int i)
 {
-    pageIdx = jlimit (0, 14, i);
+    pageIdx = jlimit (0, 15, i);
     const bool main = pageIdx == 0, kick = pageIdx < 2;
     for (int p = 0; p < 4; ++p)
     {
@@ -774,6 +803,8 @@ void GeCanvas::showPage (int i)
     anPg->setVisible (pageIdx == 13);
     setPg->setVisible (pageIdx == 14);
     if (pageIdx == 14) setPg->sync();
+    varPg->setVisible (pageIdx == 15);
+    if (pageIdx == 15) varPg->sync();
     wave.setVisible (kick);
     nav.setCurrent (pageIdx);
     if (pageIdx != uiSet.lastPage && pageIdx != 12) { uiSet.lastPage = pageIdx; if (isShowing()) uiSet.save(); }
@@ -801,14 +832,13 @@ void GeCanvas::resized()
     const int tx = roundToInt (doomsday::brand::headerTextX (1.f));
     nav.setBounds (tx + 70, 0, nav.contentWidth() + 20, 88);
     presetBar.setBounds (W - 20 - 640, 10, 640, 32);
-    rndStrength.setBounds (presetBar.getX() - 40, 9, 34, 34); rndLabel.setBounds (presetBar.getX() - 112, 18, 72, 16);
     {
         int x = W - 20;
         auto place = [&] (Component* c, int w, int h) { if (c == nullptr) return; x -= w; c->setBounds (x, 52 + (36 - h) / 2, w, h); x -= 78; };
         place (kickEndTop, 170, 24);
         place (&lengthSlider, 130, 24);
         lengthStrip.setBounds (lengthSlider.getBounds());
-        place (&styleStrip, 190, 26);
+        styleStrip.setBounds (0, 0, 0, 0);
         lengthBtn.setBounds (0, 0, 0, 0); lengthBtn.setVisible (false);
     }
     helpBtn.setBounds (tx + 40, 59, 24, 22);
@@ -867,7 +897,7 @@ void GeCanvas::resized()
     if (envPage != nullptr) envPage->setBounds (pageArea.withTrimmedTop (146));
     for (Component* pg : { (Component*) oscPage.get(), (Component*) layerPage.get(), (Component*) distortionPage.get(), (Component*) eqPg.get(), (Component*) dynPg.get(),
                            (Component*) modPg.get(), (Component*) smpPg.get(), (Component*) stPg.get(), (Component*) exPg.get(), (Component*) prPg.get(),
-                           (Component*) anPg.get(), (Component*) scrPage.get(), (Component*) setPg.get() })
+                           (Component*) anPg.get(), (Component*) scrPage.get(), (Component*) setPg.get(), (Component*) varPg.get() })
         if (pg != nullptr) pg->setBounds (pageArea);
 }
 
@@ -917,18 +947,19 @@ void GeCanvas::layoutDetail()
         punchSub.setVisible (sub);
         if (sub && tb != nullptr) punchSub.setBounds (tb->getX() - 128, detailArea.getY() + 5, 122, 24);
     }
-    for (int t = 0; t < 16; ++t)
+    for (int t = 0; t < 17; ++t)
     {
         detTab[t].setVisible (tabs && isAllowed (t) && nTabs > 1 && (pageIdx == 0 && ! overview));
         detDice.setVisible ((pageIdx == 0 && ! overview));
-        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "FRONT", "CLASSIC", "", "", "", "", "", "", "", "", "" };
-        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG", "ZAAG SWEEP / FX", "ZAAG OUT", "RAW STACK", "RAW SWEEP / CHAR", "RAW SPACE / OUT", "EXP SOURCE", "EXP FX 1-2", "EXP FX 3-4", "EXP FX 5-6", "EXP FX 7-8", "EXP MOD / OUT" };
+        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "FRONT", "CLASSIC", "RAW", "", "", "", "", "", "", "", "", "" };
+        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG", "ZAAG SWEEP / FX", "ZAAG OUT", "RAW STACK", "RAW SWEEP / CHAR", "RAW SPACE / OUT", "EXP SOURCE", "EXP FX 1-2", "EXP FX 3-4", "EXP FX 5-6", "EXP FX 7-8", "EXP MOD / OUT", "RISE" };
         static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
                                          "EUPHORIC model (punch mode EUPHORIC): a broadband source -> mid boost -> asymmetric distortion -> tape stop -> volume shaper.",
                                          "PVC model (punch mode PVC, the KLOENK): source -> resonance / ring mod / flanger / comb -> blend -> compressor -> distortion -> EQ -> shape. Monotone.",
                                          "The shared part of the PUNCH ENGINE: the SUB PUNCH (own wave / pitch / delay / decay) and the BLEND (tonal / click / sub / body / tail).",
                                          "PUNCH TYPE ZAAG: a 2 ms click, the PIEP first, then the TRASK, and a reverb on them only.",
-                                         "THE FRONT of the kick, with every PUNCH TYPE: TOK (its own layer before the punch, a fixed pitch), CLICK (the 'ts', straight to the punch bus, never through ZAAG) and SUB PUNCH (a short low hit, gone before the SUB). ZAAG SEND: TOK + PUNCH into the ZAAG tail cascade.", "PUNCH TYPE CLASSIC (EARLY): the old, hard, short punch built from its attack - a hybrid source (tone + its own transient + a resonant low-mid + attack noise), a 3-stage pitch (start -> hit -> glide -> fundamental), pre-EQ -> saturation -> waveshaper -> post-EQ -> transient control.", "", "", "", "", "", "", "", "", "" };
+                                         "THE FRONT of the kick, with every PUNCH TYPE: TOK (its own layer before the punch, a fixed pitch), CLICK (the 'ts', straight to the punch bus, never through ZAAG) and SUB PUNCH (a short low hit, gone before the SUB). ZAAG SEND: TOK + PUNCH into the ZAAG tail cascade.", "PUNCH TYPE CLASSIC (EARLY): the old, hard, short punch built from its attack - a hybrid source (tone + its own transient + a resonant low-mid + attack noise), a 3-stage pitch (start -> hit -> glide -> fundamental), pre-EQ -> saturation -> waveshaper -> post-EQ -> transient control.",
+                                         "PUNCH TYPE RAW: RAW CLASSIC (punch source + SNAP, a controlled crack: fold -> clip -> band -> envelope, BODY COUPLING - KRAK -> DUM) or RAW 2015-2017 CRACKING (snap -> crack generator: dark/bright tilt, DENSITY folds, controlled distortion, EDGE -> a distorted bridge into the body - KRAK! -> BRUTAL BODY).", "", "", "", "", "", "", "", "", "" };
         detTab[t].setButtonText (selected == 0 ? punchTabs[t] : tailTabs[t]);
         detTab[t].setTooltip (selected == 0 ? punchTips[t]
                                             : (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -942,12 +973,13 @@ void GeCanvas::layoutDetail()
                                                                                                               : t == 8 ? "TAIL TYPE RAW: the resonant BAND-PASS SWEEP (DOWN / UP / DOWN-UP / UP-DOWN / CUSTOM; SYNC / FREE / BODY END) and the character: GROWL, CRUNCH + the 8 TAIL macros."
                                                                                                                        : t == 9 ? "TAIL TYPE RAW: the subtle reverb (after the attack, no lows), the SUB (clean sine on the pitch, mono), the WIDTH of the highs, the tail shape."
                                                                                                                                 : t == 10 ? "TAIL TYPE EXPERIMENTAL: the OSCILLATOR (+ CUSTOM WAVETABLE), the real FM ENGINE, NOISE, the RING SOURCE, and the PITCH CURVE (8 shapes)."
+                                                                                                                                          : t == 16 ? "TAIL RISE: the end of the tail GROWS - synced to the BPM grid (or the kick length): START / AMOUNT / CURVE / END, the MODE (POWER / RAW / PITCH / HARMONIC / HYBRID) and the HYBRID layers."
                                                                                                                                           : t == 15 ? "TAIL TYPE EXPERIMENTAL: LFO 1 / LFO 2 / RANDOM (FIXED SEED) / MANUAL CURVE, FM / SHIFT mod, the 8 TAIL macros, the SUB (lows mono), WIDTH, the tail shape."
                                                                                                                                                     : "TAIL TYPE EXPERIMENTAL: the FX SLOTS - the slot order is the processing order (MOVE swaps a slot with the one before it). Each: TYPE, MIX, AMOUNT, PARAM, MOD SOURCE + DEPTH."));
         const int tw = 108, step = tw + 4;
         int right = detailArea.getRight() - 14; for (int u = nAll - 1; u > t; --u) if (isAllowed (u)) right -= step;
         detTab[t].setBounds (right - tw, detailArea.getY() + 6, tw, 22);
-        if (t == (allowed.empty() ? 0 : allowed.front())) detDice.setBounds (right - tw - 100, detailArea.getY() + 6, 92, 22);
+        if (t == (allowed.empty() ? 0 : *std::min_element (allowed.begin(), allowed.end()))) detDice.setBounds (right - tw - 100, detailArea.getY() + 6, 92, 22);   // (left of the LEFTMOST tab)
         detTab[t].setColour (TextButton::buttonColourId, t == detailPage ? palette().red.withAlpha (0.5f) : palette().control);
     }
     const int y0 = y;
@@ -991,7 +1023,7 @@ void GeCanvas::paint (Graphics& g)
     g.drawText ("v" + String (versionText), tx, 58, 60, 24, Justification::centredLeft);
     g.setFont (lnf.font (13.f, doomsday::flat::Medium));
     auto label = [&] (Component* comp, const char* t) { if (comp != nullptr) g.drawText (t, comp->getX() - 72, 52, 64, 36, Justification::centredRight); };
-    label (&styleStrip, "Style"); label (&lengthSlider, "Length"); label (kickEndTop, "Kick end");
+    label (&lengthSlider, "Length"); label (kickEndTop, "Kick end");
     // the INFO LINE = the status bar at the bottom (what is under the mouse)
     g.setColour (c.panel.darker (0.12f)); g.fillRect (infoArea);
     g.setColour (c.line); g.drawHorizontalLine (infoArea.getY(), 0.f, (float) W);
@@ -1144,6 +1176,13 @@ void GeCanvas::openHelp()
 
 std::vector<Component*> GeCanvas::inspectorNow() const
 {
+    if (laneSel == 2 && punchTypeIdx() == 4)                                       // PUNCH TYPE RAW: only the picked architecture's knobs
+    {
+        const String keep = (int) raw (proc, P::rpType) == 1 ? "rk_" : "rc_";
+        std::vector<Component*> v;
+        for (auto* c : ovPunch[4]) for (auto& [id, comp] : byId) if (comp == c && id.startsWith (keep)) { v.push_back (c); break; }
+        return v;
+    }
     if (laneSel == 2) return ovPunch[(size_t) punchTypeIdx()];
     if (laneSel == 4) return ovTail[(size_t) tailTypeIdx()];
     return inspector[(size_t) laneSel];
@@ -1540,23 +1579,31 @@ std::vector<int> GeCanvas::allowedTabs() const                                //
         const int m = (int) raw (proc, P::punchMode);
         if (m == 4) return { 4, 5 };                                              // PUNCH TYPE ZAAG + THE FRONT
         if (m == 5) return { 6, 5 };                                              // PUNCH TYPE CLASSIC (EARLY) + THE FRONT
+        if (m == 6) return { 7, 5 };                                              // PUNCH TYPE RAW + THE FRONT
         return { m <= 1 ? 0 : m == 2 ? 1 : 2, 3, 5 };                               // + SUB / BLEND + THE FRONT (TOK / CLICK / SUB PUNCH)
     }
     if (selected == 2)
     {
         const int e = (int) raw (proc, P::tailEngine);
-        if (e == 1) return { 2, 3 };
-        if (e == 2) return { 4, 5, 6 };
-        if (e == 3) return { 7, 8, 9 };                                           // TAIL TYPE RAW
-        if (e == 4) return { 10, 11, 12, 13, 14, 15 };                            // TAIL TYPE EXPERIMENTAL
-        return { 0, 1 };
+        if (e == 1) return { 2, 3, 16 };                                          // (+ TAIL RISE with every TAIL TYPE)
+        if (e == 2) return { 4, 5, 6, 16 };
+        if (e == 3) return { 7, 8, 9, 16 };                                       // TAIL TYPE RAW
+        if (e == 4) return { 10, 11, 12, 13, 14, 15, 16 };                        // TAIL TYPE EXPERIMENTAL
+        return { 0, 1, 16 };
     }
-    return { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+    return { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
 }
 bool GeCanvas::hiddenByVariant (Component* c) const
 {
     // ZAAG VARIANT (owner 2026-11-15): each variant shows only its own knobs. Everything still works underneath (presets, automation);
     // RESONANT shows the whole sweep + resonator, the others hide what they do not use.
+    if (selected == 0 && (int) raw (proc, P::punchMode) == 6)                         // PUNCH TYPE RAW: only the picked architecture's knobs
+    {
+        const bool cracking = (int) raw (proc, P::rpType) == 1;
+        for (auto& [id, comp] : byId)
+            if (comp == c && (id.startsWith ("rc_") || id.startsWith ("rk_"))) return cracking ? id.startsWith ("rc_") : id.startsWith ("rk_");
+        return false;
+    }
     if (selected != 2 || (int) raw (proc, P::tailEngine) != 2) return false;
     static const std::vector<const char*> hide[4] {
         { "zg_sw_reopen", "zg_sw_hold", "zg_rsn_reso", "zg_rsn_width", "zg_rsn_pos" },             // CLASSIC: the tutorial chain, a simple resonator
@@ -1574,7 +1621,7 @@ bool GeCanvas::hiddenByVariant (Component* c) const
 void GeCanvas::timerCallback()
 {
     {   // the TYPE changed (a click, undo, a preset): show its tabs
-        const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine), zv = (int) raw (proc, P::zgVariant);
+        const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine), zv = (int) raw (proc, P::zgVariant) + 10 * (int) raw (proc, P::rpType);
         if (pm != shownPunchType || te != shownTailType || zv != shownZgVariant)
         { shownPunchType = pm; shownTailType = te; shownZgVariant = zv; layoutDetail(); applyOverview(); repaint(); }
     }

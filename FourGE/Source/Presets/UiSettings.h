@@ -35,7 +35,7 @@ namespace fge::ui
                 s.tooltips = xml->getBoolAttribute ("tooltips", true);
                 s.infoLine = xml->getBoolAttribute ("infoLine", true);
                 s.startPage = juce::jlimit (-1, 14, xml->getIntAttribute ("startPage", 0));
-                s.lastPage = juce::jlimit (0, 14, xml->getIntAttribute ("lastPage", 0));
+                s.lastPage = juce::jlimit (0, 15, xml->getIntAttribute ("lastPage", 0));
                 s.theme = juce::jlimit (0, 1, xml->getIntAttribute ("look", 0));
                 s.mainView = juce::jlimit (0, 1, xml->getIntAttribute ("mainView", 0));     // ("theme" = the old SMOKE default: GUI v2 starts CLEAN)
             }

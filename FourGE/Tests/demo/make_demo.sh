@@ -2,7 +2,7 @@
 # THE KICK TEST (owner 2026-11-16): every kick is judged in context - "EVERYBODY SCREAM", 150 BPM:
 #   the bass line = 4GE kicks (everybody_scream_kick.mid), the melody = 5CR34M 4LPH4 "SCREECH - Owner 9 evbd scrm"
 #   (everybody_scream_melody.mid = the owner's Melo.mid two octaves up), mixed with the melody matched to the kick by RMS.
-# usage: FourGE/Tests/demo/make_demo.sh <4GE preset.4gp | -> <out.mp3> [4GE id=value ...]
+# usage: FourGE/Tests/demo/make_demo.sh <4GE preset.4gp | - | "factory:<name>"> <out.mp3> [4GE id=value ...]
 # needs: FourGE + ScreamAlpha RenderTest built (cmake ... -DPROPHECY_BUILD_TESTS=ON), python3 + scipy, ffmpeg
 set -e
 D="$(cd "$(dirname "$0")" && pwd)"; R="$(cd "$D/../../.." && pwd)"; T="$(mktemp -d)"

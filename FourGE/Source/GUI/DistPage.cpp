@@ -212,7 +212,7 @@ namespace fge::gui
         downBtn.onClick = [this] { if (stageSel >= 0) distt::move (proc, stageSel, 1); };
         delBtn.onClick = [this] { if (stageSel >= 0) { distt::remove (proc, stageSel); stageSel = -1; } };
         presetBtn.onClick = [this] { showPresetMenu(); };
-        randBtn.setTooltip ("RANDOMIZE this chain: the stages' knobs (sometimes the type) and maybe a NEW random stage - more at a higher RANDOMIZE STRENGTH (top bar). One undo step, the level stays.");
+        randBtn.setTooltip ("RANDOMIZE this chain: the stages' knobs (sometimes the type) and maybe a NEW random stage - more at a higher VARIATION (page VARIATION). One undo step, the level stays.");
         randBtn.onClick = [this] { fge::pagernd::randomizeDist (proc, locSel); };
         addAndMakeVisible (randBtn);
         saveBtn.onClick = [this] { saveFile(); }; loadBtn.onClick = [this] { loadFile(); };

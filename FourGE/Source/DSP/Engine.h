@@ -18,6 +18,8 @@
 #include "Tone/ZaagTail.h"
 #include "Core/ZaagPunch.h"
 #include "Core/ClassicPunch.h"
+#include "Core/RawPunch.h"
+#include "Tone/TailRise.h"
 #include "Tone/RawTail.h"
 #include "Tone/ExpTail.h"
 #include "Front/Click.h"
@@ -57,6 +59,7 @@ namespace fge
         float endHz = 49.f, fineMul = 1.f, subHz = 49.f;
         bool keyTrack = true;
         bool startFixed = false;                  // the TOK (pitch START) at a fixed pitch (owner 2026-11-09)
+        float humanPitch = 1.f;                   // KICK VARIATION - HUMANIZE: this hit's pitch factor (set per hit by the engine)
         bool tokMode = false, tokFixed = true;    // PUNCH / TOK -> TAIL: the punch is the tok (its own note), the tail starts after it
         float tokHz = 400.f, tailStartMs = 0.f, tokOverlapMs = 4.f;
         dsp::room::Settings room;
@@ -68,6 +71,8 @@ namespace fge
         dsp::zaag::Settings zaag;                 // TAIL TYPE ZAAG (owner 2026-11-14 / 15)
         dsp::front::ClickSettings click; dsp::front::TokSettings tok; dsp::front::SubPunchSettings spk; float zgSend = 0.f;   // the FRONT (owner 2026-11-16)
         dsp::classicpunch::Settings cpunch;      // PUNCH TYPE CLASSIC (EARLY REWORK, owner 2026-11-16)
+        dsp::rawpunch::Settings rpunch;
+        dsp::rise::Settings rise;                // TAIL RISE (owner 2026-11-21): the end of the tail grows, BPM-grid synced          // PUNCH TYPE RAW: RAW CLASSIC / RAW 2015-2017 CRACKING (owner 2026-11-21)
         dsp::zaagpunch::Settings zpunch;          // PUNCH TYPE ZAAG (ARCHITECTURE.md rule 0: the punch lives in the PUNCH ENGINE)
         dsp::color::Settings color;               // TAIL COLOR after the tail's distortion (owner 2026-11-12)                 // the TAIL room before its distortion (EARLY, owner 2026-11-12)
         int tokNoteMode = 0;                      // 0 FIXED / 1 FOLLOW MIDI / 2 OFFSET (the played note + tokOffsetMul)
@@ -130,7 +135,7 @@ namespace fge
             using namespace dsp;
             srcAmp = {}; srcPitch = 1.f; srcFilt = 0.f;
             active = true; t = 0.0; shSubPh = 0.f; age = order; vel = velocityGain; fade = 1.f; fadeStep = 0.f; held = true; ctl = 0; relAtMs = -1.f; noteNum = note;
-            noteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f);
+            noteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f) * cfg.humanPitch;
             const uint32_t seed = 0x9e3779b9u * (uint32_t) (note + 1) + cfg.seedSalt * 0x632BE5ABu;   // module 12: SEED (0 = as always)
             punch.start (cfg.ks.part[PPunch], phases01[PPunch], seed ^ 0x1234u);
             body.start  (cfg.ks.part[PBody],  phases01[PBody],  seed ^ 0x5678u);
@@ -243,7 +248,8 @@ namespace fge
                 // ---- pitch of every part
                 const float tokNow = cfg.tokMode ? tokHz * tokBendAt (cfg, ms) : 0.f;
                 // TOK: before the tail starts it runs at the tok's pitch (same note, same phase) - the hand-over has no pitch / phase step
-                const float fTail = juce::jlimit (5.f, nyq, cfg.tokMode && ms < cfg.tailStartMs ? tokNow : endEff * std::exp2 (pe.semis (PTail, ms) / 12.f));
+                const float fTail = juce::jlimit (5.f, nyq, (cfg.tokMode && ms < cfg.tailStartMs ? tokNow : endEff * std::exp2 (pe.semis (PTail, ms) / 12.f))
+                                                            * (cfg.rise.on ? dsp::rise::pitchFactor (cfg.rise, ms) : 1.f));   // TAIL RISE: PITCH layer
                 const float gate = juce::jlimit (0.f, 1.f, (ks.lengthMs - ms) / juce::jmax (0.5f, fadeLen)) * vel * fade;
                 // ---- module 03: the oscillators, pitched by the part they follow, feed the part inputs
                 std::array<float, 4> ext {};
@@ -442,7 +448,7 @@ namespace fge
             limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
             muteG = 1.f;
             tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor); tailColor.reset();
-            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor); zaagU.prepare (sampleRate * osFactor); rawU.prepare (sampleRate * osFactor); expU.prepare (sampleRate * osFactor); zpU.prepare (sampleRate * osFactor); cpU.prepare (sampleRate * osFactor);
+            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor); zaagU.prepare (sampleRate * osFactor); rawU.prepare (sampleRate * osFactor); expU.prepare (sampleRate * osFactor); zpU.prepare (sampleRate * osFactor); cpU.prepare (sampleRate * osFactor); rpU.prepare (sampleRate * osFactor); riseU.prepare (sampleRate * osFactor);
             clkU.prepare (sampleRate * osFactor); tokU.prepare (sampleRate * osFactor); spkU.prepare (sampleRate * osFactor);
             sendBuf.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             for (auto& u : *spcUnits)
@@ -540,10 +546,19 @@ namespace fge
             KickVoice* slot = nullptr;
             for (auto& v : voices) if (! v.isActive()) { slot = &v; break; }
             if (slot == nullptr) { slot = &voices[0]; for (auto& v : voices) if (v.order() < slot->order()) slot = &v; }
-            const float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
+            float velGain = 1.f - cfg.ks.velSens * (1.f - juce::jlimit (0.f, 1.f, velocity));
+            // KICK VARIATION - HUMANIZE (owner 2026-11-20): a small, seeded difference per hit (pitch +-12 cents, level +-0.8 dB at 100 %)
+            cfg.humanPitch = 1.f;
+            if (const float hz = frame[P::kvHumanize]; hz > 0.f)
+            {
+                auto rnd = [] (uint32_t x) { x ^= x >> 16; x *= 0x7feb352du; x ^= x >> 15; x *= 0x846ca68bu; x ^= x >> 16; return (float) (x & 0xffffff) / 8388607.5f - 1.f; };
+                const uint32_t h = (uint32_t) counter * 0x9E3779B1u + cfg.seedSalt * 0x85EBCA77u + 0x27d4eb2fu;
+                cfg.humanPitch = std::exp2 (hz * 12.f * rnd (h) / 1200.f);
+                velGain *= juce::Decibels::decibelsToGain (hz * 0.8f * rnd (h ^ 0x5bd1e995u));
+            }
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
-            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); rawU.reset(); expU.resetFor (cfg.exp); expU.seedFor (note, cfg.exp.fixedSeed, (uint32_t) counter); zpU.reset(); cpU.reset(); clkU.reset(); tokU.reset(); spkU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); rawU.reset(); expU.resetFor (cfg.exp); expU.seedFor (note, cfg.exp.fixedSeed, (uint32_t) counter); zpU.reset(); cpU.reset(); rpU.reset(); riseU.reset(); clkU.reset(); tokU.reset(); spkU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
@@ -1065,6 +1080,33 @@ namespace fge
                     q.satDb = f[P::cpSat]; q.asym = f[P::cpAsym]; q.satDecayMs = f[P::cpSatDecay]; q.wsType = f.idx (P::cpWsType); q.wsDb = f[P::cpWsDb]; q.transCtrl = f[P::cpTransCtrl];
                     q.attackMs = f[P::cpAttack]; q.holdMs = f[P::cpHold]; q.decayMs = f[P::cpDecay]; q.decayCurve = f[P::cpDecayCurve];
                 }
+                {                                                                   // PUNCH TYPE RAW (owner 2026-11-21, RAW_PUNCH.md): two architectures, own knobs each
+                    auto& q = cfg.rpunch;
+                    q.on = f.idx (P::punchMode) == 6; q.type = f.idx (P::rpType); q.kickMs = cfg.ks.lengthMs;
+                    if (q.type == 0)
+                    {
+                        q.snap = f[P::rcSnap]; q.crack = f[P::rcCrack]; q.crackDecayMs = f[P::rcCrackDecay]; q.coupling = f[P::rcCoupling];
+                        q.startHz = f[P::rcStart]; q.dropMs = f[P::rcDrop]; q.endSt = f[P::rcEnd]; q.decayMs = f[P::rcDecay]; q.driveDb = f[P::rcDrive];
+                        q.density = f[P::rcDensity]; q.crackHz = f[P::rcCrackHz];
+                    }
+                    else
+                    {
+                        q.snap = f[P::rkSnap]; q.crack = f[P::rkCrack]; q.crackDecayMs = f[P::rkCrackDecay]; q.coupling = f[P::rkCoupling];
+                        q.startHz = f[P::rkStart]; q.dropMs = f[P::rkDrop]; q.endSt = f[P::rkEnd]; q.decayMs = f[P::rkDecay]; q.driveDb = f[P::rkDrive];
+                        q.density = f[P::rkDensity]; q.edge = f[P::rkEdge]; q.tone = f[P::rkTone]; q.dynamic = f[P::rkDynamic];
+                    }
+                }
+                {                                                                   // TAIL RISE (owner 2026-11-21): the window from the BPM GRID (or the kick length)
+                    auto& q = cfg.rise;
+                    q.on = f.on (P::rsOn); q.kickMs = cfg.ks.lengthMs;
+                    static const double beats[5] { 0.25, 0.5, 1.0, 2.0, 4.0 };
+                    const double gridMs = 60000.0 / juce::jlimit (30.0, 400.0, tempo()) * beats[juce::jlimit (0, 4, f.idx (P::rsGrid))];
+                    const float span = f.idx (P::rsSync) == 0 ? (float) gridMs : cfg.ks.lengthMs;
+                    q.startMs = span * f[P::rsStart]; q.endMs = span;
+                    q.curve = f.idx (P::rsCurve); q.release = f.idx (P::rsRelease); q.mode = f.idx (P::rsMode); q.amount = f[P::rsAmount];
+                    q.gain = f[P::rsGain]; q.pitch = f[P::rsPitch]; q.drive = f[P::rsDrive]; q.harm = f[P::rsHarm]; q.filter = f[P::rsFilter]; q.noise = f[P::rsNoise];
+                    q.pitchRangeSt = f[P::rsPitchRange];
+                }
                 auto& zp = cfg.zpunch;                                              // PUNCH TYPE ZAAG
                 zp.on = f.idx (P::punchMode) == 4;
                 zp.click = f[P::zgClick]; zp.piep = f[P::zgPiep]; zp.piepHz = f[P::zgPiepHz]; zp.piepMs = f[P::zgPiepMs];
@@ -1237,12 +1279,13 @@ namespace fge
                 const auto g0 = gainNow[(size_t) c], g1 = gainTarget[(size_t) c];
                 const float* x = b[c];
                 const bool wideTail = c == 2 && cfg.wide;
-                const bool roomHere = cfg.room.on && ((c == 2 && ! cfg.zaag.on && ! cfg.pvcTail.on && ! cfg.raw.on && ! cfg.exp.on) || (c == 0 && cfg.room.onTok && ! cfg.zpunch.on && ! cfg.cpunch.on));   // (the classic room: not on the engine parts)
+                const bool roomHere = cfg.room.on && ((c == 2 && ! cfg.zaag.on && ! cfg.pvcTail.on && ! cfg.raw.on && ! cfg.exp.on) || (c == 0 && cfg.room.onTok && ! cfg.zpunch.on && ! cfg.cpunch.on && ! cfg.rpunch.on));   // (the classic room: not on the engine parts)
                 auto* room = c == 0 ? tokRoom.get() : tailRoom.get();
                 if (roomHere) room->cook (cfg.room);
                 const bool colorHere = c == 2 && cfg.color.on && ! cfg.pvcTail.on && ! cfg.zaag.on && ! cfg.raw.on && ! cfg.exp.on;
-                const bool pvcHere = (c == 2 && (cfg.pvcTail.on || cfg.zaag.on || cfg.raw.on || cfg.exp.on)) || (c == 0 && (cfg.zpunch.on || cfg.cpunch.on));   // an ENGINE replaces the part's source (rule 0: one engine per part)
+                const bool pvcHere = (c == 2 && (cfg.pvcTail.on || cfg.zaag.on || cfg.raw.on || cfg.exp.on)) || (c == 0 && (cfg.zpunch.on || cfg.cpunch.on || cfg.rpunch.on));   // an ENGINE replaces the part's source (rule 0: one engine per part)
                 const float noteNow = lastNoteHz * cfg.fineMul;
+                auto noteTail = [&] (int i) { return c == 2 && cfg.rise.on ? noteNow * dsp::rise::pitchFactor (cfg.rise, msAt (i)) : noteNow; };   // TAIL RISE: PITCH on the tail engines
                 if (colorHere) tailColor.cook (cfg.color, cfg.keyTrack ? lastNoteHz * cfg.fineMul : cfg.endHz * cfg.fineMul, cfg.ks.rate);
                 float p = 0.f;
                 for (int i = 0; i < on; ++i)
@@ -1251,11 +1294,12 @@ namespace fge
                     const float gl = g0.first + (g1.first - g0.first) * u, gr = g0.second + (g1.second - g0.second) * u;
                     float yl, yr;
                     if (pvcHere && c == 0 && cfg.cpunch.on) { yl = yr = cpU.process (cfg.cpunch, msAt (i), noteNow); }   // PUNCH TYPE CLASSIC (EARLY)
+                    else if (pvcHere && c == 0 && cfg.rpunch.on) { yl = yr = rpU.process (cfg.rpunch, msAt (i), noteNow); }   // PUNCH TYPE RAW
                     else if (pvcHere && c == 0) zpU.process (cfg.zpunch, msAt (i), noteNow, yl, yr);                  // PUNCH TYPE ZAAG
-                    else if (pvcHere && cfg.exp.on) expU.process (cfg.exp, msAt (i), noteNow, yl, yr);              // TAIL TYPE EXPERIMENTAL
-                    else if (pvcHere && cfg.raw.on) rawU.process (cfg.raw, msAt (i), noteNow, yl, yr);              // TAIL TYPE RAW
-                    else if (pvcHere && cfg.zaag.on) zaagU.process (cfg.zaag, msAt (i), noteNow, yl, yr, cfg.zgSend > 0.f ? sendBuf[(size_t) i] : 0.f);   // TAIL TYPE ZAAG (+ ZAAG SEND)
-                    else if (pvcHere) pvcU.process (cfg.pvcTail, b[1][i], msAt (i), noteNow, yl, yr);   // (the room after it = the reverb after the cut)
+                    else if (pvcHere && cfg.exp.on) expU.process (cfg.exp, msAt (i), noteTail (i), yl, yr);              // TAIL TYPE EXPERIMENTAL
+                    else if (pvcHere && cfg.raw.on) rawU.process (cfg.raw, msAt (i), noteTail (i), yl, yr);              // TAIL TYPE RAW
+                    else if (pvcHere && cfg.zaag.on) zaagU.process (cfg.zaag, msAt (i), noteTail (i), yl, yr, cfg.zgSend > 0.f ? sendBuf[(size_t) i] : 0.f);   // TAIL TYPE ZAAG (+ ZAAG SEND)
+                    else if (pvcHere) pvcU.process (cfg.pvcTail, b[1][i], msAt (i), noteTail (i), yl, yr);   // (the room after it = the reverb after the cut)
                     else if (wideTail)
                     {
                         // lows of the plain centre + mids / highs of the detuned sides as mid / side (LR4: sums flat)
@@ -1285,6 +1329,7 @@ namespace fge
                         const float cg = juce::jlimit (0.f, 1.f, 1.f - (msAt (i) - relMs) / 5.f);
                         yl *= cg; yr *= cg;
                     }
+                    if (c == 2 && cfg.rise.on) riseU.process (cfg.rise, msAt (i), yl, yr);                                                    // TAIL RISE: the tail's end grows (its own layers)
                     if (roomHere) room->process (cfg.room, yl, yr, juce::jlimit (0.f, 1.f, (cfg.ks.lengthMs - msAt (i)) / 40.f));               // TAIL ROOM: before everything that distorts the tail
                     if (m6 && cfg.m06.at (c + 1, 0)) m06St->process (cfg.m06, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate);   // module 06 BEFORE
                     if (m7 && cfg.tone.at (c + 1, 0)) toneSt->process (cfg.tone, c + 1, 0, yl, yr, m6Ctx (i), cfg.ks.rate); // module 07 BEFORE
@@ -1488,6 +1533,8 @@ namespace fge
         dsp::zaag::Unit zaagU; dsp::raw::Unit rawU; dsp::exper::Unit expU;
         dsp::zaagpunch::Unit zpU;
         dsp::classicpunch::Unit cpU;
+        dsp::rawpunch::Unit rpU;
+        dsp::rise::Unit riseU;
         dsp::front::ClickUnit clkU; dsp::front::TokUnit tokU; dsp::front::SubPunchUnit spkU;
         std::vector<float> sendBuf;                                         // ZAAG SEND: TOK + PUNCH of this block -> the ZAAG cascade
         std::unique_ptr<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>> spcUnits = std::make_unique<std::array<dsp::spatial::Unit, dsp::spatial::NumTargets>>();   // module 11

@@ -39,7 +39,8 @@ namespace fge::style
         if (id.startsWith ("punch_")) return false;                    // PUNCH / TOK: the tok's own length / envelope is its character, not the kick length
         if (id.startsWith ("tail_room")) return false;                 // the TAIL ROOM decay is its character (it never makes the kick longer)
         if (id.startsWith ("noise")) return false;
-        if (id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_") || id.startsWith ("cp_") || id.startsWith ("rw_") || id.startsWith ("ex_")) return false;   // the FRONT layers' own lengths = their character
+        if (id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_") || id.startsWith ("cp_") || id.startsWith ("rw_") || id.startsWith ("ex_")
+            || id.startsWith ("rc_") || id.startsWith ("rk_") || id.startsWith ("rs_")) return false;   // the FRONT layers' own lengths = their character (+ RAW PUNCH, TAIL RISE)
         if (id.startsWith ("pvc_") || id.startsWith ("pt_") || id.startsWith ("zg_")) return false;   // PVC punch length / tail length = the PVC character (owner 2026-11-14)                     // a noise layer's decay / length is its character (EUPHORIC's grain), not the kick length
         return id == "core_length" || id == "core_auto_length" || id.endsWith ("_length") || id.endsWith ("_decay") || id.endsWith ("_release")
                || id.endsWith ("_sustain") || id.contains ("_length_") || id.endsWith ("_hold");
@@ -48,7 +49,7 @@ namespace fge::style
     {
         const juce::String id (def (i).id);
         if (isLength (id)) return false;
-        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_", "zg_", "cp_", "rw_", "ex_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
+        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_", "zg_", "cp_", "rw_", "ex_", "rp_", "rc_", "rk_", "rs_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
         if (id.startsWith ("dist")) return true;                         // the whole distortion pool (dist1..16 + dist_ globals)
         if ((id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_")) && ! id.endsWith ("_mode")) return true;   // the FRONT profiles (never the user's AUTO / ON / OFF)
         return id == "master_clip_drive";
@@ -194,6 +195,21 @@ namespace fge::style
             default: return {};                                                // EXPERIMENTAL / EUPHORIC / PVC / ZAAG: AUTO = off (the defaults)
         }
     }
+    // TAIL RISE per style (owner 2026-11-21, TAIL_RISE.md 9): starting values only - the user changes them
+    inline std::vector<std::pair<const char*, float>> riseProfile (int s)
+    {
+        switch (s)
+        {
+            case Early:        return { { "rs_on", 0 }, { "rs_amount", 0.f } };
+            case Modern:       return { { "rs_on", 1 }, { "rs_mode", 0 }, { "rs_amount", 0.35f } };
+            case Raw:          return { { "rs_on", 1 }, { "rs_mode", 1 }, { "rs_amount", 0.55f } };
+            case Experimental: return { { "rs_on", 1 }, { "rs_mode", 4 }, { "rs_amount", 0.65f } };
+            case Euphoric:     return { { "rs_on", 1 }, { "rs_mode", 4 }, { "rs_amount", 0.3f }, { "rs_gain", 0.6f }, { "rs_pitch", 0.4f }, { "rs_drive", 0.f }, { "rs_harm", 0.f }, { "rs_filter", 0.f } };   // POWER / PITCH
+            case Pvc:          return { { "rs_on", 1 }, { "rs_mode", 0 }, { "rs_amount", 0.25f } };
+            case Zaag:         return { { "rs_on", 1 }, { "rs_mode", 3 }, { "rs_amount", 0.45f } };
+            default:           return {};
+        }
+    }
     // every in-scope parameter's value for a style (defaults + the template + the chain)
     inline std::vector<std::pair<int, float>> values (int s)
     {
@@ -203,6 +219,7 @@ namespace fge::style
         const auto& t = templ (s);
         for (auto& [id, x] : t.values) if (const int i = indexOf (id); i >= 0 && scope[(size_t) i]) v[(size_t) i] = x;
         for (auto& [id, x] : frontProfile (s)) if (const int i = indexOf (id); i >= 0 && scope[(size_t) i]) v[(size_t) i] = x;
+        for (auto& [id, x] : riseProfile (s)) if (const int i = indexOf (id); i >= 0 && scope[(size_t) i]) v[(size_t) i] = x;
         std::array<int, 16> ord {};
         for (size_t k = 0; k < t.chain.size(); ++k)
         {

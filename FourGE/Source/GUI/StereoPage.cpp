@@ -94,7 +94,7 @@ namespace fge::gui
         monoBtn.setTooltip ("MONO AUDITION: listen in mono (L + R) - only for your ears, the preset does not change.");
         monoBtn.onClick = [this] { proc.monoAudition.store (monoBtn.getToggleState()); };
         addAndMakeVisible (monoBtn);
-        randBtn.setTooltip ("RANDOMIZE this page only (the strength = the RANDOMIZE STRENGTH knob in the top bar). One undo step, the level stays.");
+        randBtn.setTooltip ("RANDOMIZE this page only (the strength = VARIATION on the page VARIATION). One undo step, the level stays.");
         randBtn.onClick = [this] { fge::pagernd::randomizeIds (proc, visibleIds(), "stereo"); };
         addAndMakeVisible (randBtn);
         lockTgl = std::make_unique<doomsday::flat::Toggle> (proc.apvts, "spc_sub_mono_lock", "SUB MONO LOCK", doomsday::flat::Toggle::Pill, palette().part[3]);

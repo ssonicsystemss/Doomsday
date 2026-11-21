@@ -30,6 +30,7 @@
 #include "AnalysisPage.h"
 #include "NavBar.h"
 #include "SettingsPage.h"
+#include "VariationPage.h"
 #include "Palette.h"
 #include "GeLook.h"
 #include "HelpPanel.h"
@@ -45,11 +46,11 @@ public:
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
     void selectPart (int);
-    void tailTab (int t) { detailPage = juce::jlimit (0, 15, t); layoutDetail(); repaint(); }
+    void tailTab (int t) { detailPage = juce::jlimit (0, 16, t); layoutDetail(); repaint(); }
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
-    void showPage (int);                                             // 0 MAIN 1 ENV 2 OSC 3 LAYERS 4 DIST 5 SCREECH 6 EQ 7 DYN 8 MOD 9 SMP 10 STEREO 11 EXPORT 12 PRESETS 13 ANALYZE 14 SETTINGS
+    void showPage (int);                                             // 0 MAIN 1 ENV 2 OSC 3 LAYERS 4 DIST 5 SCREECH 6 EQ 7 DYN 8 MOD 9 SMP 10 STEREO 11 EXPORT 12 PRESETS 13 ANALYZE 14 SETTINGS 15 VARIATION
     fge::gui::OscPage& oscillators() { return *oscPage; }
     fge::gui::LayerPage& layersPage() { return *layerPage; }
     fge::gui::DistPage& distPage() { return *distortionPage; }
@@ -64,6 +65,7 @@ public:
     fge::gui::AnalysisPage& analysisPage() { return *anPg; }
     fge::gui::NavBar& navigation() { return nav; }
     fge::gui::SettingsPage& settingsPage() { return *setPg; }
+    fge::gui::VariationPage& variationPage() { return *varPg; }
     // module 17: the INFO LINE (what is under the mouse / the page), files dropped anywhere, the knob menu, shortcuts, the size
     juce::String infoFor (juce::Component*);                        // (tests) the info text of a control
     juce::String infoLine() const { return infoText; }
@@ -136,6 +138,7 @@ private:
     int selected = 2;
     int pageIdx = 0;
     std::unique_ptr<fge::gui::EnvPage> envPage;
+    std::unique_ptr<fge::gui::VariationPage> varPg;                   // page 15 KICK VARIATION (owner 2026-11-20)
     std::unique_ptr<fge::gui::OscPage> oscPage;
     std::unique_ptr<fge::gui::LayerPage> layerPage;
     std::unique_ptr<fge::gui::DistPage> distortionPage;
@@ -162,7 +165,7 @@ private:
     juce::ComboBox punchSub; int punchSubFamily = -1;                // PUNCH SUBTYPE (owner 2026-11-16): a profile of the family (Presets/PunchSubtypes.h)
     juce::ComboBox tokNote;                                          // TOK NOTE: sets START to a note (owner 2026-11-09)
     juce::Component detailPageMark;                                 // (a marker in a part's detail list: the items after it = the 2nd tab)
-    juce::TextButton detTab[16];
+    juce::TextButton detTab[17];
     int detailPage = 0;
     void syncTokNote();
 public:
@@ -190,7 +193,7 @@ private:
     // MAIN OVERVIEW (ARCHITECTURE.md step 3, owner's sketch): PUNCH | TAIL side by side (TYPE + its key knobs + ALL PARAMETERS),
     // a strip CLICK / SUB PUNCH / BODY / SCREECH / MIX, MASTER; ALL PARAMETERS (or a click on a part) = the full detail view
     bool overview = true;
-    std::array<std::vector<juce::Component*>, 4> ovPunch;
+    std::array<std::vector<juce::Component*>, 5> ovPunch;
     std::array<std::vector<juce::Component*>, 3> ovTail;
     std::array<std::vector<juce::Component*>, 5> ovStrip;
     std::vector<juce::Component*> ovMaster;

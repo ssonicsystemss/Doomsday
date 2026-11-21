@@ -22,7 +22,8 @@ namespace fge::gui
         {
             static const std::vector<Block> b {
                 { "KICK", { { 0, "MAIN", "01 13 14", "The kick: pitch engine, the central waveform, the four parts (PUNCH / BODY / TAIL / SUB), sources and the core mixer." },
-                            { 1, "ENVELOPES", "02", "Draw the pitch / amplitude / filter / distortion / resonance envelope of every part." } } },
+                            { 1, "ENVELOPES", "02", "Draw the pitch / amplitude / filter / distortion / resonance envelope of every part." },
+                            { 15, "VARIATION", "09", "KICK VARIATION: the kick's DNA, MUTATE into new versions, MORPH between them, HUMANIZE." } } },
                 { "SYNTHESIS", { { 2, "OSCILLATORS", "03", "Four extra oscillators (waveforms, wavetables, harmonics, unison, FM, ring, sync) routed into the parts." },
                                  { 3, "LAYERS", "04", "Noise generators, the transient engine and 8 layers with groups and routing." },
                                  { 9, "SAMPLES", "10", "8 sample slots (WAV / AIFF / FLAC): the waveform editor, loop / fades / reverse, the browser - each slot is one more layer." } } },

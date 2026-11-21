@@ -77,7 +77,7 @@ namespace fge::gui
         resetBtn.onClick = [this] { if (kind() >= 0) m08t::resetProc (proc, kind(), sel); };
         maxBtn.onClick = [this] { proc.getEngine().resetMeterMax(); };
         for (Component* c : std::initializer_list<Component*> { &presetBtn, &saveBtn, &loadBtn, &abBtn, &copyBtn, &pasteBtn, &resetBtn, &maxBtn }) addAndMakeVisible (c);
-        randBtn.setTooltip ("RANDOMIZE this page only (the strength = the RANDOMIZE STRENGTH knob in the top bar). One undo step, the level stays.");
+        randBtn.setTooltip ("RANDOMIZE this page only (the strength = VARIATION on the page VARIATION). One undo step, the level stays.");
         randBtn.onClick = [this] { fge::pagernd::randomizeIds (proc, visibleIds(), "dynamics"); };
         addAndMakeVisible (randBtn);
         addChildComponent (clipEd);

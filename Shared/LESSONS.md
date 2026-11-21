@@ -496,3 +496,15 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - A wide display font (Michroma) at small sizes is thin and its lower case reads tiny; its "%" looks like "0/0" ("25%" -> "250/0").
   Fix: labels in CAPITALS, producer abbreviations (LEN / ATK / REL / RES / AMT ...), brighter label grey, "%" drawn in a plain
   font, full-size fonts (no shrinking), wider segmented controls. Show the owner fonts on a real crop of the plugin, not names.
+
+## 4GE randomizer "nie pasuje" → KICK VARIATION (2026-11-20/21)
+- A professional kick tool does not "randomize knobs". It **designs versions**: DNA (what may change and which way) + STYLE (the sound
+  world) + VARIATION (how far) + HUMANIZE (per-hit, never the character). Every version is rendered, measured and checked (the note
+  locked, mono low end, the sub, KEEP must *sound* the same, a direction must *measure* that way), and the picks must differ from each other.
+- A "kept" part can still change through shared stages (master clip, EQ). Check KEEP by measurement, not only by frozen knobs.
+- Measure a part on its own time window: the pitch drop at 15–120 ms, not the start Hz. The first ms belong to the punch.
+- Owner's naming: "DNA" for him first meant the STYLE. Ask what a word means before building a whole system on it.
+
+## Note-length sync is impossible live (2026-11-21, TAIL RISE)
+- A plugin learns a MIDI note's length only at NOTE OFF; FL's render has no lookahead either. "Rise at 75 % of the note" needs the future.
+  Sync to the BPM grid instead (known at NOTE ON, same in playback and render). The owner agreed: NOTE OFF stays independent.

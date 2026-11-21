@@ -9,6 +9,7 @@
 #include "Presets/ModState.h"
 #include "Presets/SamplePool.h"
 #include "Presets/Export.h"
+#include "Presets/KvWorkspace.h"
 #include "DSP/Meter/MasterMeter.h"
 #include "DSP/Analysis/LiveTap.h"
 
@@ -170,6 +171,7 @@ public:
     std::function<void (int slot, const juce::String& error)> onSampleImported;   // (GUI)
     static float slotMin (int slot) { return fge::env::isBipolar (slot) ? -1.f : 0.f; }
     int auditionNote = 31;          // G1 in FL (49 Hz)
+    fge::kv::Workspace kvWork;      // KICK VARIATION (owner 2026-11-20): base + versions (message thread)
 
 private:
     juce::ValueTree envTree (bool create);

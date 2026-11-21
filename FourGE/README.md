@@ -4,6 +4,36 @@ Syntezator kicków hardstyle (instrument VST3, FL Studio). **Nowy 4GE zbudowany 
 17 modułów (`SPEC.md`, `MODULE01.md`…`MODULE12.md`, `MODULES13-17_overview.md`, zasady nadrzędne w `RULES.md`, plan w `PLAN.md`).
 **v0.6 = wszystkie 17 modułów** – od CORE KICK ENGINE (moduł 01) po docelowy interfejs (moduł 17).
 
+## KICK VARIATION – projektowanie kolejnych wersji kicka (2026-11-20/21)
+Zakładka **VARIATION** (blok KICK). To nie jest losowanie gałek: każda wersja jest renderowana, mierzona i sprawdzana.
+- **DNA** – co może się zmieniać i w jakim kierunku. Każda część (PITCH, PUNCH, BODY, TAIL, WEIGHT, DIRT, LENGTH, SPACE, SCREECH) ma
+  **KEEP** (nie zmienia się – sprawdzane też na słuch), **EVOLVE** (mały krok, wybierasz kierunek: np. DARKER / ANY / BRIGHTER)
+  albo **FREE** (dowolnie w ramach stylu, też typ). ANY rozkłada kierunki po wersjach (część w jedną stronę, część w drugą).
+- **STYLE** – świat brzmieniowy (EARLY … ZAAG). Nie ma go już na ekranie głównym – jest tylko tutaj.
+- **MUTATE** – 7 wersji Twojego kicka (zachowuje tożsamość BASE). Silnik robi 24 kandydatów, odrzuca te, które łamią zasady
+  (nuta się nie rusza, dół mono, sub obecny, bez clipu, KEEP brzmi tak samo, kierunek naprawdę osiągnięty), i wybiera 7 najbardziej różnych.
+- **NEW KICK IN STYLE** – 7 nowych kicków od zera w wybranym stylu.
+- **VARIATION** – jak daleko od BASE (to samo co siła RANDOMIZE). **HUMANIZE** – osobno: ta sama wersja, ale każde uderzenie minimalnie inne.
+- **MORPH** – płynnie z BASE do wybranej wersji. **SET AS BASE** – wersja staje się nowym punktem wyjścia. **BACK TO BASE**.
+- Przycisk RANDOMIZE na górze też słucha DNA.
+
+## PUNCH TYPE RAW (2026-11-21)
+Nowy typ puncha **RAW** z dwoma osobnymi silnikami (przełącznik RAW PUNCH TYPE w zakładce RAW):
+- **RAW CLASSIC** – twardy punch z kontrolowanym trzaskiem, który przechodzi w body („KRAK → DUM”).
+- **RAW 2015–2017 CRACKING** – brutalny snap, gęsty generator trzasku, body niesie jego energię („KRAK! → BRUTALNY BODY”).
+- **SNAP** = jak mocno uderza sam początek, **CRACK** = jak bardzo ten początek trzeszczy (osobny proces, nie drive).
+  **BODY COUPLING** = jak trzask łączy się z body. W CRACKING dodatkowo **DENSITY**, **EDGE**, **DARK/BRIGHT**.
+- Presety testowe: `RAW PUNCH - Classic Clean`, `Classic Crack`, `2016 Standard`, `2016 Extreme`.
+
+## TAIL RISE (2026-11-21)
+Zakładka **RISE** przy każdym typie taila: końcówka taila **narasta** zamiast tylko gasnąć.
+- Zsynchronizowane z **tempem projektu**: SIATKA 1/16 … 1 takt, START = gdzie w tej siatce zaczyna się narastanie
+  (np. 150 BPM, 1/4, 75 % → od 300 do 400 ms). Działa tak samo przy graniu i renderze; koniec nuty nic tu nie zmienia.
+  Opcja TAIL = liczone od długości kicka.
+- **MODE**: POWER (głośność z kontrolą peaków), RAW (przester + harmoniczne + szum), PITCH (tail idzie w górę), HARMONIC (jasność),
+  HYBRID (sam ustawiasz GAIN / PITCH / DRIVE / HARMONICS / FILTER / NOISE). Krzywa i koniec (FADE / HARD STOP / TAIL FOLLOW).
+- Style mają swoje ustawienia startowe (EARLY wyłączone, RAW = RAW 55 % itd.).
+
 ## NOWY WYGLĄD – GUI v2 (2026-11-19)
 Czysto i czytelnie: płaskie grafitowe panele, kolor tylko na dźwięku (fala, łuki gałek, suwaki), jedna czcionka (Barlow),
 bez zdań z objaśnieniami na ekranie – opis tego, co jest pod myszką, jest w pasku na samym dole.

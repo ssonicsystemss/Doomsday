@@ -1,7 +1,7 @@
 #pragma once
 // =====================================================================
 //  4GE - PAGE RANDOMIZE (owner 2026-11-14): a dice on every effect page / tab - it randomizes only THAT page, with the one
-//  RANDOMIZE STRENGTH (the knob next to RANDOMIZE in the top bar = the state property vrAmount): 10 % = a small variation of
+//  RANDOMIZE STRENGTH (= VARIATION on the KICK VARIATION page, the state property vrAmount): 10 % = a small variation of
 //  what you have, 100 % = something new. The STYLE stays: engine / model / mode switches are never touched; the DIST dice
 //  may ADD a stage (a random effect, more often at a higher strength). The level is matched after (louder is not better).
 //  One click = one UNDO step. Message thread only (tools, never the audio thread, never GUI code).

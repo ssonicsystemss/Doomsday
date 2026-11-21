@@ -94,7 +94,13 @@ namespace fge
         const juce::StringArray& spcPolarity()    { static const juce::StringArray a { "OFF", "LEFT", "RIGHT", "BOTH" }; return a; }
         const juce::StringArray& lenSyncs()       { static const juce::StringArray a { "OFF", "1/4 BEAT", "1/2 BEAT", "1 BEAT", "2 BEATS" }; return a; }
         const juce::StringArray& tokModes()       { static const juce::StringArray a { "FOLLOW MIDI", "FIXED" }; return a; }
-        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK", "EUPHORIC", "PVC", "ZAAG", "CLASSIC (EARLY)" }; return a; }
+        const juce::StringArray& punchModes()     { static const juce::StringArray a { "PUNCH", "TOK", "EUPHORIC", "PVC", "ZAAG", "CLASSIC (EARLY)", "RAW" }; return a; }
+        const juce::StringArray& rawPunchTypes()  { static const juce::StringArray a { "RAW CLASSIC", "RAW 2015-2017 CRACKING" }; return a; }
+        const juce::StringArray& riseSyncs()      { static const juce::StringArray a { "BPM", "TAIL" }; return a; }
+        const juce::StringArray& riseGrids()      { static const juce::StringArray a { "1/16", "1/8", "1/4", "1/2", "1 BAR" }; return a; }
+        const juce::StringArray& riseCurves()     { static const juce::StringArray a { "LINEAR", "EXPONENTIAL", "S-CURVE", "FAST" }; return a; }
+        const juce::StringArray& riseModes()      { static const juce::StringArray a { "POWER", "RAW", "PITCH", "HARMONIC", "HYBRID" }; return a; }
+        const juce::StringArray& riseReleases()   { static const juce::StringArray a { "FADE", "HARD STOP", "TAIL FOLLOW" }; return a; }
         const juce::StringArray& tokNoteModes()   { static const juce::StringArray a { "FIXED", "FOLLOW MIDI", "OFFSET" }; return a; }
         const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE", "HYBRID" }; return a; }
         const juce::StringArray& pvcSources()   { static const juce::StringArray a { "SAW", "NOISE", "SNARE", "HYBRID" }; return a; }
@@ -267,6 +273,35 @@ namespace fge
             case coreKeyTrack: return "ON: the kick lands on the played MIDI note (END PITCH follows the note). OFF: fixed START / END pitch in Hz.";
             case coreVoice:    return "CHOKE: a new kick fades the previous one out (clean low end). POLY: kicks overlap.";
             case coreVelocity: return "How much the MIDI velocity changes the kick level.";
+            case rpType:       return "RAW PUNCH TYPE: RAW CLASSIC (a hard, punchy start with a controlled crack melting into the body - KRAK -> DUM) or RAW 2015-2017 CRACKING (a brutal snap, a dense crack generator, the body carrying its energy - KRAK! -> BRUTAL BODY). Two separate engines, each with its own knobs.";
+            case rcSnap: case rkSnap:   return "SNAP: how hard the very start hits (the physical attack). Independent of CRACK: SNAP 80 / CRACK 30 = a strong but clean punch.";
+            case rcCrack: case rkCrack: return "CRACK: how harmonically aggressive and cracking the start is - a separate harmonic process (fold -> clip -> band), not a drive. 0 = clean, 50 = a clear RAW crack, 100 = extreme.";
+            case rcCrackDecay: case rkCrackDecay: return "CRACK DECAY: how long the crack lasts (CLASSIC prefers ~15-45 ms; CRACKING is shorter and follows the kick length).";
+            case rcCoupling: case rkCoupling:     return "BODY COUPLING: how the crack joins the body. 0 = the crack ends before the body (KRAK | DUM), 100 = it melts into the body (KRAK -> DUM, no hole).";
+            case rcStart: case rkStart: return "PUNCH START: where the punch's own pitch starts.";
+            case rcDrop: case rkDrop:   return "PUNCH DROP: how fast the punch's pitch falls to its end.";
+            case rcEnd: case rkEnd:     return "PUNCH END: where the punch's pitch ends, in semitones above the note.";
+            case rcDecay: case rkDecay: return "PUNCH DECAY: how long the punch's own tone lasts.";
+            case rcDensity:    return "SOURCE DENSITY (RAW CLASSIC): the punch source from a sine to a rounded square - more harmonics feeding the crack.";
+            case rcCrackHz:    return "CRACK FREQ (RAW CLASSIC): the centre of the crack band.";
+            case rcDrive:      return "PUNCH DRIVE (RAW CLASSIC): the punch's own small saturation (the crack is separate).";
+            case rkDensity:    return "DENSITY (RAW CRACKING): how many harmonics the crack generator makes - LOW / MEDIUM / HIGH / EXTREME (1-4 fold stages). Never raises the punch level by itself.";
+            case rkEdge:       return "EDGE (RAW CRACKING): the aggression of the crack's upper harmonics.";
+            case rkTone:       return "DARK / BRIGHT (RAW CRACKING): moves the crack's character - lower-mid harmonics <-> upper-mid / high - on the crack source, not an EQ on the whole punch.";
+            case rkDynamic:    return "DYNAMIC (RAW CRACKING): a harder input makes more crack.";
+            case rkDrive:      return "BRIDGE DRIVE (RAW CRACKING): the distortion of the bridge that carries the crack's energy into the body.";
+            case rsOn:      return "TAIL RISE: the end of the tail GROWS (level / pitch / drive / harmonics / brightness / noise) instead of only fading - synced to the tempo, the same in playback and render. NOTE OFF stays independent.";
+            case rsSync:    return "RISE SYNC: BPM = the window is a part of the GRID at the project tempo; TAIL = a part of the kick length (one-shot).";
+            case rsGrid:    return "RISE GRID (BPM): the musical length the rise lives in - 1/4 = one beat (e.g. 400 ms at 150 BPM).";
+            case rsStart:   return "RISE START: where the rise begins, in % of the grid (BPM) or of the kick (TAIL). 75 % = the last quarter.";
+            case rsAmount:  return "RISE AMOUNT: how strong the rise is - what it moves depends on the RISE MODE (never a plain volume knob).";
+            case rsCurve:   return "RISE CURVE: LINEAR, EXPONENTIAL (soft start, strong end), S-CURVE (smooth both ends), FAST.";
+            case rsMode:    return "RISE MODE: POWER (level, peak-controlled), RAW (drive + harmonics + noise), PITCH (the tail goes up), HARMONIC (harmonics + brightness), HYBRID (your own mix of the layers).";
+            case rsRelease: return "RISE END: FADE (30 ms), HARD STOP (3 ms, no click), TAIL FOLLOW (holds until the kick ends).";
+            case rsGain: case rsPitch: case rsDrive: case rsHarm: case rsFilter: case rsNoise:
+                            return "HYBRID RISE layer: how much this layer grows (only in RISE MODE HYBRID; the other modes set the layers themselves).";
+            case rsPitchRange: return "RISE PITCH RANGE: how far the tail's pitch goes up at the top of the rise (PITCH layer).";
+            case kvHumanize:   return "KICK VARIATION - HUMANIZE: every hit a tiny bit different (pitch up to +-12 cents, level up to +-0.8 dB) - like a real recorded kick, never the same twice. 0 = every kick identical.";
             case peMode:       return "Shape of the pitch movement from START to END.";
             case peStart:      return "Where the tail pitch starts (held for HOLD, then the drop to the note). Type a note (\"G4\"). The tok = PUNCH in TOK mode.";
             case punchMode:    return "TOK: the PUNCH is the tok - TRANSIENT + TOK CORE on one note for its LENGTH, then the TAIL starts (PUNCH / TOK -> TAIL). PUNCH: the classic short punch that glides into the kick, the tail from the hit.";

@@ -889,7 +889,11 @@ namespace fge
     F (cnDensity, "cn_density", "Crunch Density", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
     F (cnTone, "cn_tone", "Crunch Tone", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
     F (cnFollow, "cn_follow", "Crunch Body Follow", Unit::Pct, 0.0f, 1.0f, 0.4f, 0.0f, FNone) \
-    C (cnSource, "cn_source", "Crunch Source", pshSources, 2, FNone)
+    C (cnSource, "cn_source", "Crunch Source", pshSources, 2, FNone) \
+    /* owner 2026-11-21 rework #2: the crunch = a TONAL layer (cn_density / cn_source RETIRED, kept for old projects) */ \
+    F (cnPitch, "cn_pitch", "Crunch Pitch", Unit::Semi, -24.0f, 0.0f, -6.0f, 0.0f, FNone) \
+    F (cnOffset, "cn_offset", "Crunch Offset", Unit::Ms, 0.0f, 20.0f, 0.0f, 0.0f, FNone) \
+    F (cnTube, "cn_tube", "Crunch Tube", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

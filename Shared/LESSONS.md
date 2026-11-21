@@ -515,3 +515,10 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   added **after the master clip** so the kick's drive cannot squash it. Plus SNAP in parallel, and BODY COUPLING so it does not sound glued on.
 - The owner wrote three specs in an hour that partly contradicted each other (separate engines → one engine → an extension of RAW).
   When specs collide, ask which one wins before building. He answered clearly: an extension, never a second RAW engine.
+
+## The RAW crunch is a TONE, not noise / impulses (owner 2026-11-21, 4 RAW references)
+- Noise or impulse series through distortion = "SSSS" or ticking. RAW tutorials and the owner's refs: the crunch is its own **tonal
+  oscillator** (a sine, below the punch, ~400-800 Hz by key), held ~100-150 ms, driven into **tube + asymmetric distortion + hard clip**
+  (near square, crest 2-4 dB), energy in 200-1500 Hz. The 0-5 ms brightness of the refs is a separate snap.
+- Measure the reference first (band per window, crest, f0 track) and fit a tiny Python prototype before touching C++: the fit pointed
+  to the answer (a clipped tone with a mid boost) long before more specs did.

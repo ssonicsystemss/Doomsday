@@ -4072,3 +4072,6 @@ cn_density
 cn_tone
 cn_follow
 cn_source
+cn_pitch
+cn_offset
+cn_tube

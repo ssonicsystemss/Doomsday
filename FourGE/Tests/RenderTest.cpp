@@ -824,7 +824,7 @@ int main (int argc, char** argv)
             bool retired = false;
             // RETIRED by the ZAAG ENGINE (owner's tutorial 2026-11-15): kept for old projects, not on any page, no sound (ZAAG_ENGINE.md)
             for (auto* r : { "zg_saw", "zg_sawb_oct", "zg_sawb_detune", "zg_s2_low", "zg_s2_low_mid", "zg_s2_mid", "zg_s2_hi_mid", "zg_bits", "zg_fold", "zg_tone", "zg_focus",
-                             "zg_flt_type", "zg_flt_start", "zg_flt_end", "zg_flt_time", "zg_flt_curve", "zg_flt_reso", "zg_flt_lfo", "zg_flt_lfo_rate" })
+                             "cn_density", "cn_source", "zg_flt_type", "zg_flt_start", "zg_flt_end", "zg_flt_time", "zg_flt_curve", "zg_flt_reso", "zg_flt_lfo", "zg_flt_lfo_rate" })
                 if (String (d.id) == r) { retired = true; break; }
             if (retired) continue;
             if (id == P::coreVoice || id == P::coreVelocity) continue;                 // MIDI behaviour, checked above
@@ -2952,32 +2952,33 @@ int main (int argc, char** argv)
             };
             const auto l0 = layer ({ { "cn_follow", 0.4f } });
             const float pEnd = def (P::rcDecay).def;                                      // (RAW CLASSIC punch decay = the PUNCH END)
-            const bool held = bandDb (l0, 40, 90, 1000, 6000) > bandDb (l0, 3, 25, 1000, 6000) - 15.f && bandDb (l0, 40, 90, 1000, 6000) > -55.f;
-            // the rework (owner 2026-11-21): a SERIES OF IMPULSES, not a noise - the 1-6 kHz envelope (0.5 ms frames, 5-80 ms) is spiky
-            // (peak vs median), the first impulse the strongest, the spectrum not flat like a noise
-            float spiky = 0.f, firstVsRest = 0.f;
+            // rework #2 (owner 2026-11-21): a TONAL crunch - the first hit the strongest, then a held dirty CZZ (never silence, never a 2nd punch),
+            // its energy in the mids (200 Hz - 3 kHz, like the owner's 4 RAW references), not a noise (low spectral flatness)
+            // (the owner's 4 RAW references: the level HELD ~150 ms, near square; the hit = a bright first 0-5 ms, then the top goes)
+            const float hit = bandDb (l0, 0, 10, 200, 3000), tail = bandDb (l0, 40, 90, 200, 3000);
+            const float bright = bandDb (l0, 0, 5, 4000, 16000) - bandDb (l0, 40, 90, 4000, 16000);
+            const bool shaped = hit > tail - 1.f && tail > hit - 12.f && tail > -50.f;          // (the bright 0-5 ms = the SNAP / CRACK layer, not the crunch)
+            const bool mids = bandDb (l0, 0, 90, 200, 3000) > bandDb (l0, 0, 90, 3000, 16000) + 6.f;
+            float flat = 1.f;
             {
-                fge::dsp::bq::Biquad h1, l1; h1.hp (44100.0, 1000.0, 0.7071); l1.lp (44100.0, 6000.0, 0.7071);
-                std::vector<float> fr; double acc = 0.0; int cnt = 0;
-                for (int i = 0; i < (int) (80 * 44.1f); ++i) { const float y = l1.tick (h1.tick (l0.getSample (0, i))); acc += (double) y * y; if (++cnt == 22) { fr.push_back ((float) std::sqrt (acc / 22.0)); acc = 0.0; cnt = 0; } }
-                std::vector<float> mid (fr.begin() + 10, fr.end()); auto med = mid; std::nth_element (med.begin(), med.begin() + (long) med.size() / 2, med.end());
-                const float m = med[med.size() / 2], pk = *std::max_element (mid.begin(), mid.end());
-                spiky = Decibels::gainToDecibels (pk / jmax (1.0e-9f, m));
-                const float first = *std::max_element (fr.begin(), fr.begin() + 8), rest = *std::max_element (fr.begin() + 12, fr.end());
-                firstVsRest = Decibels::gainToDecibels (first / jmax (1.0e-9f, rest));
+                constexpr int order = 12, N = 1 << order; ::juce::dsp::FFT fft (order); std::vector<float> d (2 * N, 0.f);
+                const int st = (int) (20 * 44.1f), n = jmin (N, (int) (60 * 44.1f));
+                for (int i = 0; i < n; ++i) d[(size_t) i] = l0.getSample (0, st + i) * (0.5f - 0.5f * std::cos (6.2831853f * (float) i / (float) n));
+                fft.performFrequencyOnlyForwardTransform (d.data());
+                double lg = 0.0, ar = 0.0; int m = 0;
+                for (int k = (int) (200.0 * N / 44100.0); k < (int) (3000.0 * N / 44100.0); ++k) { const double pw = (double) d[(size_t) k] * d[(size_t) k] + 1.0e-20; lg += std::log (pw); ar += pw; ++m; }
+                flat = (float) (std::exp (lg / m) / (ar / m));
             }
-            const bool impulses = spiky > 6.f && firstVsRest > 0.f;
-            const bool noBass = bandDb (l0, 0, 150, 20, 120) < bandDb (l0, 0, 150, 1000, 6000) - 20.f;
+            const bool tonal = flat < 0.2f;
+            const bool noBass = bandDb (l0, 0, 150, 20, 120) < bandDb (l0, 0, 150, 200, 3000) - 15.f;
             const auto f0 = layer ({ { "cn_follow", 0.f } });
-            const bool endsWithPunch = bandDb (f0, pEnd + 20.f, pEnd + 60.f, 300, 12000) < bandDb (f0, 20, 60, 300, 12000) - 30.f;
+            const bool endsWithPunch = bandDb (f0, pEnd + 20.f, pEnd + 60.f, 200, 12000) < bandDb (f0, 20, 60, 200, 12000) - 30.f;
             const auto b1 = layer ({ { "cn_follow", 1.f }, { "body_length", 300.f } }), b2 = layer ({ { "cn_follow", 1.f }, { "body_length", 100.f } });
-            const bool followsBody = bandDb (b1, pEnd + 120.f, pEnd + 200.f, 300, 12000) > bandDb (b2, pEnd + 120.f, pEnd + 200.f, 300, 12000) + 10.f;
-            const float step = std::abs (bandDb (l0, pEnd - 16.f, pEnd, 300, 12000) - bandDb (l0, pEnd, pEnd + 16.f, 300, 12000));   // no level step at the punch end (16 ms: an impulse series)
-            const bool smooth = step < 3.f;
-            check (held && impulses && noBass && endsWithPunch && followsBody && smooth,
-                   "DISTORTED CRUNCH = CRACK IMPULSE ENGINE: a series of impulses (spiky, the first the strongest, not a noise), no bass, BODY FOLLOW from the real phases, no step at the punch / body boundary",
-                   String ("held ") + String (bandDb (l0, 40, 90, 1000, 6000) - bandDb (l0, 3, 25, 1000, 6000), 1) + " dB, spiky " + String (spiky, 1) + " dB, first +" + String (firstVsRest, 1) + " dB, step " + String (step, 1) + " dB" + (impulses ? "" : " IMPULSES!")
-                       + (held ? "" : " HELD!") + (noBass ? "" : " BASS!") + (endsWithPunch ? "" : " END!") + (followsBody ? "" : " FOLLOW!") + (smooth ? "" : " STEP!"));
+            const bool followsBody = bandDb (b1, pEnd + 120.f, pEnd + 200.f, 200, 12000) > bandDb (b2, pEnd + 120.f, pEnd + 200.f, 200, 12000) + 10.f;
+            check (shaped && mids && tonal && noBass && endsWithPunch && followsBody,
+                   "RAW CRUNCH = a TONAL layer (own sine below the punch -> tube -> asym -> hard clip): a hit + a dirty CZZ, mids, not a noise, no bass, BODY FOLLOW from the real phases",
+                   String ("hit-tail ") + String (hit - tail, 1) + " dB, bright hit +" + String (bright, 1) + " dB, flatness " + String (flat, 2) + (shaped ? "" : " SHAPE!") + (mids ? "" : " MIDS!") + (tonal ? "" : " NOISE!")
+                       + (noBass ? "" : " BASS!") + (endsWithPunch ? "" : " END!") + (followsBody ? "" : " FOLLOW!"));
         }
         // RAW PUNCH EXTENSION - CRACK / SNAP / BODY COUPLING (owner 2026-11-21, RAW_CRACK.md): tests A-G, OFF = the RAW punch as before, never with other punch types
         {

@@ -1096,8 +1096,9 @@ namespace fge
                 {                                                                   // PUNCH TYPE RAW (owner 2026-11-21, RAW_PUNCH.md): two architectures, own knobs each
                     auto& q = cfg.rpunch;
                     q.on = f.idx (P::punchMode) == 6; q.type = f.idx (P::rpType); q.kickMs = cfg.ks.lengthMs;
-                    q.crunchOn = f.on (P::cnOn); q.crunch = f[P::cnCrunch]; q.grit = f[P::cnGrit]; q.crunchDensity = f[P::cnDensity];   // DYNAMIC DISTORTED CRUNCH
-                    q.crunchTone = f[P::cnTone]; q.bodyFollow = f[P::cnFollow]; q.crunchSource = f.idx (P::cnSource);
+                    q.crunchOn = f.on (P::cnOn); q.crunch = f[P::cnCrunch]; q.grit = f[P::cnGrit];   // DYNAMIC DISTORTED CRUNCH
+                    q.crunchTone = f[P::cnTone]; q.bodyFollow = f[P::cnFollow];
+                    q.crunchPitchSt = f[P::cnPitch]; q.crunchOffsetMs = f[P::cnOffset]; q.crunchTube = f[P::cnTube];
                     q.bodyStartMs = f[P::bodyAmpDelay]; q.bodyEndMs = f[P::bodyAmpDelay] + f[P::bodyLen];
                     if (q.type == 0)
                     {

@@ -29,9 +29,11 @@ Nowy typ puncha **RAW** z dwoma osobnymi silnikami (przełącznik RAW PUNCH TYPE
   **CRACK TONE** (LOW / MID / HIGH), **CRACK LEVEL**, do tego **SNAP** (pierwsze uderzenie) i **BODY COUPLING** (trzask wchodzi w body,
   bez dziury). Jest dokładany po master clipie – główny DRIVE kicka go nie zmienia i nie zamula. Przycisk CRACK wyłącza go
   (wtedy RAW brzmi jak wcześniej). Działa tylko z typem puncha RAW.
-- **CRUNCH** (trzeci rząd zakładki RAW): przeciągnięty, przesterowany zgrzyt „CZZZZ / GRRRR” z puncha w body – równoległa ścieżka
-  tego samego źródła (SNARE / NOISE / HYBRID + ton puncha). **CRUNCH** (ile), **GRIT** (agresja / ziarnistość), **DENSITY** (gęstość),
-  **TONE** (ciemniej / jaśniej), **BODY FOLLOW** (jak daleko wchodzi w body – liczone z prawdziwych obwiedni puncha i body).
+- **CRUNCH** (trzeci rząd zakładki RAW): tonalna warstwa trzasku – własny sinus (wysokość z tonacji, niżej od startu puncha),
+  własna obwiednia, potem TUBE → EQ środka → ASYMETRYCZNY przester → twardy clip → końcowe EQ. Bez szumu i bez serii impulsów:
+  ton + przester = crunch. Dopasowane do 4 referencji RAW (ton ~450–700 Hz trzymany ~150 ms, prawie kwadrat).
+  **CRUNCH** (ile), **PITCH** (wysokość), **TUBE**, **ASYM** (asymetryczny przester = sam crunch), **TONE** (środek 350–1400 Hz
+  i jasność), **OFFSET** (start po kicku, ms), **BODY FOLLOW** (jak długo – z prawdziwych obwiedni puncha i body).
   Bez dodatkowego basu. Przycisk CRUNCH wyłącza.
 
 ## TAIL RISE (2026-11-21)

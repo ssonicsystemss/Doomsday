@@ -353,9 +353,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                 d.push_back (knob (id, lab, col));
             d.push_back (nullptr);                                                // DYNAMIC DISTORTED CRUNCH (owner 2026-11-21): the 3rd row of the RAW tab
             d.push_back (toggle ("cn_on", "CRUNCH", Toggle::Chip, col));
-            d.push_back (combo ("cn_source"));
             for (auto [id, lab] : std::initializer_list<std::pair<const char*, const char*>> {
-                     { "cn_crunch", "CRUNCH" }, { "cn_grit", "GRIT" }, { "cn_density", "DENSITY" }, { "cn_tone", "TONE" }, { "cn_follow", "BODY FOLLOW" } })
+                     { "cn_crunch", "CRUNCH" }, { "cn_pitch", "PITCH" }, { "cn_tube", "TUBE" }, { "cn_grit", "ASYM" }, { "cn_tone", "TONE" }, { "cn_offset", "OFFSET" }, { "cn_follow", "BODY FOLLOW" } })
                 d.push_back (knob (id, lab, col));
             // 9th tab: RAW PUNCH EXTENSION - CRACK SOURCE + SNAP + BODY COUPLING (owner 2026-11-21, RAW_CRACK.md); with PUNCH TYPE RAW only
             d.push_back (&detailPageMark);

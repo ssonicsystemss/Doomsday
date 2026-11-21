@@ -1,3 +1,22 @@
+# RAW CRUNCH – rework #2 (owner 2026-11-21): a TONAL layer
+
+**This replaces the CRACK IMPULSE ENGINE below (kept only as history).** After RAW kick tutorials (Teknovault: the crunch = its own
+oscillator below the punch, own envelope, tube + asymmetric distortion; On Point Samples: an Analog BD sine, longer envelope, lower
+pitch, shifted in time; the classic stack PUNCH + CRUNCH + PUNCH REVERB): **TONAL SOURCE + DISTORTION = CRUNCH, never NOISE + DISTORTION.**
+
+Chain (`DSP/Core/RawPunch.h crunchPath`, its own bus after the master clip):
+SINE (key: note x 2^((45 + PITCH) / 12), slight -3 st fall) -> ENVELOPE (hard first hit x2.2 drive, hold 55 % of the length, release)
+-> TUBE (`cn_tube`) -> HP 150 + MID BELL +14 dB at TONE (350-1400 Hz) -> ASYMMETRIC (`cn_grit` = ASYM) -> HARD CLIP -> FINAL EQ
+(HP 170 x2, LP by TONE, open for the first ~2 ms) -> post shape (hit, then a held dirty CZZ at ~0.72).
+Length = PUNCH END + BODY x BODY FOLLOW (as before). OFFSET (`cn_offset`) = start after the kick.
+`cn_density` / `cn_source` RETIRED (kept for old projects, no sound). New: `cn_pitch`, `cn_offset`, `cn_tube`.
+
+Fitted to the owner's 4 references (OPS_FREE_RAWSTYLE_PUNCH 20_F / 15_D / 11 / 10_C): tonal 400-800 Hz, level held ~100-150 ms,
+crest 2-4 dB (near square), energy 200-1500 Hz; the bright 0-5 ms there = a separate snap (our SNAP / CRACK layer).
+4GE now: F ~390 -> 350, C ~580 -> 525, D ~650 -> 600 Hz; held level (hit - tail ~1 dB), flatness ~0 (a tone, not a noise).
+
+---
+
 # 4GE – RAW PUNCH: DYNAMIC DISTORTED CRUNCH (owner's spec 2026-11-21, after "kurwa no nie mamy tego dalej")
 
 The target is not a "KRAK" (that is the CRACK layer, `RAW_CRACK.md`). It is a **held, dense, distorted grind**: "CZZZZ / GRRRR".

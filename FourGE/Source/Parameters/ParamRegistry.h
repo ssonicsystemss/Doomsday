@@ -904,7 +904,7 @@ namespace fge
     F (ckPitchEnv, "cr_pitch_env", "Crack Pitch Drop", Unit::Semi, 0.0f, 24.0f, 12.0f, 0.0f, FNone) \
     C (ckWs, "cr_ws", "Crack Waveshaper", crackWs, 2, FNone) \
     F (ckAsym, "cr_asym", "Crack Asymmetry", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
-    F (ckBpHz, "cr_bp_freq", "Crack Band Freq", Unit::Hz, 1000.0f, 8000.0f, 3000.0f, 3000.0f, FNone) \
+    F (ckBpHz, "cr_bp_freq", "Crack Band Freq", Unit::Hz, 300.0f, 8000.0f, 3000.0f, 1500.0f, FNone) \
     F (ckBpWidth, "cr_bp_width", "Crack Band Width", Unit::None, 0.5f, 4.0f, 2.0f, 0.0f, FNone) \
     F (ckBpRes, "cr_bp_res", "Crack Band Resonance", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \
     F (ckBody, "cr_cbody", "Crack Body", Unit::Pct, 0.0f, 1.0f, 0.3f, 0.0f, FNone) \

@@ -292,9 +292,9 @@ namespace fge::dsp::front
         void cookTc (const CrackSettings& s, double hz)
         {
             const double w = std::clamp ((double) s.bpWidth, 0.5, 4.0);
-            const double fc = std::clamp ((double) s.bpHz * std::clamp (std::sqrt (hz / 500.0), 0.6, 1.8), 500.0, fs * 0.35);
+            const double fc = std::clamp ((double) s.bpHz * std::clamp (std::sqrt (hz / 500.0), 0.6, 1.8), 200.0, fs * 0.35);
             const double q = 0.7071 + 2.5 * s.bpRes + 0.8 * s.raw;                               // RESONANCE (+ RAW CRACK = a sharper transient)
-            const double lo = std::clamp (fc / std::exp2 (w * 0.5), 150.0, fs * 0.3), hi = std::clamp (fc * std::exp2 (w * 0.5), 800.0, fs * 0.45);
+            const double lo = std::clamp (fc / std::exp2 (w * 0.5), 100.0, fs * 0.3), hi = std::clamp (fc * std::exp2 (w * 0.5), 400.0, fs * 0.45);
             for (auto* d : { &dDry, &dMain, &dWet }) { d->hp.hp (fs, lo, q); d->hp2.hp (fs, lo, 0.7071); d->lp.lp (fs, hi, q); }
             bodyHp.hp (fs, 120.0, 0.7071); bodyLp.lp (fs, 2500.0, 0.7071);
             tcHi.shelf (fs, std::clamp ((double) s.hiHz, 1000.0, fs * 0.4), s.hiGainDb, true);

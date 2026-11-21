@@ -94,11 +94,11 @@ namespace fge
                 fp.values.push_back ({ "punch_mode", 6.f }); fp.values.push_back ({ "punch_level", 0.f }); fp.values.push_back ({ "core_master", -11.f });
                 fp.values.push_back ({ "rw_attack", 28.f }); fp.values.push_back ({ "tk_level", -20.f });
                 fp.values.push_back ({ "cn_on", 0.f });                                                    // (the tonal crunch: off - the TRANSIENT CRACK is the KRAK)
-                // the owner's pick 2026-11-21: TRANSIENT CRACK, CRACK REVERB PARALLEL, bright + hard, HI EQ, a BIG reverb ("duży reverb musi być")
+                // the owner's pick 2026-11-21 ("szurać", not hiss: pick 2): TRANSIENT CRACK, CRACK REVERB PARALLEL, bright + hard, HI EQ, a BIG reverb ("duży reverb musi być")
                 for (auto [id, x] : std::initializer_list<std::pair<const char*, float>> {
-                         { "cr_model", 0.f }, { "cr_rv_on", 1.f }, { "cr_rv_route", 2.f }, { "cr_bp_freq", 6000.f }, { "cr_bp_width", 3.f }, { "cr_asym", 0.9f },
-                         { "cr_rv_lp", 15000.f }, { "cr_rv_hp", 700.f }, { "cr_rv_damp", 0.05f }, { "cr_rv_drive", 0.85f }, { "cr_rv_drive_type", 1.f },
-                         { "cr_hi_gain", 12.f }, { "cr_hi_freq", 4500.f }, { "cr_rv_size", 0.95f }, { "cr_rv_decay", 380.f }, { "cr_rv_mix", 0.8f }, { "cr_rv_gate", 0.f } })
+                         { "cr_model", 0.f }, { "cr_rv_on", 1.f }, { "cr_rv_route", 2.f }, { "cr_bp_freq", 3500.f }, { "cr_bp_width", 3.f }, { "cr_asym", 0.9f },
+                         { "cr_rv_lp", 8000.f }, { "cr_rv_hp", 700.f }, { "cr_rv_damp", 0.3f }, { "cr_rv_drive", 1.f }, { "cr_rv_drive_type", 2.f },
+                         { "cr_hi_gain", 6.f }, { "cr_hi_freq", 3000.f }, { "cr_mv_flange", 0.6f }, { "cr_mv_time", 300.f }, { "cr_rv_size", 0.95f }, { "cr_rv_decay", 380.f }, { "cr_rv_mix", 0.8f }, { "cr_rv_gate", 0.f } })
                     fp.values.push_back ({ id, x });   // (TOK -> PUNCH + CRACK -> the RAW tail comes in after the crack)
                 for (auto& [id, x] : punch) fp.values.push_back ({ id, x });
                 return fp;

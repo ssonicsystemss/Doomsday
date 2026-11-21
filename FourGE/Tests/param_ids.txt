@@ -4065,3 +4065,10 @@ cr_decay
 cr_sustain
 cr_release
 cr_length
+cn_on
+cn_crunch
+cn_grit
+cn_density
+cn_tone
+cn_follow
+cn_source

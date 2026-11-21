@@ -325,6 +325,13 @@ namespace fge
                              return "CRACK SOURCE: its own harmonic tone (always) + a bit of the processed PUNCH, a TRANSIENT burst, a little NOISE texture (never the main source).";
             case ckAttack: case ckDecay: case ckSustain: case ckRelease: case ckLength:
                              return "CRACK ENVELOPE: the crack's own short envelope (attack 0-2 ms, decay 10-50 ms, sustain 0-30 %, release after LENGTH).";
+            case cnOn:      return "DYNAMIC DISTORTED CRUNCH (RAW punch): a parallel path of the punch source - the RAW 2015-2017 'CZZZZ / GRRRR', a held dense distorted grind from the punch into the body (never a click, never a second DUM). OFF = the RAW punch as before.";
+            case cnCrunch:  return "CRUNCH: how much of the crunch layer is in the kick.";
+            case cnGrit:    return "GRIT: how aggressive and grainy the distortion is (the asymmetric shaper + its roughness in the body).";
+            case cnDensity: return "DENSITY: the harmonic density - more saturation stages, a tighter, dirtier grind.";
+            case cnTone:    return "TONE: the crunch darker <-> brighter (its mid focus and its top; never a hiss).";
+            case cnFollow:  return "BODY FOLLOW: how far the crunch runs into the BODY - 0 = it ends with the punch, 100 = through the whole body phase (from the real envelopes, not fixed times).";
+            case cnSource:  return "CRUNCH SOURCE: the broadband material it is made from - SNARE / NOISE / HYBRID (+ the punch's own tone).";
             case kvHumanize:   return "KICK VARIATION - HUMANIZE: every hit a tiny bit different (pitch up to +-12 cents, level up to +-0.8 dB) - like a real recorded kick, never the same twice. 0 = every kick identical.";
             case peMode:       return "Shape of the pitch movement from START to END.";
             case peStart:      return "Where the tail pitch starts (held for HOLD, then the drop to the note). Type a note (\"G4\"). The tok = PUNCH in TOK mode.";

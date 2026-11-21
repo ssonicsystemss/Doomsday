@@ -1236,6 +1236,13 @@ int main (int argc, char** argv)
                     if (sid == "cp_res_hz" || sid == "cp_res_q") set2 ("cp_res", 1.f);
                     if (sid == "cp_noise_hz") set2 ("cp_noise", 0.6f);
                 }
+                if (sid.startsWith ("cn_"))                                                                    // DYNAMIC DISTORTED CRUNCH: RAW punch, crunch on, into the body
+                {
+                    set2 ("punch_mode", 6.f); set2 ("punch_level", 0.f);
+                    if (sid != "cn_on") set2 ("cn_on", 1.f);
+                    if (sid != "cn_crunch") set2 ("cn_crunch", 1.f);
+                    if (sid == "cn_follow") set2 ("body_length", 300.f);
+                }
                 if (sid.startsWith ("cr_"))                                                                    // RAW PUNCH EXTENSION (owner 2026-11-21): RAW punch, crack on
                 {
                     set2 ("punch_mode", 6.f);
@@ -2860,6 +2867,7 @@ int main (int argc, char** argv)
             {
                 auto f = ParamFrame::defaults();
                 f[P::punchMode] = 6.f; f[P::mixBodyMute] = 1.f; f[P::mixTailMute] = 1.f; f[P::mixSubMute] = 1.f; f[P::tkMode] = 2.f; f[P::clkMode] = 2.f; f[P::spkMode] = 2.f;
+                f[P::cnOn] = 0.f; f[P::ckOn] = 0.f;                                   // (the punch's own crack here; CRUNCH / CRACK have their own tests)
                 for (auto& [id, x] : kv) f[fge::modstate::indexOf (id)] = x;
                 return renderKick (f, 31, 44100.0, 0.4);
             };
@@ -2903,6 +2911,7 @@ int main (int argc, char** argv)
                 auto it = std::find_if (fp.begin(), fp.end(), [nm] (auto& x) { return x.name == nm; });
                 if (it == fp.end()) { presets = false; pr << nm << " missing "; continue; }
                 auto f = ParamFrame::defaults(); for (auto& [id, x] : it->values) if (const int k = fge::modstate::indexOf (id); k >= 0) f[k] = x;
+                f[P::cnOn] = 0.f; f[P::ckOn] = 0.f;                                  // (the punch's own crack; the CRUNCH runs into the body by design)
                 const auto b = renderKick (f, 31, 44100.0, 0.6);
                 auto fm = f; fm[P::mixPunchMute] = 1.f;
                 const auto bm = renderKick (fm, 31, 44100.0, 0.6);
@@ -2916,6 +2925,45 @@ int main (int argc, char** argv)
             check (independent && density && coupling && presets,
                    "PUNCH TYPE RAW: CLASSIC + CRACKING, SNAP and CRACK independent, DENSITY keeps the level, BODY COUPLING fills the gap, 4 presets readable",
                    ind + (density ? "" : " DENSITY!") + (coupling ? "" : " COUPLING!") + " | " + pr);
+        }
+        // DYNAMIC DISTORTED CRUNCH (owner 2026-11-21, RAW_CRUNCH.md): a held grind (not a click), no bass, its length from the PUNCH END +
+        // BODY DURATION x BODY FOLLOW (the real envelopes), no level step at the punch / body boundary, OFF = as before
+        {
+            auto kick = [&] (std::initializer_list<std::pair<const char*, float>> kv)
+            {
+                auto f = ParamFrame::defaults(); f[P::punchMode] = 6.f; f[P::ckOn] = 0.f;
+                for (auto& [id, x] : kv) f[fge::modstate::indexOf (id)] = x;
+                return renderKick (f, 31, 44100.0, 0.5);
+            };
+            auto layer = [&] (std::initializer_list<std::pair<const char*, float>> kv)
+            {
+                auto on = kick (kv); std::vector<std::pair<const char*, float>> v (kv); v.push_back ({ "cn_on", 0.f });
+                auto f = ParamFrame::defaults(); f[P::punchMode] = 6.f; f[P::ckOn] = 0.f; for (auto& [id, x] : v) f[fge::modstate::indexOf (id)] = x;
+                const auto off = renderKick (f, 31, 44100.0, 0.5);
+                for (int c = 0; c < on.getNumChannels(); ++c) on.addFrom (c, 0, off, c, 0, on.getNumSamples(), -1.f);
+                return on;
+            };
+            auto bandDb = [] (const AudioBuffer<float>& b, float fromMs, float toMs, float lo, float hi)
+            {
+                fge::dsp::bq::Biquad h1, h2, l1, l2; h1.hp (44100.0, lo, 0.7071); h2.hp (44100.0, lo, 0.7071); l1.lp (44100.0, hi, 0.7071); l2.lp (44100.0, hi, 0.7071);
+                double e = 0.0; const int a = (int) (fromMs * 44.1f), z = jmin (b.getNumSamples(), (int) (toMs * 44.1f));
+                for (int i = 0; i < b.getNumSamples(); ++i) { const float y = l2.tick (l1.tick (h2.tick (h1.tick (b.getSample (0, i))))); if (i >= a && i < z) e += (double) y * y; }
+                return 10.f * std::log10 ((float) (e / jmax (1, z - a)) + 1.0e-14f);
+            };
+            const auto l0 = layer ({ { "cn_follow", 0.4f } });
+            const float pEnd = def (P::rcDecay).def;                                      // (RAW CLASSIC punch decay = the PUNCH END)
+            const bool held = bandDb (l0, 40, 90, 1000, 6000) > bandDb (l0, 3, 25, 1000, 6000) - 10.f && bandDb (l0, 40, 90, 1000, 6000) > -50.f;
+            const bool noBass = bandDb (l0, 0, 150, 20, 120) < bandDb (l0, 0, 150, 1000, 6000) - 20.f;
+            const auto f0 = layer ({ { "cn_follow", 0.f } });
+            const bool endsWithPunch = bandDb (f0, pEnd + 20.f, pEnd + 60.f, 300, 12000) < bandDb (f0, 20, 60, 300, 12000) - 30.f;
+            const auto b1 = layer ({ { "cn_follow", 1.f }, { "body_length", 300.f } }), b2 = layer ({ { "cn_follow", 1.f }, { "body_length", 100.f } });
+            const bool followsBody = bandDb (b1, pEnd + 120.f, pEnd + 200.f, 300, 12000) > bandDb (b2, pEnd + 120.f, pEnd + 200.f, 300, 12000) + 10.f;
+            const float step = std::abs (bandDb (l0, pEnd - 8.f, pEnd, 300, 12000) - bandDb (l0, pEnd, pEnd + 8.f, 300, 12000));   // no level step at the punch end
+            const bool smooth = step < 3.f;
+            check (held && noBass && endsWithPunch && followsBody && smooth,
+                   "DYNAMIC DISTORTED CRUNCH: a held grind (not a click), no bass, BODY FOLLOW from the real phases, no step at the punch / body boundary",
+                   String ("held ") + String (bandDb (l0, 40, 90, 1000, 6000) - bandDb (l0, 3, 25, 1000, 6000), 1) + " dB, step " + String (step, 1) + " dB"
+                       + (held ? "" : " HELD!") + (noBass ? "" : " BASS!") + (endsWithPunch ? "" : " END!") + (followsBody ? "" : " FOLLOW!") + (smooth ? "" : " STEP!"));
         }
         // RAW PUNCH EXTENSION - CRACK / SNAP / BODY COUPLING (owner 2026-11-21, RAW_CRACK.md): tests A-G, OFF = the RAW punch as before, never with other punch types
         {

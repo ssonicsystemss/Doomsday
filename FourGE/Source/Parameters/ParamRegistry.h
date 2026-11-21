@@ -881,7 +881,15 @@ namespace fge
     F (ckDecay, "cr_decay", "Crack Decay", Unit::Ms, 10.0f, 50.0f, 25.0f, 25.0f, FNone) \
     F (ckSustain, "cr_sustain", "Crack Sustain", Unit::Pct, 0.0f, 0.3f, 0.05f, 0.0f, FNone) \
     F (ckRelease, "cr_release", "Crack Release", Unit::Ms, 5.0f, 80.0f, 20.0f, 20.0f, FNone) \
-    F (ckLength, "cr_length", "Crack Length", Unit::Ms, 20.0f, 150.0f, 60.0f, 60.0f, FNone)
+    F (ckLength, "cr_length", "Crack Length", Unit::Ms, 20.0f, 150.0f, 60.0f, 60.0f, FNone) \
+    /* ================= owner 2026-11-21: RAW PUNCH - DYNAMIC DISTORTED CRUNCH, a parallel path of the punch source (RAW_CRUNCH.md) ================= */ \
+    B (cnOn, "cn_on", "Crunch On", true, FNone) \
+    F (cnCrunch, "cn_crunch", "Crunch", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (cnGrit, "cn_grit", "Crunch Grit", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (cnDensity, "cn_density", "Crunch Density", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (cnTone, "cn_tone", "Crunch Tone", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (cnFollow, "cn_follow", "Crunch Body Follow", Unit::Pct, 0.0f, 1.0f, 0.4f, 0.0f, FNone) \
+    C (cnSource, "cn_source", "Crunch Source", pshSources, 2, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

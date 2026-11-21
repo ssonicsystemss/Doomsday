@@ -1257,6 +1257,7 @@ namespace fge
             const float inv = 1.f / (float) on;
             std::array<float, dsp::NumParts> pk {};
             // order: PUNCH, BODY, TAIL (-> MASTER CLIP on these three), then the SUB around the clip
+            const bool atkCrunch = cfg.rpunch.on && cfg.rpunch.crunchOn && cfg.rpunch.crunch > 0.f;   // DISTORTED CRUNCH on the attack bus
             for (int c : { 0, 1, 2, 3 })
             {
                 if (c == 3)
@@ -1292,7 +1293,7 @@ namespace fge
                 {
                     for (int i = 0; i < on; ++i) { L[i] = doomsday::kick::masterClip (L[i], cfg.clipG, cfg.clipSoft); R[i] = doomsday::kick::masterClip (R[i], cfg.clipG, cfg.clipSoft); }
                 }
-                if (c == 3 && cfg.crack.on)                                           // the RAW ATTACK BUS: after the master clip (the kick's DRIVE never touches the crack)
+                if (c == 3 && (cfg.crack.on || atkCrunch))                            // the RAW ATTACK BUS: after the master clip (the kick's DRIVE never touches the crack / crunch)
                     for (int i = 0; i < on; ++i) { L[i] += atkBuf[(size_t) i]; R[i] += atkBuf[(size_t) i]; atkBuf[(size_t) i] = 0.f; }
                 const auto g0 = gainNow[(size_t) c], g1 = gainTarget[(size_t) c];
                 const float* x = b[c];
@@ -1340,9 +1341,10 @@ namespace fge
                         }
                         else front = tk;
                         front += clkU.process (cfg.click, ms) + spkU.process (cfg.spk, ms);
-                        if (cfg.crack.on)                                             // RAW PUNCH EXTENSION: CRACK + SNAP -> the attack bus (added after the master clip, below)
+                        if (cfg.crack.on || atkCrunch)                                // RAW PUNCH: CRACK + SNAP + DISTORTED CRUNCH -> the attack bus (after the master clip, below)
                         {
-                            float a = crU.process (cfg.crack, ms, 0.5f * (yl + yr), rpU.lastHz(), b[1][i], noteNow);
+                            float a = cfg.crack.on ? crU.process (cfg.crack, ms, 0.5f * (yl + yr), rpU.lastHz(), b[1][i], noteNow) : 0.f;
+                            if (atkCrunch) a += rpU.lastCrunch();
                             if (cfg.noteCut && relMs >= 0.f) a *= juce::jlimit (0.f, 1.f, 1.f - (ms - relMs) / 5.f);
                             atkBuf[(size_t) i] = a;
                         }

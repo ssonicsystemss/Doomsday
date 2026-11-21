@@ -54,3 +54,18 @@ Owner: "przypomina ciągły szum, a nie trzask". The crunch is now **a series of
   | 40–120 ms | +2.6 dB |
   | 120–250 ms | +3.5 dB |
   | lows | +0.2 dB |
+
+## 2026-11-21: "crunch musi być wyraźniejszy" + the first SOLO "zjebane"
+
+- The CRUNCH now goes on the **attack bus after the master clip**, together with the CRACK. It is its own level, never squashed by the
+  punch FX / the master clip.
+- The SOLO was "zjebane" because it was a difference of two renders through the distortions (it held changes of everything). On the
+  attack bus the difference is now exactly the layer.
+- Denser (7 → 2 ms apart, each impulse up to 45 % of the gap) and louder (gain ×9, a soft ceiling at 0.9 → 1.2). The RAW PUNCH presets
+  got `core_master` -11 dB for headroom.
+- In "2016 Standard" (1–6 kHz vs OFF, peak 0.94, no clip):
+
+  | CRUNCH | 0–5 ms | 5–40 ms | 40–120 ms | lows |
+  |---|---|---|---|---|
+  | default | +2.9 dB | +5.8 dB | +7.5 dB | ±0 |
+  | 100 % | – | +7.4 dB | +9.5 dB | – |

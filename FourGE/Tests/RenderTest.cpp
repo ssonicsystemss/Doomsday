@@ -2972,7 +2972,7 @@ int main (int argc, char** argv)
             const bool endsWithPunch = bandDb (f0, pEnd + 20.f, pEnd + 60.f, 300, 12000) < bandDb (f0, 20, 60, 300, 12000) - 30.f;
             const auto b1 = layer ({ { "cn_follow", 1.f }, { "body_length", 300.f } }), b2 = layer ({ { "cn_follow", 1.f }, { "body_length", 100.f } });
             const bool followsBody = bandDb (b1, pEnd + 120.f, pEnd + 200.f, 300, 12000) > bandDb (b2, pEnd + 120.f, pEnd + 200.f, 300, 12000) + 10.f;
-            const float step = std::abs (bandDb (l0, pEnd - 8.f, pEnd, 300, 12000) - bandDb (l0, pEnd, pEnd + 8.f, 300, 12000));   // no level step at the punch end
+            const float step = std::abs (bandDb (l0, pEnd - 16.f, pEnd, 300, 12000) - bandDb (l0, pEnd, pEnd + 16.f, 300, 12000));   // no level step at the punch end (16 ms: an impulse series)
             const bool smooth = step < 3.f;
             check (held && impulses && noBass && endsWithPunch && followsBody && smooth,
                    "DISTORTED CRUNCH = CRACK IMPULSE ENGINE: a series of impulses (spiky, the first the strongest, not a noise), no bass, BODY FOLLOW from the real phases, no step at the punch / body boundary",

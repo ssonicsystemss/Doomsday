@@ -50,7 +50,7 @@ namespace fge::dsp::rawpunch
         void prepare (double rate) { fs = rate; reset(); }
         void reset()
         {
-            p = 0.0; blk = 0; seed = 0x7a3c19e5u; envIn = envOut = 0.f; follow = 0.f; impCount = 0; sinceImp = 0.f; lastP = 0.0;
+            p = 0.0; blk = 0; seed = 0x7a3c19e5u; envIn = envOut = 0.f; follow = 0.f; impCount = 0; sinceImp = 0.f; lastP = 0.0; crunchNow = 0.f;
             for (auto& v : imp) { v.on = false; v.lp.clear(); v.hp.clear(); }
             cOut1.clear(); cOut2.clear();
             for (auto* b : { &pre1, &pre2, &band1, &band2, &bridgeLp, &tilt, &tilt2, &edgeHp, &snapBp, &dcb, &outLp }) b->clear();
@@ -69,7 +69,8 @@ namespace fge::dsp::rawpunch
             const float src = std::tanh (sn * (1.f + 6.f * dens)) / std::tanh (1.f + 6.f * dens);
             const float n = noise();
             const float y = s.type == 0 ? classic (s, ms, src, n) : cracking (s, ms, src, n);
-            return s.crunchOn && s.crunch > 0.f ? y + crunchPath (s, ms, src, n) : y;
+            crunchNow = s.crunchOn && s.crunch > 0.f ? crunchPath (s, ms, src, n) : 0.f;   // (the engine puts it on the attack bus, after the master clip)
+            return y;
         }
         // CRUNCH_END = PUNCH_END + BODY_DURATION x BODY FOLLOW (the real phases, not fixed times)
         static float crunchEnd (const Settings& s)
@@ -79,6 +80,7 @@ namespace fge::dsp::rawpunch
         }
 
         float lastHz() const { return (float) hz; }             // (the crack layer follows the punch's pitch)
+        float lastCrunch() const { return crunchNow; }          // DISTORTED CRUNCH of this sample (clear: its own bus, never squashed by the punch FX / master clip)
 
     private:
         // ---------------- RAW CLASSIC
@@ -149,7 +151,7 @@ namespace fge::dsp::rawpunch
             const bool wrap = p < lastP;
             lastP = p;
             sinceImp += 1000.f / (float) fs;
-            const float baseMs = 9.f - 6.5f * std::clamp (s.crunchDensity, 0.f, 1.f);               // DENSITY: ~9 ms .. ~2.5 ms apart
+            const float baseMs = 7.f - 5.f * std::clamp (s.crunchDensity, 0.f, 1.f);                 // DENSITY: ~7 ms .. ~2 ms apart
             const float want = baseMs * (1.f + 0.45f * hashU (0x51u + (uint32_t) impCount * 2654435761u));
             if (ms < end && (impCount == 0 || (wrap && sinceImp >= want)))
             {
@@ -159,7 +161,7 @@ namespace fge::dsp::rawpunch
                 v.amp = (impCount == 0 ? 1.f : std::clamp (0.62f - 0.03f * (float) impCount + 0.15f * r1, 0.2f, 0.75f)) * seriesEnv;   // the first the strongest
                 v.hz = (700.0 + 2600.0 * s.crunchTone) * (1.0 + 0.25 * r2) * (1.0 - 0.45 * inBody);
                 v.dec = impCount == 0 ? 2.2f + 1.2f * (1.f - s.crunchTone)                         // ms: the first a bit longer, the rest short -
-                                      : std::min (1.0f + 1.2f * (1.f - s.crunchTone) + 0.8f * inBody, 0.3f * want);   // never smeared into each other
+                                      : std::min (1.4f + 1.4f * (1.f - s.crunchTone) + 0.8f * inBody, 0.45f * want);   // never smeared into each other
                 v.lp.lp (fs, std::clamp ((4500.0 + 9000.0 * s.crunchTone) * (1.0 - 0.6 * inBody), 1200.0, fs * 0.45), 0.7071);   // BODY TRANSITION: less sharp
                 v.hp.hp (fs, 350.0, 0.7071);
                 ++impCount; sinceImp = 0.f;
@@ -186,7 +188,9 @@ namespace fge::dsp::rawpunch
             }
             // no lows: the impulse RATE itself (and the asymmetric shaper's DC) would make a low thump - cut after the sequence mix
             out = cOut2.tick (cOut1.tick (out));
-            return out * s.crunch * 3.2f;
+            out *= s.crunch * 9.f;
+            const float a = std::abs (out);                                                    // a soft ceiling (loud, never a clip spike)
+            return a > 0.9f ? std::copysign (0.9f + 0.3f * std::tanh ((a - 0.9f) / 0.3f), out) : out;
         }
         float noise() { seed = seed * 1664525u + 1013904223u; return (float) (int32_t) seed * (1.f / 2147483648.f); }
         void cook (const Settings& s, float ms, float noteHz)
@@ -244,6 +248,7 @@ namespace fge::dsp::rawpunch
         int impCount = 0;
         float sinceImp = 0.f;
         double lastP = 0.0;
+        float crunchNow = 0.f;
         bq::Biquad cOut1, cOut2;
         bq::Biquad pre1, pre2, band1, band2, bridgeLp, tilt, tilt2, edgeHp, snapBp, dcb, outLp;
     };

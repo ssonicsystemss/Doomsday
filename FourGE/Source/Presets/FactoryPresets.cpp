@@ -91,7 +91,7 @@ namespace fge
             {
                 FactoryPreset fp; fp.name = name;
                 for (auto& [i, x] : fge::style::values (fge::style::Raw)) fp.values.push_back ({ def (i).id, x });
-                fp.values.push_back ({ "punch_mode", 6.f }); fp.values.push_back ({ "punch_level", 0.f }); fp.values.push_back ({ "core_master", -7.f });
+                fp.values.push_back ({ "punch_mode", 6.f }); fp.values.push_back ({ "punch_level", 0.f }); fp.values.push_back ({ "core_master", -11.f });
                 fp.values.push_back ({ "rw_attack", 28.f }); fp.values.push_back ({ "tk_level", -20.f });   // (TOK -> PUNCH + CRACK -> the RAW tail comes in after the crack)
                 for (auto& [id, x] : punch) fp.values.push_back ({ id, x });
                 return fp;

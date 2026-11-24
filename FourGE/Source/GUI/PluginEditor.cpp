@@ -633,7 +633,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             // 18th-20th tabs: TAIL TYPE HARDCORE (owner spec 2026-11-24) - source / pitch / timing, crunch / texture / length, the distortion chain
             d.push_back (&detailPageMark);
             d.push_back (combo ("hc_src"));
-            for (auto [id, lab] : LZ { { "hc_src_mix", "SOURCE MIX" }, { "hc_drop", "PITCH DROP" }, { "hc_time", "PITCH TIME" } }) d.push_back (knob (id, lab, col));
+            for (auto [id, lab] : LZ { { "hc_src_mix", "SOURCE MIX" }, { "hc_hold", "PITCH HOLD" }, { "hc_drop", "PITCH DROP" }, { "hc_drop_x", "DROP +" }, { "hc_time", "PITCH TIME" } }) d.push_back (knob (id, lab, col));
             d.push_back (combo ("hc_curve"));
             d.push_back (knob ("hc_curve_amt", "CUSTOM", col));
             d.push_back (nullptr);
@@ -652,7 +652,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             for (auto [id, lab] : LZ { { "hc_tx_mix", "TEXTURE" }, { "hc_tx_len", "TEX LEN" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             d.push_back (combo ("hc_cr_pmode"));
-            for (auto [id, lab] : LZ { { "hc_cr_pitch", "PITCH" }, { "hc_cr_pamt", "PITCH AMT" }, { "hc_cr_ptime", "PITCH TIME" }, { "hc_cr_drive", "DRIVE" }, { "hc_cr_asym", "ASYMMETRY" } }) d.push_back (knob (id, lab, col));
+            for (auto [id, lab] : LZ { { "hc_cr_pitch", "PITCH" }, { "hc_cr_pamt", "PITCH AMT" }, { "hc_cr_ptime", "PITCH TIME" }, { "hc_cr_drive", "DRIVE" }, { "hc_cr_asym", "ASYMMETRY" },
+                                       { "hc_ms_dip", "SCREAM DIP" }, { "hc_ms_dip_at", "DIP AT" }, { "hc_ms_dip_len", "DIP LEN" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);                                            // MID SCREAM (owner refs 2026-11-24): the 2nd tone clipped with the note
             d.push_back (combo ("hc_ms_track")); d.push_back (combo ("hc_ms_wave"));
             for (auto [id, lab] : LZ { { "hc_ms_mix", "MID SCREAM" }, { "hc_ms_hz", "SCREAM HZ" }, { "hc_ms_harm", "HARMONIC" }, { "hc_ms_sweep", "SWEEP" }, { "hc_ms_sweep_ms", "SWEEP TIME" },
@@ -735,6 +736,9 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
 GeCanvas::~GeCanvas()
 {
     *alive = false; stopTimer();
+    // the attachments go FIRST: comboAtt is declared before 'owned' (the combo boxes), so by member order it would die after them and
+    // remove its listener from a freed ComboBox (owner's FL crash 2026-11-24, closing the plugin window - found with ASan --guistress)
+    comboAtt.clear(); faderAtt.clear(); lengthAtt.reset();
     for (auto* ch : presetBar.getChildren()) ch->setLookAndFeel (nullptr);
     presetBar.setLookAndFeel (nullptr); setLookAndFeel (nullptr);
     if (sharedLook.getReferenceCount() == 1 && &LookAndFeel::getDefaultLookAndFeel() == &lnf) LookAndFeel::setDefaultLookAndFeel (nullptr);

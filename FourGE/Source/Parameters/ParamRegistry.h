@@ -1027,7 +1027,12 @@ namespace fge
     F (hcMsRate, "hc_ms_rate", "HC Mid Scream Rate", Unit::Hz, 0.5f, 20.0f, 5.0f, 5.0f, FNone) \
     F (hcOutClip, "hc_out_clip", "HC Output Clip", Unit::Db, 0.0f, 18.0f, 0.0f, 0.0f, FNone) \
     F (hcAsymPos, "hc_asym_pos", "HC Asymmetry + Drive", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
-    F (hcAsymNeg, "hc_asym_neg", "HC Asymmetry - Drive", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone)
+    F (hcAsymNeg, "hc_asym_neg", "HC Asymmetry - Drive", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcHold, "hc_hold", "HC Pitch Hold", Unit::Ms, 0.0f, 30.0f, 0.0f, 0.0f, FNone) \
+    F (hcDropX, "hc_drop_x", "HC Pitch Drop +", Unit::Semi, 0.0f, 36.0f, 0.0f, 0.0f, FNone) \
+    F (hcMsDip, "hc_ms_dip", "HC Mid Scream Dip", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (hcMsDipAt, "hc_ms_dip_at", "HC Mid Scream Dip At", Unit::Ms, 20.0f, 400.0f, 85.0f, 85.0f, FNone) \
+    F (hcMsDipLen, "hc_ms_dip_len", "HC Mid Scream Dip Length", Unit::Ms, 10.0f, 400.0f, 120.0f, 120.0f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

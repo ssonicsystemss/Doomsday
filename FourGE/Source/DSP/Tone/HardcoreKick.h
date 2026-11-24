@@ -38,7 +38,9 @@ namespace fge::dsp::hardcore
         // DISTORTION
         float eqLowDb = 0.f, eqLowHz = 70.f, eqLmDb = 0.f, eqLmHz = 250.f, eqMidDb = 0.f, eqMidHz = 900.f, eqHmDb = 0.f, eqHmHz = 2500.f, eqHighDb = 0.f, eqHighHz = 8000.f;
         float d1Db = 12.f, betweenHz = 600.f, betweenDb = 0.f, d2Db = 18.f, asym = 0.5f, bias = 0.2f, clipDb = 6.f, resample = 0.f;
-        float asymPosDb = 0.f, asymNegDb = 0.f;                    // ASYMMETRY + DRIVE / - DRIVE (spec pt 19: each half its own drive, 0 dB = the ASYMMETRY knob alone)
+        float asymPosDb = 0.f, asymNegDb = 0.f;
+        float holdMs = 0.f, dropXSt = 0.f;                         // PITCH HOLD (the START held, a tok) + DROP + (st beyond DROP: START = END + DROP + DROP +)
+        float msDip = 0.f, msDipAtMs = 85.f, msDipLenMs = 120.f;   // MID SCREAM DIP: the 2nd tone pulled down (x 1 - DIP) from DIP AT for DIP LEN, then back (the clean "DUM")                    // ASYMMETRY + DRIVE / - DRIVE (spec pt 19: each half its own drive, 0 dB = the ASYMMETRY knob alone)
         int stages = 3, clipMode = 0;                              // HARD / SOFT / FOLD / ASYMMETRIC / CUSTOM
         // POST-EQ
         float postLowCut = 30.f, postBodyDb = 0.f, postMidDb = 0.f, postCrunchDb = 0.f, postCrunchHz = 3500.f, postHighDb = 0.f;
@@ -203,7 +205,16 @@ namespace fge::dsp::hardcore
                 default: x = (float) std::sin (6.283185307 * ph); break;
             }
             const float fade = s.msFadeMs > 0.5f ? std::min (1.f, t / s.msFadeMs) : 1.f;
-            return x * fade * s.msMix;
+            return x * fade * s.msMix * dipGain (s, ms);
+        }
+        // the DIP: in over 20 ms around DIP AT, held for DIP LEN, back over 50 ms (owner's OPS hardcore refs: the 2nd tone almost gone at
+        // ~85-150 ms - a clean note square - then back to the end)
+        static float dipGain (const Settings& s, float ms)
+        {
+            if (s.msDip <= 0.f) return 1.f;
+            const float in = std::clamp ((ms - (s.msDipAtMs - 10.f)) / 20.f, 0.f, 1.f);
+            const float out = std::clamp ((ms - (s.msDipAtMs + s.msDipLenMs)) / 50.f, 0.f, 1.f);
+            return 1.f - std::clamp (s.msDip, 0.f, 1.f) * in * (1.f - out);
         }
         float texture (const Settings& s, float ms)
         {
@@ -235,8 +246,8 @@ namespace fge::dsp::hardcore
             // PITCH: END = the note (FOLLOW MIDI) or the FIXED KEY, + END st + FINE; START = END + DROP st
             const double key = s.keyMode == 1 ? 440.0 * std::exp2 ((s.fixedNote - 69.0) / 12.0) : std::max (10.0, (double) noteHz);
             endHz = std::clamp (key * std::exp2 ((s.endSt + 0.01 * s.fineCt) / 12.0), 15.0, 2000.0);
-            const float fall = fallOf (s.curve, ms / std::max (1.f, s.timeMs), s.customCurve);
-            hz = std::clamp (endHz * std::exp2 (s.dropSt * fall / 12.0), 15.0, fs * 0.3);
+            const float fall = fallOf (s.curve, std::max (0.f, ms - s.holdMs) / std::max (1.f, s.timeMs), s.customCurve);
+            hz = std::clamp (endHz * std::exp2 ((s.dropSt + s.dropXSt) * fall / 12.0), 15.0, fs * 0.3);
             // PUNCH / BODY / TAIL segments (smooth hand-overs) + the output fade over the tail
             const float pEnd = s.punchMs, bEnd = s.punchMs + s.bodyMs;
             const float wP = std::clamp ((pEnd + 3.f - ms) / 6.f, 0.f, 1.f), wB = std::clamp ((bEnd + 5.f - ms) / 10.f, 0.f, 1.f) - wP;

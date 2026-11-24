@@ -541,3 +541,11 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   Same lesson as the raw crack: several tones in one clip, never one tone.
 - Fitting tool: /tmp scripts were throw-away; the method = band energy (5 bands) tail + 15-60 ms window, crest, centroid, level drop,
   coordinate descent over hc_* against the ref group median. RenderTest --energy = per-layer energy.
+
+## FL crash when the 4GE window closes (owner 2026-11-24)
+- `GeCanvas` declared `comboAtt` (ComboBoxAttachments) BEFORE `owned` (the ComboBoxes): members die in reverse order, so the combos
+  were freed first and each attachment then removed its listener from a dead ComboBox. Windows shows it as an access violation with a
+  garbage address from a window message (closing / destroying the plugin window); FL's undo list only shows the last knob changes.
+- Rule: attachments must die before the controls they attach to - declare them AFTER the controls, or clear them first in the destructor.
+- How it was found: `RenderTest - --guistress [rounds]` (editor open, every preset + RANDOMIZE + STYLE, then close) in an ASan build
+  (`-fsanitize=address`, `ulimit -s unlimited` because RenderTest's main has a huge frame). Run it after GUI changes.

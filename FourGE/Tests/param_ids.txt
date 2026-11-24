@@ -4203,3 +4203,8 @@ hc_ms_rate
 hc_out_clip
 hc_asym_pos
 hc_asym_neg
+hc_hold
+hc_drop_x
+hc_ms_dip
+hc_ms_dip_at
+hc_ms_dip_len

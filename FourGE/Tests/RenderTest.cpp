@@ -235,6 +235,30 @@ int main (int argc, char** argv)
         printf ("%s\n", outDir.getChildFile ("m10_listen.wav").getFullPathName().toRawUTF8());
         return 0;
     }
+    if (argc > 2 && String (argv[2]) == "--guistress")                        // crash hunt (owner's FL crash 2026-11-24): the editor open while presets /
+    {                                                                          //  RANDOMIZE / STYLE change every parameter (run it in an ASan build)
+        GeProcessor p; std::unique_ptr<AudioProcessorEditor> ed (p.createEditor()); auto* ge = dynamic_cast<GeEditor*> (ed.get());
+        ed->setSize (GeCanvas::W, GeCanvas::H);
+        auto pump = [] (int n) { for (int i = 0; i < n; ++i) { juce::detail::dispatchNextMessageOnSystemQueue (true); Thread::sleep (1); } };
+        AudioBuffer<float> buf (2, 512); MidiBuffer midi;
+        p.prepareToPlay (44100.0, 512);
+        auto play = [&] { midi.clear(); midi.addEvent (MidiMessage::noteOn (1, 31, 1.f), 0); for (int b = 0; b < 4; ++b) { buf.clear(); p.processBlock (buf, midi); midi.clear(); } };
+        const int rounds = argc > 3 ? String (argv[3]).getIntValue() : 1;
+        for (int r = 0; r < rounds; ++r)
+            for (int i = 0; i < p.getNumPrograms(); ++i)
+            {
+                ge->canvas.showPage (i % 3 == 0 ? 0 : (i % 16)); ge->canvas.selectPart (i % 4 == 3 ? 3 : 2); ge->canvas.setMainView (i % 5 == 0 ? 1 : 0);
+                pump (5);
+                p.setCurrentProgram (i); pump (20); play();
+                p.randomizeSound(); pump (20); play();
+                fge::style::apply (p, i % fge::style::names().size(), (i & 1) != 0); pump (20); play();
+                ge->canvas.showPage (0); ge->canvas.selectPart (2); pump (20);
+                printf ("%d %s\n", i, p.getProgramName (i).toRawUTF8()); fflush (stdout);
+            }
+        ed.reset();
+        printf ("GUISTRESS OK\n");
+        return 0;
+    }
     if (argc > 2 && String (argv[2]) == "--guisnap")                          // module 17: a PNG of every page (look at them)
     {
         GeProcessor p; std::unique_ptr<AudioProcessorEditor> ed (p.createEditor()); auto* ge = dynamic_cast<GeEditor*> (ed.get());
@@ -1281,6 +1305,7 @@ int main (int argc, char** argv)
                     if (sid.startsWith ("hc_ms_") && sid != "hc_ms_mix") set2 ("hc_ms_mix", 0.4f);         // MID SCREAM: on
                     if (sid == "hc_ms_harm") set2 ("hc_ms_track", 1.f);
                     if (sid == "hc_ms_rate") set2 ("hc_ms_motion", 1.f);
+                    if (sid == "hc_ms_dip_at" || sid == "hc_ms_dip_len") set2 ("hc_ms_dip", 1.f);
                     if (sid == "hc_btw_hz") set2 ("hc_btw_db", 12.f);
                     if (sid == "hc_post_crunch_hz") set2 ("hc_post_crunch", 12.f);
                     if (sid.startsWith ("hc_eq_") && sid.endsWith ("_hz")) set2 (sid.replace ("_hz", "_db"), 12.f);

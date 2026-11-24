@@ -46,7 +46,7 @@ public:
     void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
     void selectPart (int);
-    void tailTab (int t) { detailPage = juce::jlimit (0, 16, t); layoutDetail(); repaint(); }
+    void tailTab (int t) { detailPage = juce::jlimit (0, 19, t); layoutDetail(); repaint(); }
     int selectedPart() const { return selected; }
     fge::gui::WaveView& waveView() { return wave; }
     juce::Component* findControl (const juce::String& paramId);     // tests
@@ -165,7 +165,9 @@ private:
     juce::ComboBox punchSub; int punchSubFamily = -1;                // PUNCH SUBTYPE (owner 2026-11-16): a profile of the family (Presets/PunchSubtypes.h)
     juce::ComboBox tokNote;                                          // TOK NOTE: sets START to a note (owner 2026-11-09)
     juce::Component detailPageMark;                                 // (a marker in a part's detail list: the items after it = the 2nd tab)
-    juce::TextButton detTab[17];
+    juce::TextButton detTab[20];
+    juce::Label hcInfo;                          // TAIL TYPE HARDCORE: the ANALYSIS line (owner spec 2026-11-24, 51)
+    juce::String hardcoreAnalysis() const;
     int detailPage = 0;
     void syncTokNote();
 public:

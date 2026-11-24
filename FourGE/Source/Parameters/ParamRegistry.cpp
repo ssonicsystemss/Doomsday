@@ -108,6 +108,17 @@ namespace fge
         const juce::StringArray& crackListens()   { static const juce::StringArray a { "KICK", "SOLO SOURCE", "SOLO DRY", "SOLO WET", "SOLO REVERB", "SOLO FINAL" }; return a; }
         const juce::StringArray& crackRoutes()    { static const juce::StringArray a { "PRE-DISTORTION", "POST-DISTORTION", "PARALLEL" }; return a; }
         const juce::StringArray& crackRvDrives()  { static const juce::StringArray a { "SOFT", "HARD CLIP", "ASYMMETRIC", "FOLD" }; return a; }
+        const juce::StringArray& hcSources()      { static const juce::StringArray a { "909", "909 HARD", "BD ANALOG", "SINE", "SINE + 909", "HYBRID" }; return a; }
+        const juce::StringArray& hcCurves()       { static const juce::StringArray a { "LINEAR", "EXP", "FAST DROP", "S-CURVE", "CUSTOM" }; return a; }
+        const juce::StringArray& hcKeyModes()     { static const juce::StringArray a { "FOLLOW MIDI", "FIXED KEY" }; return a; }
+        const juce::StringArray& hcCrSources()    { static const juce::StringArray a { "909 / BD", "SINE", "SINE + 909", "SAW" }; return a; }
+        const juce::StringArray& hcCrModes()      { static const juce::StringArray a { "OWN", "FOLLOW PUNCH", "FOLLOW BODY" }; return a; }
+        const juce::StringArray& hcTextures()     { static const juce::StringArray a { "NOISE", "CRUSHED NOISE", "SHORT TRANSIENT" }; return a; }
+        const juce::StringArray& hcClips()        { static const juce::StringArray a { "HARD", "SOFT", "FOLD", "ASYMMETRIC", "CUSTOM" }; return a; }
+        const juce::StringArray& hcStages()       { static const juce::StringArray a { "1 STAGE", "2 STAGES", "3 STAGES" }; return a; }
+        const juce::StringArray& hcLenModes()     { static const juce::StringArray a { "KICK LENGTH", "BPM GRID" }; return a; }
+        const juce::StringArray& hcGrids()        { static const juce::StringArray a { "1/16", "1/8", "1/4", "1/2" }; return a; }
+        const juce::StringArray& hcBursts()       { static const juce::StringArray a { "OFF", "SHORT", "PITCHED", "HEAVY", "BY VELOCITY" }; return a; }
         const juce::StringArray& crunchSources()  { static const juce::StringArray a { "SINE", "SAW", "909 / BD", "SINE + SAW" }; return a; }
         const juce::StringArray& crunchWs()       { static const juce::StringArray a { "SOFT", "HARD", "FOLD", "CRUSH", "CUSTOM" }; return a; }
         const juce::StringArray& crackWs()        { static const juce::StringArray a { "SOFT", "HARD", "ASYMMETRIC", "FOLD", "RECTIFY" }; return a; }
@@ -115,7 +126,7 @@ namespace fge
         const juce::StringArray& pshSources() { static const juce::StringArray a { "SNARE", "NOISE", "HYBRID" }; return a; }
         const juce::StringArray& pvcSources()   { static const juce::StringArray a { "SAW", "NOISE", "SNARE", "HYBRID" }; return a; }
         const juce::StringArray& pvcMaterials() { static const juce::StringArray a { "RING MOD", "FLANGER", "COMB" }; return a; }
-        const juce::StringArray& tailEngines()  { static const juce::StringArray a { "CLASSIC", "PVC", "ZAAG", "RAW", "EXPERIMENTAL" }; return a; }
+        const juce::StringArray& tailEngines()  { static const juce::StringArray a { "CLASSIC", "PVC", "ZAAG", "RAW", "EXPERIMENTAL", "HARDCORE" }; return a; }
         const juce::StringArray& gtGateModes()  { static const juce::StringArray a { "SINGLE", "PULSE", "MOVEMENT" }; return a; }
         const juce::StringArray& pvcModels()    { static const juce::StringArray a { "KLOENK", "TUBE" }; return a; }
         const juce::StringArray& pvcPhModes()   { static const juce::StringArray a { "SWEEP", "LFO" }; return a; }

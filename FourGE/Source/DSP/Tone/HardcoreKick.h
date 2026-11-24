@@ -1,0 +1,235 @@
+#pragma once
+// =====================================================================
+//  4GE - TAIL TYPE HARDCORE (owner spec 2026-11-24 "HARDCORE KICK ENGINE", FourGE/HARDCORE_ENGINE.md): ONE engine for
+//  GABBER / MILLENNIUM / HARDCORE / UPTEMPO - the styles are PROFILES (StyleEngine values), never separate generators.
+//  In hardcore the kick is the whole distorted signal (gabber: KICK = BASSLINE), so this engine makes the whole kick (like ZAAG):
+//    SOURCE (909 / 909 HARD / BD ANALOG / SINE / SINE + 909 / HYBRID, SOURCE MIX)
+//    -> PITCH (END = the note / a FIXED KEY + END st + FINE, START = END + DROP st, TIME, CURVE LINEAR / EXP / FAST DROP / S-CURVE / CUSTOM)
+//    -> PUNCH / BODY / TAIL relation (time segments: their own drive into the chain, the tail fades over the kick length)
+//    -> PRE-EQ (LOW / LOW-MID / MID / HIGH-MID / HIGH: gain + freq) -> DRIVE 1 (tube / soft: the first harmonics) -> EQ (between)
+//    -> DRIVE 2 (hard: the main character) [<- the tonal CRUNCH layer joins here, clipped together with the kick]
+//    -> RESAMPLE FEEL (internal normalisation + a second pass, like a re-rendered kick) -> ASYMMETRY (+ drive / - drive / bias)
+//    -> CLIP (HARD / SOFT / FOLD / ASYMMETRIC / CUSTOM) -> POST-EQ (LOW CUT, BODY, MID, CRUNCH band 2-6 kHz, HIGH)
+//  STAGES 1 / 2 / 3: 1 = DRIVE 1 -> CLIP, 2 = + DRIVE 2, 3 = + ASYMMETRY. TEXTURE (noise / crushed noise / a short transient) is only
+//  an optional, limited addition - never the crunch. Deterministic: the same note + preset = the same render. DSP only, no allocation.
+// =====================================================================
+#include <cmath>
+#include <algorithm>
+#include <cstdint>
+#include "Biquad.h"
+
+namespace fge::dsp::hardcore
+{
+    struct Settings
+    {
+        bool on = false;
+        // SOURCE
+        int source = 0; float srcMix = 0.5f;                       // 909 / 909 HARD / BD ANALOG / SINE / SINE + 909 / HYBRID
+        // PITCH
+        float dropSt = 30.f, timeMs = 25.f, customCurve = 0.5f, endSt = 0.f, fineCt = 0.f, fixedNote = 31.f;
+        int curve = 1, keyMode = 0;                                // LINEAR / EXP / FAST DROP / S-CURVE / CUSTOM; FOLLOW MIDI / FIXED KEY
+        // PUNCH / BODY / TAIL relation
+        float punchMs = 30.f, bodyMs = 90.f, punchDb = 3.f, bodyDb = 0.f, tailDb = -3.f, tailDecay = 0.6f, attackMs = 0.3f;
+        // CRUNCH (tonal)
+        bool crOn = true; int crSrc = 0, crPitchMode = 0;          // 909 / BD, SINE, SINE + 909, SAW; OWN / FOLLOW PUNCH / FOLLOW BODY
+        float crStartMs = 10.f, crLenMs = 80.f, crPitchSt = 12.f, crPitchAmt = 7.f, crPitchMs = 30.f, crMix = 0.4f, crDrive = 0.5f, crAsym = 0.5f;
+        // TEXTURE (optional, limited)
+        int txType = 0; float txMix = 0.f, txLenMs = 15.f;         // NOISE / CRUSHED NOISE / SHORT TRANSIENT
+        // DISTORTION
+        float eqLowDb = 0.f, eqLowHz = 70.f, eqLmDb = 0.f, eqLmHz = 250.f, eqMidDb = 0.f, eqMidHz = 900.f, eqHmDb = 0.f, eqHmHz = 2500.f, eqHighDb = 0.f, eqHighHz = 8000.f;
+        float d1Db = 12.f, betweenHz = 600.f, betweenDb = 0.f, d2Db = 18.f, asym = 0.5f, bias = 0.2f, clipDb = 6.f, resample = 0.f;
+        int stages = 3, clipMode = 0;                              // HARD / SOFT / FOLD / ASYMMETRIC / CUSTOM
+        // POST-EQ
+        float postLowCut = 30.f, postBodyDb = 0.f, postMidDb = 0.f, postCrunchDb = 0.f, postCrunchHz = 3500.f, postHighDb = 0.f;
+        // LENGTH (the engine's own cap: BPM GRID) + BURST
+        float lengthMs = 400.f;                                    // (the engine computes it: KICK LENGTH or the BPM grid cap)
+    };
+
+    // the pitch fall 0..1 (1 = START, 0 = END) at u = t / TIME (pure: the tests call it)
+    inline float fallOf (int curve, float u, float custom)
+    {
+        u = std::clamp (u, 0.f, 1.f);
+        switch (curve)
+        {
+            case 0: return 1.f - u;                                                              // LINEAR
+            case 2: return std::pow (1.f - u, 4.f);                                              // FAST DROP
+            case 3: return 0.5f * (1.f + std::cos (3.14159265f * u));                            // S-CURVE
+            case 4: return std::pow (1.f - u, 0.3f + 4.f * std::clamp (custom, 0.f, 1.f));       // CUSTOM
+            default: { const float e4 = std::exp (-4.f); return (std::exp (-4.f * u) - e4) / (1.f - e4); }   // EXP
+        }
+    }
+
+    class Unit
+    {
+    public:
+        void prepare (double rate) { fs = rate; reset(); }
+        void reset()
+        {
+            p = pc = 0.0; blk = 0; seed = 0x5eedbeefu; rms = 0.05f; crush = 0.f; crushN = 0;
+            for (auto* b : { &eLow, &eLm, &eMid, &eHm, &eHigh, &dc1, &betw, &pLow, &pBody, &pMid, &pCr, &pHigh, &crHp, &crLp, &txBp, &dcOut }) b->clear();
+        }
+
+        float process (const Settings& s, float ms, float noteHz)
+        {
+            if (ms >= s.lengthMs) return 0.f;
+            if (blk-- <= 0) { blk = 32; cook (s, ms, noteHz); }
+            // ---- SOURCE
+            const double ph = p; p += hz / fs; if (p >= 1.0) p -= 1.0;
+            float x = source (s, ph, ms);
+            // ---- PUNCH / BODY / TAIL: each segment drives the chain its own amount (the relation, not just a volume)
+            const float atk = s.attackMs > 0.01f ? std::min (1.f, ms / s.attackMs) : 1.f;
+            x *= atk * segGain;
+            // ---- PRE-EQ (before the distortion: which band gets turned into harmonics)
+            x = eHigh.tick (eHm.tick (eMid.tick (eLm.tick (eLow.tick (x)))));
+            // ---- DRIVE 1 (tube / soft: the first harmonics)
+            x = dc1.tick (std::tanh (g1 * (x + 0.15f * x * x)) * 0.95f);
+            // ---- EQ between the stages
+            x = betw.tick (x);
+            // ---- the tonal CRUNCH joins here (it is clipped TOGETHER with the kick: several tones in one clip = the crack, not a "pup")
+            x += crunch (s, ms);
+            // ---- DRIVE 2 (hard: the main character)
+            if (s.stages >= 2) x = std::clamp (g2 * x, -1.f, 1.f) * 0.8f + 0.2f * std::tanh (g2 * x);
+            // ---- RESAMPLE FEEL: an internal normalisation (as if rendered and loaded again) + a second hard pass
+            if (s.resample > 0.f)
+            {
+                rms += (std::abs (x) - rms) * 0.002f;
+                const float n = x / std::max (0.05f, rms) * 0.35f;
+                const float r2 = std::clamp (n * (1.f + 4.f * s.resample), -1.f, 1.f);
+                x += (r2 - x) * s.resample;
+            }
+            // ---- ASYMMETRY: positive drive != negative drive + a bias (DC offset), the DC is taken out after
+            if (s.stages >= 3 && s.asym > 0.f)
+            {
+                const float a = s.asym, v = x + 0.4f * s.bias * a;
+                x = v >= 0.f ? std::tanh ((1.f + 3.f * a) * v) : std::tanh ((1.f + 0.8f * a) * v) * (1.f - 0.35f * a);
+                x += 0.25f * a * s.bias;        // the offset stays INTO the clip: it moves the square's duty cycle (even harmonics) - the DC goes after the clip
+            }
+            // ---- CLIP (the asymmetry survives it: the negative half stays lower after the clip - unequal halves = even harmonics,
+            //      otherwise a hard clip after a driven chain makes every asymmetry symmetric again)
+            x = clip (s.clipMode, x * gc);
+            if (s.stages >= 3 && x < 0.f) x *= 1.f - 0.4f * s.asym;
+            // ---- TEXTURE (optional, limited: max 30 %)
+            if (s.txMix > 0.f && ms < s.txLenMs * 3.f) x += texture (s, ms) * std::min (0.3f, s.txMix);
+            // ---- POST-EQ (+ the DC of the asymmetry taken out after the clip)
+            x = dcOut.tick (x);
+            x = pHigh.tick (pCr.tick (pMid.tick (pBody.tick (pLow.tick (x)))));
+            // ---- the tail fades over the kick length (+ a short end fade, never a click)
+            const float left = s.lengthMs - ms;
+            return x * outEnv * (left < 4.f ? left / 4.f : 1.f) * 0.85f;
+        }
+
+        // (tests / the analysis readout)
+        float lastPitchHz() const { return (float) hz; }
+
+    private:
+        float source (const Settings& s, double ph, float ms)
+        {
+            const float sn = (float) std::sin (6.283185307 * ph);
+            const float tri = (float) (1.0 - 4.0 * std::abs (ph - 0.5));
+            auto k909 = [&] (bool hard)
+            {
+                // the 909 bass drum: a triangle rounded towards a sine (its waveshaper) + the attack click (a noise tick + a short blip)
+                const float body = 0.55f * sn + 0.45f * std::tanh (1.6f * tri) / std::tanh (1.6f);
+                const float clk = (hard ? 1.6f : 1.f) * std::exp (-ms / (hard ? 0.6f : 1.2f)) * (0.6f * noise() + 0.4f * (float) std::sin (6.283185307 * 1100.0 * ms * 0.001));
+                const float b = hard ? std::tanh (2.4f * body) / std::tanh (2.4f) : body;   // 909 HARD: a fuller (driven) body
+                return b + clk;
+            };
+            const float bd = sn + 0.1f * (float) std::sin (2.0 * 6.283185307 * ph);           // BD ANALOG: a tonal body, a touch of the 2nd
+            switch (s.source)
+            {
+                case 1:  return k909 (true);
+                case 2:  return bd;
+                case 3:  return sn;
+                case 4:  return (1.f - s.srcMix) * sn + s.srcMix * k909 (false);               // SINE + 909 (the sine = the fundamental, 909 = the character)
+                case 5:  return (1.f - s.srcMix) * k909 (true) + s.srcMix * bd + 0.15f * (ph < 0.5 ? 1.f : -1.f);   // HYBRID (+ a little square bite)
+                default: return k909 (false);
+            }
+        }
+        float crunch (const Settings& s, float ms)
+        {
+            if (! s.crOn || s.crMix <= 0.f) return 0.f;
+            const float t = ms - s.crStartMs;
+            if (t < 0.f || t > s.crLenMs + 8.f) { if (t < 0.f) pc = 0.0; return 0.f; }
+            double f;
+            switch (s.crPitchMode)
+            {
+                case 1:  f = hz * std::exp2 (s.crPitchSt / 12.0); break;                                                   // FOLLOW PUNCH (its drop)
+                case 2:  f = endHz * std::exp2 (s.crPitchSt / 12.0); break;                                                // FOLLOW BODY (steady)
+                default: f = endHz * std::exp2 ((s.crPitchSt + s.crPitchAmt * std::exp (-t / std::max (1.f, s.crPitchMs))) / 12.0); break;   // OWN
+            }
+            f = std::clamp (f, 20.0, fs * 0.2);
+            const double ph = pc; pc += f / fs; if (pc >= 1.0) pc -= 1.0;
+            const float sn = (float) std::sin (6.283185307 * ph), tri = (float) (1.0 - 4.0 * std::abs (ph - 0.5));
+            float x;
+            switch (s.crSrc)
+            {
+                case 1:  x = sn; break;                                                                                     // SINE
+                case 2:  x = 0.5f * sn + 0.5f * (0.55f * sn + 0.45f * tri); break;                                          // SINE + 909
+                case 3:  x = (float) (2.0 * ph - 1.0); break;                                                               // SAW
+                default: x = 0.55f * sn + 0.45f * std::tanh (1.6f * tri) / std::tanh (1.6f); break;                       // 909 / BD
+            }
+            const float env = std::min (1.f, t / 0.5f) * (t < s.crLenMs ? 1.f : std::max (0.f, 1.f - (t - s.crLenMs) / 8.f));
+            x = crLp.tick (crHp.tick (x * env));                                                                           // (no sub from it)
+            x = std::tanh ((1.f + 6.f * s.crDrive) * x);                                                                   // SATURATION
+            const float a = s.crAsym;                                                                                      // ASYMMETRIC
+            x = x >= 0.f ? std::tanh ((1.f + 4.f * a) * x) : std::tanh ((1.f + a) * x) * (1.f - 0.4f * a);
+            return std::clamp (1.5f * x, -1.f, 1.f) * s.crMix;                                                             // CLIP -> MIX
+        }
+        float texture (const Settings& s, float ms)
+        {
+            const float e = std::exp (-ms / std::max (0.5f, s.txLenMs * 0.4f));
+            switch (s.txType)
+            {
+                case 1:                                                                                                     // CRUSHED NOISE (sample-and-hold)
+                    if (crushN-- <= 0) { crushN = (int) (fs / 6000.0); crush = noise(); }
+                    return std::round (crush * 4.f) / 4.f * e;
+                case 2:  return txBp.tick (noise()) * 3.f * std::exp (-ms / 1.5f);                                         // SHORT TRANSIENT
+                default: return noise() * e;                                                                               // NOISE
+            }
+        }
+        static float clip (int mode, float x)
+        {
+            switch (mode)
+            {
+                case 1:  return std::tanh (x);                                                                              // SOFT
+                case 2:  return std::sin (1.5707963f * std::clamp (x, -3.f, 3.f));                                          // FOLD
+                case 3:  return x >= 0.f ? std::min (1.f, x) : std::max (-0.75f, std::tanh (x));                            // ASYMMETRIC
+                case 4:  { const float c = std::clamp (x, -1.5f, 1.5f); return c - c * c * c / 6.75f; }                    // CUSTOM (a cubic knee, 0 dB peak)
+                default: return std::clamp (x, -1.f, 1.f);                                                                  // HARD
+            }
+        }
+        float noise() { seed = seed * 1664525u + 1013904223u; return (float) (int32_t) seed * (1.f / 2147483648.f); }
+        static float dbg (float db) { return std::pow (10.f, db / 20.f); }
+        void cook (const Settings& s, float ms, float noteHz)
+        {
+            // PITCH: END = the note (FOLLOW MIDI) or the FIXED KEY, + END st + FINE; START = END + DROP st
+            const double key = s.keyMode == 1 ? 440.0 * std::exp2 ((s.fixedNote - 69.0) / 12.0) : std::max (10.0, (double) noteHz);
+            endHz = std::clamp (key * std::exp2 ((s.endSt + 0.01 * s.fineCt) / 12.0), 15.0, 2000.0);
+            const float fall = fallOf (s.curve, ms / std::max (1.f, s.timeMs), s.customCurve);
+            hz = std::clamp (endHz * std::exp2 (s.dropSt * fall / 12.0), 15.0, fs * 0.3);
+            // PUNCH / BODY / TAIL segments (smooth hand-overs) + the output fade over the tail
+            const float pEnd = s.punchMs, bEnd = s.punchMs + s.bodyMs;
+            const float wP = std::clamp ((pEnd + 3.f - ms) / 6.f, 0.f, 1.f), wB = std::clamp ((bEnd + 5.f - ms) / 10.f, 0.f, 1.f) - wP;
+            const float wT = 1.f - wP - std::max (0.f, wB);
+            segGain = wP * dbg (s.punchDb) + std::max (0.f, wB) * dbg (s.bodyDb) + std::max (0.f, wT) * dbg (s.tailDb);
+            const float u = std::clamp ((ms - bEnd) / std::max (10.f, s.lengthMs - bEnd), 0.f, 1.f);
+            outEnv = ms < bEnd ? 1.f : std::max (0.f, 1.f - s.tailDecay * std::pow (u, 0.7f));
+            // the stage gains + the EQs
+            g1 = dbg (s.d1Db); g2 = dbg (s.d2Db); gc = dbg (s.clipDb);
+            eLow.shelf (fs, s.eqLowHz, s.eqLowDb, false); eLm.bell (fs, s.eqLmHz, s.eqLmDb, 0.9); eMid.bell (fs, s.eqMidHz, s.eqMidDb, 0.9);
+            eHm.bell (fs, s.eqHmHz, s.eqHmDb, 0.9); eHigh.shelf (fs, std::min ((double) s.eqHighHz, fs * 0.4), s.eqHighDb, true);
+            dc1.hp (fs, 12.0, 0.7071); dcOut.hp (fs, 10.0, 0.7071);
+            betw.bell (fs, s.betweenHz, s.betweenDb, 0.8);
+            pLow.hp (fs, std::max (10.f, s.postLowCut), 0.7071); pBody.shelf (fs, 150.0, s.postBodyDb, false); pMid.bell (fs, 800.0, s.postMidDb, 0.8);
+            pCr.bell (fs, std::clamp ((double) s.postCrunchHz, 1500.0, fs * 0.4), s.postCrunchDb, 0.9); pHigh.shelf (fs, std::min (9000.0, fs * 0.4), s.postHighDb, true);
+            crHp.hp (fs, 150.0, 0.7071); crLp.lp (fs, std::min (9000.0, fs * 0.45), 0.7071);
+            txBp.bp (fs, 3500.0, 1.0);
+        }
+
+        double fs = 48000.0, p = 0.0, pc = 0.0, hz = 100.0, endHz = 50.0;
+        int blk = 0, crushN = 0;
+        uint32_t seed = 0x5eedbeefu;
+        float segGain = 1.f, outEnv = 1.f, g1 = 1.f, g2 = 1.f, gc = 1.f, rms = 0.05f, crush = 0.f;
+        bq::Biquad eLow, eLm, eMid, eHm, eHigh, dc1, dcOut, betw, pLow, pBody, pMid, pCr, pHigh, crHp, crLp, txBp;
+    };
+}

@@ -107,6 +107,20 @@ namespace fge
             l.push_back (raw ("RAW PUNCH - Classic Crack",  { { "cr_raw", 0.85f }, { "cr_crack", 0.75f }, { "cr_snap", 0.7f }, { "rp_type", 0.f }, { "rc_snap", 0.7f }, { "rc_crack", 0.8f }, { "rc_crack_decay", 32.f }, { "rc_coupling", 0.7f } }));
             l.push_back (raw ("RAW PUNCH - 2016 Standard",  { { "cr_raw", 0.95f }, { "cr_snap", 0.75f }, { "cr_crack", 0.75f }, { "cr_density", 0.6f }, { "cr_coupling", 0.8f }, { "rp_type", 1.f }, { "rk_snap", 0.8f }, { "rk_crack", 0.8f }, { "rk_density", 0.65f }, { "rk_edge", 0.45f } }));
             l.push_back (raw ("RAW PUNCH - 2016 Extreme",   { { "cr_raw", 1.f }, { "cr_width", 0.6f }, { "cr_snap", 0.9f }, { "cr_crack", 0.95f }, { "cr_density", 0.85f }, { "cr_edge", 0.8f }, { "cr_coupling", 0.85f }, { "rp_type", 1.f }, { "rk_snap", 0.95f }, { "rk_crack", 0.95f }, { "rk_density", 0.85f }, { "rk_edge", 0.85f }, { "rk_tone", 0.6f }, { "rk_crack_decay", 24.f } }));
+            // GABBER / MILLENNIUM / HARDCORE / UPTEMPO (owner spec 2026-11-24): one preset per profile of TAIL TYPE HARDCORE (+ a burst variant)
+            auto hard = [] (const char* name, int st, std::initializer_list<std::pair<const char*, float>> more)
+            {
+                FactoryPreset fp; fp.name = name;
+                for (auto& [i, x] : fge::style::values (st)) fp.values.push_back ({ def (i).id, x });
+                fp.values.push_back ({ "core_master", -6.f });
+                for (auto& [id, x] : more) fp.values.push_back ({ id, x });
+                return fp;
+            };
+            l.push_back (hard ("GABBER - Crushed 909", fge::style::Gabber, {}));
+            l.push_back (hard ("MILLENNIUM - Heavy Dark", fge::style::Millennium, {}));
+            l.push_back (hard ("HARDCORE - Aggressive", fge::style::Hardcore, {}));
+            l.push_back (hard ("UPTEMPO - Forward", fge::style::Uptempo, {}));
+            l.push_back (hard ("UPTEMPO - Burst By Velocity", fge::style::Uptempo, { { "hc_burst", 4.f } }));
             return l; }();
         return list;
     }

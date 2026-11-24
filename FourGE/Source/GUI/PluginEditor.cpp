@@ -96,7 +96,10 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
         if (i >= 0 && fge::punchsub::family (i) == (int) raw (proc, P::punchMode)) fge::punchsub::apply (proc, i);
     };
     addChildComponent (punchSub);
-    tailType->setTooltip ("TAIL TYPE: the mechanism that makes the tail (CLASSIC / PVC / ZAAG) - only its controls are shown below.");
+    tailType->setTooltip ("TAIL TYPE: the mechanism that makes the tail (CLASSIC / PVC / ZAAG / RAW / EXPERIMENTAL / HARDCORE) - only its controls are shown below.");
+    hcInfo.setJustificationType (Justification::centredLeft); hcInfo.setColour (Label::textColourId, palette().silver.withAlpha (0.85f));
+    hcInfo.setFont (FontOptions (13.f)); hcInfo.setTooltip ("ANALYSIS: why this kick sounds like it does - the profile, the source, the timing of each part, the pitch drop and the distortion.");
+    addChildComponent (hcInfo);
     liveSpec = std::make_unique<fge::gui::LiveSpecView> (proc);
     addChildComponent (*liveSpec);
     {   // MAIN OVERVIEW (ARCHITECTURE.md): the key knobs of each TYPE, with their owner in the name
@@ -190,7 +193,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             proc.setParamInUndoStep ("punch_pitch", 440.f * std::exp2 ((float) (m - 69) / 12.f));
         };
         addAndMakeVisible (tokNote);
-        for (int t = 0; t < 17; ++t)
+        for (int t = 0; t < 20; ++t)
         {
             detTab[t].setButtonText (t == 0 ? "TONE" : "ROOM / COLOR"); detTab[t].setClickingTogglesState (false);
             detTab[t].setTooltip (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -627,6 +630,41 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (nullptr);
             for (auto [id, lab] : LZ { { "rs_gain", "GAIN" }, { "rs_pitch", "PITCH" }, { "rs_drive", "DRIVE" }, { "rs_harm", "HARMONICS" }, { "rs_filter", "FILTER" }, { "rs_noise", "NOISE" } })
                 d.push_back (knob (id, lab, col));
+            // 18th-20th tabs: TAIL TYPE HARDCORE (owner spec 2026-11-24) - source / pitch / timing, crunch / texture / length, the distortion chain
+            d.push_back (&detailPageMark);
+            d.push_back (combo ("hc_src"));
+            for (auto [id, lab] : LZ { { "hc_src_mix", "SOURCE MIX" }, { "hc_drop", "PITCH DROP" }, { "hc_time", "PITCH TIME" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("hc_curve"));
+            d.push_back (knob ("hc_curve_amt", "CUSTOM", col));
+            d.push_back (nullptr);
+            d.push_back (combo ("hc_key_mode"));
+            for (auto [id, lab] : LZ { { "hc_root_note", "ROOT KEY" }, { "hc_end", "END PITCH" }, { "hc_fine", "FINE" }, { "hc_attack", "ATTACK" } }) d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            for (auto [id, lab] : LZ { { "hc_punch_len", "PUNCH LEN" }, { "hc_punch_db", "PUNCH" }, { "hc_body_len", "BODY LEN" }, { "hc_body_db", "BODY" },
+                                       { "hc_tail_db", "TAIL" }, { "hc_tail_decay", "TAIL DECAY" } }) d.push_back (knob (id, lab, col));
+            d.push_back (&detailPageMark);
+            d.push_back (toggle ("hc_cr_on", "CRUNCH", Toggle::Chip, col)); d.push_back (combo ("hc_cr_src"));
+            for (auto [id, lab] : LZ { { "hc_cr_start", "START" }, { "hc_cr_len", "LENGTH" }, { "hc_cr_mix", "MIX" } }) d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            d.push_back (combo ("hc_cr_pmode"));
+            for (auto [id, lab] : LZ { { "hc_cr_pitch", "PITCH" }, { "hc_cr_pamt", "PITCH AMT" }, { "hc_cr_ptime", "PITCH TIME" }, { "hc_cr_drive", "DRIVE" }, { "hc_cr_asym", "ASYMMETRY" } }) d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            d.push_back (combo ("hc_tx_type"));
+            for (auto [id, lab] : LZ { { "hc_tx_mix", "TEXTURE" }, { "hc_tx_len", "TEX LEN" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("hc_len_mode")); d.push_back (combo ("hc_grid"));
+            d.push_back (knob ("hc_fill", "GRID FILL", col));
+            d.push_back (combo ("hc_burst"));
+            d.push_back (&detailPageMark);
+            for (auto [id, lab] : LZ { { "hc_eq_low_db", "LOW" }, { "hc_eq_low_hz", "LOW HZ" }, { "hc_eq_lm_db", "LOW-MID" }, { "hc_eq_lm_hz", "LM HZ" }, { "hc_eq_mid_db", "MID" },
+                                       { "hc_eq_mid_hz", "MID HZ" }, { "hc_eq_hm_db", "HIGH-MID" }, { "hc_eq_hm_hz", "HM HZ" }, { "hc_eq_high_db", "HIGH" }, { "hc_eq_high_hz", "HIGH HZ" } }) d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            d.push_back (combo ("hc_stages"));
+            for (auto [id, lab] : LZ { { "hc_d1", "DRIVE 1" }, { "hc_btw_hz", "EQ HZ" }, { "hc_btw_db", "EQ GAIN" }, { "hc_d2", "DRIVE 2" }, { "hc_resample", "RESAMPLE" },
+                                       { "hc_asym", "ASYMMETRY" }, { "hc_bias", "BIAS" } }) d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
+            d.push_back (combo ("hc_clip_mode"));
+            for (auto [id, lab] : LZ { { "hc_clip", "CLIP" }, { "hc_post_lowcut", "LOW CUT" }, { "hc_post_body", "BODY" }, { "hc_post_mid", "MID" }, { "hc_post_crunch", "CRUNCH" },
+                                       { "hc_post_crunch_hz", "CRUNCH HZ" }, { "hc_post_high", "HIGH" } }) d.push_back (knob (id, lab, col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };
@@ -966,6 +1004,11 @@ void GeCanvas::resized()
 
 void GeCanvas::layoutDetail()
 {
+    {   // TAIL TYPE HARDCORE: the ANALYSIS line under its tabs
+        const bool hc = pageIdx == 0 && ! overview && selected == 2 && (int) raw (proc, P::tailEngine) == 5;
+        hcInfo.setVisible (hc);
+        if (hc) { hcInfo.setText (hardcoreAnalysis(), dontSendNotification); hcInfo.setBounds (detailArea.getX() + 14, detailArea.getBottom() - 30, detailArea.getWidth() - 28, 24); }
+    }
     auto& d = detail[(size_t) selected];
     if (d.empty()) return;
     int y = detailArea.getY() + 32, x = detailArea.getX() + 14;
@@ -1010,12 +1053,12 @@ void GeCanvas::layoutDetail()
         punchSub.setVisible (sub);
         if (sub && tb != nullptr) punchSub.setBounds (tb->getX() - 128, detailArea.getY() + 5, 122, 24);
     }
-    for (int t = 0; t < 17; ++t)
+    for (int t = 0; t < 20; ++t)
     {
         detTab[t].setVisible (tabs && isAllowed (t) && nTabs > 1 && (pageIdx == 0 && ! overview));
         detDice.setVisible ((pageIdx == 0 && ! overview));
-        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "FRONT", "CLASSIC", "RAW", "RAW CRACK", "", "", "", "", "", "", "", "" };
-        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG", "ZAAG SWEEP / FX", "ZAAG OUT", "RAW STACK", "RAW SWEEP / CHAR", "RAW SPACE / OUT", "EXP SOURCE", "EXP FX 1-2", "EXP FX 3-4", "EXP FX 5-6", "EXP FX 7-8", "EXP MOD / OUT", "RISE" };
+        static const char* punchTabs[] { "PUNCH / TOK", "EUPHORIC", "PVC", "SUB / BLEND", "ZAAG", "FRONT", "CLASSIC", "RAW", "RAW CRACK", "", "", "", "", "", "", "", "", "", "", "" };
+        static const char* tailTabs[] { "TONE", "ROOM / COLOR", "PVC SOURCE", "PVC SHAPE", "ZAAG", "ZAAG SWEEP / FX", "ZAAG OUT", "RAW STACK", "RAW SWEEP / CHAR", "RAW SPACE / OUT", "EXP SOURCE", "EXP FX 1-2", "EXP FX 3-4", "EXP FX 5-6", "EXP FX 7-8", "EXP MOD / OUT", "RISE", "HC SOURCE / PITCH", "HC CRUNCH / SHAPE", "HC DIST / EQ" };
         static const char* punchTips[] { "The classic PUNCH / TOK generator (a waveform with a pitch glide).",
                                          "EUPHORIC model (punch mode EUPHORIC): a broadband source -> mid boost -> asymmetric distortion -> tape stop -> volume shaper.",
                                          "PVC model (punch mode PVC, the KLOENK): source -> resonance / ring mod / flanger / comb -> blend -> compressor -> distortion -> EQ -> shape. Monotone.",
@@ -1023,7 +1066,7 @@ void GeCanvas::layoutDetail()
                                          "PUNCH TYPE ZAAG: a 2 ms click, the PIEP first, then the TRASK, and a reverb on them only.",
                                          "THE FRONT of the kick, with every PUNCH TYPE: TOK (its own layer before the punch, a fixed pitch), CLICK (the 'ts', straight to the punch bus, never through ZAAG) and SUB PUNCH (a short low hit, gone before the SUB). ZAAG SEND: TOK + PUNCH into the ZAAG tail cascade.", "PUNCH TYPE CLASSIC (EARLY): the old, hard, short punch built from its attack - a hybrid source (tone + its own transient + a resonant low-mid + attack noise), a 3-stage pitch (start -> hit -> glide -> fundamental), pre-EQ -> saturation -> waveshaper -> post-EQ -> transient control.",
                                          "PUNCH TYPE RAW: RAW CLASSIC (punch source + SNAP, a controlled crack: fold -> clip -> band -> envelope, BODY COUPLING - KRAK -> DUM) or RAW 2015-2017 CRACKING (snap -> crack generator: dark/bright tilt, DENSITY folds, controlled distortion, EDGE -> a distorted bridge into the body - KRAK! -> BRUTAL BODY).",
-                                         "RAW PUNCH EXTENSION: an own CRACK layer (harmonic source, CRACK PITCH, CRACK DRIVE / CLIP / TONE, LEVEL) + SNAP + BODY COUPLING - after the master clip, so the kick's drive never touches it. OFF = the RAW punch as before.", "", "", "", "", "", "", "", "" };
+                                         "RAW PUNCH EXTENSION: an own CRACK layer (harmonic source, CRACK PITCH, CRACK DRIVE / CLIP / TONE, LEVEL) + SNAP + BODY COUPLING - after the master clip, so the kick's drive never touches it. OFF = the RAW punch as before.", "", "", "", "", "", "", "", "", "", "", "" };
         detTab[t].setButtonText (selected == 0 ? punchTabs[t] : tailTabs[t]);
         detTab[t].setTooltip (selected == 0 ? punchTips[t]
                                             : (t == 0 ? "The tail's source, envelope, tone, unison, stage 2, tail start."
@@ -1037,6 +1080,9 @@ void GeCanvas::layoutDetail()
                                                                                                               : t == 8 ? "TAIL TYPE RAW: the resonant BAND-PASS SWEEP (DOWN / UP / DOWN-UP / UP-DOWN / CUSTOM; SYNC / FREE / BODY END) and the character: GROWL, CRUNCH + the 8 TAIL macros."
                                                                                                                        : t == 9 ? "TAIL TYPE RAW: the subtle reverb (after the attack, no lows), the SUB (clean sine on the pitch, mono), the WIDTH of the highs, the tail shape."
                                                                                                                                 : t == 10 ? "TAIL TYPE EXPERIMENTAL: the OSCILLATOR (+ CUSTOM WAVETABLE), the real FM ENGINE, NOISE, the RING SOURCE, and the PITCH CURVE (8 shapes)."
+                                                                                                                                          : t == 17 ? "TAIL TYPE HARDCORE (GABBER / MILLENNIUM / HARDCORE / UPTEMPO): the SOURCE (909 / 909 HARD / BD / SINE / SINE + 909 / HYBRID), the PITCH (drop, time, curve, key) and the PUNCH / BODY / TAIL timing."
+                                                                                                                                          : t == 18 ? "TAIL TYPE HARDCORE: the tonal CRUNCH (start, length, its own pitch / follow punch / follow body, mix) clipped together with the kick, the TEXTURE (limited), the LENGTH (kick / BPM grid) and BURST."
+                                                                                                                                          : t == 19 ? "TAIL TYPE HARDCORE: PRE-EQ -> DRIVE 1 -> EQ -> DRIVE 2 -> RESAMPLE FEEL -> ASYMMETRY -> CLIP -> POST-EQ (STAGES 1 / 2 / 3)."
                                                                                                                                           : t == 16 ? "TAIL RISE: the end of the tail GROWS - synced to the BPM grid (or the kick length): START / AMOUNT / CURVE / END, the MODE (POWER / RAW / PITCH / HARMONIC / HYBRID) and the HYBRID layers."
                                                                                                                                           : t == 15 ? "TAIL TYPE EXPERIMENTAL: LFO 1 / LFO 2 / RANDOM (FIXED SEED) / MANUAL CURVE, FM / SHIFT mod, the 8 TAIL macros, the SUB (lows mono), WIDTH, the tail shape."
                                                                                                                                                     : "TAIL TYPE EXPERIMENTAL: the FX SLOTS - the slot order is the processing order (MOVE swaps a slot with the one before it). Each: TYPE, MIX, AMOUNT, PARAM, MOD SOURCE + DEPTH."));
@@ -1653,9 +1699,10 @@ std::vector<int> GeCanvas::allowedTabs() const                                //
         if (e == 2) return { 4, 5, 6, 16 };
         if (e == 3) return { 7, 8, 9, 16 };                                       // TAIL TYPE RAW
         if (e == 4) return { 10, 11, 12, 13, 14, 15, 16 };                        // TAIL TYPE EXPERIMENTAL
+        if (e == 5) return { 17, 18, 19 };                                        // TAIL TYPE HARDCORE (no rise: the tail is the bassline)
         return { 0, 1, 16 };
     }
-    return { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+    return { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
 }
 bool GeCanvas::hiddenByVariant (Component* c) const
 {
@@ -1701,6 +1748,7 @@ void GeCanvas::timerCallback()
         const int pm = (int) raw (proc, P::punchMode), te = (int) raw (proc, P::tailEngine), zv = (int) raw (proc, P::zgVariant) + 10 * (int) raw (proc, P::rpType) + 100 * (int) raw (proc, P::ckPitchMode) + 1000 * (int) raw (proc, P::ckModel);
         if (pm != shownPunchType || te != shownTailType || zv != shownZgVariant)
         { shownPunchType = pm; shownTailType = te; shownZgVariant = zv; layoutDetail(); applyOverview(); repaint(); }
+        if (hcInfo.isVisible()) hcInfo.setText (hardcoreAnalysis(), dontSendNotification);
     }
     presetBar.refresh();
     syncTokNote();
@@ -2152,4 +2200,31 @@ void GeCanvas::syncTokNote()
     const float hz = raw (proc, P::punchPitch);
     const int m = (int) std::lround (69.0 + 12.0 * std::log2 (jmax (1.f, hz) / 440.0));
     if (tokNote.getSelectedId() != m + 1 && ! tokNote.isPopupActive()) tokNote.setSelectedId (jlimit (44, 101, m + 1), dontSendNotification);
+}
+
+// TAIL TYPE HARDCORE - the ANALYSIS line (owner spec 2026-11-24, 51): what the profile does, in numbers (GUI only: read from the parameters)
+String GeCanvas::hardcoreAnalysis() const
+{
+    auto v = [this] (int i) { return raw (proc, i); };
+    const auto f = proc.frame();
+    float len = kickLengthMs (f, proc.hostBpm());
+    if ((int) v (P::hcLenMode) == 1)
+    {
+        static constexpr double notes[] { 0.25, 0.5, 1.0, 2.0 };
+        len = jmin (len, (float) (60000.0 / jlimit (30.0, 400.0, proc.hostBpm()) * notes[jlimit (0, 3, (int) v (P::hcGrid))] * v (P::hcFill)));
+    }
+    const int st = (int) proc.apvts.state.getProperty ("style", -1);
+    const float pL = v (P::hcPunchLen), bL = v (P::hcBodyLen), tail = jmax (0.f, len - pL - bL);
+    const float key = (int) v (P::hcKeyMode) == 1 ? 440.f * std::exp2 ((v (P::hcRootNote) - 69.f) / 12.f) : 0.f;
+    String s;
+    s << "STYLE " << (isPositiveAndBelow (st, (int) fge::style::NumStyles) ? fge::style::names()[st] : String ("-"))
+      << "   SOURCE " << fge::Choices::hcSources()[(int) v (P::hcSrc)]
+      << "   PUNCH " << roundToInt (pL) << " ms   BODY " << roundToInt (bL) << " ms";
+    if (v (P::hcCrOn) > 0.5f) s << "   CRUNCH " << roundToInt (v (P::hcCrStart)) << "-" << roundToInt (v (P::hcCrStart) + v (P::hcCrLen)) << " ms";
+    s << "   TAIL " << roundToInt (tail) << " ms   PITCH DROP -" << roundToInt (v (P::hcDrop)) << " st"
+      << (key > 0.f ? "   KEY " + String (roundToInt (key)) + " Hz" : String())
+      << "   DISTORTION " << ((int) v (P::hcStages) + 1) << (v (P::hcResample) > 0.01f ? " stages + RESAMPLE" : " stages")
+      << "   ASYMMETRY " << roundToInt (100.f * v (P::hcAsym)) << " %   CLIP " << fge::Choices::hcClips()[(int) v (P::hcClipMode)]
+      << " " << String (v (P::hcClip), 1) << " dB";
+    return s;
 }

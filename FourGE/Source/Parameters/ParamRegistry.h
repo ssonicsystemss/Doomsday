@@ -92,7 +92,7 @@ namespace fge
         const juce::StringArray& autoReleases(); const juce::StringArray& scSources(); const juce::StringArray& tsDetections(); const juce::StringArray& tsModes();
         const juce::StringArray& clipTypes(); const juce::StringArray& limModes(); const juce::StringArray& limOversampling(); const juce::StringArray& autoGainModes();
         const juce::StringArray& smpModes(); const juce::StringArray& smpLinks();
-        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs(); const juce::StringArray& zgVariants(); const juce::StringArray& zgRsnModes(); const juce::StringArray& zgRsnPositions(); const juce::StringArray& zgDistTypes(); const juce::StringArray& tokTypes(); const juce::StringArray& tokPitchModes(); const juce::StringArray& frontModes(); const juce::StringArray& rawOsc1s(); const juce::StringArray& rawOsc2s(); const juce::StringArray& rawNoises(); const juce::StringArray& rawStages(); const juce::StringArray& rawFltShapes(); const juce::StringArray& tailSyncs(); const juce::StringArray& expOscs(); const juce::StringArray& expNoises(); const juce::StringArray& expPitchCurves(); const juce::StringArray& expFxTypes(); const juce::StringArray& expModSrcs(); const juce::StringArray& expSeeds(); const juce::StringArray& cpWsTypes(); const juce::StringArray& clickTypes(); const juce::StringArray& rawPunchTypes(); const juce::StringArray& riseSyncs(); const juce::StringArray& riseGrids(); const juce::StringArray& riseCurves(); const juce::StringArray& riseModes(); const juce::StringArray& riseReleases(); const juce::StringArray& crackPitchModes(); const juce::StringArray& crackShapes(); const juce::StringArray& crackModels(); const juce::StringArray& crackSources(); const juce::StringArray& crackWs(); const juce::StringArray& crackListens(); const juce::StringArray& crackRoutes(); const juce::StringArray& crackRvDrives(); const juce::StringArray& crunchSources(); const juce::StringArray& crunchWs();
+        const juce::StringArray& spcModes(); const juce::StringArray& spcPolarity(); const juce::StringArray& spcHaasCh(); const juce::StringArray& outModes(); const juce::StringArray& noteCutModes(); const juce::StringArray& lenSyncs(); const juce::StringArray& tokModes(); const juce::StringArray& punchModes(); const juce::StringArray& tokNoteModes(); const juce::StringArray& tailStartModes(); const juce::StringArray& roomInputs(); const juce::StringArray& colorTracks(); const juce::StringArray& pshSources(); const juce::StringArray& pshSubWaves(); const juce::StringArray& pvcSources(); const juce::StringArray& pvcMaterials(); const juce::StringArray& tailEngines(); const juce::StringArray& gtGateModes(); const juce::StringArray& gtGateDivs(); const juce::StringArray& pvcModels(); const juce::StringArray& pvcPhModes(); const juce::StringArray& ptSources(); const juce::StringArray& ptGateCurves(); const juce::StringArray& zgOcts(); const juce::StringArray& zgFltTypes(); const juce::StringArray& zgSubSrcs(); const juce::StringArray& zgVariants(); const juce::StringArray& zgRsnModes(); const juce::StringArray& zgRsnPositions(); const juce::StringArray& zgDistTypes(); const juce::StringArray& tokTypes(); const juce::StringArray& tokPitchModes(); const juce::StringArray& frontModes(); const juce::StringArray& rawOsc1s(); const juce::StringArray& rawOsc2s(); const juce::StringArray& rawNoises(); const juce::StringArray& rawStages(); const juce::StringArray& rawFltShapes(); const juce::StringArray& tailSyncs(); const juce::StringArray& expOscs(); const juce::StringArray& expNoises(); const juce::StringArray& expPitchCurves(); const juce::StringArray& expFxTypes(); const juce::StringArray& expModSrcs(); const juce::StringArray& expSeeds(); const juce::StringArray& cpWsTypes(); const juce::StringArray& clickTypes(); const juce::StringArray& rawPunchTypes(); const juce::StringArray& riseSyncs(); const juce::StringArray& riseGrids(); const juce::StringArray& riseCurves(); const juce::StringArray& riseModes(); const juce::StringArray& riseReleases(); const juce::StringArray& crackPitchModes(); const juce::StringArray& crackShapes(); const juce::StringArray& crackModels(); const juce::StringArray& crackSources(); const juce::StringArray& crackWs(); const juce::StringArray& crackListens(); const juce::StringArray& crackRoutes(); const juce::StringArray& crackRvDrives(); const juce::StringArray& crunchSources(); const juce::StringArray& crunchWs(); const juce::StringArray& hcSources(); const juce::StringArray& hcCurves(); const juce::StringArray& hcKeyModes(); const juce::StringArray& hcCrSources(); const juce::StringArray& hcCrModes(); const juce::StringArray& hcTextures(); const juce::StringArray& hcClips(); const juce::StringArray& hcStages(); const juce::StringArray& hcLenModes(); const juce::StringArray& hcGrids(); const juce::StringArray& hcBursts();
         const juce::StringArray& folSources(); const juce::StringArray& folDetects(); const juce::StringArray& lfoInterps();
         const juce::StringArray& lfoWaves(); const juce::StringArray& modDivisions(); const juce::StringArray& modRetrigs(); const juce::StringArray& lfoModes();
         const juce::StringArray& modPolarities(); const juce::StringArray& seqDirections(); const juce::StringArray& seqSkips(); const juce::StringArray& rndModes();
@@ -951,7 +951,69 @@ namespace fge
     C (cnWs, "cn_ws", "Crunch Waveshaper", crunchWs, 1, FNone) \
     F (cnClip, "cn_clip", "Crunch Clip", Unit::Pct, 0.0f, 1.0f, 0.7f, 0.0f, FNone) \
     F (cnDistMix, "cn_dist_mix", "Crunch Distortion Mix", Unit::Pct, 0.0f, 1.0f, 0.85f, 0.0f, FNone) \
-    B (cnSolo, "cn_solo", "Solo Crunch", false, FNone)
+    B (cnSolo, "cn_solo", "Solo Crunch", false, FNone) \
+    /* owner spec 2026-11-24 HARDCORE KICK ENGINE (TAIL TYPE HARDCORE, HARDCORE_ENGINE.md) */ \
+    C (hcSrc, "hc_src", "HC Source", hcSources, 0, FNone) \
+    F (hcSrcMix, "hc_src_mix", "HC Source Mix", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (hcDrop, "hc_drop", "HC Pitch Drop", Unit::Semi, 0.0f, 48.0f, 30.0f, 0.0f, FNone) \
+    F (hcTime, "hc_time", "HC Pitch Time", Unit::Ms, 1.0f, 100.0f, 25.0f, 25.0f, FNone) \
+    C (hcCurve, "hc_curve", "HC Pitch Curve", hcCurves, 1, FNone) \
+    F (hcCurveAmt, "hc_curve_amt", "HC Custom Curve", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    C (hcKeyMode, "hc_key_mode", "HC Key Mode", hcKeyModes, 0, FNone) \
+    F (hcRootNote, "hc_root_note", "HC Root Key", Unit::None, 12.0f, 60.0f, 31.0f, 0.0f, FNone) \
+    F (hcEnd, "hc_end", "HC End Pitch", Unit::Semi, -24.0f, 24.0f, 0.0f, 0.0f, FNone) \
+    F (hcFine, "hc_fine", "HC Fine Tune", Unit::Cents, -100.0f, 100.0f, 0.0f, 0.0f, FNone) \
+    F (hcPunchLen, "hc_punch_len", "HC Punch Length", Unit::Ms, 5.0f, 150.0f, 30.0f, 0.0f, FNone) \
+    F (hcBodyLen, "hc_body_len", "HC Body Length", Unit::Ms, 10.0f, 300.0f, 90.0f, 0.0f, FNone) \
+    F (hcPunchDb, "hc_punch_db", "HC Punch", Unit::Db, -12.0f, 12.0f, 3.0f, 0.0f, FNone) \
+    F (hcBodyDb, "hc_body_db", "HC Body", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcTailDb, "hc_tail_db", "HC Tail", Unit::Db, -18.0f, 12.0f, -3.0f, 0.0f, FNone) \
+    F (hcTailDecay, "hc_tail_decay", "HC Tail Decay", Unit::Pct, 0.0f, 1.0f, 0.6f, 0.0f, FNone) \
+    F (hcAttack, "hc_attack", "HC Attack", Unit::Ms, 0.0f, 10.0f, 0.3f, 0.0f, FNone) \
+    B (hcCrOn, "hc_cr_on", "HC Crunch On", true, FNone) \
+    C (hcCrSrc, "hc_cr_src", "HC Crunch Source", hcCrSources, 0, FNone) \
+    F (hcCrStart, "hc_cr_start", "HC Crunch Start", Unit::Ms, 0.0f, 80.0f, 10.0f, 0.0f, FNone) \
+    F (hcCrLen, "hc_cr_len", "HC Crunch Length", Unit::Ms, 5.0f, 300.0f, 80.0f, 80.0f, FNone) \
+    F (hcCrPitch, "hc_cr_pitch", "HC Crunch Pitch", Unit::Semi, -24.0f, 36.0f, 12.0f, 0.0f, FNone) \
+    C (hcCrPMode, "hc_cr_pmode", "HC Crunch Pitch Mode", hcCrModes, 0, FNone) \
+    F (hcCrPAmt, "hc_cr_pamt", "HC Crunch Pitch Amount", Unit::Semi, 0.0f, 24.0f, 7.0f, 0.0f, FNone) \
+    F (hcCrPTime, "hc_cr_ptime", "HC Crunch Pitch Time", Unit::Ms, 1.0f, 200.0f, 30.0f, 30.0f, FNone) \
+    F (hcCrMix, "hc_cr_mix", "HC Crunch Mix", Unit::Pct, 0.0f, 1.0f, 0.4f, 0.0f, FNone) \
+    F (hcCrDrive, "hc_cr_drive", "HC Crunch Drive", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (hcCrAsym, "hc_cr_asym", "HC Crunch Asymmetry", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    C (hcTxType, "hc_tx_type", "HC Texture", hcTextures, 0, FNone) \
+    F (hcTxMix, "hc_tx_mix", "HC Texture Mix", Unit::Pct, 0.0f, 0.3f, 0.0f, 0.0f, FNone) \
+    F (hcTxLen, "hc_tx_len", "HC Texture Length", Unit::Ms, 1.0f, 60.0f, 15.0f, 0.0f, FNone) \
+    F (hcEqLowDb, "hc_eq_low_db", "HC Pre EQ Low", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcEqLowHz, "hc_eq_low_hz", "HC Pre EQ Low Freq", Unit::Hz, 30.0f, 200.0f, 70.0f, 70.0f, FNone) \
+    F (hcEqLmDb, "hc_eq_lm_db", "HC Pre EQ Low-Mid", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcEqLmHz, "hc_eq_lm_hz", "HC Pre EQ Low-Mid Freq", Unit::Hz, 120.0f, 600.0f, 250.0f, 250.0f, FNone) \
+    F (hcEqMidDb, "hc_eq_mid_db", "HC Pre EQ Mid", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcEqMidHz, "hc_eq_mid_hz", "HC Pre EQ Mid Freq", Unit::Hz, 400.0f, 2000.0f, 900.0f, 900.0f, FNone) \
+    F (hcEqHmDb, "hc_eq_hm_db", "HC Pre EQ High-Mid", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcEqHmHz, "hc_eq_hm_hz", "HC Pre EQ High-Mid Freq", Unit::Hz, 1500.0f, 6000.0f, 2500.0f, 2500.0f, FNone) \
+    F (hcEqHighDb, "hc_eq_high_db", "HC Pre EQ High", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcEqHighHz, "hc_eq_high_hz", "HC Pre EQ High Freq", Unit::Hz, 5000.0f, 16000.0f, 8000.0f, 8000.0f, FNone) \
+    F (hcD1, "hc_d1", "HC Drive 1", Unit::Db, 0.0f, 30.0f, 12.0f, 0.0f, FNone) \
+    F (hcBtwHz, "hc_btw_hz", "HC Between EQ Freq", Unit::Hz, 150.0f, 4000.0f, 600.0f, 600.0f, FNone) \
+    F (hcBtwDb, "hc_btw_db", "HC Between EQ", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcD2, "hc_d2", "HC Drive 2", Unit::Db, 0.0f, 36.0f, 18.0f, 0.0f, FNone) \
+    F (hcAsym, "hc_asym", "HC Asymmetry", Unit::Pct, 0.0f, 1.0f, 0.5f, 0.0f, FNone) \
+    F (hcBias, "hc_bias", "HC Bias", Unit::Pct, 0.0f, 1.0f, 0.2f, 0.0f, FNone) \
+    C (hcClipMode, "hc_clip_mode", "HC Clip Mode", hcClips, 0, FNone) \
+    F (hcClip, "hc_clip", "HC Clip", Unit::Db, 0.0f, 24.0f, 6.0f, 0.0f, FNone) \
+    F (hcResample, "hc_resample", "HC Resample Feel", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    C (hcStages, "hc_stages", "HC Distortion Stages", hcStages, 2, FNone) \
+    F (hcPostLowCut, "hc_post_lowcut", "HC Post Low Cut", Unit::Hz, 10.0f, 200.0f, 30.0f, 40.0f, FNone) \
+    F (hcPostBody, "hc_post_body", "HC Post Body", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcPostMid, "hc_post_mid", "HC Post Mid", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcPostCrunch, "hc_post_crunch", "HC Post Crunch", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcPostCrunchHz, "hc_post_crunch_hz", "HC Post Crunch Freq", Unit::Hz, 2000.0f, 6000.0f, 3500.0f, 3500.0f, FNone) \
+    F (hcPostHigh, "hc_post_high", "HC Post High", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    C (hcLenMode, "hc_len_mode", "HC Length Mode", hcLenModes, 0, FNone) \
+    C (hcGrid, "hc_grid", "HC Length Grid", hcGrids, 2, FNone) \
+    F (hcFill, "hc_fill", "HC Grid Fill", Unit::Pct, 0.2f, 1.0f, 0.9f, 0.0f, FNone) \
+    C (hcBurst, "hc_burst", "HC Burst", hcBursts, 0, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

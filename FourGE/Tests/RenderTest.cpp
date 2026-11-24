@@ -274,6 +274,9 @@ int main (int argc, char** argv)
             ge->canvas.tailTab (8); shot ("page00_rawcrack.png");
             setv ("rp_type", 0.f); setv ("punch_mode", 0.f);
             setv ("rs_on", 1.f); ge->canvas.selectPart (2); ge->canvas.tailTab (16); shot ("page00_rise.png");
+            setv ("tail_engine", 5.f); ge->canvas.selectPart (2);                     // TAIL TYPE HARDCORE: its 3 tabs + the ANALYSIS line
+            ge->canvas.tailTab (17); shot ("page00_hc_source.png"); ge->canvas.tailTab (18); shot ("page00_hc_crunch.png"); ge->canvas.tailTab (19); shot ("page00_hc_dist.png");
+            setv ("tail_engine", 0.f);
             setv ("rs_on", 0.f);
         }
         {                                                                                   // PUNCH: the SHAPED tab (punch mode SHAPED)
@@ -1235,6 +1238,21 @@ int main (int argc, char** argv)
                     if (sid == "cp_trans_ms" || sid == "cp_trans_hz") set2 ("cp_trans", 1.5f);
                     if (sid == "cp_res_hz" || sid == "cp_res_q") set2 ("cp_res", 1.f);
                     if (sid == "cp_noise_hz") set2 ("cp_noise", 0.6f);
+                }
+                if (sid.startsWith ("hc_"))                                                                    // TAIL TYPE HARDCORE (owner spec 2026-11-24)
+                {
+                    set2 ("tail_engine", 5.f); set2 ("punch_level", -60.f); set2 ("body_level", -60.f); set2 ("sub_level", -60.f);
+                    if (sid == "hc_src_mix") set2 ("hc_src", 4.f);
+                    if (sid == "hc_curve_amt") set2 ("hc_curve", 4.f);
+                    if (sid == "hc_root_note") set2 ("hc_key_mode", 1.f);
+                    if (sid == "hc_key_mode") set2 ("hc_root_note", 45.f);
+                    if (sid == "hc_tx_type" || sid == "hc_tx_len") set2 ("hc_tx_mix", 0.3f);
+                    if (sid == "hc_grid" || sid == "hc_fill") set2 ("hc_len_mode", 1.f);
+                    if (sid == "hc_bias") set2 ("hc_asym", 0.8f);
+                    if (sid == "hc_btw_hz") set2 ("hc_btw_db", 12.f);
+                    if (sid == "hc_post_crunch_hz") set2 ("hc_post_crunch", 12.f);
+                    if (sid.startsWith ("hc_eq_") && sid.endsWith ("_hz")) set2 (sid.replace ("_hz", "_db"), 12.f);
+                    if (sid.startsWith ("hc_eq_") || sid.startsWith ("hc_post") || sid == "hc_btw_db" || sid == "hc_btw_hz") { set2 ("hc_d1", 0.f); set2 ("hc_d2", 0.f); set2 ("hc_clip", 0.f); set2 ("hc_stages", 0.f); set2 ("hc_clip_mode", 1.f); }
                 }
                 if (sid.startsWith ("cn_"))                                                                    // DYNAMIC DISTORTED CRUNCH: RAW punch, crunch on, into the body
                 {
@@ -3108,6 +3126,45 @@ int main (int argc, char** argv)
                    String ("peak at ") + String (pkMs, 1) + " ms, mix0 " + String (rmsDb (dm, 0, 300), 1) + " / same " + String (rmsDb (dd, 0, 300), 1) + " dB" + ", dry " + String (rmsDb (dry, 0, 30), 1) + " ms, routes PRE-POST " + String (dPrePost, 1) + " PRE-PAR " + String (dPrePar, 1) + " POST-PAR " + String (dPostPar, 1) + " dB"
                        + (shortEv ? "" : " LONG!") + (punchScales ? "" : " PUNCH!") + (mixZeroDry ? "" : " MIX0!") + (routes ? "" : " ROUTES!") + (gated ? "" : " GATE!") + (noSub ? "" : " SUB!"));
         }
+        // TAIL TYPE HARDCORE (owner spec 2026-11-24): the 4 profiles = one engine; each plays, UPTEMPO is the shortest (BPM grid), GABBER the
+        // longest, the tail lands on the note (KICK = BASSLINE), 1 / 2 / 3 STAGES and ASYMMETRY each change the kick, PUNCH 0 dB = the engine only
+        {
+            auto styleKick = [&] (int st, std::initializer_list<std::pair<const char*, float>> kv)
+            {
+                auto f = fge::style::onFrame (ParamFrame::defaults(), st);
+                for (auto& [id, x] : kv) f[fge::modstate::indexOf (id)] = x;
+                return renderKick (f, 31, 44100.0, 0.6, -1, 1.f, nullptr, 180.0);
+            };
+            auto endMs = [] (const AudioBuffer<float>& b)
+            {
+                for (int i = b.getNumSamples() - 1; i > 0; --i) if (std::abs (b.getSample (0, i)) > 0.01f * b.getMagnitude (0, 0, b.getNumSamples())) return (float) i / 44.1f;
+                return 0.f;
+            };
+            auto f0 = [] (const AudioBuffer<float>& b, float fromMs, float toMs)
+            {
+                int n = 0, first = -1, last = -1;
+                for (int i = (int) (fromMs * 44.1f); i < (int) (toMs * 44.1f) - 1; ++i)
+                    if (b.getSample (0, i) < 0.f && b.getSample (0, i + 1) >= 0.f) { if (first < 0) first = i; last = i; ++n; }
+                return n > 1 ? 44100.f * (float) (n - 1) / (float) (last - first) : 0.f;
+            };
+            const auto g = styleKick (fge::style::Gabber, {}), m = styleKick (fge::style::Millennium, {}), h = styleKick (fge::style::Hardcore, {}), u = styleKick (fge::style::Uptempo, {});
+            bool plays = true; for (auto* b : { &g, &m, &h, &u }) plays = plays && b->getMagnitude (0, 0, b->getNumSamples()) > 0.05f && ! std::isnan (b->getSample (0, 1000));
+            const float eg = endMs (g), eu = endMs (u);
+            const float fg = f0 (g, 150.f, 250.f), note = 440.f * std::exp2 ((31.f - 69.f) / 12.f);
+            const bool onNote = std::abs (fg - note) / note < 0.08f;
+            auto diff = [] (const AudioBuffer<float>& x, const AudioBuffer<float>& y)
+            { double e = 0, d = 0; for (int i = 0; i < jmin (x.getNumSamples(), y.getNumSamples()); ++i) { e += (double) x.getSample (0, i) * x.getSample (0, i); d += std::pow ((double) x.getSample (0, i) - y.getSample (0, i), 2.0); } return (float) (10.0 * std::log10 (d / jmax (1.0e-12, e))); };
+            // (STAGES / ASYMMETRY compared at a moderate drive: at full drive every stage ends in a square anyway)
+            const auto s1 = styleKick (fge::style::Hardcore, { { "hc_stages", 0.f }, { "hc_d1", 6.f }, { "hc_clip", 0.f } }), s2 = styleKick (fge::style::Hardcore, { { "hc_stages", 1.f }, { "hc_d1", 6.f }, { "hc_clip", 0.f } }),
+                       s3 = styleKick (fge::style::Hardcore, { { "hc_stages", 2.f }, { "hc_d1", 6.f }, { "hc_clip", 0.f } });
+            const auto a0 = styleKick (fge::style::Hardcore, { { "hc_asym", 0.f } });
+            const float d12 = diff (s1, s2), d23 = diff (s2, s3), dA = diff (h, a0);
+            const bool stages = d12 > -30.f && d23 > -30.f, asym = dA > -30.f;
+            check (plays && eu < eg - 60.f && onNote && stages && asym,
+                   "TAIL TYPE HARDCORE: GABBER / MILLENNIUM / HARDCORE / UPTEMPO play from one engine; UPTEMPO short, GABBER long, the tail on the note, STAGES / ASYMMETRY change it",
+                   String ("end GABBER ") + String (eg, 0) + " / UPTEMPO " + String (eu, 0) + " ms, tail " + String (fg, 1) + " Hz (note " + String (note, 1) + "), stages 1-2 " + String (d12, 1) + " / 2-3 " + String (d23, 1) + " dB, asym " + String (dA, 1) + " dB"
+                       + (plays ? "" : " SILENT!") + (onNote ? "" : " PITCH!") + (stages ? "" : " STAGES!") + (asym ? "" : " ASYM!"));
+        }
         // TAIL RISE (owner 2026-11-21, TAIL_RISE.md): BPM grid sync (the window follows the tempo), peaks controlled, PITCH goes up, style defaults
         {
             auto kick = [&] (std::initializer_list<std::pair<const char*, float>> kv, double bpm)
@@ -3788,9 +3845,10 @@ int main (int argc, char** argv)
                                                                                                                           : v >= def (i).min - 1e-3f && v <= def (i).max + 1e-3f);
                     if (i < 0 || ! fs::inScope (i) || ! range) { ok = false; bad << fs::names()[st] << ":" << id << " "; }
                 }
-            const int want[7][3] { { fge::dsp::dist::Soft, fge::dsp::dist::Tube, -1 }, { fge::dsp::dist::Hard, fge::dsp::dist::Soft, fge::dsp::dist::Digital },
+            const int want[fs::NumStyles][3] { { fge::dsp::dist::Soft, fge::dsp::dist::Tube, -1 }, { fge::dsp::dist::Hard, fge::dsp::dist::Soft, fge::dsp::dist::Digital },
                                    { fge::dsp::dist::Asym, fge::dsp::dist::Hard, fge::dsp::dist::Wavefold }, { fge::dsp::dist::Wavefold, fge::dsp::dist::Rectifier, fge::dsp::dist::Custom },
-                                   { fge::dsp::dist::Soft, fge::dsp::dist::Wavefold, -1 }, { -1, -1, -1 }, { -1, -1, -1 } };          // EUPHORIC; PVC / ZAAG = no pool chain (their own stages): saturation -> waveshaping (owner 2026-11-12)
+                                   { fge::dsp::dist::Soft, fge::dsp::dist::Wavefold, -1 }, { -1, -1, -1 }, { -1, -1, -1 },
+                                   { -1, -1, -1 }, { -1, -1, -1 }, { -1, -1, -1 }, { -1, -1, -1 } };          // EUPHORIC; PVC / ZAAG / GABBER..UPTEMPO = no pool chain (their own stages): saturation -> waveshaping (owner 2026-11-12)
             for (int st = 0; st < fs::NumStyles; ++st)
             {
                 GeProcessor p; fs::apply (p, st, false);

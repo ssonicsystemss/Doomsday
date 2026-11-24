@@ -476,3 +476,12 @@ Wszystkie 17 modułów są gotowe – teraz szlif brzmienia i presetów według 
 - **PVC PUNCH → model TUBE**: dwa tony rury + comb (rura PVC), skok na starcie („ciup”), spadek na końcu (DROP / DROP TIME), PHASER (SWEEP / LFO), BRIGHT. Stary KLOENK zostaje jako drugi model.
 - **TAIL ENGINE → PVC** (zakładki PVC SOURCE / PVC SHAPE): źródło KICK BODY / SINE / SAW / HYBRID → REVERB (materiał ogona) → HIGH CUT → DRIVE 1 → CLIP → GATE (SINGLE / PULSE / MOVEMENT, krzywe HARD / SOFT / EXP / STEPS) → DRIVE 2 → SPECTRUM (LOW / LOW MID / MID / HIGH) → dół mono, góra szeroka → FINAL SHAPE.
 - Presety: **PVC - Tube Exp / Tube Steps / Tube Pulse**.
+
+## HARDCORE: GABBER / MILLENNIUM / HARDCORE / UPTEMPO (2026-11-24)
+Nowy TAIL TYPE **HARDCORE** robi cały kick, a cztery nowe style (GABBER, MILLENNIUM, HARDCORE, UPTEMPO) to jego profile, nie osobne silniki.
+Zakładki w panelu TAIL:
+- **HC SOURCE / PITCH**: źródło (909 / 909 HARD / BD / SINE / SINE+909 / HYBRID), zjazd pitchu (DROP, TIME, krzywa), tonacja (za MIDI albo stała ROOT KEY), czasy i siła PUNCH / BODY / TAIL.
+- **HC CRUNCH / SHAPE**: tonalny CRUNCH (START, LENGTH, własny pitch albo za punchem / body, MIX), TEXTURE (max 30 %), DŁUGOŚĆ (długość kicka albo siatka BPM: kick nie zachodzi na następny), BURST (krótszy / wyższy / cięższy kick z automatyki albo velocity).
+- **HC DIST / EQ**: PRE-EQ (5 pasm) → DRIVE 1 → EQ → DRIVE 2 → RESAMPLE → ASYMMETRY → CLIP (5 trybów) → POST-EQ (z pasmem CRUNCH 2–6 kHz), STAGES 1 / 2 / 3.
+Pod zakładkami linia ANALIZY: styl, źródło, czasy części, zjazd pitchu, etapy, asymetria, clip.
+Presety: GABBER - Crushed 909, MILLENNIUM - Heavy Dark, HARDCORE - Aggressive, UPTEMPO - Forward, UPTEMPO - Burst By Velocity.

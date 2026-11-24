@@ -16,6 +16,7 @@
 #include "Core/PvcPunch.h"
 #include "Tone/PvcTail.h"
 #include "Tone/ZaagTail.h"
+#include "Tone/HardcoreKick.h"
 #include "Core/ZaagPunch.h"
 #include "Core/ClassicPunch.h"
 #include "Core/RawPunch.h"
@@ -69,7 +70,8 @@ namespace fge
         dsp::pvctail::Settings pvcTail;           // TAIL ENGINE PVC (owner 2026-11-14, the KLOENK tail)
         dsp::raw::Settings raw;
         dsp::exper::Settings exp;                 // TAIL TYPE EXPERIMENTAL (owner 2026-11-16, TAIL_RAW_EXP.md)                   // TAIL TYPE RAW (owner 2026-11-16, TAIL_RAW_EXP.md)
-        dsp::zaag::Settings zaag;                 // TAIL TYPE ZAAG (owner 2026-11-14 / 15)
+        dsp::zaag::Settings zaag;
+        dsp::hardcore::Settings hc;                // TAIL TYPE HARDCORE (owner 2026-11-24)                 // TAIL TYPE ZAAG (owner 2026-11-14 / 15)
         dsp::front::ClickSettings click; dsp::front::TokSettings tok; dsp::front::SubPunchSettings spk; float zgSend = 0.f;
         bool crackSolo = false, crunchSolo = false;                  // SOLO CRACK: only the crack (diagnostics)
         dsp::front::CrackSettings crack;         // RAW PUNCH EXTENSION (owner 2026-11-21): CRACK + SNAP + BODY COUPLING, mixed after the master clip   // the FRONT (owner 2026-11-16)
@@ -451,7 +453,7 @@ namespace fge
             limRel = (float) (1.0 - std::exp (-1.0 / (0.08 * sampleRate))); muteStep = (float) (1.0 / (0.005 * sampleRate)); limG = 1.f;
             muteG = 1.f;
             tailRoom->prepare (sampleRate * osFactor); tokRoom->prepare (sampleRate * osFactor); tailColor.reset();
-            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor); zaagU.prepare (sampleRate * osFactor); rawU.prepare (sampleRate * osFactor); expU.prepare (sampleRate * osFactor); zpU.prepare (sampleRate * osFactor); cpU.prepare (sampleRate * osFactor); rpU.prepare (sampleRate * osFactor); riseU.prepare (sampleRate * osFactor);
+            shapedR->prepare (sampleRate); pvcR->prepare (sampleRate); pvcU.prepare (sampleRate * osFactor); zaagU.prepare (sampleRate * osFactor); hcU.prepare (sampleRate * osFactor); rawU.prepare (sampleRate * osFactor); expU.prepare (sampleRate * osFactor); zpU.prepare (sampleRate * osFactor); cpU.prepare (sampleRate * osFactor); rpU.prepare (sampleRate * osFactor); riseU.prepare (sampleRate * osFactor);
             clkU.prepare (sampleRate * osFactor); tokU.prepare (sampleRate * osFactor); spkU.prepare (sampleRate * osFactor); crU.prepare (sampleRate * osFactor);
             sendBuf.assign ((size_t) (maxBlockSize * osFactor), 0.f);
             atkBuf.assign ((size_t) (maxBlockSize * osFactor), 0.f);
@@ -563,7 +565,7 @@ namespace fge
             }
             slot->trigger (note, velGain, cfg, ph, ++counter, legatoMs, clockSec, (uint32_t) counter + cfg.seedSalt * 0x9E3779B1u);
             shaper.hit();
-            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); rawU.reset(); expU.resetFor (cfg.exp); expU.seedFor (note, cfg.exp.fixedSeed, (uint32_t) counter); zpU.reset(); cpU.reset(); rpU.reset(); riseU.reset(); clkU.reset(); tokU.reset(); spkU.reset(); crU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
+            tailRoom->clear(); tokRoom->clear(); pvcU.reset(); zaagU.reset(); hcU.reset(); rawU.reset(); expU.resetFor (cfg.exp); expU.seedFor (note, cfg.exp.fixedSeed, (uint32_t) counter); zpU.reset(); cpU.reset(); rpU.reset(); riseU.reset(); clkU.reset(); tokU.reset(); spkU.reset(); crU.reset(); sinceHitMs = 0.f; sinceHitOs = 0; lastVelocity = juce::jlimit (0.f, 1.f, velocity);
             lastNoteHz = 440.f * std::exp2 ((float) (note - 69) / 12.f); relMs = -1.f;
             scrGate = 1.f; scrCut = false; outGate = 1.f; outCut = false;
             if (cfg.scr.on)                                                   // module 06: where the screech sits in this kick
@@ -1037,6 +1039,39 @@ namespace fge
                     e.sub = f[P::exSub]; e.subHz = f[P::exSubHz]; e.width = f[P::exWidth]; e.drive = f[P::exDrive];
                     e.lengthMs = ks.lengthMs; e.attackMs = f[P::exAttack]; e.body = f[P::exBody]; e.decay = f[P::exDecay]; e.fade = f[P::exFade];
                 }
+                {                                                                   // TAIL TYPE HARDCORE (owner spec 2026-11-24): GABBER / MILLENNIUM / HARDCORE / UPTEMPO = profiles
+                    auto& h = cfg.hc;
+                    h.on = f.idx (P::tailEngine) == 5;
+                    h.source = f.idx (P::hcSrc); h.srcMix = f[P::hcSrcMix];
+                    h.dropSt = f[P::hcDrop]; h.timeMs = f[P::hcTime]; h.curve = f.idx (P::hcCurve); h.customCurve = f[P::hcCurveAmt];
+                    h.keyMode = f.idx (P::hcKeyMode); h.fixedNote = f[P::hcRootNote]; h.endSt = f[P::hcEnd]; h.fineCt = f[P::hcFine];
+                    h.punchMs = f[P::hcPunchLen]; h.bodyMs = f[P::hcBodyLen]; h.punchDb = f[P::hcPunchDb]; h.bodyDb = f[P::hcBodyDb]; h.tailDb = f[P::hcTailDb];
+                    h.tailDecay = f[P::hcTailDecay]; h.attackMs = f[P::hcAttack];
+                    h.crOn = f.on (P::hcCrOn); h.crSrc = f.idx (P::hcCrSrc); h.crStartMs = f[P::hcCrStart]; h.crLenMs = f[P::hcCrLen];
+                    h.crPitchSt = f[P::hcCrPitch]; h.crPitchMode = f.idx (P::hcCrPMode); h.crPitchAmt = f[P::hcCrPAmt]; h.crPitchMs = f[P::hcCrPTime];
+                    h.crMix = f[P::hcCrMix]; h.crDrive = f[P::hcCrDrive]; h.crAsym = f[P::hcCrAsym];
+                    h.txType = f.idx (P::hcTxType); h.txMix = f[P::hcTxMix]; h.txLenMs = f[P::hcTxLen];
+                    h.eqLowDb = f[P::hcEqLowDb]; h.eqLowHz = f[P::hcEqLowHz]; h.eqLmDb = f[P::hcEqLmDb]; h.eqLmHz = f[P::hcEqLmHz]; h.eqMidDb = f[P::hcEqMidDb]; h.eqMidHz = f[P::hcEqMidHz];
+                    h.eqHmDb = f[P::hcEqHmDb]; h.eqHmHz = f[P::hcEqHmHz]; h.eqHighDb = f[P::hcEqHighDb]; h.eqHighHz = f[P::hcEqHighHz];
+                    h.d1Db = f[P::hcD1]; h.betweenHz = f[P::hcBtwHz]; h.betweenDb = f[P::hcBtwDb]; h.d2Db = f[P::hcD2]; h.asym = f[P::hcAsym]; h.bias = f[P::hcBias];
+                    h.clipMode = f.idx (P::hcClipMode); h.clipDb = f[P::hcClip]; h.resample = f[P::hcResample]; h.stages = f.idx (P::hcStages) + 1;
+                    h.postLowCut = f[P::hcPostLowCut]; h.postBodyDb = f[P::hcPostBody]; h.postMidDb = f[P::hcPostMid];
+                    h.postCrunchDb = f[P::hcPostCrunch]; h.postCrunchHz = f[P::hcPostCrunchHz]; h.postHighDb = f[P::hcPostHigh];
+                    // LENGTH: the KICK LENGTH, or capped by the BPM GRID (x FILL) so the kick never blocks the next one (uptempo)
+                    h.lengthMs = ks.lengthMs;
+                    if (f.idx (P::hcLenMode) == 1)
+                    {
+                        static constexpr double notes[] { 0.25, 0.5, 1.0, 2.0 };       // 1/16 .. 1/2 in beats
+                        const double gridMs = 60000.0 / juce::jlimit (30.0, 400.0, tempo()) * notes[juce::jlimit (0, 3, f.idx (P::hcGrid))];
+                        h.lengthMs = juce::jmin (ks.lengthMs, (float) (gridMs * f[P::hcFill]));
+                    }
+                    // BURST MODE (MIDI / automation, never random): SHORT / PITCHED / HEAVY, or by the note velocity
+                    int burst = f.idx (P::hcBurst);
+                    if (burst == 4) burst = lastVelocity < 0.4f ? 0 : lastVelocity < 0.6f ? 1 : lastVelocity < 0.8f ? 2 : 3;
+                    if (burst == 1) { h.lengthMs *= 0.5f; h.bodyMs *= 0.6f; h.crLenMs *= 0.6f; }
+                    else if (burst == 2) { h.endSt += 5.f; h.dropSt += 6.f; }
+                    else if (burst == 3) { h.d2Db += 6.f; h.bodyDb += 3.f; h.asym = juce::jmin (1.f, h.asym + 0.2f); }
+                }
                 auto& z = cfg.zaag;                                                 // TAIL ENGINE ZAAG
                 z.on = f.idx (P::tailEngine) == 2;
                 z.variant = f.idx (P::zgVariant);
@@ -1319,11 +1354,11 @@ namespace fge
                 const auto g0 = gainNow[(size_t) c], g1 = gainTarget[(size_t) c];
                 const float* x = b[c];
                 const bool wideTail = c == 2 && cfg.wide;
-                const bool roomHere = cfg.room.on && ((c == 2 && ! cfg.zaag.on && ! cfg.pvcTail.on && ! cfg.raw.on && ! cfg.exp.on) || (c == 0 && cfg.room.onTok && ! cfg.zpunch.on && ! cfg.cpunch.on && ! cfg.rpunch.on));   // (the classic room: not on the engine parts)
+                const bool roomHere = cfg.room.on && ((c == 2 && ! cfg.zaag.on && ! cfg.pvcTail.on && ! cfg.raw.on && ! cfg.exp.on && ! cfg.hc.on) || (c == 0 && cfg.room.onTok && ! cfg.zpunch.on && ! cfg.cpunch.on && ! cfg.rpunch.on));   // (the classic room: not on the engine parts)
                 auto* room = c == 0 ? tokRoom.get() : tailRoom.get();
                 if (roomHere) room->cook (cfg.room);
-                const bool colorHere = c == 2 && cfg.color.on && ! cfg.pvcTail.on && ! cfg.zaag.on && ! cfg.raw.on && ! cfg.exp.on;
-                const bool pvcHere = (c == 2 && (cfg.pvcTail.on || cfg.zaag.on || cfg.raw.on || cfg.exp.on)) || (c == 0 && (cfg.zpunch.on || cfg.cpunch.on || cfg.rpunch.on));   // an ENGINE replaces the part's source (rule 0: one engine per part)
+                const bool colorHere = c == 2 && cfg.color.on && ! cfg.pvcTail.on && ! cfg.zaag.on && ! cfg.raw.on && ! cfg.exp.on && ! cfg.hc.on;
+                const bool pvcHere = (c == 2 && (cfg.pvcTail.on || cfg.zaag.on || cfg.raw.on || cfg.exp.on || cfg.hc.on)) || (c == 0 && (cfg.zpunch.on || cfg.cpunch.on || cfg.rpunch.on));   // an ENGINE replaces the part's source (rule 0: one engine per part)
                 const float noteNow = lastNoteHz * cfg.fineMul;
                 auto noteTail = [&] (int i) { return c == 2 && cfg.rise.on ? noteNow * dsp::rise::pitchFactor (cfg.rise, msAt (i)) : noteNow; };   // TAIL RISE: PITCH on the tail engines
                 if (colorHere) tailColor.cook (cfg.color, cfg.keyTrack ? lastNoteHz * cfg.fineMul : cfg.endHz * cfg.fineMul, cfg.ks.rate);
@@ -1336,6 +1371,7 @@ namespace fge
                     if (pvcHere && c == 0 && cfg.cpunch.on) { yl = yr = cpU.process (cfg.cpunch, msAt (i), noteNow); }   // PUNCH TYPE CLASSIC (EARLY)
                     else if (pvcHere && c == 0 && cfg.rpunch.on) { yl = yr = rpU.process (cfg.rpunch, msAt (i), noteNow); }   // PUNCH TYPE RAW
                     else if (pvcHere && c == 0) zpU.process (cfg.zpunch, msAt (i), noteNow, yl, yr);                  // PUNCH TYPE ZAAG
+                    else if (pvcHere && cfg.hc.on) { yl = yr = hcU.process (cfg.hc, msAt (i), noteTail (i)); }       // TAIL TYPE HARDCORE
                     else if (pvcHere && cfg.exp.on) expU.process (cfg.exp, msAt (i), noteTail (i), yl, yr);              // TAIL TYPE EXPERIMENTAL
                     else if (pvcHere && cfg.raw.on) rawU.process (cfg.raw, msAt (i), noteTail (i), yl, yr);              // TAIL TYPE RAW
                     else if (pvcHere && cfg.zaag.on) zaagU.process (cfg.zaag, msAt (i), noteTail (i), yl, yr, cfg.zgSend > 0.f ? sendBuf[(size_t) i] : 0.f);   // TAIL TYPE ZAAG (+ ZAAG SEND)
@@ -1580,7 +1616,7 @@ namespace fge
         std::unique_ptr<dsp::shaped::Renderer> shapedR = std::make_unique<dsp::shaped::Renderer>();
         std::unique_ptr<dsp::pvc::Renderer> pvcR = std::make_unique<dsp::pvc::Renderer>();          // PVC punch (owner 2026-11-14)
         dsp::pvctail::Unit pvcU;
-        dsp::zaag::Unit zaagU; dsp::raw::Unit rawU; dsp::exper::Unit expU;
+        dsp::zaag::Unit zaagU; dsp::hardcore::Unit hcU; dsp::raw::Unit rawU; dsp::exper::Unit expU;
         dsp::zaagpunch::Unit zpU;
         dsp::classicpunch::Unit cpU;
         dsp::rawpunch::Unit rpU;

@@ -14,8 +14,8 @@
 
 namespace fge::style
 {
-    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, Pvc, Zaag, NumStyles };     // (EUPHORIC appended: saved projects keep their ids)
-    inline const juce::StringArray& names() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "PVC", "ZAAG" }; return a; }
+    enum Style { Early = 0, Modern, Raw, Experimental, Euphoric, Pvc, Zaag, Gabber, Millennium, Hardcore, Uptempo, NumStyles };   // (appended: saved projects keep their ids)     // (EUPHORIC appended: saved projects keep their ids)
+    inline const juce::StringArray& names() { static const juce::StringArray a { "EARLY", "MODERN", "RAW", "EXPERIMENTAL", "EUPHORIC", "PVC", "ZAAG", "GABBER", "MILLENNIUM", "HARDCORE", "UPTEMPO" }; return a; }
     inline const char* description (int s)
     {
         static const char* d[NumStyles] {
@@ -28,7 +28,15 @@ namespace fge::style
             "PVC / KLOENK (owner 2026-11-14, from his PVC samples): a plastic TUBE punch (~1 kHz, 'ciup', phaser), then a gated tail made of a REVERB "
             "(high cut -> drive -> clip -> gate -> drive), low end mono, highs wide.",
             "ZAAG (owner 2026-11-14 / 15): PUNCH TYPE ZAAG (piep -> trask, punch reverb) + TAIL TYPE ZAAG (2 saws -> 3 serial EQ / waveshaper stages -> "
-            "squash + soft clip -> filter movement -> sub support -> shape)." };
+            "squash + soft clip -> filter movement -> sub support -> shape).",
+            "GABBER (TAIL TYPE HARDCORE profile): a crushed 909 - KICK = BASSLINE: a long, tonal, heavily distorted tail, a short low-mid punch, "
+            "CLIP -> EQ -> ASYMMETRIC -> CLIP with RESAMPLE FEEL, a dark crunch, the highs controlled.",
+            "MILLENNIUM (TAIL TYPE HARDCORE profile): heavy, dark, very distorted 909 / BD - more punch and low-mid than gabber, a heavy tonal "
+            "crunch with its own pitch movement, high asymmetry, an asymmetric clip.",
+            "HARDCORE (TAIL TYPE HARDCORE profile): between gabber and modern hardcore - sine + 909, a fast pitch drop, an aggressive punch, "
+            "a dense tuned medium tail, the crunch following the punch.",
+            "UPTEMPO (TAIL TYPE HARDCORE profile): short, fast and forward - sine + 909, a very fast drop, a strong 2-6 kHz crunch band, "
+            "a short tail capped by the BPM grid so it never blocks the next kick." };
         return d[juce::jlimit (0, NumStyles - 1, s)];
     }
     inline int indexOf (const juce::String& id) { for (int i = 0; i < P::count; ++i) if (id == def (i).id) return i; return -1; }
@@ -41,7 +49,7 @@ namespace fge::style
         if (id.startsWith ("noise")) return false;
         if (id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_") || id.startsWith ("cp_") || id.startsWith ("rw_") || id.startsWith ("ex_")
             || id.startsWith ("rc_") || id.startsWith ("rk_") || id.startsWith ("rs_")) return false;   // the FRONT layers' own lengths = their character (+ RAW PUNCH, TAIL RISE)
-        if (id.startsWith ("pvc_") || id.startsWith ("pt_") || id.startsWith ("zg_")) return false;   // PVC punch length / tail length = the PVC character (owner 2026-11-14)                     // a noise layer's decay / length is its character (EUPHORIC's grain), not the kick length
+        if (id.startsWith ("pvc_") || id.startsWith ("pt_") || id.startsWith ("zg_") || id.startsWith ("hc_")) return false;   // (+ HARDCORE: the profiles set the PUNCH / BODY / CRUNCH / TAIL timing - owner spec 2026-11-24, 39)   // PVC punch length / tail length = the PVC character (owner 2026-11-14)                     // a noise layer's decay / length is its character (EUPHORIC's grain), not the kick length
         return id == "core_length" || id == "core_auto_length" || id.endsWith ("_length") || id.endsWith ("_decay") || id.endsWith ("_release")
                || id.endsWith ("_sustain") || id.contains ("_length_") || id.endsWith ("_hold");
     }
@@ -49,7 +57,7 @@ namespace fge::style
     {
         const juce::String id (def (i).id);
         if (isLength (id)) return false;
-        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_", "zg_", "cp_", "rw_", "ex_", "rp_", "rc_", "rk_", "rs_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
+        for (auto* p : { "punch_", "body_", "tail_", "sub_", "pe_", "noiseA_", "noiseB_", "tr_", "scr_", "psh_", "pvc_", "pt_", "gt_", "zg_", "cp_", "rw_", "ex_", "rp_", "rc_", "rk_", "rs_", "hc_" }) if (id.startsWith (p)) return ! id.startsWith ("tail_penv_draw");
         if (id.startsWith ("dist")) return true;                         // the whole distortion pool (dist1..16 + dist_ globals)
         if ((id.startsWith ("tk_") || id.startsWith ("clk_") || id.startsWith ("spk_")) && ! id.endsWith ("_mode")) return true;   // the FRONT profiles (never the user's AUTO / ON / OFF)
         return id == "master_clip_drive";
@@ -166,6 +174,12 @@ namespace fge::style
                          { "zg_verb", 2.5f }, { "zg_verb_decay", 1600 }, { "zg_verb_size", 1.4f }, { "zg_verb_send", 60 }, { "zg_verb_damp", 9000 }, { "zg_verb_low_cut", 600 },
                          { "master_clip_drive", 4 } },    // MASTER: the final waveshaper squeezes the kick to 0 dB (oversampled; not the only level control)
                        {} },
+            // GABBER / MILLENNIUM / HARDCORE / UPTEMPO (owner spec 2026-11-24): PROFILES of the one TAIL TYPE HARDCORE engine (it makes the whole kick:
+            // the punch / body / sub generators silent) - each a different SOURCE / PITCH / TIMING / CRUNCH / STAGES / ASYMMETRY / EQ / CLIP, never "more drive"
+            Template { { { "tail_engine", 5 }, { "punch_level", -60 }, { "body_level", -60 }, { "sub_level", -60 }, { "tail_level", 0 }, { "hc_len_mode", 1 }, { "hc_grid", 2 }, { "hc_tx_mix", 0 }, { "hc_src", 0 }, { "hc_drop", 24 }, { "hc_time", 30 }, { "hc_curve", 1 }, { "hc_end", 0 }, { "hc_punch_len", 25 }, { "hc_body_len", 120 }, { "hc_punch_db", 0 }, { "hc_body_db", 3 }, { "hc_tail_db", 0 }, { "hc_tail_decay", 0.35f }, { "hc_cr_on", 1 }, { "hc_cr_src", 0 }, { "hc_cr_start", 5 }, { "hc_cr_len", 150 }, { "hc_cr_pitch", 12 }, { "hc_cr_pmode", 2 }, { "hc_cr_mix", 0.3f }, { "hc_cr_drive", 0.5f }, { "hc_cr_asym", 0.4f }, { "hc_eq_low_db", 3 }, { "hc_eq_lm_db", 4 }, { "hc_eq_mid_db", 0 }, { "hc_eq_hm_db", -2 }, { "hc_eq_high_db", -3 }, { "hc_d1", 18 }, { "hc_btw_hz", 400 }, { "hc_btw_db", 3 }, { "hc_d2", 24 }, { "hc_asym", 0.45f }, { "hc_bias", 0.2f }, { "hc_clip_mode", 0 }, { "hc_clip", 8 }, { "hc_stages", 2 }, { "hc_resample", 0.5f }, { "hc_post_lowcut", 25 }, { "hc_post_body", 2 }, { "hc_post_mid", 0 }, { "hc_post_crunch", -2 }, { "hc_post_crunch_hz", 3000 }, { "hc_post_high", -3 }, { "hc_fill", 0.95f }, { "master_clip_drive", 2 } }, {} },
+            Template { { { "tail_engine", 5 }, { "punch_level", -60 }, { "body_level", -60 }, { "sub_level", -60 }, { "tail_level", 0 }, { "hc_len_mode", 1 }, { "hc_grid", 2 }, { "hc_tx_mix", 0 }, { "hc_src", 0 }, { "hc_drop", 28 }, { "hc_time", 35 }, { "hc_curve", 1 }, { "hc_end", 0 }, { "hc_punch_len", 40 }, { "hc_body_len", 140 }, { "hc_punch_db", 3 }, { "hc_body_db", 4 }, { "hc_tail_db", -1 }, { "hc_tail_decay", 0.5f }, { "hc_cr_on", 1 }, { "hc_cr_src", 0 }, { "hc_cr_start", 15 }, { "hc_cr_len", 120 }, { "hc_cr_pitch", 7 }, { "hc_cr_pmode", 0 }, { "hc_cr_pamt", 7 }, { "hc_cr_ptime", 40 }, { "hc_cr_mix", 0.5f }, { "hc_cr_drive", 0.7f }, { "hc_cr_asym", 0.7f }, { "hc_eq_low_db", 2 }, { "hc_eq_lm_db", 6 }, { "hc_eq_mid_db", 2 }, { "hc_eq_hm_db", 0 }, { "hc_eq_high_db", -4 }, { "hc_d1", 20 }, { "hc_btw_hz", 300 }, { "hc_btw_db", 4 }, { "hc_d2", 26 }, { "hc_asym", 0.7f }, { "hc_bias", 0.3f }, { "hc_clip_mode", 3 }, { "hc_clip", 9 }, { "hc_stages", 2 }, { "hc_resample", 0.3f }, { "hc_post_lowcut", 30 }, { "hc_post_body", 3 }, { "hc_post_mid", 1 }, { "hc_post_crunch", 0 }, { "hc_post_crunch_hz", 3000 }, { "hc_post_high", -4 }, { "hc_fill", 0.85f }, { "master_clip_drive", 2 } }, {} },
+            Template { { { "tail_engine", 5 }, { "punch_level", -60 }, { "body_level", -60 }, { "sub_level", -60 }, { "tail_level", 0 }, { "hc_len_mode", 1 }, { "hc_grid", 2 }, { "hc_tx_mix", 0 }, { "hc_src", 4 }, { "hc_src_mix", 0.5f }, { "hc_drop", 32 }, { "hc_time", 22 }, { "hc_curve", 2 }, { "hc_end", 0 }, { "hc_punch_len", 35 }, { "hc_body_len", 100 }, { "hc_punch_db", 5 }, { "hc_body_db", 2 }, { "hc_tail_db", -2 }, { "hc_tail_decay", 0.6f }, { "hc_cr_on", 1 }, { "hc_cr_src", 2 }, { "hc_cr_start", 8 }, { "hc_cr_len", 90 }, { "hc_cr_pitch", 12 }, { "hc_cr_pmode", 1 }, { "hc_cr_mix", 0.45f }, { "hc_cr_drive", 0.7f }, { "hc_cr_asym", 0.7f }, { "hc_eq_low_db", 1 }, { "hc_eq_lm_db", 3 }, { "hc_eq_mid_db", 3 }, { "hc_eq_hm_db", 2 }, { "hc_eq_high_db", 0 }, { "hc_d1", 16 }, { "hc_btw_hz", 800 }, { "hc_btw_db", 3 }, { "hc_d2", 26 }, { "hc_asym", 0.7f }, { "hc_bias", 0.25f }, { "hc_clip_mode", 0 }, { "hc_clip", 10 }, { "hc_stages", 2 }, { "hc_resample", 0.2f }, { "hc_post_lowcut", 35 }, { "hc_post_body", 1 }, { "hc_post_mid", 1 }, { "hc_post_crunch", 2 }, { "hc_post_crunch_hz", 3500 }, { "hc_post_high", 0 }, { "hc_fill", 0.75f }, { "master_clip_drive", 2 } }, {} },
+            Template { { { "tail_engine", 5 }, { "punch_level", -60 }, { "body_level", -60 }, { "sub_level", -60 }, { "tail_level", 0 }, { "hc_len_mode", 1 }, { "hc_grid", 2 }, { "hc_tx_mix", 0 }, { "hc_src", 4 }, { "hc_src_mix", 0.35f }, { "hc_drop", 36 }, { "hc_time", 12 }, { "hc_curve", 2 }, { "hc_end", 0 }, { "hc_punch_len", 30 }, { "hc_body_len", 60 }, { "hc_punch_db", 6 }, { "hc_body_db", 0 }, { "hc_tail_db", -2 }, { "hc_tail_decay", 0.7f }, { "hc_cr_on", 1 }, { "hc_cr_src", 2 }, { "hc_cr_start", 5 }, { "hc_cr_len", 60 }, { "hc_cr_pitch", 19 }, { "hc_cr_pmode", 0 }, { "hc_cr_pamt", 12 }, { "hc_cr_ptime", 15 }, { "hc_cr_mix", 0.5f }, { "hc_cr_drive", 0.8f }, { "hc_cr_asym", 0.7f }, { "hc_eq_low_db", 0 }, { "hc_eq_lm_db", 1 }, { "hc_eq_mid_db", 3 }, { "hc_eq_hm_db", 5 }, { "hc_eq_high_db", 2 }, { "hc_d1", 18 }, { "hc_btw_hz", 2500 }, { "hc_btw_db", 4 }, { "hc_d2", 30 }, { "hc_asym", 0.7f }, { "hc_bias", 0.2f }, { "hc_clip_mode", 4 }, { "hc_clip", 12 }, { "hc_stages", 2 }, { "hc_resample", 0.3f }, { "hc_post_lowcut", 40 }, { "hc_post_body", 0 }, { "hc_post_mid", 1 }, { "hc_post_crunch", 5 }, { "hc_post_crunch_hz", 4000 }, { "hc_post_high", 2 }, { "hc_fill", 0.55f }, { "master_clip_drive", 2.5f } }, {} },
         };
         return t[(size_t) juce::jlimit (0, NumStyles - 1, s)];
     }
@@ -207,6 +221,7 @@ namespace fge::style
             case Euphoric:     return { { "rs_on", 1 }, { "rs_mode", 4 }, { "rs_amount", 0.3f }, { "rs_gain", 0.6f }, { "rs_pitch", 0.4f }, { "rs_drive", 0.f }, { "rs_harm", 0.f }, { "rs_filter", 0.f } };   // POWER / PITCH
             case Pvc:          return { { "rs_on", 1 }, { "rs_mode", 0 }, { "rs_amount", 0.25f } };
             case Zaag:         return { { "rs_on", 1 }, { "rs_mode", 3 }, { "rs_amount", 0.45f } };
+            case Gabber: case Millennium: case Hardcore: case Uptempo: return { { "rs_on", 0 }, { "rs_amount", 0.f } };   // (the hardcore tail is the bassline: no rise)
             default:           return {};
         }
     }

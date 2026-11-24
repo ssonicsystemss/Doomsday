@@ -655,7 +655,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             for (auto [id, lab] : LZ { { "hc_cr_pitch", "PITCH" }, { "hc_cr_pamt", "PITCH AMT" }, { "hc_cr_ptime", "PITCH TIME" }, { "hc_cr_drive", "DRIVE" }, { "hc_cr_asym", "ASYMMETRY" },
                                        { "hc_ms_dip", "SCREAM DIP" }, { "hc_ms_dip_at", "DIP AT" }, { "hc_ms_dip_len", "DIP LEN" }, { "hc_ms_click", "CLICK" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);                                            // MID SCREAM (owner refs 2026-11-24): the 2nd tone clipped with the note
-            d.push_back (combo ("hc_ms_track")); d.push_back (combo ("hc_ms_wave"));
+            d.push_back (combo ("hc_ms_track")); d.push_back (combo ("hc_ms_wave")); d.push_back (toggle ("hc_ms_own", "OWN LEVEL", Toggle::Chip, col));
             for (auto [id, lab] : LZ { { "hc_ms_mix", "MID SCREAM" }, { "hc_ms_hz", "SCREAM HZ" }, { "hc_ms_harm", "HARMONIC" }, { "hc_ms_sweep", "SWEEP" }, { "hc_ms_sweep_ms", "SWEEP TIME" },
                                        { "hc_ms_start", "START" }, { "hc_ms_fade", "FADE IN" }, { "hc_ms_motion", "MOTION" }, { "hc_ms_rate", "RATE" } }) d.push_back (knob (id, lab, col));
             d.push_back (&detailPageMark);

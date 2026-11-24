@@ -41,7 +41,8 @@ namespace fge::dsp::hardcore
         float asymPosDb = 0.f, asymNegDb = 0.f;
         float holdMs = 0.f, dropXSt = 0.f;                         // PITCH HOLD (the START held, a tok) + DROP + (st beyond DROP: START = END + DROP + DROP +)
         float msDip = 0.f, msDipAtMs = 85.f, msDipLenMs = 120.f;
-        float msClick = 0.f;                                       // MID SCREAM CLICK: the wave -> a short impulse at every cycle start, alternating up / down (gabber 909 "tok-tok")   // MID SCREAM DIP: the 2nd tone pulled down (x 1 - DIP) from DIP AT for DIP LEN, then back (the clean "DUM")                    // ASYMMETRY + DRIVE / - DRIVE (spec pt 19: each half its own drive, 0 dB = the ASYMMETRY knob alone)
+        float msClick = 0.f;
+        bool msOwn = false;                                        // MID SCREAM OWN LEVEL: not shaped by the PUNCH / BODY / TAIL gains (a buzz over a silent punch)                                       // MID SCREAM CLICK: the wave -> a short impulse at every cycle start, alternating up / down (gabber 909 "tok-tok")   // MID SCREAM DIP: the 2nd tone pulled down (x 1 - DIP) from DIP AT for DIP LEN, then back (the clean "DUM")                    // ASYMMETRY + DRIVE / - DRIVE (spec pt 19: each half its own drive, 0 dB = the ASYMMETRY knob alone)
         int stages = 3, clipMode = 0;                              // HARD / SOFT / FOLD / ASYMMETRIC / CUSTOM
         // POST-EQ
         float postLowCut = 30.f, postBodyDb = 0.f, postMidDb = 0.f, postCrunchDb = 0.f, postCrunchHz = 3500.f, postHighDb = 0.f;
@@ -89,7 +90,7 @@ namespace fge::dsp::hardcore
             const float atk = s.attackMs > 0.01f ? std::min (1.f, ms / s.attackMs) : 1.f;
             x *= atk * segGain;
             // ---- MID SCREAM joins BEFORE the pre EQ / drive: the two tones are distorted together
-            if (s.msMix > 0.f) x += midScream (s, ms) * atk * segGain;   // (MIX = its level against the note: 0.3 = spikes near the note's edges)
+            if (s.msMix > 0.f) x += midScream (s, ms) * atk * (s.msOwn ? 1.f : segGain);   // (MIX = its level against the note: 0.3 = spikes near the note's edges)
             // ---- PRE-EQ (before the distortion: which band gets turned into harmonics)
             x = eHigh.tick (eHm.tick (eMid.tick (eLm.tick (eLow.tick (x)))));
             // ---- DRIVE 1 (tube / soft: the first harmonics)

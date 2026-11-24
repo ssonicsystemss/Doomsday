@@ -318,6 +318,35 @@ int main (int argc, char** argv)
         }
         return 0;
     }
+    if (argc > 3 && String (argv[2]) == "--energy")                            // RenderTest <out.txt> --energy <preset.4gp | - | factory:<name>> [note] [k=v ...]:
+    {                                                                          //  LAYER ENERGY (ARCH_DECISIONS.md): every layer's energy + 5 bands
+        GeProcessor p;
+        if (String (argv[3]).startsWith ("factory:"))
+        {
+            const String nm = String (argv[3]).fromFirstOccurrenceOf (":", false, false); int k = -1;
+            for (int i = 0; i < p.getNumPrograms(); ++i) if (p.getProgramName (i) == nm) k = i;
+            if (k < 0) { printf ("!! factory preset not found\n"); return 1; }
+            p.setCurrentProgram (k);
+        }
+        else if (String (argv[3]) != "-" && ! p.loadUserPresetFile (File (argv[3]))) { printf ("!! preset not loaded\n"); return 1; }
+        const int note = argc > 4 && String (argv[4]).containsOnly ("0123456789") ? String (argv[4]).getIntValue() : 31;
+        for (int i = 4; i < argc; ++i) { const String kv (argv[i]); if (kv.contains ("=")) setP (p, kv.upToFirstOccurrenceOf ("=", false, false).toRawUTF8(), kv.fromFirstOccurrenceOf ("=", false, false).getFloatValue()); }
+        fge::dsp::energy::LayerTap tap;
+        const auto full = fge::renderKick (p.frame(), note, 44100.0, 1.0, -1, 1.f, &p.shapes(), 150.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy(), nullptr, &tap);
+        const auto r = fge::dsp::energy::analyse (tap);
+        String txt; txt << "LAYER        TOTAL   PEAK |    LOW  LOW-MID    MID HIGH-MID   HIGH  (dB, energy over the 1 s render)\n";
+        for (int l = 0; l < fge::dsp::energy::NumLayers; ++l)
+        {
+            const auto& o = r.l[(size_t) l]; if (! o.active) continue;
+            txt << String (fge::dsp::energy::layerName (l)).paddedRight (' ', 9) << String (o.db, 1).paddedLeft (' ', 8) << String (o.peakDb, 1).paddedLeft (' ', 7) << " |";
+            for (float b : o.bandDb) txt << String (b, 1).paddedLeft (' ', 8);
+            txt << "\n";
+        }
+        double e = 0; float pk = 0; for (int i = 0; i < full.getNumSamples(); ++i) { const float v = 0.5f * (full.getSample (0, i) + full.getSample (1, i)); e += v * v; pk = jmax (pk, std::abs (v)); }
+        txt << "FULL KICK" << String (10.0 * std::log10 (e / full.getNumSamples() + 1e-12), 1).paddedLeft (' ', 8) << String (20.0 * std::log10 (pk + 1e-9), 1).paddedLeft (' ', 7) << "\n";
+        printf ("%s", txt.toRawUTF8()); File (argv[1]).replaceWithText (txt);
+        return 0;
+    }
     if (argc > 4 && String (argv[2]) == "--midi")                              // RenderTest <out.wav> --midi <preset.4gp | -> <file.mid> [bpm] [k=v ...]: a MIDI line through the plugin
     {                                                                          // (the owner's test MIDI: the bass line = the kicks; the tempo is given, FL writes a broken one)
         GeProcessor p;
@@ -1249,6 +1278,9 @@ int main (int argc, char** argv)
                     if (sid == "hc_tx_type" || sid == "hc_tx_len") set2 ("hc_tx_mix", 0.3f);
                     if (sid == "hc_grid" || sid == "hc_fill") set2 ("hc_len_mode", 1.f);
                     if (sid == "hc_bias") set2 ("hc_asym", 0.8f);
+                    if (sid.startsWith ("hc_ms_") && sid != "hc_ms_mix") set2 ("hc_ms_mix", 0.4f);         // MID SCREAM: on
+                    if (sid == "hc_ms_harm") set2 ("hc_ms_track", 1.f);
+                    if (sid == "hc_ms_rate") set2 ("hc_ms_motion", 1.f);
                     if (sid == "hc_btw_hz") set2 ("hc_btw_db", 12.f);
                     if (sid == "hc_post_crunch_hz") set2 ("hc_post_crunch", 12.f);
                     if (sid.startsWith ("hc_eq_") && sid.endsWith ("_hz")) set2 (sid.replace ("_hz", "_db"), 12.f);

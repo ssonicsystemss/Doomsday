@@ -43,6 +43,11 @@ namespace fge::dsp::hardcore
         float postLowCut = 30.f, postBodyDb = 0.f, postMidDb = 0.f, postCrunchDb = 0.f, postCrunchHz = 3500.f, postHighDb = 0.f;
         // LENGTH (the engine's own cap: BPM GRID) + BURST
         float lengthMs = 400.f;                                    // (the engine computes it: KICK LENGTH or the BPM grid cap)
+        // MID SCREAM (owner refs 2026-11-24: a 2nd, higher tone through the WHOLE kick, clipped TOGETHER with the note's square -
+        //  the notches / spikes inside every cycle = the crunchy hardcore tail; without it the tail is a plain "bzzz" pulse)
+        float msMix = 0.f, msHz = 800.f, msHarm = 16.f, msSweepSt = 12.f, msSweepMs = 60.f, msStartMs = 0.f, msFadeMs = 10.f, msMotion = 0.f, msRate = 5.f;
+        int msTrack = 0, msWave = 0;                               // FIXED HZ / HARMONIC OF THE NOTE; SINE / TRIANGLE / SAW / SQUARE
+        float outClipDb = 0.f;                                     // OUTPUT CLIP: the last stage (after the post EQ: flat tops, no tilt)
     };
 
     // the pitch fall 0..1 (1 = START, 0 = END) at u = t / TIME (pure: the tests call it)
@@ -65,7 +70,7 @@ namespace fge::dsp::hardcore
         void prepare (double rate) { fs = rate; reset(); }
         void reset()
         {
-            p = pc = 0.0; blk = 0; seed = 0x5eedbeefu; rms = 0.05f; crush = 0.f; crushN = 0;
+            p = pc = pm = 0.0; blk = 0; seed = 0x5eedbeefu; rms = 0.05f; crush = 0.f; crushN = 0;
             for (auto* b : { &eLow, &eLm, &eMid, &eHm, &eHigh, &dc1, &betw, &pLow, &pBody, &pMid, &pCr, &pHigh, &crHp, &crLp, &txBp, &dcOut }) b->clear();
         }
 
@@ -79,6 +84,8 @@ namespace fge::dsp::hardcore
             // ---- PUNCH / BODY / TAIL: each segment drives the chain its own amount (the relation, not just a volume)
             const float atk = s.attackMs > 0.01f ? std::min (1.f, ms / s.attackMs) : 1.f;
             x *= atk * segGain;
+            // ---- MID SCREAM joins BEFORE the pre EQ / drive: the two tones are distorted together
+            if (s.msMix > 0.f) x += midScream (s, ms) * atk * segGain;   // (MIX = its level against the note: 0.3 = spikes near the note's edges)
             // ---- PRE-EQ (before the distortion: which band gets turned into harmonics)
             x = eHigh.tick (eHm.tick (eMid.tick (eLm.tick (eLow.tick (x)))));
             // ---- DRIVE 1 (tube / soft: the first harmonics)
@@ -86,7 +93,7 @@ namespace fge::dsp::hardcore
             // ---- EQ between the stages
             x = betw.tick (x);
             // ---- the tonal CRUNCH joins here (it is clipped TOGETHER with the kick: several tones in one clip = the crack, not a "pup")
-            x += crunch (s, ms);
+            crNow = crunch (s, ms); x += crNow;
             // ---- DRIVE 2 (hard: the main character)
             if (s.stages >= 2) x = std::clamp (g2 * x, -1.f, 1.f) * 0.8f + 0.2f * std::tanh (g2 * x);
             // ---- RESAMPLE FEEL: an internal normalisation (as if rendered and loaded again) + a second hard pass
@@ -113,6 +120,8 @@ namespace fge::dsp::hardcore
             // ---- POST-EQ (+ the DC of the asymmetry taken out after the clip)
             x = dcOut.tick (x);
             x = pHigh.tick (pCr.tick (pMid.tick (pBody.tick (pLow.tick (x)))));
+            // ---- OUTPUT CLIP: the last stage (the post EQ's tilt clipped flat again, the hardcore "brick")
+            if (s.outClipDb > 0.f) x = std::clamp (x * oc, -0.95f, 0.95f);
             // ---- the tail fades over the kick length (+ a short end fade, never a click)
             const float left = s.lengthMs - ms;
             return x * outEnv * (left < 4.f ? left / 4.f : 1.f) * 0.85f;
@@ -175,6 +184,26 @@ namespace fge::dsp::hardcore
             x = x >= 0.f ? std::tanh ((1.f + 4.f * a) * x) : std::tanh ((1.f + a) * x) * (1.f - 0.4f * a);
             return std::clamp (1.5f * x, -1.f, 1.f) * s.crMix;                                                             // CLIP -> MIX
         }
+        float midScream (const Settings& s, float ms)
+        {
+            const float t = ms - s.msStartMs;
+            if (t < 0.f) { pm = 0.0; return 0.f; }
+            const double base = s.msTrack == 1 ? endHz * (double) s.msHarm : (double) s.msHz;
+            const double sweep = s.msSweepSt * std::exp (-t / std::max (1.f, s.msSweepMs));                 // starts SWEEP st away, glides home
+            const double vib = s.msMotion * std::sin (6.283185307 * s.msRate * ms * 0.001);                   // MOTION: +-1 st movement
+            const double f = std::clamp (base * std::exp2 ((sweep + vib) / 12.0), 40.0, fs * 0.2);
+            const double ph = pm; pm += f / fs; if (pm >= 1.0) pm -= 1.0;
+            float x;
+            switch (s.msWave)
+            {
+                case 1:  x = (float) (1.0 - 4.0 * std::abs (ph - 0.5)); break;
+                case 2:  x = (float) (2.0 * ph - 1.0); break;
+                case 3:  x = ph < 0.5 ? 0.8f : -0.8f; break;
+                default: x = (float) std::sin (6.283185307 * ph); break;
+            }
+            const float fade = s.msFadeMs > 0.5f ? std::min (1.f, t / s.msFadeMs) : 1.f;
+            return x * fade * s.msMix;
+        }
         float texture (const Settings& s, float ms)
         {
             const float e = std::exp (-ms / std::max (0.5f, s.txLenMs * 0.4f));
@@ -215,7 +244,7 @@ namespace fge::dsp::hardcore
             const float u = std::clamp ((ms - bEnd) / std::max (10.f, s.lengthMs - bEnd), 0.f, 1.f);
             outEnv = ms < bEnd ? 1.f : std::max (0.f, 1.f - s.tailDecay * std::pow (u, 0.7f));
             // the stage gains + the EQs
-            g1 = dbg (s.d1Db); g2 = dbg (s.d2Db); gc = dbg (s.clipDb);
+            g1 = dbg (s.d1Db); g2 = dbg (s.d2Db); gc = dbg (s.clipDb); oc = dbg (s.outClipDb);
             eLow.shelf (fs, s.eqLowHz, s.eqLowDb, false); eLm.bell (fs, s.eqLmHz, s.eqLmDb, 0.9); eMid.bell (fs, s.eqMidHz, s.eqMidDb, 0.9);
             eHm.bell (fs, s.eqHmHz, s.eqHmDb, 0.9); eHigh.shelf (fs, std::min ((double) s.eqHighHz, fs * 0.4), s.eqHighDb, true);
             dc1.hp (fs, 12.0, 0.7071); dcOut.hp (fs, 10.0, 0.7071);
@@ -229,6 +258,12 @@ namespace fge::dsp::hardcore
         double fs = 48000.0, p = 0.0, pc = 0.0, hz = 100.0, endHz = 50.0;
         int blk = 0, crushN = 0;
         uint32_t seed = 0x5eedbeefu;
+        float crNow = 0.f;
+    public:
+        float lastCrunch() const { return crNow; }               // LAYER ENERGY: the crunch of this sample
+    private:
+        double pm = 0.0;
+        float oc = 1.f;
         float segGain = 1.f, outEnv = 1.f, g1 = 1.f, g2 = 1.f, gc = 1.f, rms = 0.05f, crush = 0.f;
         bq::Biquad eLow, eLm, eMid, eHm, eHigh, dc1, dcOut, betw, pLow, pBody, pMid, pCr, pHigh, crHp, crLp, txBp;
     };

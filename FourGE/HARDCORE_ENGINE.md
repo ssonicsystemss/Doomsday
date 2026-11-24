@@ -40,3 +40,12 @@ Presets: "GABBER - Crushed 909", "MILLENNIUM - Heavy Dark", "HARDCORE - Aggressi
 The 8 MASTER MACROS mapping per hardcore profile (spec 44), the KICK VARIATION style tables for the 4 new styles, a PITCH CURVE drawn
 by hand (CUSTOM = an exponent today), the full spec 54 matrix (5 sources x 4 profiles x 4 asym x 3 stages) as listening files is
 rendered as a subset (see the session). Next profiles (spec 56): FRENCHCORE / PEEP / BOUNCY UPTEMPO / ... = more profiles of this engine.
+
+## 2026-11-24 (owner: "basic, nudny") - MID SCREAM + OUTPUT CLIP, profiles fitted to the owner's refs
+- MID SCREAM `hc_ms_*`: a 2nd tone (FIXED HZ or a HARMONIC of the note; SINE / TRI / SAW / SQUARE; SWEEP st + time, START, FADE IN,
+  MOTION +-1 st at RATE) added x the segment gain BEFORE the pre EQ - distorted together with the note.
+- OUTPUT CLIP `hc_out_clip`: the last stage, after the post EQ (flat tops back).
+- Profiles fitted (band energies / crest / centroid / level drop) to: HARDCORE = 10 OPS hardcore kicks, MILLENNIUM = 8 Tritone,
+  UPTEMPO = 2 uptempo, GABBER = 2 gabber (refs are the owner's, not in git).
+- LAYER ENERGY: `DSP/Analysis/LayerEnergy.h` (TOK / PUNCH / BODY / CRUNCH / SUB / TAIL / SCREAM, total + 5 bands),
+  `RenderTest <out.txt> --energy <preset | factory:name> [note] [id=value]`.

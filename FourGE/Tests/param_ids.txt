@@ -4189,3 +4189,15 @@ hc_len_mode
 hc_grid
 hc_fill
 hc_burst
+hc_ms_mix
+hc_ms_track
+hc_ms_hz
+hc_ms_harm
+hc_ms_wave
+hc_ms_sweep
+hc_ms_sweep_ms
+hc_ms_start
+hc_ms_fade
+hc_ms_motion
+hc_ms_rate
+hc_out_clip

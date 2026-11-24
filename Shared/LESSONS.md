@@ -531,3 +531,13 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - (later, owner's rawstyle-kick_G_major) The ref punch = a hard-clipped square at ~±0.85, but its cycles are VERY irregular (period
   spread 50-85 %, peaks not harmonic: ~430 / 650-700 / 1300-1700 / 100-150 Hz at once). One tone into a clip = "pup" every time.
   A sketch with 4-5 inharmonic tones + band noise clipped together matched the spread, but sounded "dziwnie" - not solved yet.
+
+## 4GE HARDCORE "basic, nudny w chuj" (owner 2026-11-24)
+- Our first HARDCORE / GABBER / MILLENNIUM / UPTEMPO = one 909 tone distorted: a clean pulse train + a tail that faded 30+ dB.
+  Measured vs the owner's refs (10 OPS hardcore, 8 Tritone = millennium, 2 uptempo, 2 gabber): MID 15-20 dB too quiet, HIGH 15 dB,
+  the hardcore refs stay at FULL level to the cut (crest ~2 dB), the pitch holds high (500-800 Hz) for 50-80 ms.
+- What makes the tail live: a 2nd, higher tone (MID SCREAM ~400-800 Hz) clipped TOGETHER with the note's square (spikes / notches
+  inside every cycle), small (~0.3-0.4 of the note) - too loud and the note's fundamental disappears (an 800 Hz square).
+  Same lesson as the raw crack: several tones in one clip, never one tone.
+- Fitting tool: /tmp scripts were throw-away; the method = band energy (5 bands) tail + 15-60 ms window, crest, centroid, level drop,
+  coordinate descent over hc_* against the ref group median. RenderTest --energy = per-layer energy.

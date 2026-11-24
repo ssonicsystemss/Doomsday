@@ -639,21 +639,24 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (nullptr);
             d.push_back (combo ("hc_key_mode"));
             for (auto [id, lab] : LZ { { "hc_root_note", "ROOT KEY" }, { "hc_end", "END PITCH" }, { "hc_fine", "FINE" }, { "hc_attack", "ATTACK" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("hc_len_mode")); d.push_back (combo ("hc_grid"));
+            d.push_back (knob ("hc_fill", "GRID FILL", col));
+            d.push_back (combo ("hc_burst"));
             d.push_back (nullptr);
             for (auto [id, lab] : LZ { { "hc_punch_len", "PUNCH LEN" }, { "hc_punch_db", "PUNCH" }, { "hc_body_len", "BODY LEN" }, { "hc_body_db", "BODY" },
                                        { "hc_tail_db", "TAIL" }, { "hc_tail_decay", "TAIL DECAY" } }) d.push_back (knob (id, lab, col));
             d.push_back (&detailPageMark);
             d.push_back (toggle ("hc_cr_on", "CRUNCH", Toggle::Chip, col)); d.push_back (combo ("hc_cr_src"));
             for (auto [id, lab] : LZ { { "hc_cr_start", "START" }, { "hc_cr_len", "LENGTH" }, { "hc_cr_mix", "MIX" } }) d.push_back (knob (id, lab, col));
+            d.push_back (combo ("hc_tx_type"));
+            for (auto [id, lab] : LZ { { "hc_tx_mix", "TEXTURE" }, { "hc_tx_len", "TEX LEN" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             d.push_back (combo ("hc_cr_pmode"));
             for (auto [id, lab] : LZ { { "hc_cr_pitch", "PITCH" }, { "hc_cr_pamt", "PITCH AMT" }, { "hc_cr_ptime", "PITCH TIME" }, { "hc_cr_drive", "DRIVE" }, { "hc_cr_asym", "ASYMMETRY" } }) d.push_back (knob (id, lab, col));
-            d.push_back (nullptr);
-            d.push_back (combo ("hc_tx_type"));
-            for (auto [id, lab] : LZ { { "hc_tx_mix", "TEXTURE" }, { "hc_tx_len", "TEX LEN" } }) d.push_back (knob (id, lab, col));
-            d.push_back (combo ("hc_len_mode")); d.push_back (combo ("hc_grid"));
-            d.push_back (knob ("hc_fill", "GRID FILL", col));
-            d.push_back (combo ("hc_burst"));
+            d.push_back (nullptr);                                            // MID SCREAM (owner refs 2026-11-24): the 2nd tone clipped with the note
+            d.push_back (combo ("hc_ms_track")); d.push_back (combo ("hc_ms_wave"));
+            for (auto [id, lab] : LZ { { "hc_ms_mix", "MID SCREAM" }, { "hc_ms_hz", "SCREAM HZ" }, { "hc_ms_harm", "HARMONIC" }, { "hc_ms_sweep", "SWEEP" }, { "hc_ms_sweep_ms", "SWEEP TIME" },
+                                       { "hc_ms_start", "START" }, { "hc_ms_fade", "FADE IN" }, { "hc_ms_motion", "MOTION" }, { "hc_ms_rate", "RATE" } }) d.push_back (knob (id, lab, col));
             d.push_back (&detailPageMark);
             for (auto [id, lab] : LZ { { "hc_eq_low_db", "LOW" }, { "hc_eq_low_hz", "LOW HZ" }, { "hc_eq_lm_db", "LOW-MID" }, { "hc_eq_lm_hz", "LM HZ" }, { "hc_eq_mid_db", "MID" },
                                        { "hc_eq_mid_hz", "MID HZ" }, { "hc_eq_hm_db", "HIGH-MID" }, { "hc_eq_hm_hz", "HM HZ" }, { "hc_eq_high_db", "HIGH" }, { "hc_eq_high_hz", "HIGH HZ" } }) d.push_back (knob (id, lab, col));
@@ -664,7 +667,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (nullptr);
             d.push_back (combo ("hc_clip_mode"));
             for (auto [id, lab] : LZ { { "hc_clip", "CLIP" }, { "hc_post_lowcut", "LOW CUT" }, { "hc_post_body", "BODY" }, { "hc_post_mid", "MID" }, { "hc_post_crunch", "CRUNCH" },
-                                       { "hc_post_crunch_hz", "CRUNCH HZ" }, { "hc_post_high", "HIGH" } }) d.push_back (knob (id, lab, col));
+                                       { "hc_post_crunch_hz", "CRUNCH HZ" }, { "hc_post_high", "HIGH" }, { "hc_out_clip", "OUT CLIP" } }) d.push_back (knob (id, lab, col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };

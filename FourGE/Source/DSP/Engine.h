@@ -17,6 +17,7 @@
 #include "Tone/PvcTail.h"
 #include "Tone/ZaagTail.h"
 #include "Tone/HardcoreKick.h"
+#include "Analysis/LayerEnergy.h"
 #include "Core/ZaagPunch.h"
 #include "Core/ClassicPunch.h"
 #include "Core/RawPunch.h"
@@ -1057,6 +1058,9 @@ namespace fge
                     h.clipMode = f.idx (P::hcClipMode); h.clipDb = f[P::hcClip]; h.resample = f[P::hcResample]; h.stages = f.idx (P::hcStages) + 1;
                     h.postLowCut = f[P::hcPostLowCut]; h.postBodyDb = f[P::hcPostBody]; h.postMidDb = f[P::hcPostMid];
                     h.postCrunchDb = f[P::hcPostCrunch]; h.postCrunchHz = f[P::hcPostCrunchHz]; h.postHighDb = f[P::hcPostHigh];
+                    h.msMix = f[P::hcMsMix]; h.msTrack = f.idx (P::hcMsTrack); h.msHz = f[P::hcMsHz]; h.msHarm = f[P::hcMsHarm]; h.msWave = f.idx (P::hcMsWave);
+                    h.msSweepSt = f[P::hcMsSweep]; h.msSweepMs = f[P::hcMsSweepMs]; h.msStartMs = f[P::hcMsStart]; h.msFadeMs = f[P::hcMsFade];
+                    h.msMotion = f[P::hcMsMotion]; h.msRate = f[P::hcMsRate]; h.outClipDb = f[P::hcOutClip];
                     // LENGTH: the KICK LENGTH, or capped by the BPM GRID (x FILL) so the kick never blocks the next one (uptempo)
                     h.lengthMs = ks.lengthMs;
                     if (f.idx (P::hcLenMode) == 1)
@@ -1271,6 +1275,7 @@ namespace fge
         void renderChunk (juce::AudioBuffer<float>& out, int start, int n)
         {
             const int on = n * osFactor;
+            if (layerTap != nullptr) { layerTap->rate = cfg.ks.rate; layerTap->begin (on); }                 // LAYER ENERGY (offline renders only)
             for (int c = 0; c < numBusCh; ++c) juce::FloatVectorOperations::clear (bus.getWritePointer (c), on);
             float* b[numBusCh];
             for (int c = 0; c < numBusCh; ++c) b[c] = bus.getWritePointer (c);
@@ -1371,7 +1376,7 @@ namespace fge
                     if (pvcHere && c == 0 && cfg.cpunch.on) { yl = yr = cpU.process (cfg.cpunch, msAt (i), noteNow); }   // PUNCH TYPE CLASSIC (EARLY)
                     else if (pvcHere && c == 0 && cfg.rpunch.on) { yl = yr = rpU.process (cfg.rpunch, msAt (i), noteNow); }   // PUNCH TYPE RAW
                     else if (pvcHere && c == 0) zpU.process (cfg.zpunch, msAt (i), noteNow, yl, yr);                  // PUNCH TYPE ZAAG
-                    else if (pvcHere && cfg.hc.on) { yl = yr = hcU.process (cfg.hc, msAt (i), noteTail (i)); }       // TAIL TYPE HARDCORE
+                    else if (pvcHere && cfg.hc.on) { yl = yr = hcU.process (cfg.hc, msAt (i), noteTail (i)); if (layerTap != nullptr) layerTap->add (dsp::energy::Crunch, i, hcU.lastCrunch()); }       // TAIL TYPE HARDCORE
                     else if (pvcHere && cfg.exp.on) expU.process (cfg.exp, msAt (i), noteTail (i), yl, yr);              // TAIL TYPE EXPERIMENTAL
                     else if (pvcHere && cfg.raw.on) rawU.process (cfg.raw, msAt (i), noteTail (i), yl, yr);              // TAIL TYPE RAW
                     else if (pvcHere && cfg.zaag.on) zaagU.process (cfg.zaag, msAt (i), noteTail (i), yl, yr, cfg.zgSend > 0.f ? sendBuf[(size_t) i] : 0.f);   // TAIL TYPE ZAAG (+ ZAAG SEND)
@@ -1391,6 +1396,7 @@ namespace fge
                     {
                         const float ms = msAt (i);
                         const float tk = tokU.process (cfg.tok, ms, noteNow);
+                        if (layerTap != nullptr) layerTap->add (dsp::energy::Tok, i, tk);
                         if (cfg.zgSend > 0.f)                                         // ZAAG SEND: TOK + PUNCH (not the CLICK) into the ZAAG cascade
                         {
                             sendBuf[(size_t) i] = cfg.zgSend * (0.5f * (yl * gl + yr * gr) + tk);
@@ -1402,6 +1408,7 @@ namespace fge
                         {
                             float a = cfg.crack.on ? crU.process (cfg.crack, ms, 0.5f * (yl + yr), rpU.lastHz(), b[1][i], noteNow) : 0.f;
                             crkBuf[(size_t) i] = a;
+                            if (atkCrunch && layerTap != nullptr) layerTap->add (dsp::energy::Crunch, i, rpU.lastCrunch());
                             if (atkCrunch) { a += rpU.lastCrunch(); if (cfg.crunchSolo) crkBuf[(size_t) i] = rpU.lastCrunch(); }
                             if (cfg.noteCut && relMs >= 0.f) a *= juce::jlimit (0.f, 1.f, 1.f - (ms - relMs) / 5.f);
                             atkBuf[(size_t) i] = a;
@@ -1431,6 +1438,7 @@ namespace fge
                     if (cfg.spc.t[(size_t) c].on) (*spcUnits)[(size_t) c].process (cfg.spc.t[(size_t) c], yl, yr);                   // module 11: the group's stereo
                     if (! std::isfinite (yl) || ! std::isfinite (yr)) { yl = yr = 0.f; blewUp = true; }   // a filter / state that blew up: silence the
                                                                                                                   //  sample now, reset the processing after the block (never stuck)
+                    if (layerTap != nullptr) { static constexpr int lay[4] { dsp::energy::Punch, dsp::energy::Body, dsp::energy::Tail, dsp::energy::Sub }; layerTap->add (lay[c], i, 0.5f * (yl * gl + yr * gr)); }
                     yl = yl * gl + front; yr = yr * gr + front;
                     L[i] = (c == 0 ? 0.f : L[i]) + yl;
                     R[i] = (c == 0 ? 0.f : R[i]) + yr;
@@ -1584,6 +1592,7 @@ namespace fge
                 if (cfg.m06.any && cfg.m06.at (dsp::m06::LScreech, 0)) m06St->process (cfg.m06, dsp::m06::LScreech, 0, l, r, m6Ctx (i), cfg.ks.rate);
                 if (cfg.tone.any && cfg.tone.at (dsp::m06::LScreech, 0)) toneSt->process (cfg.tone, dsp::m06::LScreech, 0, l, r, m6Ctx (i), cfg.ks.rate);
                 if (cfg.dyn.any && cfg.dyn.at (dsp::m06::LScreech, 0)) dynSt->process (cfg.dyn, dsp::m06::LScreech, 0, l, r, m6Ctx (i), scOf (b, i), cfg.ks.rate);
+                if (layerTap != nullptr) layerTap->add (dsp::energy::Scream, i, 0.5f * (l + r));
                 if (inside != nullptr) { inside[0][i] = l; inside[1][i] = r; }
                 else { b[6 + 2 * bus][i] += l; b[7 + 2 * bus][i] += r; }
             }
@@ -1640,6 +1649,11 @@ namespace fge
         int dynLookahead() const { return cfg.dyn.masterLook; }
     private:
         dsp::scr::Engine scrEng;
+        dsp::energy::LayerTap* layerTap = nullptr;                             // LAYER ENERGY: offline renders only (never the plugin)
+    public:
+        void setLayerTap (dsp::energy::LayerTap* t) { layerTap = t; }
+        double tapRate() const { return cfg.ks.rate; }
+    private:
         dsp::scr::Timing scrTiming;
         std::vector<float> scrOsc;                                             // the screech oscillators per sample (resonator excitation)
         std::vector<float> scrInBufL, scrInBufR;                               // the screech INSIDE the tail (sized in prepare)
@@ -1685,7 +1699,8 @@ namespace fge
                                                 const env::Bank* bank = nullptr, double bpm = 0.0, double noteOffAt = -1.0,
                                                 const dsp::OscTables* tables = nullptr, const dsp::OscData* oscData = nullptr,
                                                 const dsp::dist::DistData* distData = nullptr, dsp::dyn::Probe* probe = nullptr,
-                                                const dsp::mod::Data* modData = nullptr, const Engine::SamplePtrs* samples = nullptr)
+                                                const dsp::mod::Data* modData = nullptr, const Engine::SamplePtrs* samples = nullptr,
+                                                dsp::energy::LayerTap* layerTap = nullptr)
     {
         // no tables given: build them here from the parameters (+ the given / default oscillator data) - offline only
         std::array<dsp::TablePtr, dsp::maxOsc> keep;
@@ -1714,6 +1729,7 @@ namespace fge
         engine->setDistData (distData);
         engine->setOffline (true);                       // renderKick = the export path (OFFLINE QUALITY applies)
         engine->setModData (modData);
+        engine->setLayerTap (layerTap);                  // LAYER ENERGY (offline)
         engine->setSamples (samples);                    // module 10: the sample slots                    // module 09: the same modulation as the plugin (not playing: the engine clock at 'bpm')
         engine->cookOnly (f);
         engine->dynState().probe = probe;                      // (GUI analysis: one module 08 processor's gain history)

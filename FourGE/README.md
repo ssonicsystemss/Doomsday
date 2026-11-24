@@ -484,5 +484,9 @@ Zakładki w panelu TAIL:
 - **HC CRUNCH / SHAPE**: tonalny CRUNCH (START, LENGTH, własny pitch albo za punchem / body, MIX), TEXTURE (max 30 %), DŁUGOŚĆ (długość kicka albo siatka BPM: kick nie zachodzi na następny), BURST (krótszy / wyższy / cięższy kick z automatyki albo velocity).
 - **HC DIST / EQ**: PRE-EQ (5 pasm) → DRIVE 1 → EQ → DRIVE 2 → RESAMPLE → ASYMMETRY → CLIP (5 trybów) → POST-EQ (z pasmem CRUNCH 2–6 kHz), STAGES 1 / 2 / 3.
   ASYMMETRY ma też **+ DRIVE** i **− DRIVE** (dB): osobny drive dla górnej i dolnej połówki fali (0 dB = jak dotąd, sama gałka ASYMMETRY).
+- **PITCH HOLD** (trzyma START na początku = tok), **DROP +** (zjazd ponad 48 półtonów, np. start ~2 kHz na G1),
+  **SCREAM DIP / DIP AT / DIP LEN** (MID SCREAM chowa się na chwilę – czyste „DUM” – i wraca do końca).
+- Styl **HARDCORE** odtworzony z refa OPS HARDCORE KICK 31_G (preset **HARDCORE - OPS 31**): tok 2 kHz 8 ms → prosty zjazd do nuty
+  → kwadrat nuty z jej 12. harmoniczną, która znika ok. 85–155 ms i wraca. „HARDCORE - Aggressive” = więcej ziarna, płytszy dołek.
 Pod zakładkami linia ANALIZY: styl, źródło, czasy części, zjazd pitchu, etapy, asymetria, clip.
 Presety: GABBER - Crushed 909, MILLENNIUM - Heavy Dark, HARDCORE - Aggressive, UPTEMPO - Forward, UPTEMPO - Burst By Velocity.

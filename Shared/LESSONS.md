@@ -549,3 +549,10 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - Rule: attachments must die before the controls they attach to - declare them AFTER the controls, or clear them first in the destructor.
 - How it was found: `RenderTest - --guistress [rounds]` (editor open, every preset + RANDOMIZE + STYLE, then close) in an ASan build
   (`-fsanitize=address`, `ulimit -s unlimited` because RenderTest's main has a huge frame). Run it after GUI changes.
+
+## HARDCORE from ONE ref, step by step (owner 2026-11-24: "w miare podobnie", after "chujnia" for the fitted profiles)
+- Fitting the 4 styles to band medians of a ref group failed; rebuilding ONE ref (OPS 31_G) by its structure worked: measure the pitch by
+  zero crossings (a hard-clipped square has no usable spectrum peaks early), the crossings per 20 ms (how much a 2nd tone breaks the square)
+  and the windowed bands; sketch it in Python (sin(note) + r(t) * sin(12th harmonic) -> clip), then the same in the engine.
+- The metric fit argued for wrong values twice (drop +70 st / harmonic 14 vs the measured +64 / 12): measure directly, fit only the rest.
+- Give 2-3 variants in one A/B file and let him pick ("2 i 3 lepiej") instead of arguing with numbers.

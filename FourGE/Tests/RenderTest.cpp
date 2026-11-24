@@ -3212,10 +3212,12 @@ int main (int argc, char** argv)
             auto diff = [] (const AudioBuffer<float>& x, const AudioBuffer<float>& y)
             { double e = 0, d = 0; for (int i = 0; i < jmin (x.getNumSamples(), y.getNumSamples()); ++i) { e += (double) x.getSample (0, i) * x.getSample (0, i); d += std::pow ((double) x.getSample (0, i) - y.getSample (0, i), 2.0); } return (float) (10.0 * std::log10 (d / jmax (1.0e-12, e))); };
             // (STAGES / ASYMMETRY compared at a moderate drive: at full drive every stage ends in a square anyway)
-            const auto s1 = styleKick (fge::style::Hardcore, { { "hc_stages", 0.f }, { "hc_d1", 6.f }, { "hc_clip", 0.f } }), s2 = styleKick (fge::style::Hardcore, { { "hc_stages", 1.f }, { "hc_d1", 6.f }, { "hc_clip", 0.f } }),
-                       s3 = styleKick (fge::style::Hardcore, { { "hc_stages", 2.f }, { "hc_d1", 6.f }, { "hc_clip", 0.f } });
-            const auto a0 = styleKick (fge::style::Hardcore, { { "hc_asym", 0.f } });
-            const float d12 = diff (s1, s2), d23 = diff (s2, s3), dA = diff (h, a0);
+            //  (the engine is tested, not the profile: the HARDCORE profile itself runs 2 stages without asymmetry since the OPS 31 rebuild)
+            const auto s1 = styleKick (fge::style::Hardcore, { { "hc_stages", 0.f }, { "hc_d1", 6.f }, { "hc_clip", 0.f }, { "hc_asym", 0.6f }, { "hc_bias", 0.3f } }),
+                       s2 = styleKick (fge::style::Hardcore, { { "hc_stages", 1.f }, { "hc_d1", 6.f }, { "hc_clip", 0.f }, { "hc_asym", 0.6f }, { "hc_bias", 0.3f } }),
+                       s3 = styleKick (fge::style::Hardcore, { { "hc_stages", 2.f }, { "hc_d1", 6.f }, { "hc_clip", 0.f }, { "hc_asym", 0.6f }, { "hc_bias", 0.3f } });
+            const auto a0 = styleKick (fge::style::Hardcore, { { "hc_stages", 2.f }, { "hc_asym", 0.f } }), a1 = styleKick (fge::style::Hardcore, { { "hc_stages", 2.f }, { "hc_asym", 0.7f }, { "hc_bias", 0.3f } });
+            const float d12 = diff (s1, s2), d23 = diff (s2, s3), dA = diff (a1, a0);
             const bool stages = d12 > -30.f && d23 > -30.f, asym = dA > -30.f;
             check (plays && eu < eg - 60.f && onNote && stages && asym,
                    "TAIL TYPE HARDCORE: GABBER / MILLENNIUM / HARDCORE / UPTEMPO play from one engine; UPTEMPO short, GABBER long, the tail on the note, STAGES / ASYMMETRY change it",

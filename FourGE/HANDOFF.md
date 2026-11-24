@@ -4,6 +4,14 @@ Czytaj najpierw: `CLAUDE.md` (root), `FourGE/ARCHITECTURE.md`, `FourGE/DSP_ARCHI
 `FourGE/ARCH_DECISIONS.md` (decyzje właściciela), `FourGE/HARDCORE_ENGINE.md`, `Shared/LESSONS.md` (ostatnie wpisy).
 Odpowiadaj po polsku, prosto. Oceniaj ucho właściciela, nie liczby.
 
+## AKTUALIZACJA 2026-11-24 wieczór (sesja Claude Code)
+- Crash FL przy zamykaniu okna 4GE NAPRAWIONY (kolejność niszczenia ComboBoxAttachment w GeCanvas). Test: `RenderTest - --guistress [n]`
+  w buildzie ASan (`ulimit -s unlimited`) - puszczać po zmianach GUI.
+- HARDCORE odtworzony z JEDNEGO refa (OPS 31_G), właściciel: "w miarę podobnie", z 3 wariantów "2 i 3 lepiej" -> środek = profil HARDCORE
+  + preset "HARDCORE - OPS 31" (szczegóły HARDCORE_ENGINE.md). Nowe: `hc_hold`, `hc_drop_x`, `hc_ms_dip*`, `hc_asym_pos/neg`.
+- Następne: ta sama metoda dla MILLENNIUM (Tritone), GABBER, UPTEMPO - jeden ref, krok po kroku, warianty A/B, potem profil.
+  Refy właściciela: paczka 4GE_refs.zip (HARDCORE / MILLENNIUM / UPTEMPO / GABBER / RAW_CRACK) - nie w git.
+
 ## Gdzie jesteśmy
 - TAIL TYPE HARDCORE (`DSP/Tone/HardcoreKick.h`, `hc_*`) + style GABBER / MILLENNIUM / HARDCORE / UPTEMPO = profile jednego silnika
   (`Presets/StyleEngine.h`, 4 szablony z `"tail_engine", 5`), presety fabryczne w `FactoryPresets.cpp` (`hard()`).

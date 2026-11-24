@@ -118,9 +118,10 @@ namespace fge
             };
             l.push_back (hard ("GABBER - Crushed 909", fge::style::Gabber, {}));
             l.push_back (hard ("MILLENNIUM - Heavy Dark", fge::style::Millennium, {}));
-            l.push_back (hard ("HARDCORE - Aggressive", fge::style::Hardcore, {}));
+            l.push_back (hard ("HARDCORE - Aggressive", fge::style::Hardcore, { { "core_master", 4.f }, { "master_safety_clip", 1.f }, { "hc_ms_mix", 0.75f }, { "hc_ms_dip", 0.4f } }));
             l.push_back (hard ("UPTEMPO - Forward", fge::style::Uptempo, {}));
             l.push_back (hard ("UPTEMPO - Burst By Velocity", fge::style::Uptempo, { { "hc_burst", 4.f } }));
+            l.push_back (hard ("HARDCORE - OPS 31", fge::style::Hardcore, { { "core_master", 4.f }, { "master_safety_clip", 1.f } }));   // the owner's ref rebuilt (A/B 2026-11-24)
             return l; }();
         return list;
     }

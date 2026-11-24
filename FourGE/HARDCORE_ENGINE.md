@@ -49,3 +49,17 @@ rendered as a subset (see the session). Next profiles (spec 56): FRENCHCORE / PE
   UPTEMPO = 2 uptempo, GABBER = 2 gabber (refs are the owner's, not in git).
 - LAYER ENERGY: `DSP/Analysis/LayerEnergy.h` (TOK / PUNCH / BODY / CRUNCH / SUB / TAIL / SCREAM, total + 5 bands),
   `RenderTest <out.txt> --energy <preset | factory:name> [note] [id=value]`.
+
+## 2026-11-24 (later) - HARDCORE rebuilt from ONE ref (OPS HARDCORE KICK 31_G), owner: "w miare podobnie", variants 2 / 3 best
+Measured on the ref (it is a hard-clipped square: only where the pre-clip wave changes sign matters):
+- 0-8 ms a HELD ~2 kHz tone (a tok), then a straight drop (linear in semitones, ~1.9 st / ms) to the note G1 by ~40 ms = +64 st.
+- the tail = the note squared to the rails + a 2nd tone at its ~12th harmonic (539 / 588 / 637 Hz sidebands = locked to the note,
+  never a fixed "piep"), strong at 20-80 ms, almost gone at ~85-150 ms (a clean note square = the DUM), back from ~160 ms to the end.
+  The same dip pattern is in all 10 OPS hardcore refs (zero crossings per 20 ms).
+New params (append only, all off by default): `hc_hold` PITCH HOLD, `hc_drop_x` DROP + (beyond 48 st), `hc_ms_dip` / `_at` / `_len`.
+Profile HARDCORE (StyleEngine) = this kick: SINE source, drop 48 + 16 st / 30 ms LINEAR, hold 8 ms, MID SCREAM HARMONIC 12 x 0.65 from
+19.5 ms, DIP 0.6 at 85 ms for 70 ms, DRIVE 1 / 2 24 dB, 2 stages, SOFT clip 6 dB, low cut 10 Hz, length = 98 % of a beat (BPM grid),
+MASTER SAFETY CLIP on + master +4 dB in the presets (the final squaring at the host rate: no oversampling overshoot on the edges).
+Presets: "HARDCORE - OPS 31" (the rebuild) and "HARDCORE - Aggressive" (more 2nd tone 0.75, shallower dip 0.4).
+Tools (throw-away, /tmp): zero-crossing pitch, crossings / rail share per 20 ms, 5 bands per window, a Python sketch before C++.
+Still different by numbers: the ref has ~3 dB more 20-400 Hz and rounded humps after each switch (not a pure square).

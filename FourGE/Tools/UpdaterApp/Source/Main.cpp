@@ -13,6 +13,9 @@
 #include "BinaryData.h"
 #include "DoomsdayBrand.h"
 #if JUCE_WINDOWS
+ #ifndef NOMINMAX
+  #define NOMINMAX
+ #endif
  #include <windows.h>
  #include <tlhelp32.h>
 #endif
@@ -173,7 +176,7 @@ namespace upd
             g.setColour (col::red); g.setFont (barlow (15.f, true)); g.drawText ("UPDATER", 156, 18, 120, 20, Justification::left);
             g.setColour (col::dim); g.setFont (barlow (13.f, false));
             g.drawText ("keeps the newest 4GE test build in your VST3 folder - silently", 104, 38, 480, 16, Justification::left);
-            auto card = Rectangle<float> (18.f, 66.f, (float) getWidth() - 36.f, 190.f);
+            auto card = juce::Rectangle<float> (18.f, 66.f, (float) getWidth() - 36.f, 190.f);
             g.setColour (col::panel); g.fillRoundedRectangle (card, 5.f);
             g.setColour (col::line); g.drawRoundedRectangle (card.reduced (0.5f), 5.f, 1.f);
             int y = 78;

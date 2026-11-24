@@ -47,7 +47,9 @@ namespace fge::dsp::hardcore
         float fuzzBias = 0.f;
         float harmDb = 0.f; int harmN = 1;                         // MILLENNIUM spec 11: HARMONIC EMPHASIS before the distortion (a bell at 1x / 2x / 3x / 4x the note, follows the note)
         float compAmt = 0.f, compAtkMs = 50.f, compRelMs = 120.f;
-        float clickLenMs = 0.12f, clickNoise = 0.f;                // CLICK LENGTH + CLICK NOISE: each click a short (seeded) noise burst - the gabber "brrr" (2 bursts per cycle in the owner's refs)  // MILLENNIUM spec 23-25: a COMPRESSOR between DRIVE 1 and DRIVE 2 (attack ~50 ms keeps the punch)                                      // FUZZ BIAS: a DC offset BEFORE DRIVE 1 - the square's duty cycle moves (60 / 40): even harmonics, the "farty" fuzz                       // GABBER spec (owner 2026-11-24): HARD CLIP 2 after the POST-EQ (0 = off) + the DISTORTION LOW-PASS (20 kHz = off)                                        // MID SCREAM OWN LEVEL: not shaped by the PUNCH / BODY / TAIL gains (a buzz over a silent punch)                                       // MID SCREAM CLICK: the wave -> a short impulse at every cycle start, alternating up / down (gabber 909 "tok-tok")   // MID SCREAM DIP: the 2nd tone pulled down (x 1 - DIP) from DIP AT for DIP LEN, then back (the clean "DUM")                    // ASYMMETRY + DRIVE / - DRIVE (spec pt 19: each half its own drive, 0 dB = the ASYMMETRY knob alone)
+        float clickLenMs = 0.12f, clickNoise = 0.f;
+        float clickBal = 0.f;                                      // CLICK BALANCE: 0 = the 2 clicks per cycle equal and opposite (odd harmonics only),
+                                                                   //  0.5 = the 2nd click silent, 1 = both the same way (the ref's even = odd harmonics)                // CLICK LENGTH + CLICK NOISE: each click a short (seeded) noise burst - the gabber "brrr" (2 bursts per cycle in the owner's refs)  // MILLENNIUM spec 23-25: a COMPRESSOR between DRIVE 1 and DRIVE 2 (attack ~50 ms keeps the punch)                                      // FUZZ BIAS: a DC offset BEFORE DRIVE 1 - the square's duty cycle moves (60 / 40): even harmonics, the "farty" fuzz                       // GABBER spec (owner 2026-11-24): HARD CLIP 2 after the POST-EQ (0 = off) + the DISTORTION LOW-PASS (20 kHz = off)                                        // MID SCREAM OWN LEVEL: not shaped by the PUNCH / BODY / TAIL gains (a buzz over a silent punch)                                       // MID SCREAM CLICK: the wave -> a short impulse at every cycle start, alternating up / down (gabber 909 "tok-tok")   // MID SCREAM DIP: the 2nd tone pulled down (x 1 - DIP) from DIP AT for DIP LEN, then back (the clean "DUM")                    // ASYMMETRY + DRIVE / - DRIVE (spec pt 19: each half its own drive, 0 dB = the ASYMMETRY knob alone)
         int stages = 3, clipMode = 0;                              // HARD / SOFT / FOLD / ASYMMETRIC / CUSTOM
         // POST-EQ
         float postLowCut = 30.f, postBodyDb = 0.f, postMidDb = 0.f, postCrunchDb = 0.f, postCrunchHz = 3500.f, postHighDb = 0.f;
@@ -221,13 +223,13 @@ namespace fge::dsp::hardcore
             {                                                                                   //  the note's peaks for an even harmonic: the 909 "tok" spikes)
                 const double h = std::max (1.0, std::round ((double) s.msHarm));
                 const double np = h * (p + 0.95); ph = np - std::floor (np);          // (0.95: lands on the peaks after the chain's phase shift)
-                if (ph < pm - 0.5) { clickSign = -clickSign; clickEnv = clickSign; }
+                if (ph < pm - 0.5) { clickSign = -clickSign; clickEnv = clickSign > 0.f ? 1.f : -(1.f - 2.f * clickBalNow); }
                 pm = ph;
             }
             else
             {
                 pm += f / fs;
-                if (pm >= 1.0) { pm -= 1.0; clickSign = -clickSign; clickEnv = clickSign; }   // a new cycle: the CLICK fires (alternating sign)
+                if (pm >= 1.0) { pm -= 1.0; clickSign = -clickSign; clickEnv = clickSign > 0.f ? 1.f : -(1.f - 2.f * clickBalNow); }   // a new cycle: the CLICK fires
             }
             float x;
             switch (s.msWave)
@@ -305,6 +307,7 @@ namespace fge::dsp::hardcore
             if (s.lpHz < 19999.f) { const double lh = std::clamp ((double) s.lpHz, 500.0, fs * 0.45); lp1.lp (fs, lh, 0.5412); lp2.lp (fs, lh, 1.3066); }   // 4th order Butterworth
             if (s.harmDb != 0.f) eHarm.bell (fs, std::clamp (endHz * (double) std::clamp (s.harmN + 1, 1, 4), 20.0, fs * 0.4), s.harmDb, 1.4);
             clickDecay = (float) std::exp (-1.0 / (fs * 0.001 * std::max (0.05f, s.clickLenMs)));
+            clickBalNow = std::clamp (s.clickBal, 0.f, 1.f);
             cAtk = 1.f - (float) std::exp (-1.0 / (fs * 0.001 * std::max (0.1f, s.compAtkMs)));
             cRel = 1.f - (float) std::exp (-1.0 / (fs * 0.001 * std::max (1.f, s.compRelMs)));
             { const float thr = 1.f - 0.8f * std::clamp (s.compAmt, 0.f, 1.f); cMake = 1.f / (thr + (1.f - thr) * 0.25f); }
@@ -322,7 +325,7 @@ namespace fge::dsp::hardcore
         double pm = 0.0;
         float oc = 1.f, gClip2 = 1.f, fuzzEnv = 0.f, cEnv = 0.f, cAtk = 0.01f, cRel = 0.001f, cMake = 1.f;
         bq::Biquad lp1, lp2, eHarm;
-        float clickEnv = 0.f, clickSign = 1.f, clickDecay = 0.99f;
+        float clickEnv = 0.f, clickSign = 1.f, clickDecay = 0.99f, clickBalNow = 0.f;
         float segGain = 1.f, outEnv = 1.f, g1 = 1.f, g2 = 1.f, gc = 1.f, gPos = 1.f, gNeg = 1.f, rms = 0.05f, crush = 0.f;
         bq::Biquad eLow, eLm, eMid, eHm, eHigh, dc1, dcOut, betw, pLow, pBody, pMid, pCr, pHigh, crHp, crLp, txBp;
     };

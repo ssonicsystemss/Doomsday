@@ -1310,7 +1310,7 @@ int main (int argc, char** argv)
                     if (sid == "hc_comp_atk" || sid == "hc_comp_rel") set2 ("hc_comp", 1.f);
                     if (sid == "hc_harm_db" || sid == "hc_harm_n" || sid == "hc_comp" || sid == "hc_comp_atk" || sid == "hc_comp_rel") { set2 ("hc_d1", 6.f); set2 ("hc_d2", 0.f); set2 ("hc_clip", 0.f); }
                     if (sid == "hc_ms_own") { set2 ("hc_ms_mix", 0.6f); set2 ("hc_punch_db", -20.f); set2 ("hc_body_db", -10.f); }
-                    if (sid == "hc_click_len" || sid == "hc_click_noise") { set2 ("hc_ms_click", 1.f); set2 ("hc_ms_mix", 1.f); set2 ("hc_ms_track", 1.f); set2 ("hc_ms_harm", 2.f); }
+                    if (sid == "hc_click_len" || sid == "hc_click_noise" || sid == "hc_click_bal") { set2 ("hc_ms_click", 1.f); set2 ("hc_ms_mix", 1.f); set2 ("hc_ms_track", 1.f); set2 ("hc_ms_harm", 2.f); }
                     if (sid == "hc_ms_click") { set2 ("hc_ms_mix", 1.f); set2 ("hc_ms_track", 1.f); set2 ("hc_ms_harm", 2.f); }
                     if (sid == "hc_btw_hz") set2 ("hc_btw_db", 12.f);
                     if (sid == "hc_post_crunch_hz") set2 ("hc_post_crunch", 12.f);

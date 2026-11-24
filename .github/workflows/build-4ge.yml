@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'FourGE/**'
+      - '!FourGE/Tools/UpdaterApp/**'
       - 'Shared/**'
       - '.github/workflows/build-4ge.yml'
   workflow_dispatch:

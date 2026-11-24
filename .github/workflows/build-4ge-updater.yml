@@ -1,0 +1,45 @@
+name: Build 4GE Updater
+
+on:
+  push:
+    paths:
+      - 'FourGE/Tools/UpdaterApp/**'
+      - 'Shared/Source/DoomsdayBrand.h'
+      - '.github/workflows/build-4ge-updater.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: FourGE/Tools/UpdaterApp
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        run: cmake -B build -A x64
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Package (exe + installer + readme)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "pkg/4GE Updater" | Out-Null
+          Copy-Item "build/FourGEUpdater_artefacts/Release/4GE Updater.exe" "pkg/4GE Updater/"
+          Copy-Item Zainstaluj_4GE_Updater.bat, Odinstaluj_4GE_Updater.bat, CZYTAJ.txt "pkg/4GE Updater/"
+          Compress-Archive -Path "pkg/4GE Updater" -DestinationPath 4GE-Updater-Windows.zip -Force
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: 4GE-Updater-Windows
+          path: FourGE/Tools/UpdaterApp/pkg/
+      - name: Publish next to 4GE (Releases 4ge-latest)
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          gh release upload 4ge-latest 4GE-Updater-Windows.zip --clobber

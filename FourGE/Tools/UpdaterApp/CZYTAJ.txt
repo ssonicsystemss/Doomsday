@@ -1,0 +1,14 @@
+4GE UPDATER
+===========
+Program w tle: ikonka "4GE" przy zegarze. Co 10 minut sprawdza GitHuba i sam podmienia
+C:\Program Files\Common Files\VST3\4GE.vst3 na najnowszy testowy build. Bez wyskakujacych okienek.
+
+INSTALACJA (raz): rozpakuj caly folder, dwuklik "Zainstaluj_4GE_Updater.bat", zgoda administratora.
+  (Usuwa tez stary updater z PowerShella i jego okienka.)
+
+- Klik w ikonke przy zegarze = okno: status, zainstalowany build, co nowego, CHECK NOW, UPDATE NOW, AUTO ON / OFF.
+- Prawy klik na ikonce: Open / Check now / Quit.
+- FL Studio otwarte = nowy 4GE czeka; podmienia go sam, gdy zamkniesz FL.
+- Uruchamia sie sam z Windows. Ikona "4GE Updater" na pulpicie otwiera okno (Windows zapyta o zgode).
+- Dziennik: %LOCALAPPDATA%\4GE_Updater\log.txt (wyslij go, gdy cos nie dziala).
+- Usuniecie: "Odinstaluj_4GE_Updater.bat" (plugin zostaje).

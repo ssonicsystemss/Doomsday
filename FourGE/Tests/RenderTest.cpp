@@ -1277,7 +1277,7 @@ int main (int argc, char** argv)
                     if (sid == "hc_key_mode") set2 ("hc_root_note", 45.f);
                     if (sid == "hc_tx_type" || sid == "hc_tx_len") set2 ("hc_tx_mix", 0.3f);
                     if (sid == "hc_grid" || sid == "hc_fill") set2 ("hc_len_mode", 1.f);
-                    if (sid == "hc_bias") set2 ("hc_asym", 0.8f);
+                    if (sid == "hc_bias" || sid == "hc_asym_pos" || sid == "hc_asym_neg") set2 ("hc_asym", 0.8f);
                     if (sid.startsWith ("hc_ms_") && sid != "hc_ms_mix") set2 ("hc_ms_mix", 0.4f);         // MID SCREAM: on
                     if (sid == "hc_ms_harm") set2 ("hc_ms_track", 1.f);
                     if (sid == "hc_ms_rate") set2 ("hc_ms_motion", 1.f);

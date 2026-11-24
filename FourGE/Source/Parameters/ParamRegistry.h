@@ -1025,7 +1025,9 @@ namespace fge
     F (hcMsFade, "hc_ms_fade", "HC Mid Scream Fade In", Unit::Ms, 0.0f, 300.0f, 10.0f, 40.0f, FNone) \
     F (hcMsMotion, "hc_ms_motion", "HC Mid Scream Motion", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
     F (hcMsRate, "hc_ms_rate", "HC Mid Scream Rate", Unit::Hz, 0.5f, 20.0f, 5.0f, 5.0f, FNone) \
-    F (hcOutClip, "hc_out_clip", "HC Output Clip", Unit::Db, 0.0f, 18.0f, 0.0f, 0.0f, FNone)
+    F (hcOutClip, "hc_out_clip", "HC Output Clip", Unit::Db, 0.0f, 18.0f, 0.0f, 0.0f, FNone) \
+    F (hcAsymPos, "hc_asym_pos", "HC Asymmetry + Drive", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
+    F (hcAsymNeg, "hc_asym_neg", "HC Asymmetry - Drive", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

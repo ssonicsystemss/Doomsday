@@ -483,5 +483,6 @@ Zakładki w panelu TAIL:
 - **HC SOURCE / PITCH**: źródło (909 / 909 HARD / BD / SINE / SINE+909 / HYBRID), zjazd pitchu (DROP, TIME, krzywa), tonacja (za MIDI albo stała ROOT KEY), czasy i siła PUNCH / BODY / TAIL.
 - **HC CRUNCH / SHAPE**: tonalny CRUNCH (START, LENGTH, własny pitch albo za punchem / body, MIX), TEXTURE (max 30 %), DŁUGOŚĆ (długość kicka albo siatka BPM: kick nie zachodzi na następny), BURST (krótszy / wyższy / cięższy kick z automatyki albo velocity).
 - **HC DIST / EQ**: PRE-EQ (5 pasm) → DRIVE 1 → EQ → DRIVE 2 → RESAMPLE → ASYMMETRY → CLIP (5 trybów) → POST-EQ (z pasmem CRUNCH 2–6 kHz), STAGES 1 / 2 / 3.
+  ASYMMETRY ma też **+ DRIVE** i **− DRIVE** (dB): osobny drive dla górnej i dolnej połówki fali (0 dB = jak dotąd, sama gałka ASYMMETRY).
 Pod zakładkami linia ANALIZY: styl, źródło, czasy części, zjazd pitchu, etapy, asymetria, clip.
 Presety: GABBER - Crushed 909, MILLENNIUM - Heavy Dark, HARDCORE - Aggressive, UPTEMPO - Forward, UPTEMPO - Burst By Velocity.

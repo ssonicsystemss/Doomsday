@@ -663,7 +663,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (nullptr);
             d.push_back (combo ("hc_stages"));
             for (auto [id, lab] : LZ { { "hc_d1", "DRIVE 1" }, { "hc_btw_hz", "EQ HZ" }, { "hc_btw_db", "EQ GAIN" }, { "hc_d2", "DRIVE 2" }, { "hc_resample", "RESAMPLE" },
-                                       { "hc_asym", "ASYMMETRY" }, { "hc_bias", "BIAS" } }) d.push_back (knob (id, lab, col));
+                                       { "hc_asym", "ASYMMETRY" }, { "hc_asym_pos", "+ DRIVE" }, { "hc_asym_neg", "- DRIVE" }, { "hc_bias", "BIAS" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             d.push_back (combo ("hc_clip_mode"));
             for (auto [id, lab] : LZ { { "hc_clip", "CLIP" }, { "hc_post_lowcut", "LOW CUT" }, { "hc_post_body", "BODY" }, { "hc_post_mid", "MID" }, { "hc_post_crunch", "CRUNCH" },

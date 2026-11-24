@@ -1054,7 +1054,7 @@ namespace fge
                     h.txType = f.idx (P::hcTxType); h.txMix = f[P::hcTxMix]; h.txLenMs = f[P::hcTxLen];
                     h.eqLowDb = f[P::hcEqLowDb]; h.eqLowHz = f[P::hcEqLowHz]; h.eqLmDb = f[P::hcEqLmDb]; h.eqLmHz = f[P::hcEqLmHz]; h.eqMidDb = f[P::hcEqMidDb]; h.eqMidHz = f[P::hcEqMidHz];
                     h.eqHmDb = f[P::hcEqHmDb]; h.eqHmHz = f[P::hcEqHmHz]; h.eqHighDb = f[P::hcEqHighDb]; h.eqHighHz = f[P::hcEqHighHz];
-                    h.d1Db = f[P::hcD1]; h.betweenHz = f[P::hcBtwHz]; h.betweenDb = f[P::hcBtwDb]; h.d2Db = f[P::hcD2]; h.asym = f[P::hcAsym]; h.bias = f[P::hcBias];
+                    h.d1Db = f[P::hcD1]; h.betweenHz = f[P::hcBtwHz]; h.betweenDb = f[P::hcBtwDb]; h.d2Db = f[P::hcD2]; h.asym = f[P::hcAsym]; h.bias = f[P::hcBias]; h.asymPosDb = f[P::hcAsymPos]; h.asymNegDb = f[P::hcAsymNeg];
                     h.clipMode = f.idx (P::hcClipMode); h.clipDb = f[P::hcClip]; h.resample = f[P::hcResample]; h.stages = f.idx (P::hcStages) + 1;
                     h.postLowCut = f[P::hcPostLowCut]; h.postBodyDb = f[P::hcPostBody]; h.postMidDb = f[P::hcPostMid];
                     h.postCrunchDb = f[P::hcPostCrunch]; h.postCrunchHz = f[P::hcPostCrunchHz]; h.postHighDb = f[P::hcPostHigh];
@@ -1365,6 +1365,7 @@ namespace fge
                 const bool colorHere = c == 2 && cfg.color.on && ! cfg.pvcTail.on && ! cfg.zaag.on && ! cfg.raw.on && ! cfg.exp.on && ! cfg.hc.on;
                 const bool pvcHere = (c == 2 && (cfg.pvcTail.on || cfg.zaag.on || cfg.raw.on || cfg.exp.on || cfg.hc.on)) || (c == 0 && (cfg.zpunch.on || cfg.cpunch.on || cfg.rpunch.on));   // an ENGINE replaces the part's source (rule 0: one engine per part)
                 const float noteNow = lastNoteHz * cfg.fineMul;
+                const bool keepThis = (keepCore >> c & 1u) != 0;                  // (export of one part: FRONT / ATTACK BUS / engines belong to their part)
                 auto noteTail = [&] (int i) { return c == 2 && cfg.rise.on ? noteNow * dsp::rise::pitchFactor (cfg.rise, msAt (i)) : noteNow; };   // TAIL RISE: PITCH on the tail engines
                 if (colorHere) tailColor.cook (cfg.color, cfg.keyTrack ? lastNoteHz * cfg.fineMul : cfg.endHz * cfg.fineMul, cfg.ks.rate);
                 float p = 0.f;
@@ -1390,6 +1391,7 @@ namespace fge
                         yl = low + m + sd; yr = low + m - sd;
                     }
                     else { yl = x[i]; yr = x[i]; }
+                    if (pvcHere && ! keepThis) yl = yr = 0.f;                         // module 12 export of one part: the ENGINE of another part stays silent too
                     if (! pvcHere || c == 0) { yl += b[6 + 2 * c][i]; yr += b[7 + 2 * c][i]; }  // module 04: layers on this part's bus (the PUNCH BUS with every punch type)
                     float front = 0.f;                                                // the FRONT: TOK (before the punch), CLICK + SUB PUNCH -> the PUNCH BUS
                     if (c == 0)                                                       // (own levels: not under the PUNCH fader / mute, not through the punch group's FX)
@@ -1411,9 +1413,10 @@ namespace fge
                             if (atkCrunch && layerTap != nullptr) layerTap->add (dsp::energy::Crunch, i, rpU.lastCrunch());
                             if (atkCrunch) { a += rpU.lastCrunch(); if (cfg.crunchSolo) crkBuf[(size_t) i] = rpU.lastCrunch(); }
                             if (cfg.noteCut && relMs >= 0.f) a *= juce::jlimit (0.f, 1.f, 1.f - (ms - relMs) / 5.f);
-                            atkBuf[(size_t) i] = a;
+                            atkBuf[(size_t) i] = keepThis ? a : 0.f;
                         }
                         if (cfg.noteCut && relMs >= 0.f) front *= juce::jlimit (0.f, 1.f, 1.f - (ms - relMs) / 5.f);
+                        if (! keepThis) front = 0.f;
                     }
                     if (pvcHere && cfg.noteCut && relMs >= 0.f)                                   // KICK END = NOTE: the engines stop with the note too (5 ms fade)
                     {

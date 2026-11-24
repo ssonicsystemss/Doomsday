@@ -4201,3 +4201,5 @@ hc_ms_fade
 hc_ms_motion
 hc_ms_rate
 hc_out_clip
+hc_asym_pos
+hc_asym_neg

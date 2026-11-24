@@ -38,6 +38,7 @@ namespace fge::dsp::hardcore
         // DISTORTION
         float eqLowDb = 0.f, eqLowHz = 70.f, eqLmDb = 0.f, eqLmHz = 250.f, eqMidDb = 0.f, eqMidHz = 900.f, eqHmDb = 0.f, eqHmHz = 2500.f, eqHighDb = 0.f, eqHighHz = 8000.f;
         float d1Db = 12.f, betweenHz = 600.f, betweenDb = 0.f, d2Db = 18.f, asym = 0.5f, bias = 0.2f, clipDb = 6.f, resample = 0.f;
+        float asymPosDb = 0.f, asymNegDb = 0.f;                    // ASYMMETRY + DRIVE / - DRIVE (spec pt 19: each half its own drive, 0 dB = the ASYMMETRY knob alone)
         int stages = 3, clipMode = 0;                              // HARD / SOFT / FOLD / ASYMMETRIC / CUSTOM
         // POST-EQ
         float postLowCut = 30.f, postBodyDb = 0.f, postMidDb = 0.f, postCrunchDb = 0.f, postCrunchHz = 3500.f, postHighDb = 0.f;
@@ -105,10 +106,10 @@ namespace fge::dsp::hardcore
                 x += (r2 - x) * s.resample;
             }
             // ---- ASYMMETRY: positive drive != negative drive + a bias (DC offset), the DC is taken out after
-            if (s.stages >= 3 && s.asym > 0.f)
+            if (s.stages >= 3 && (s.asym > 0.f || s.asymPosDb != 0.f || s.asymNegDb != 0.f))
             {
-                const float a = s.asym, v = x + 0.4f * s.bias * a;
-                x = v >= 0.f ? std::tanh ((1.f + 3.f * a) * v) : std::tanh ((1.f + 0.8f * a) * v) * (1.f - 0.35f * a);
+                const float a = s.asym, v = x + 0.4f * s.bias * std::max (a, 0.25f * (std::abs (s.asymPosDb - s.asymNegDb) / 12.f));
+                x = v >= 0.f ? std::tanh ((1.f + 3.f * a) * gPos * v) : std::tanh ((1.f + 0.8f * a) * gNeg * v) * (1.f - 0.35f * a);
                 x += 0.25f * a * s.bias;        // the offset stays INTO the clip: it moves the square's duty cycle (even harmonics) - the DC goes after the clip
             }
             // ---- CLIP (the asymmetry survives it: the negative half stays lower after the clip - unequal halves = even harmonics,
@@ -244,7 +245,7 @@ namespace fge::dsp::hardcore
             const float u = std::clamp ((ms - bEnd) / std::max (10.f, s.lengthMs - bEnd), 0.f, 1.f);
             outEnv = ms < bEnd ? 1.f : std::max (0.f, 1.f - s.tailDecay * std::pow (u, 0.7f));
             // the stage gains + the EQs
-            g1 = dbg (s.d1Db); g2 = dbg (s.d2Db); gc = dbg (s.clipDb); oc = dbg (s.outClipDb);
+            g1 = dbg (s.d1Db); g2 = dbg (s.d2Db); gc = dbg (s.clipDb); oc = dbg (s.outClipDb); gPos = dbg (s.asymPosDb); gNeg = dbg (s.asymNegDb);
             eLow.shelf (fs, s.eqLowHz, s.eqLowDb, false); eLm.bell (fs, s.eqLmHz, s.eqLmDb, 0.9); eMid.bell (fs, s.eqMidHz, s.eqMidDb, 0.9);
             eHm.bell (fs, s.eqHmHz, s.eqHmDb, 0.9); eHigh.shelf (fs, std::min ((double) s.eqHighHz, fs * 0.4), s.eqHighDb, true);
             dc1.hp (fs, 12.0, 0.7071); dcOut.hp (fs, 10.0, 0.7071);
@@ -264,7 +265,7 @@ namespace fge::dsp::hardcore
     private:
         double pm = 0.0;
         float oc = 1.f;
-        float segGain = 1.f, outEnv = 1.f, g1 = 1.f, g2 = 1.f, gc = 1.f, rms = 0.05f, crush = 0.f;
+        float segGain = 1.f, outEnv = 1.f, g1 = 1.f, g2 = 1.f, gc = 1.f, gPos = 1.f, gNeg = 1.f, rms = 0.05f, crush = 0.f;
         bq::Biquad eLow, eLm, eMid, eHm, eHigh, dc1, dcOut, betw, pLow, pBody, pMid, pCr, pHigh, crHp, crLp, txBp;
     };
 }

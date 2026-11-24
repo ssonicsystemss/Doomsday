@@ -78,6 +78,20 @@ function Install-Latest {
     return $L
 }
 
+# ---------------- SELF UPDATE: the newest version of this script from GitHub (fixes reach the owner without a reinstall)
+if ($Quiet) {
+    try {
+        $new = Join-Path $Dir 'new.ps1'
+        Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/$Repo/main/FourGE/Tools/Updater/4GE_Updater.ps1" -OutFile $new -TimeoutSec 30
+        if ((Get-Item $new).Length -gt 1000 -and (Get-FileHash $new).Hash -ne (Get-FileHash $PSCommandPath).Hash) {
+            Copy-Item $new $PSCommandPath -Force; Remove-Item $new -Force; Write-Log "updater zaktualizowany"
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File $PSCommandPath -Quiet
+            exit 0
+        }
+        Remove-Item $new -Force -ErrorAction SilentlyContinue
+    } catch { Write-Log "self update: $($_.Exception.Message)" }
+}
+
 # ---------------- -Install: the elevated part
 if ($Install) {
     try {
@@ -107,12 +121,8 @@ if ($s.installed -eq $L.id) {
 # a new build: FL open = wait (FL holds the old 4GE.vst3); said once per build in the background, asked from the icon
 while (Test-FlOpen) {
     if ($Quiet) {
-        if ($s.waiting -ne $L.id) {
-            $s.waiting = $L.id; Set-State $s
-            Write-Log "nowy build $($L.id) czeka - FL otwarte"
-            Show-Box ("Jest nowy 4GE ($($L.date)):`n$($L.msg)`n`nPodmienie go sam, gdy zamkniesz FL.") | Out-Null
-        }
-        exit 0
+        if ($s.waiting -ne $L.id) { $s.waiting = $L.id; Set-State $s; Write-Log "nowy build $($L.id) czeka - FL otwarte" }
+        exit 0                                                         # (silent: the owner does not want pop-ups)
     }
     $r = Show-Box ("Jest nowy 4GE ($($L.date)):`n$($L.msg)`n`nFL Studio jest otwarte - zapisz projekt, zamknij FL i kliknij OK (Anuluj = podmienie sam pozniej).") 'OKCancel' 'Warning'
     if ($r -ne 'OK') { exit 0 }
@@ -121,7 +131,7 @@ $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIden
 if ($isAdmin) {
     try {
         $L = Install-Latest
-        Show-Box ("4GE zaktualizowany.`n`nBuild: $($L.date)`n$($L.msg)") | Out-Null
+        if (-not $Quiet) { Show-Box ("4GE zaktualizowany.`n`nBuild: $($L.date)`n$($L.msg)") | Out-Null }   # (in the background: silent, only the log)
     } catch {
         Write-Log "BLAD instalacji: $($_.Exception.Message)"
         if (-not $Quiet) { Show-Box ("Nie udalo sie zainstalowac 4GE:`n`n$($_.Exception.Message)`n`n(szczegoly: $LogFile)") 'OK' 'Error' | Out-Null }

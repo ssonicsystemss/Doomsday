@@ -653,22 +653,26 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (nullptr);
             d.push_back (combo ("hc_cr_pmode"));
             for (auto [id, lab] : LZ { { "hc_cr_pitch", "PITCH" }, { "hc_cr_pamt", "PITCH AMT" }, { "hc_cr_ptime", "PITCH TIME" }, { "hc_cr_drive", "DRIVE" }, { "hc_cr_asym", "ASYMMETRY" },
-                                       { "hc_ms_dip", "SCREAM DIP" }, { "hc_ms_dip_at", "DIP AT" }, { "hc_ms_dip_len", "DIP LEN" }, { "hc_ms_click", "CLICK" } }) d.push_back (knob (id, lab, col));
+                                       { "hc_ms_dip", "SCREAM DIP" }, { "hc_ms_dip_at", "DIP AT" }, { "hc_ms_dip_len", "DIP LEN" }, { "hc_ms_click", "CLICK" },
+                                       { "hc_click_len", "CLICK LEN" }, { "hc_click_noise", "CLICK NOISE" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);                                            // MID SCREAM (owner refs 2026-11-24): the 2nd tone clipped with the note
             d.push_back (combo ("hc_ms_track")); d.push_back (combo ("hc_ms_wave")); d.push_back (toggle ("hc_ms_own", "OWN LEVEL", Toggle::Chip, col));
             for (auto [id, lab] : LZ { { "hc_ms_mix", "MID SCREAM" }, { "hc_ms_hz", "SCREAM HZ" }, { "hc_ms_harm", "HARMONIC" }, { "hc_ms_sweep", "SWEEP" }, { "hc_ms_sweep_ms", "SWEEP TIME" },
                                        { "hc_ms_start", "START" }, { "hc_ms_fade", "FADE IN" }, { "hc_ms_motion", "MOTION" }, { "hc_ms_rate", "RATE" } }) d.push_back (knob (id, lab, col));
             d.push_back (&detailPageMark);
             for (auto [id, lab] : LZ { { "hc_eq_low_db", "LOW" }, { "hc_eq_low_hz", "LOW HZ" }, { "hc_eq_lm_db", "LOW-MID" }, { "hc_eq_lm_hz", "LM HZ" }, { "hc_eq_mid_db", "MID" },
-                                       { "hc_eq_mid_hz", "MID HZ" }, { "hc_eq_hm_db", "HIGH-MID" }, { "hc_eq_hm_hz", "HM HZ" }, { "hc_eq_high_db", "HIGH" }, { "hc_eq_high_hz", "HIGH HZ" } }) d.push_back (knob (id, lab, col));
+                                       { "hc_eq_mid_hz", "MID HZ" }, { "hc_eq_hm_db", "HIGH-MID" }, { "hc_eq_hm_hz", "HM HZ" }, { "hc_eq_high_db", "HIGH" }, { "hc_eq_high_hz", "HIGH HZ" }, { "hc_fuzz", "FUZZ BIAS" }, { "hc_harm_db", "HARMONIC" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
+            d.push_back (combo ("hc_harm_n"));
+            for (auto [id, lab] : LZ { { "hc_comp", "COMP" }, { "hc_comp_atk", "COMP ATK" }, { "hc_comp_rel", "COMP REL" } }) d.push_back (knob (id, lab, col));
             d.push_back (combo ("hc_stages"));
             for (auto [id, lab] : LZ { { "hc_d1", "DRIVE 1" }, { "hc_btw_hz", "EQ HZ" }, { "hc_btw_db", "EQ GAIN" }, { "hc_d2", "DRIVE 2" }, { "hc_resample", "RESAMPLE" },
                                        { "hc_asym", "ASYMMETRY" }, { "hc_asym_pos", "+ DRIVE" }, { "hc_asym_neg", "- DRIVE" }, { "hc_bias", "BIAS" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             d.push_back (combo ("hc_clip_mode"));
             for (auto [id, lab] : LZ { { "hc_clip", "CLIP" }, { "hc_post_lowcut", "LOW CUT" }, { "hc_post_body", "BODY" }, { "hc_post_mid", "MID" }, { "hc_post_crunch", "CRUNCH" },
-                                       { "hc_post_crunch_hz", "CRUNCH HZ" }, { "hc_post_high", "HIGH" }, { "hc_out_clip", "OUT CLIP" } }) d.push_back (knob (id, lab, col));
+                                       { "hc_post_crunch_hz", "CRUNCH HZ" }, { "hc_post_high", "HIGH" }, { "hc_clip2", "CLIP 2" }, { "hc_lp", "LOW PASS" },
+                                       { "hc_out_clip", "FINAL CLIP" } }) d.push_back (knob (id, lab, col));
         }
         mixer[(size_t) i] = { knob (("mix_" + s + "_level").toRawUTF8(), "FADER", col, 34), knob (("mix_" + s + "_pan").toRawUTF8(), "PAN", col, 30, true),
                               toggle (("mix_" + s + "_invert").toRawUTF8(), "PHASE " + String (CharPointer_UTF8 ("\xc3\x98")), Toggle::Chip, col) };

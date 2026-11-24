@@ -4210,3 +4210,13 @@ hc_ms_dip_at
 hc_ms_dip_len
 hc_ms_click
 hc_ms_own
+hc_clip2
+hc_lp
+hc_fuzz
+hc_harm_db
+hc_harm_n
+hc_comp
+hc_comp_atk
+hc_comp_rel
+hc_click_len
+hc_click_noise

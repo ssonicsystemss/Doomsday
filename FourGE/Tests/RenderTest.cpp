@@ -1306,6 +1306,7 @@ int main (int argc, char** argv)
                     if (sid == "hc_ms_harm") set2 ("hc_ms_track", 1.f);
                     if (sid == "hc_ms_rate") set2 ("hc_ms_motion", 1.f);
                     if (sid == "hc_ms_dip_at" || sid == "hc_ms_dip_len") set2 ("hc_ms_dip", 1.f);
+                    if (sid == "hc_ms_click") { set2 ("hc_ms_mix", 1.f); set2 ("hc_ms_track", 1.f); set2 ("hc_ms_harm", 2.f); }
                     if (sid == "hc_btw_hz") set2 ("hc_btw_db", 12.f);
                     if (sid == "hc_post_crunch_hz") set2 ("hc_post_crunch", 12.f);
                     if (sid.startsWith ("hc_eq_") && sid.endsWith ("_hz")) set2 (sid.replace ("_hz", "_db"), 12.f);

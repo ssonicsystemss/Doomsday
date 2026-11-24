@@ -4208,3 +4208,4 @@ hc_drop_x
 hc_ms_dip
 hc_ms_dip_at
 hc_ms_dip_len
+hc_ms_click

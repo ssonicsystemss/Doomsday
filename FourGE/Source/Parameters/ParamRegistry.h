@@ -1032,7 +1032,8 @@ namespace fge
     F (hcDropX, "hc_drop_x", "HC Pitch Drop +", Unit::Semi, 0.0f, 36.0f, 0.0f, 0.0f, FNone) \
     F (hcMsDip, "hc_ms_dip", "HC Mid Scream Dip", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
     F (hcMsDipAt, "hc_ms_dip_at", "HC Mid Scream Dip At", Unit::Ms, 20.0f, 400.0f, 85.0f, 85.0f, FNone) \
-    F (hcMsDipLen, "hc_ms_dip_len", "HC Mid Scream Dip Length", Unit::Ms, 10.0f, 400.0f, 120.0f, 120.0f, FNone)
+    F (hcMsDipLen, "hc_ms_dip_len", "HC Mid Scream Dip Length", Unit::Ms, 10.0f, 400.0f, 120.0f, 120.0f, FNone) \
+    F (hcMsClick, "hc_ms_click", "HC Mid Scream Click", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

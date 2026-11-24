@@ -119,7 +119,7 @@ namespace fge
         const juce::StringArray& hcLenModes()     { static const juce::StringArray a { "KICK LENGTH", "BPM GRID" }; return a; }
         const juce::StringArray& hcGrids()        { static const juce::StringArray a { "1/16", "1/8", "1/4", "1/2" }; return a; }
         const juce::StringArray& hcBursts()       { static const juce::StringArray a { "OFF", "SHORT", "PITCHED", "HEAVY", "BY VELOCITY" }; return a; }
-        const juce::StringArray& hcMsTracks()     { static const juce::StringArray a { "FIXED HZ", "HARMONIC OF THE NOTE" }; return a; }
+        const juce::StringArray& hcMsTracks()     { static const juce::StringArray a { "FIXED HZ", "HARMONIC OF THE NOTE", "FOLLOW PITCH" }; return a; }
         const juce::StringArray& hcMsWaves()      { static const juce::StringArray a { "SINE", "TRIANGLE", "SAW", "SQUARE" }; return a; }
         const juce::StringArray& crunchSources()  { static const juce::StringArray a { "SINE", "SAW", "909 / BD", "SINE + SAW" }; return a; }
         const juce::StringArray& crunchWs()       { static const juce::StringArray a { "SOFT", "HARD", "FOLD", "CRUSH", "CUSTOM" }; return a; }

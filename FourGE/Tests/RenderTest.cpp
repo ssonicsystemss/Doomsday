@@ -1306,6 +1306,15 @@ int main (int argc, char** argv)
                     if (sid == "hc_ms_harm") set2 ("hc_ms_track", 1.f);
                     if (sid == "hc_ms_rate") set2 ("hc_ms_motion", 1.f);
                     if (sid == "hc_ms_dip_at" || sid == "hc_ms_dip_len") set2 ("hc_ms_dip", 1.f);
+                    if (sid.startsWith ("hc_fd"))                                                       // FAST DIST: on, pushed, a clean chain after it
+                    {
+                        set2 ("hc_d1", 0.f); set2 ("hc_d2", 0.f); set2 ("hc_clip", 0.f); set2 ("hc_stages", 0.f); set2 ("hc_clip_mode", 1.f);
+                        const bool two = sid.startsWith ("hc_fd2");
+                        if (sid != "hc_fd1_on" && sid != "hc_fd2_on") set2 (two ? "hc_fd2_on" : "hc_fd1_on", 1.f);
+                        if (! sid.endsWith ("_pre")) set2 (two ? "hc_fd2_pre" : "hc_fd1_pre", 0.8f);
+                        if (! sid.endsWith ("_thres")) set2 (two ? "hc_fd2_thres" : "hc_fd1_thres", 0.4f);
+                        if (sid == "hc_fd_pos" || sid == "hc_fd_neg" || sid == "hc_fd_bias") set2 ("hc_fd_asym", 1.f);
+                    }
                     if (sid == "hc_harm_n") set2 ("hc_harm_db", 18.f);
                     if (sid == "hc_comp_atk" || sid == "hc_comp_rel") set2 ("hc_comp", 1.f);
                     if (sid == "hc_harm_db" || sid == "hc_harm_n" || sid == "hc_comp" || sid == "hc_comp_atk" || sid == "hc_comp_rel") { set2 ("hc_d1", 6.f); set2 ("hc_d2", 0.f); set2 ("hc_clip", 0.f); }

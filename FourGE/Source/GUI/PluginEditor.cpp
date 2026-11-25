@@ -663,6 +663,12 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             for (auto [id, lab] : LZ { { "hc_eq_low_db", "LOW" }, { "hc_eq_low_hz", "LOW HZ" }, { "hc_eq_lm_db", "LOW-MID" }, { "hc_eq_lm_hz", "LM HZ" }, { "hc_eq_mid_db", "MID" },
                                        { "hc_eq_mid_hz", "MID HZ" }, { "hc_eq_hm_db", "HIGH-MID" }, { "hc_eq_hm_hz", "HM HZ" }, { "hc_eq_high_db", "HIGH" }, { "hc_eq_high_hz", "HIGH HZ" }, { "hc_fuzz", "FUZZ BIAS" }, { "hc_harm_db", "HARMONIC" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
+            d.push_back (toggle ("hc_fd1_on", "FAST DIST 1", Toggle::Chip, col)); d.push_back (combo ("hc_fd1_mode"));
+            for (auto [id, lab] : LZ { { "hc_fd1_pre", "PRE" }, { "hc_fd1_thres", "THRES" }, { "hc_fd1_mix", "MIX" }, { "hc_fd1_post", "POST" },
+                                       { "hc_fd_asym", "FD ASYM" }, { "hc_fd_pos", "FD + DRV" }, { "hc_fd_neg", "FD - DRV" }, { "hc_fd_bias", "FD BIAS" } }) d.push_back (knob (id, lab, col));
+            d.push_back (toggle ("hc_fd2_on", "FAST DIST 2", Toggle::Chip, col)); d.push_back (combo ("hc_fd2_mode"));
+            for (auto [id, lab] : LZ { { "hc_fd2_pre", "PRE" }, { "hc_fd2_thres", "THRES" }, { "hc_fd2_mix", "MIX" }, { "hc_fd2_post", "POST" } }) d.push_back (knob (id, lab, col));
+            d.push_back (nullptr);
             d.push_back (combo ("hc_harm_n"));
             for (auto [id, lab] : LZ { { "hc_comp", "COMP" }, { "hc_comp_atk", "COMP ATK" }, { "hc_comp_rel", "COMP REL" } }) d.push_back (knob (id, lab, col));
             d.push_back (combo ("hc_stages"));

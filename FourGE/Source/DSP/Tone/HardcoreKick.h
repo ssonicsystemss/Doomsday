@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cstdint>
 #include "Biquad.h"
+#include "../Dist/FastDist.h"
 
 namespace fge::dsp::hardcore
 {
@@ -49,7 +50,8 @@ namespace fge::dsp::hardcore
         float compAmt = 0.f, compAtkMs = 50.f, compRelMs = 120.f;
         float clickLenMs = 0.12f, clickNoise = 0.f;
         float clickBal = 0.f;
-        float preDecay = 0.f;                                      // PRE DECAY: the level falls BEFORE the distortion over the tail (909 -> pedal: the end gets rounder, the tail moves)                                      // CLICK BALANCE: 0 = the 2 clicks per cycle equal and opposite (odd harmonics only),
+        float preDecay = 0.f;
+        fastdist::Settings fd1, fd2;                               // FAST DIST x 2 right after the PRE-EQ (owner spec FAST DIST STAGE; the gabber tutorial: 2x Fast Dist, PRE 100 %)                                      // PRE DECAY: the level falls BEFORE the distortion over the tail (909 -> pedal: the end gets rounder, the tail moves)                                      // CLICK BALANCE: 0 = the 2 clicks per cycle equal and opposite (odd harmonics only),
                                                                    //  0.5 = the 2nd click silent, 1 = both the same way (the ref's even = odd harmonics)                // CLICK LENGTH + CLICK NOISE: each click a short (seeded) noise burst - the gabber "brrr" (2 bursts per cycle in the owner's refs)  // MILLENNIUM spec 23-25: a COMPRESSOR between DRIVE 1 and DRIVE 2 (attack ~50 ms keeps the punch)                                      // FUZZ BIAS: a DC offset BEFORE DRIVE 1 - the square's duty cycle moves (60 / 40): even harmonics, the "farty" fuzz                       // GABBER spec (owner 2026-11-24): HARD CLIP 2 after the POST-EQ (0 = off) + the DISTORTION LOW-PASS (20 kHz = off)                                        // MID SCREAM OWN LEVEL: not shaped by the PUNCH / BODY / TAIL gains (a buzz over a silent punch)                                       // MID SCREAM CLICK: the wave -> a short impulse at every cycle start, alternating up / down (gabber 909 "tok-tok")   // MID SCREAM DIP: the 2nd tone pulled down (x 1 - DIP) from DIP AT for DIP LEN, then back (the clean "DUM")                    // ASYMMETRY + DRIVE / - DRIVE (spec pt 19: each half its own drive, 0 dB = the ASYMMETRY knob alone)
         int stages = 3, clipMode = 0;                              // HARD / SOFT / FOLD / ASYMMETRIC / CUSTOM
         // POST-EQ
@@ -80,11 +82,11 @@ namespace fge::dsp::hardcore
     class Unit
     {
     public:
-        void prepare (double rate) { fs = rate; clickDecay = (float) std::exp (-1.0 / (rate * 0.00012)); reset(); }
+        void prepare (double rate) { fs = rate; fdA.prepare (rate); fdB.prepare (rate); clickDecay = (float) std::exp (-1.0 / (rate * 0.00012)); reset(); }
         void reset()
         {
             p = pc = pm = 0.0; blk = 0; seed = 0x5eedbeefu; rms = 0.05f; crush = 0.f; crushN = 0;
-            for (auto* b : { &eLow, &eLm, &eMid, &eHm, &eHigh, &dc1, &betw, &pLow, &pBody, &pMid, &pCr, &pHigh, &crHp, &crLp, &txBp, &dcOut, &lp1, &lp2, &eHarm }) b->clear(); cEnv = 0.f;
+            for (auto* b : { &eLow, &eLm, &eMid, &eHm, &eHigh, &dc1, &betw, &pLow, &pBody, &pMid, &pCr, &pHigh, &crHp, &crLp, &txBp, &dcOut, &lp1, &lp2, &eHarm }) b->clear(); cEnv = 0.f; fdA.reset(); fdB.reset();
         }
 
         float process (const Settings& s, float ms, float noteHz)
@@ -103,6 +105,9 @@ namespace fge::dsp::hardcore
             // ---- PRE-EQ (before the distortion: which band gets turned into harmonics)
             x = eHigh.tick (eHm.tick (eMid.tick (eLm.tick (eLow.tick (x)))));
             if (s.harmDb != 0.f) x = eHarm.tick (x);
+            // ---- FAST DIST 1 + 2 (PRE -> THRES core A / B -> MIX -> POST): before DRIVE 1
+            if (s.fd1.on) x = fdA.process (s.fd1, x);
+            if (s.fd2.on) x = fdB.process (s.fd2, x);
             // ---- DRIVE 1 (tube / soft: the first harmonics)
             x = dc1.tick (std::tanh (g1 * (x + 0.15f * x * x + s.fuzzBias * fuzzEnv)) * 0.95f);
             // ---- EQ between the stages
@@ -311,6 +316,7 @@ namespace fge::dsp::hardcore
             if (s.harmDb != 0.f) eHarm.bell (fs, std::clamp (endHz * (double) std::clamp (s.harmN + 1, 1, 4), 20.0, fs * 0.4), s.harmDb, 1.4);
             clickDecay = (float) std::exp (-1.0 / (fs * 0.001 * std::max (0.05f, s.clickLenMs)));
             clickBalNow = std::clamp (s.clickBal, 0.f, 1.f);
+            fdA.cook (s.fd1); fdB.cook (s.fd2);
             cAtk = 1.f - (float) std::exp (-1.0 / (fs * 0.001 * std::max (0.1f, s.compAtkMs)));
             cRel = 1.f - (float) std::exp (-1.0 / (fs * 0.001 * std::max (1.f, s.compRelMs)));
             { const float thr = 1.f - 0.8f * std::clamp (s.compAmt, 0.f, 1.f); cMake = 1.f / (thr + (1.f - thr) * 0.25f); }
@@ -328,6 +334,7 @@ namespace fge::dsp::hardcore
         double pm = 0.0;
         float oc = 1.f, gClip2 = 1.f, fuzzEnv = 0.f, cEnv = 0.f, cAtk = 0.01f, cRel = 0.001f, cMake = 1.f;
         bq::Biquad lp1, lp2, eHarm;
+        fastdist::Stage fdA, fdB;
         float clickEnv = 0.f, clickSign = 1.f, clickDecay = 0.99f, clickBalNow = 0.f;
         float preEnv = 1.f;
         float segGain = 1.f, outEnv = 1.f, g1 = 1.f, g2 = 1.f, gc = 1.f, gPos = 1.f, gNeg = 1.f, rms = 0.05f, crush = 0.f;

@@ -1045,7 +1045,8 @@ namespace fge
     F (hcCompRel, "hc_comp_rel", "HC Compressor Release", Unit::Ms, 10.0f, 500.0f, 120.0f, 120.0f, FNone) \
     F (hcClickLen, "hc_click_len", "HC Click Length", Unit::Ms, 0.05f, 8.0f, 0.12f, 1.0f, FNone) \
     F (hcClickNoise, "hc_click_noise", "HC Click Noise", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
-    F (hcClickBal, "hc_click_bal", "HC Click Balance", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone)
+    F (hcClickBal, "hc_click_bal", "HC Click Balance", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (hcPreDecay, "hc_pre_decay", "HC Pre Decay", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

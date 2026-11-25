@@ -644,7 +644,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (combo ("hc_burst"));
             d.push_back (nullptr);
             for (auto [id, lab] : LZ { { "hc_punch_len", "PUNCH LEN" }, { "hc_punch_db", "PUNCH" }, { "hc_body_len", "BODY LEN" }, { "hc_body_db", "BODY" },
-                                       { "hc_tail_db", "TAIL" }, { "hc_tail_decay", "TAIL DECAY" } }) d.push_back (knob (id, lab, col));
+                                       { "hc_tail_db", "TAIL" }, { "hc_tail_decay", "TAIL DECAY" }, { "hc_pre_decay", "PRE DECAY" } }) d.push_back (knob (id, lab, col));
             d.push_back (&detailPageMark);
             d.push_back (toggle ("hc_cr_on", "CRUNCH", Toggle::Chip, col)); d.push_back (combo ("hc_cr_src"));
             for (auto [id, lab] : LZ { { "hc_cr_start", "START" }, { "hc_cr_len", "LENGTH" }, { "hc_cr_mix", "MIX" } }) d.push_back (knob (id, lab, col));

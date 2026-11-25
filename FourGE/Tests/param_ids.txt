@@ -4221,3 +4221,4 @@ hc_comp_rel
 hc_click_len
 hc_click_noise
 hc_click_bal
+hc_pre_decay

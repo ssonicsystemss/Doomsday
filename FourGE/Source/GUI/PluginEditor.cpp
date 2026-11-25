@@ -644,7 +644,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (combo ("hc_burst"));
             d.push_back (nullptr);
             for (auto [id, lab] : LZ { { "hc_punch_len", "PUNCH LEN" }, { "hc_punch_db", "PUNCH" }, { "hc_body_len", "BODY LEN" }, { "hc_body_db", "BODY" },
-                                       { "hc_tail_db", "TAIL" }, { "hc_tail_decay", "TAIL DECAY" }, { "hc_pre_decay", "PRE DECAY" } }) d.push_back (knob (id, lab, col));
+                                       { "hc_tail_db", "TAIL" }, { "hc_tail_decay", "TAIL DECAY" }, { "hc_pre_decay", "PRE DECAY" },
+                                       { "hc_out_punch_db", "OUT PUNCH" }, { "hc_out_body_db", "OUT BODY" } }) d.push_back (knob (id, lab, col));
             d.push_back (&detailPageMark);
             d.push_back (toggle ("hc_cr_on", "CRUNCH", Toggle::Chip, col)); d.push_back (combo ("hc_cr_src"));
             for (auto [id, lab] : LZ { { "hc_cr_start", "START" }, { "hc_cr_len", "LENGTH" }, { "hc_cr_mix", "MIX" } }) d.push_back (knob (id, lab, col));
@@ -656,7 +657,7 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
                                        { "hc_ms_dip", "SCREAM DIP" }, { "hc_ms_dip_at", "DIP AT" }, { "hc_ms_dip_len", "DIP LEN" }, { "hc_ms_click", "CLICK" },
                                        { "hc_click_len", "CLICK LEN" }, { "hc_click_noise", "CLICK NOISE" }, { "hc_click_bal", "CLICK BAL" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);                                            // MID SCREAM (owner refs 2026-11-24): the 2nd tone clipped with the note
-            d.push_back (combo ("hc_ms_track")); d.push_back (combo ("hc_ms_wave")); d.push_back (toggle ("hc_ms_own", "OWN LEVEL", Toggle::Chip, col));
+            d.push_back (combo ("hc_ms_track")); d.push_back (combo ("hc_ms_wave")); d.push_back (toggle ("hc_ms_own", "OWN LEVEL", Toggle::Chip, col)); d.push_back (toggle ("hc_ms_post", "AFTER DRIVE", Toggle::Chip, col));
             for (auto [id, lab] : LZ { { "hc_ms_mix", "MID SCREAM" }, { "hc_ms_hz", "SCREAM HZ" }, { "hc_ms_harm", "HARMONIC" }, { "hc_ms_sweep", "SWEEP" }, { "hc_ms_sweep_ms", "SWEEP TIME" },
                                        { "hc_ms_start", "START" }, { "hc_ms_fade", "FADE IN" }, { "hc_ms_motion", "MOTION" }, { "hc_ms_rate", "RATE" } }) d.push_back (knob (id, lab, col));
             d.push_back (&detailPageMark);

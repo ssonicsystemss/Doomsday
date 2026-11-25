@@ -51,7 +51,9 @@ namespace fge::dsp::hardcore
         float clickLenMs = 0.12f, clickNoise = 0.f;
         float clickBal = 0.f;
         float preDecay = 0.f;
-        fastdist::Settings fd1, fd2;                               // FAST DIST x 2 right after the PRE-EQ (owner spec FAST DIST STAGE; the gabber tutorial: 2x Fast Dist, PRE 100 %)                                      // PRE DECAY: the level falls BEFORE the distortion over the tail (909 -> pedal: the end gets rounder, the tail moves)                                      // CLICK BALANCE: 0 = the 2 clicks per cycle equal and opposite (odd harmonics only),
+        fastdist::Settings fd1, fd2;
+        float outPunchDb = 0.f, outBodyDb = 0.f;                   // OUT PUNCH / OUT BODY: the part levels AFTER the distortion (a drive cannot pull a quiet start back up)
+        bool msPost = false;                                       // MID SCREAM AFTER THE DRIVE: clicks / bursts join after the clip - they stay sharp                               // FAST DIST x 2 right after the PRE-EQ (owner spec FAST DIST STAGE; the gabber tutorial: 2x Fast Dist, PRE 100 %)                                      // PRE DECAY: the level falls BEFORE the distortion over the tail (909 -> pedal: the end gets rounder, the tail moves)                                      // CLICK BALANCE: 0 = the 2 clicks per cycle equal and opposite (odd harmonics only),
                                                                    //  0.5 = the 2nd click silent, 1 = both the same way (the ref's even = odd harmonics)                // CLICK LENGTH + CLICK NOISE: each click a short (seeded) noise burst - the gabber "brrr" (2 bursts per cycle in the owner's refs)  // MILLENNIUM spec 23-25: a COMPRESSOR between DRIVE 1 and DRIVE 2 (attack ~50 ms keeps the punch)                                      // FUZZ BIAS: a DC offset BEFORE DRIVE 1 - the square's duty cycle moves (60 / 40): even harmonics, the "farty" fuzz                       // GABBER spec (owner 2026-11-24): HARD CLIP 2 after the POST-EQ (0 = off) + the DISTORTION LOW-PASS (20 kHz = off)                                        // MID SCREAM OWN LEVEL: not shaped by the PUNCH / BODY / TAIL gains (a buzz over a silent punch)                                       // MID SCREAM CLICK: the wave -> a short impulse at every cycle start, alternating up / down (gabber 909 "tok-tok")   // MID SCREAM DIP: the 2nd tone pulled down (x 1 - DIP) from DIP AT for DIP LEN, then back (the clean "DUM")                    // ASYMMETRY + DRIVE / - DRIVE (spec pt 19: each half its own drive, 0 dB = the ASYMMETRY knob alone)
         int stages = 3, clipMode = 0;                              // HARD / SOFT / FOLD / ASYMMETRIC / CUSTOM
         // POST-EQ
@@ -101,7 +103,8 @@ namespace fge::dsp::hardcore
             x *= atk * segGain * preEnv;
             fuzzEnv = atk * segGain * preEnv;                                    // (the bias follows the level: silence stays silence)
             // ---- MID SCREAM joins BEFORE the pre EQ / drive: the two tones are distorted together
-            if (s.msMix > 0.f) x += midScream (s, ms) * atk * (s.msOwn ? 1.f : segGain) * preEnv;   // (MIX = its level against the note: 0.3 = spikes near the note's edges)
+            const float msNow = s.msMix > 0.f ? midScream (s, ms) * atk * (s.msOwn ? 1.f : segGain) * preEnv : 0.f;
+            if (! s.msPost) x += msNow;   // (MIX = its level against the note: 0.3 = spikes near the note's edges)
             // ---- PRE-EQ (before the distortion: which band gets turned into harmonics)
             x = eHigh.tick (eHm.tick (eMid.tick (eLm.tick (eLow.tick (x)))));
             if (s.harmDb != 0.f) x = eHarm.tick (x);
@@ -144,6 +147,7 @@ namespace fge::dsp::hardcore
             //      otherwise a hard clip after a driven chain makes every asymmetry symmetric again)
             x = clip (s.clipMode, x * gc);
             if (s.stages >= 3 && x < 0.f) x *= 1.f - 0.4f * s.asym;
+            if (s.msPost) x += msNow;                                          // MID SCREAM AFTER THE DRIVE (after the clip: sharp)
             // ---- TEXTURE (optional, limited: max 30 %)
             if (s.txMix > 0.f && ms < s.txLenMs * 3.f) x += texture (s, ms) * std::min (0.3f, s.txMix);
             // ---- POST-EQ (+ the DC of the asymmetry taken out after the clip)
@@ -156,7 +160,7 @@ namespace fge::dsp::hardcore
             if (s.outClipDb > 0.f) x = std::clamp (x * oc, -0.95f, 0.95f);
             // ---- the tail fades over the kick length (+ a short end fade, never a click)
             const float left = s.lengthMs - ms;
-            return x * outEnv * (left < 4.f ? left / 4.f : 1.f) * 0.85f;
+            return x * outEnv * segOut * (left < 4.f ? left / 4.f : 1.f) * 0.85f;
         }
 
         // (tests / the analysis readout)
@@ -301,6 +305,7 @@ namespace fge::dsp::hardcore
             const float wP = std::clamp ((pEnd + 3.f - ms) / 6.f, 0.f, 1.f), wB = std::clamp ((bEnd + 5.f - ms) / 10.f, 0.f, 1.f) - wP;
             const float wT = 1.f - wP - std::max (0.f, wB);
             segGain = wP * dbg (s.punchDb) + std::max (0.f, wB) * dbg (s.bodyDb) + std::max (0.f, wT) * dbg (s.tailDb);
+            segOut = wP * dbg (s.outPunchDb) + std::max (0.f, wB) * dbg (s.outBodyDb) + std::max (0.f, wT);
             const float u = std::clamp ((ms - bEnd) / std::max (10.f, s.lengthMs - bEnd), 0.f, 1.f);
             outEnv = ms < bEnd ? 1.f : std::max (0.f, 1.f - s.tailDecay * std::pow (u, 0.7f));
             preEnv = ms < bEnd ? 1.f : std::max (0.02f, 1.f - std::clamp (s.preDecay, 0.f, 1.f) * std::pow (u, 0.8f));
@@ -336,7 +341,7 @@ namespace fge::dsp::hardcore
         bq::Biquad lp1, lp2, eHarm;
         fastdist::Stage fdA, fdB;
         float clickEnv = 0.f, clickSign = 1.f, clickDecay = 0.99f, clickBalNow = 0.f;
-        float preEnv = 1.f;
+        float preEnv = 1.f, segOut = 1.f;
         float segGain = 1.f, outEnv = 1.f, g1 = 1.f, g2 = 1.f, gc = 1.f, gPos = 1.f, gNeg = 1.f, rms = 0.05f, crush = 0.f;
         bq::Biquad eLow, eLm, eMid, eHm, eHigh, dc1, dcOut, betw, pLow, pBody, pMid, pCr, pHigh, crHp, crLp, txBp;
     };

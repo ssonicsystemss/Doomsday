@@ -1063,7 +1063,10 @@ namespace fge
     F (hcFdAsym, "hc_fd_asym", "HC Fast Dist Asymmetry", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone) \
     F (hcFdPos, "hc_fd_pos", "HC Fast Dist + Drive", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
     F (hcFdNeg, "hc_fd_neg", "HC Fast Dist - Drive", Unit::Db, -12.0f, 12.0f, 0.0f, 0.0f, FNone) \
-    F (hcFdBias, "hc_fd_bias", "HC Fast Dist Bias", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone)
+    F (hcFdBias, "hc_fd_bias", "HC Fast Dist Bias", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
+    F (hcOutPunch, "hc_out_punch_db", "HC Out Punch", Unit::Db, -40.0f, 6.0f, 0.0f, 0.0f, FNone) \
+    F (hcOutBody, "hc_out_body_db", "HC Out Body", Unit::Db, -40.0f, 6.0f, 0.0f, 0.0f, FNone) \
+    B (hcMsPost, "hc_ms_post", "HC Mid Scream After Drive", false, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

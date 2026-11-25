@@ -4238,3 +4238,6 @@ hc_fd_asym
 hc_fd_pos
 hc_fd_neg
 hc_fd_bias
+hc_out_punch_db
+hc_out_body_db
+hc_ms_post

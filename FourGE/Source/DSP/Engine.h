@@ -1057,6 +1057,7 @@ namespace fge
                     h.d1Db = f[P::hcD1]; h.betweenHz = f[P::hcBtwHz]; h.betweenDb = f[P::hcBtwDb]; h.d2Db = f[P::hcD2]; h.asym = f[P::hcAsym]; h.bias = f[P::hcBias]; h.asymPosDb = f[P::hcAsymPos]; h.asymNegDb = f[P::hcAsymNeg];
                     h.holdMs = f[P::hcHold]; h.dropXSt = f[P::hcDropX]; h.msDip = f[P::hcMsDip]; h.msDipAtMs = f[P::hcMsDipAt]; h.msDipLenMs = f[P::hcMsDipLen]; h.msClick = f[P::hcMsClick]; h.msOwn = f.on (P::hcMsOwn); h.clip2Db = f[P::hcClip2]; h.lpHz = f[P::hcLp]; h.fuzzBias = f[P::hcFuzz]; h.harmDb = f[P::hcHarmDb]; h.harmN = f.idx (P::hcHarmN); h.compAmt = f[P::hcComp]; h.compAtkMs = f[P::hcCompAtk]; h.compRelMs = f[P::hcCompRel]; h.clickLenMs = f[P::hcClickLen]; h.clickNoise = f[P::hcClickNoise]; h.clickBal = f[P::hcClickBal]; h.preDecay = f[P::hcPreDecay];
                     h.fd1 = { f.on (P::hcFd1On), f[P::hcFd1Pre], f[P::hcFd1Thres], f[P::hcFd1Mix], f[P::hcFd1Post], f.idx (P::hcFd1Mode), f[P::hcFdAsym], f[P::hcFdPos], f[P::hcFdNeg], f[P::hcFdBias] };
+                    h.outPunchDb = f[P::hcOutPunch]; h.outBodyDb = f[P::hcOutBody]; h.msPost = f.on (P::hcMsPost);
                     h.fd2 = { f.on (P::hcFd2On), f[P::hcFd2Pre], f[P::hcFd2Thres], f[P::hcFd2Mix], f[P::hcFd2Post], f.idx (P::hcFd2Mode), 0.f, 0.f, 0.f, 0.f };
                     h.clipMode = f.idx (P::hcClipMode); h.clipDb = f[P::hcClip]; h.resample = f[P::hcResample]; h.stages = f.idx (P::hcStages) + 1;
                     h.postLowCut = f[P::hcPostLowCut]; h.postBodyDb = f[P::hcPostBody]; h.postMidDb = f[P::hcPostMid];

@@ -92,10 +92,18 @@ def analyse(p):
     # track has nothing (a high TOK / punch above 300 Hz)
     lowt = f0_track(sosfiltfilt(butter(4, 320, fs=sr, output='sos'), mn), sr)
     fullt = f0_track(mn, sr)
-    f0t = [(t, fl, cl) if (cl > 0.6 and fl > 0) else (t, ff, cf) for (t, fl, cl), (_, ff, cf) in zip(lowt, fullt)]
+    f0t = [(t, fl, max(cl, 0.61)) if (cl > 0.4 and fl > 0) else (t, ff, cf) for (t, fl, cl), (_, ff, cf) in zip(lowt, fullt)]
     B = band_track(mn, sr)
-    stable = [f for t, f, c in f0t if c > 0.7 and f > 0 and t > 0.4 * main_len and t < 0.9 * main_len]
+    stable = [f for t, f, c in lowt if c > 0.4 and f > 0 and t > 0.4 * main_len and t < 0.9 * main_len]   # the NOTE: low track only
     f_tail = float(np.median(stable)) if stable else 0.0
+    # spectral check (harmonic sum over h1..h8, 30-130 Hz): the note a hard-clipped square / 2-tone tail really sits on
+    seg = mn[int(0.45 * main_len * sr / 1000):int(0.85 * main_len * sr / 1000)]
+    if len(seg) > 4096:
+        N = 1 << 17; sp = np.abs(np.fft.rfft(seg * np.hanning(len(seg)), N)); fr = np.fft.rfftfreq(N, 1 / sr); ls = np.log(sp + 1e-9)
+        cands = np.arange(30.0, 130.0, 0.1)
+        score = [sum(ls[int(round(k * c * N / sr))] - ls[int(round((k - 0.5) * c * N / sr))] for k in range(1, 9)) for c in cands]   # (minus the gaps between)
+        f_hps = float(cands[int(np.argmax(score))])
+        if f_tail <= 0: f_tail = f_hps                                      # (only where the low track found nothing)
     # pitch summary: first confident, the settle time (within 3 % of the tail pitch and staying)
     conf = [(t, f) for t, f, c in f0t if c > 0.6 and f > 0]
     settle = None

@@ -27,7 +27,7 @@ from scipy import optimize, signal
 from scipy.io import wavfile
 from scipy.ndimage import uniform_filter1d, median_filter
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 BANDS = [("SUB", 20, 60), ("LOW", 60, 150), ("LOWMID", 150, 500),
@@ -377,9 +377,9 @@ def yin_track(y, sr, fmin=40, fmax=4000, frame=2048, hop=256, thresh=0.15):
     W = frame // 2
     tau_min = max(2, int(sr / fmax))
     tau_max = min(W - 1, int(sr / fmin) + 1)
-    pad = frame // 2
-    yp = np.pad(y, (pad, pad))
-    n_frames = 1 + (len(yp) - frame) // hop
+    # okno calkowania YIN = pierwsze W probek ramki -> centrujemy je na czasie ramki (i*hop)
+    yp = np.pad(y, (W // 2, frame))
+    n_frames = len(y) // hop + 1
     fr = np.lib.stride_tricks.sliding_window_view(yp, frame)[::hop][:n_frames]
     nfft = 1 << int(math.ceil(math.log2(frame + W)))
     f0 = np.full(n_frames, np.nan)
@@ -665,6 +665,157 @@ def spectral_descriptors(mono, sr, onset, end):
             "flatness": mi(flat), "flux": mi(flux)}
 
 
+# ----------------------------------------------------------------------------- P1: reassignment, HPSS, YIN check, sharpness
+
+def reassigned_spectrogram(y, sr, n=None, hop=None, t_bins=None, f_bins=None):
+    """Spektrogram reasygnowany (Auger-Flandrin): 3 FFT (h, t*h, dh/dt). Zwraca (t_edges_s, f_edges_hz, power2d).
+    Znaki skalibrowane w selftest (sinus -> f, impuls -> t)."""
+    n = n or (1 << int(round(math.log2(0.0107 * sr))))  # ~10.7 ms
+    hop = hop or max(4, n // 32)
+    win = np.hanning(n)
+    tw = np.arange(n) - (n - 1) / 2
+    dwin = np.gradient(win)
+    pad = n // 2
+    yp = np.pad(y, (pad, pad))
+    fr = np.lib.stride_tricks.sliding_window_view(yp, n)[::hop]
+    centers = np.arange(fr.shape[0]) * hop  # probka srodka ramki w y (po odjeciu pad)
+    Xh = np.fft.rfft(fr * win, axis=1)
+    Xt = np.fft.rfft(fr * (win * tw), axis=1)
+    Xd = np.fft.rfft(fr * dwin, axis=1)
+    mag2 = np.abs(Xh) ** 2
+    ok = mag2 > mag2.max() * 1e-9
+    den = np.where(ok, mag2, 1)
+    fk = np.fft.rfftfreq(n, 1 / sr)[None, :]
+    f_hat = fk - (sr / (2 * np.pi)) * np.imag(Xd * np.conj(Xh) / den)
+    t_hat = (centers[:, None] + np.real(Xt * np.conj(Xh) / den)) / sr
+    T = t_hat[ok]
+    F = f_hat[ok]
+    W = mag2[ok]
+    t_bins = t_bins if t_bins is not None else np.linspace(0, len(y) / sr, 400)
+    f_bins = f_bins if f_bins is not None else np.geomspace(20, sr / 2, 300)
+    H, _, _ = np.histogram2d(T, F, bins=[t_bins, f_bins], weights=W)
+    return t_bins, f_bins, H
+
+
+def reassign_point_check(sr=48000):
+    """Kalibracja: sinus 1 kHz -> f_hat, impuls -> t_hat."""
+    n = 512
+    t = np.arange(sr // 10) / sr
+    tb = np.linspace(0, 0.1, 801)
+    fb = np.linspace(900, 1100, 401)
+    _, _, H = reassigned_spectrogram(np.sin(2 * np.pi * 1000 * t), sr, n=n, t_bins=tb, f_bins=fb)
+    f_est = float(fb[:-1][np.argmax(H.sum(0))] + (fb[1] - fb[0]) / 2)
+    imp = np.zeros(sr // 10)
+    imp[int(0.05 * sr)] = 1
+    tb2 = np.linspace(0.04, 0.06, 801)
+    fb2 = np.geomspace(100, sr / 2, 50)
+    _, _, H2 = reassigned_spectrogram(imp, sr, n=n, t_bins=tb2, f_bins=fb2)
+    t_est = float(tb2[:-1][np.argmax(H2.sum(1))] + (tb2[1] - tb2[0]) / 2)
+    return f_est, t_est
+
+
+def hpss_share(y, sr):
+    """Separacja harmoniczno-perkusyjna (FitzGerald, mediany). Zwraca udzial perkusyjny calosci i w 0-30 ms."""
+    n = 1 << int(round(math.log2(0.023 * sr)))
+    hop = n // 8
+    if len(y) < n * 2:
+        y = np.pad(y, (0, n * 2 - len(y)))
+    f, t, Z = signal.stft(y, sr, nperseg=n, noverlap=n - hop, boundary="zeros", padded=True)
+    S = np.abs(Z) ** 2
+    lh = max(3, int(0.2 * sr / hop) | 1)
+    lp = max(3, int(500 / (sr / n)) | 1)
+    Hm = median_filter(S, size=(1, lh), mode="nearest")
+    Pm = median_filter(S, size=(lp, 1), mode="nearest")
+    den = Hm ** 2 + Pm ** 2
+    mask_p = np.divide(Pm ** 2, den, out=np.zeros_like(den), where=den > (S.max() ** 2) * 1e-24)
+    P = S * mask_p
+    tot = S.sum() + EPS
+    head = t <= 0.03
+    return {"percussive_pct": float(100 * P.sum() / tot),
+            "percussive_pct_0_30ms": float(100 * P[:, head].sum() / (S[:, head].sum() + EPS)),
+            "percussive_pct_after_30ms": float(100 * P[:, ~head].sum() / (S[:, ~head].sum() + EPS)) if (~head).any() else None}
+
+
+def yin_multires_check(mono, sr, onset, end, model, params):
+    """Niezalezna kontrola krzywej pitchu kicka: YIN w 5 rozdzielczosciach, w kazdej ramce najkrotsze wazne okno."""
+    y = mono[onset:end]
+    hop = max(16, int(sr * 0.001))
+    base = 44100
+    sizes = [int(4096 * sr / base), int(2048 * sr / base), int(1024 * sr / base), int(512 * sr / base), int(256 * sr / base)]
+    sizes = [1 << int(round(math.log2(s))) for s in sizes]
+    tracks = []
+    for N in sizes:
+        tt, ff, cf = yin_track(y, sr, fmin=max(20, 2 * sr / N), fmax=min(6000, sr / 4), frame=N, hop=hop, thresh=0.2)
+        valid_min = 2.5 * sr / N
+        ff = np.where(ff >= valid_min, ff, np.nan)
+        tracks.append(ff)
+    L = min(len(t_) for t_ in tracks)
+    out = np.full(L, np.nan)
+    for i in range(L):
+        for ff in reversed(tracks):  # od najkrotszego okna
+            if np.isfinite(ff[i]):
+                out[i] = ff[i]
+                break
+    times = np.arange(L) * hop / sr
+    fm = f_model(model, params, times)
+    v = np.isfinite(out)
+    if v.sum() < 5:
+        return None
+    dev = 1200 * np.log2(out[v] / fm[v])
+    octave_err = np.mean(np.abs(dev) > 600) * 100
+    good = np.abs(dev) <= 600
+    return {"frames": int(v.sum()), "median_abs_cents": float(np.median(np.abs(dev[good]))) if good.any() else None,
+            "p90_abs_cents": float(np.percentile(np.abs(dev[good]), 90)) if good.any() else None,
+            "octave_error_pct": float(octave_err), "_t": times, "_f": out}
+
+
+def bark(f):
+    return 13 * np.arctan(0.00076 * f) + 3.5 * np.arctan((f / 7500) ** 2)
+
+
+def sharpness_approx(y, sr, cal_db=94.0):
+    """Przyblizona ostrosc (acum) wg DIN 45692 na uproszczonym modelu Zwickera:
+    energia w pasmach 0.5 Bark -> specyficzna glosnosc N'(z) ~ E^0.23 -> S = 0.11*sum(N' g z dz)/N.
+    Kalibracja: sinus 0 dBFS = cal_db dB SPL. Tylko do porownan miedzy samplami (nie ISO 532-1)."""
+    n = 1 << int(round(math.log2(0.046 * sr)))
+    hop = n // 2
+    if len(y) < n:
+        y = np.pad(y, (0, n - len(y)))
+    f, t, Z = signal.stft(y, sr, window="hann", nperseg=n, noverlap=n - hop, boundary=None, padded=True)
+    P = (np.abs(Z) ** 2) * 2  # scipy.stft skaluje przez 1/sum(okno): moc sinusa 0 dBFS -> 0.5
+    zb = bark(f)
+    edges = np.arange(0, 24.01, 0.5)
+    zc = (edges[:-1] + edges[1:]) / 2
+    idx = np.digitize(zb, edges) - 1
+    E = np.zeros((len(zc), P.shape[1]))
+    for k in range(len(zc)):
+        m = idx == k
+        if m.any():
+            E[k] = P[m].sum(0)
+    L = 10 * np.log10(E / 0.5 + EPS) + cal_db  # dB SPL
+    LTQ = 3.64 * (np.maximum(bark_inv(zc), 20) / 1000) ** -0.8 - 6.5 * np.exp(-0.6 * (bark_inv(zc) / 1000 - 3.3) ** 2) + 1e-3 * (bark_inv(zc) / 1000) ** 4
+    Etq = 10 ** (LTQ / 10)[:, None]
+    Ee = 10 ** (L / 10)
+    Ns = 0.08 * (Etq ** 0.23) * ((0.5 + 0.5 * Ee / Etq) ** 0.23 - 1)
+    Ns = np.maximum(Ns, 0)
+    # rozmycie w gore (maskowanie), uproszczone: -10 dB/Bark
+    for k in range(1, len(zc)):
+        Ns[k] = np.maximum(Ns[k], Ns[k - 1] * 10 ** (-10 * 0.5 / 20))
+    N = Ns.sum(0) * 0.5
+    g = np.where(zc <= 15.8, 1.0, 0.15 * np.exp(0.42 * (zc - 15.8)) + 0.85)[:, None]
+    S = 0.11 * (Ns * g * zc[:, None]).sum(0) * 0.5 / (N + EPS)
+    act = N > N.max() * 0.1
+    if not act.any():
+        return None
+    return {"sharpness_acum_median": float(np.median(S[act])), "sharpness_acum_max": float(np.max(S[act])),
+            "loudness_sone_max_approx": float(N.max())}
+
+
+def bark_inv(z):
+    # przyblizenie odwrotne (Traunmuller)
+    return 1960 * (z + 0.53) / (26.28 - z)
+
+
 # ----------------------------------------------------------------------------- main analysis
 
 def analyze(x, sr, info, stype="auto", bpm=None, key=None):
@@ -884,9 +1035,16 @@ def analyze(x, sr, info, stype="auto", bpm=None, key=None):
             h["window_ms"] = harm_seg[2]
         res["harmonics"] = h
 
-    # --- clipping / stereo
+    # --- clipping / stereo / transjent vs ton / ostrosc
     res["clipping"] = clipping_analysis(x, active)
     res["stereo"] = stereo_analysis(x, sr, active)
+    res["percussive"] = hpss_share(mono[active], sr)
+    res["sharpness"] = sharpness_approx(mono[active], sr)
+    yin_chk = None
+    if stype == "kick" and kp:
+        yin_chk = yin_multires_check(mono, sr, onset, end, kp["model"], kp["params"])
+        if yin_chk:
+            res["pitch"]["yin_check"] = {k: v for k, v in yin_chk.items() if not k.startswith("_")}
 
     # --- loop loudness (kick w petli na cwiercnutach, ucinany na kolejnym uderzeniu)
     if stype == "kick" or bpm:
@@ -919,7 +1077,7 @@ def analyze(x, sr, info, stype="auto", bpm=None, key=None):
     # dane do wykresow (nie do JSON)
     res["_plot"] = {"x": x, "sr": sr, "onset": onset, "end": end, "fast_db": fast_db, "slow_db": slow_db,
                     "band_series": band_series, "spec_f": f, "spec_P": P, "kp": kp, "f_track": f_track,
-                    "tonal": (tonal_t, tonal_f)}
+                    "tonal": (tonal_t, tonal_f), "yin_chk": yin_chk}
     return res
 
 
@@ -959,6 +1117,157 @@ def make_flags(res):
     if "HARD" in res["clipping"].get("verdict", ""):
         fl.append(f"Hard clip: {res['clipping']['flat_runs_ge3']} serii plaskich szczytow (moze byc zamierzone)")
     return fl
+
+
+# ----------------------------------------------------------------------------- profil referencji (kalibracja na kickach wlasciciela)
+
+# (klucz, opis, jednostka, czy porownywac w skali log (Hz))
+METRICS = [
+    ("true_peak_dbtp", "true peak", "dBTP", False),
+    ("max_momentary_lufs", "max momentary", "LUFS", False),
+    ("hit_lufs", "hit loudness", "LUFS", False),
+    ("loop_lufs", "petla integrated", "LUFS", False),
+    ("crest_db", "crest calosc", "dB", False),
+    ("crest_head15_db", "crest 0-15 ms", "dB", False),
+    ("head15_vs_body_db", "RMS 0-15 ms vs reszta", "dB", False),
+    ("attack_ms", "atak 10-90%", "ms", False),
+    ("decay6_ms", "zanik do -6 dB", "ms", False),
+    ("decay20_ms", "zanik do -20 dB", "ms", False),
+    ("sound_ms", "dlugosc dzwieku", "ms", False),
+    ("temporal_centroid_ms", "centroid czasowy", "ms", False),
+    ("f_start_hz", "pitch start (model)", "Hz", True),
+    ("pitch5_hz", "pitch @5 ms", "Hz", True),
+    ("pitch10_hz", "pitch @10 ms", "Hz", True),
+    ("pitch20_hz", "pitch @20 ms", "Hz", True),
+    ("pitch50_hz", "pitch @50 ms", "Hz", True),
+    ("pitch100_hz", "pitch @100 ms", "Hz", True),
+    ("t_half_ms", "polowa zjazdu", "ms", False),
+    ("settle1_ms", "zjazd do 1 poltonu", "ms", False),
+    ("tail_hz", "ogon", "Hz", True),
+    ("drop_st", "zjazd", "polt.", False),
+    ("thd_pct", "THD ogona", "%", False),
+    ("even_odd_db", "harm. parzyste/nieparzyste", "dB", False),
+    ("inharmonic_db", "energia nieharmoniczna", "dB", False),
+    ("share_SUB", "udzial SUB", "%", False),
+    ("share_LOW", "udzial LOW", "%", False),
+    ("share_LOWMID", "udzial LOWMID", "%", False),
+    ("share_CRUNCH", "udzial CRUNCH", "%", False),
+    ("share_PRESENCE", "udzial PRESENCE", "%", False),
+    ("share_AIR", "udzial AIR", "%", False),
+    ("centroid_hz", "centroid widma", "Hz", True),
+    ("flatness", "plaskosc widma", "", False),
+    ("percussive_pct", "udzial perkusyjny", "%", False),
+    ("percussive_head_pct", "perkusyjny 0-30 ms", "%", False),
+    ("sharpness_acum", "ostrosc (mediana)", "acum", False),
+    ("sharpness_max_acum", "ostrosc (max)", "acum", False),
+    ("corr_sub", "korelacja <120 Hz", "", False),
+    ("side_mid_db", "S/M calosc", "dB", False),
+]
+
+
+def flat_metrics(res):
+    g = lambda *ks: _dig(res, ks)
+    m = {
+        "true_peak_dbtp": g("metering", "true_peak_dbtp"),
+        "max_momentary_lufs": g("metering", "max_momentary_lufs"),
+        "hit_lufs": g("metering", "hit_loudness_lufs_nonstd"),
+        "loop_lufs": g("loop", "integrated_lufs"),
+        "crest_db": g("envelope", "crest_db"),
+        "crest_head15_db": g("envelope", "crest_head15_db"),
+        "head15_vs_body_db": g("envelope", "head15_vs_body_rms_db"),
+        "attack_ms": g("envelope", "attack_10_90_ms"),
+        "decay6_ms": g("envelope", "decay_ms_from_slow_peak", "-6"),
+        "decay20_ms": g("envelope", "decay_ms_from_slow_peak", "-20"),
+        "sound_ms": g("timing", "sound_length_ms"),
+        "temporal_centroid_ms": g("envelope", "temporal_centroid_ms"),
+        "f_start_hz": g("pitch", "f_start_model"),
+        "t_half_ms": g("pitch", "t_half_ms"),
+        "settle1_ms": g("pitch", "settle_1st_ms"),
+        "tail_hz": g("pitch", "tail", "f0_hz") or g("pitch", "median_f0_hz"),
+        "drop_st": g("pitch", "drop_semitones"),
+        "thd_pct": g("harmonics", "thd_pct"),
+        "even_odd_db": g("harmonics", "even_odd_db"),
+        "inharmonic_db": g("harmonics", "inharmonic_db"),
+        "centroid_hz": g("spectrum", "descriptors", "centroid_hz", "median"),
+        "flatness": g("spectrum", "descriptors", "flatness", "median"),
+        "percussive_pct": g("percussive", "percussive_pct"),
+        "percussive_head_pct": g("percussive", "percussive_pct_0_30ms"),
+        "sharpness_acum": g("sharpness", "sharpness_acum_median"),
+        "sharpness_max_acum": g("sharpness", "sharpness_acum_max"),
+        "corr_sub": (res.get("stereo") or {}).get("bands", [{}])[0].get("correlation") if (res.get("stereo") or {}).get("bands") else None,
+        "side_mid_db": g("stereo", "side_to_mid_db"),
+    }
+    for tp in ("5", "10", "20", "50", "100"):
+        m[f"pitch{tp}_hz"] = g("pitch", "curve_ms", tp) if res.get("type") == "kick" else None
+    for name, _, _ in BANDS:
+        m[f"share_{name}"] = g("bands", "share_pct", name)
+    return {k: (float(v) if v is not None and np.isfinite(v) else None) for k, v in m.items()}
+
+
+def _dig(d, ks):
+    for k in ks:
+        if not isinstance(d, dict) or k not in d or d[k] is None:
+            return None
+        d = d[k]
+    return d
+
+
+def build_profile(rows, names):
+    prof = {"n": len(rows), "files": names, "metrics": {}}
+    for key, label, unit, logscale in METRICS:
+        v = np.array([r[key] for r in rows if r.get(key) is not None], dtype=float)
+        if v.size == 0:
+            continue
+        w = np.log2(v) if logscale and (v > 0).all() else v
+        q = lambda p: float(2 ** np.percentile(w, p)) if logscale and (v > 0).all() else float(np.percentile(w, p))
+        prof["metrics"][key] = {"label": label, "unit": unit, "log": logscale, "n": int(v.size),
+                                "p10": q(10), "median": q(50), "p90": q(90), "min": float(v.min()), "max": float(v.max())}
+    return prof
+
+
+def against_profile(flat, prof):
+    """Gdzie sample wypada na tle referencji: ponizej p10 / w zakresie / powyzej p90 + odleglosc w szerokosciach IQR-like."""
+    out = []
+    for key, label, unit, logscale in METRICS:
+        if key == "tail_hz":
+            continue  # nuta ogona zalezy od tonacji tracku, nie od jakosci kicka
+        pm = prof["metrics"].get(key)
+        v = flat.get(key)
+        if not pm or v is None:
+            continue
+        if logscale and v > 0:
+            tr = lambda a: math.log2(a) * 1200  # centy
+        else:
+            tr = lambda a: a
+        lo, med, hi = tr(pm["p10"]), tr(pm["median"]), tr(pm["p90"])
+        # minimalna tolerancja (rozrzut referencji bywa ~0): w jednostkach metryki
+        min_sp = {"dB": 1.0, "dBTP": 1.0, "LUFS": 1.0, "%": 2.0, "acum": 0.1, "polt.": 1.0, "": 0.05}.get(unit, 0)
+        if logscale:
+            min_sp = 50.0  # centy
+        elif unit == "ms":
+            min_sp = max(5.0, 0.1 * abs(pm["median"]))
+        lo, hi = min(lo, med - min_sp / 2), max(hi, med + min_sp / 2)
+        spread = max(hi - lo, 1e-9)
+        z = (tr(v) - med) / (spread / 2)
+        pos = "PONIZEJ" if tr(v) < lo else ("POWYZEJ" if tr(v) > hi else "w zakresie")
+        out.append({"key": key, "label": label, "unit": unit, "value": v, "p10": pm["p10"], "median": pm["median"],
+                    "p90": pm["p90"], "pos": pos, "dist": float(z),
+                    "delta_vs_median": (1200 * math.log2(v / pm["median"]) if logscale and v > 0 else v - pm["median"]),
+                    "delta_unit": "c" if logscale else unit})
+    return out
+
+
+def profile_md(ap, prof):
+    L = [f"\n## Na tle referencji ({prof['n']} plikow: {', '.join(prof['files'][:6])}{' …' if len(prof['files']) > 6 else ''})",
+         "Pozycja: p10–p90 referencji (min. tolerancja: 1 dB, 50 c, 2 pp, 5 ms / 10%) = 'w zakresie'. Odleglosc: 0 = mediana, ±1 = granica. "
+         "Najpierw najwieksze odchylenia. Nuta ogona pominieta (zalezy od tonacji).",
+         "| metryka | ten sample | referencje p10 / mediana / p90 | Δ vs mediana | pozycja |", "|---|---|---|---|---|"]
+    for a in sorted(ap, key=lambda a: -abs(a["dist"])):
+        n = 2 if a["unit"] in ("", "acum") else (0 if a["unit"] in ("Hz", "ms") else 1)
+        mark = " **!**" if abs(a["dist"]) > 1.5 else ""
+        L.append(f"| {a['label']} | {a['value']:.{n}f} {a['unit']} | {a['p10']:.{n}f} / {a['median']:.{n}f} / {a['p90']:.{n}f} | "
+                 f"{a['delta_vs_median']:+.{max(n, 0)}f} {a['delta_unit']} | {a['pos']} ({a['dist']:+.1f}){mark} |")
+    return "\n".join(L) + "\n"
 
 
 # ----------------------------------------------------------------------------- report (markdown)
@@ -1038,6 +1347,10 @@ def report_md(res):
         L.append("|---|" + "---|" * len(p["curve_ms"]))
         L.append("| F0 [Hz] | " + " | ".join(fmt(v, 0) for v in p["curve_ms"].values()) + " |")
         L.append("| nuta | " + " | ".join(note_str(v) for v in p["curve_ms"].values()) + " |")
+    yc = p.get("yin_check")
+    if yc:
+        L.append(f"kontrola niezalezna (YIN 5 rozdzielczosci, {yc['frames']} ramek): odchylka od modelu mediana {fmt(yc['median_abs_cents'], 0)} c, p90 {fmt(yc['p90_abs_cents'], 0)} c, bledy oktawowe {yc['octave_error_pct']:.0f}%"
+                 + (" – ZGODNE" if (yc['median_abs_cents'] or 999) < 30 else " – ROZBIEZNE: krzywa pitchu moze byc niepewna (warstwy / szum)"))
     h = res.get("harmonics")
     if h:
         L.append(f"\n## Harmoniczne (okno {fmt(h['window_ms'][0], 0)}-{fmt(h['window_ms'][1], 0)} ms, F0 {h['f0_used']:.1f} Hz, {h['cycles']} cykli, {h['harmonics_measured']} harm.)")
@@ -1062,6 +1375,15 @@ def report_md(res):
     if dsc:
         L.append("deskryptory (mediana / IQR): " + " · ".join(
             f"{k} {fmt(v['median'], 3 if k in ('flatness', 'flux') else 0)}/{fmt(v['iqr'], 3 if k in ('flatness', 'flux') else 0)}" for k, v in dsc.items()))
+    pc_ = res.get("percussive")
+    sh = res.get("sharpness")
+    L.append("\n## Transjent vs ton, ostrosc")
+    if pc_:
+        L.append(f"udzial perkusyjny (HPSS): calosc {pc_['percussive_pct']:.0f}% · 0-30 ms {pc_['percussive_pct_0_30ms']:.0f}% · po 30 ms {fmt(pc_['percussive_pct_after_30ms'], 0)}% "
+                 "(przy kicku szybki zjazd pitchu tez liczy sie jako 'perkusyjny')")
+    if sh:
+        L.append(f"ostrosc (przybl. DIN 45692, 0 dBFS = 94 dB SPL): mediana {sh['sharpness_acum_median']:.2f} acum, max {sh['sharpness_acum_max']:.2f} acum "
+                 "(1 acum = waskopasmowy szum 1 kHz; wiecej = jasniej / ostrzej)")
     c = res["clipping"]
     L.append("\n## Clipping")
     L.append(f"{c['verdict']} · serie ≥3 probek przy szczycie: {c.get('flat_runs_ge3')} (najdl. {c.get('longest_run_samples')}) · "
@@ -1281,6 +1603,49 @@ def plot_report(res, out):
     fig.savefig(fp)
     plt.close(fig)
     files.append(fp)
+
+    # ---- 4: punch pod lupa (spektrogram reasygnowany 0-80 ms + kontrola pitchu)
+    zoom = min(80.0, max(20.0, L_ms))
+    seg = mono[on: on + int(sr * (zoom + 15) / 1000)]
+    fig, axs = plt.subplots(2, 1, figsize=(14, 9))
+    tb = np.linspace(0, zoom / 1000, 321)
+    fb = np.geomspace(20, min(20000, sr / 2), 241)
+    _, _, H = reassigned_spectrogram(seg, sr, t_bins=tb, f_bins=fb)
+    Hd = pdb(H / (H.max() + EPS))
+    mesh = axs[0].pcolormesh(tb * 1000, fb, Hd.T, vmin=-80, vmax=0, cmap="magma", shading="flat", rasterized=True)
+    plt.colorbar(mesh, ax=axs[0], pad=0.01).set_label("dB wzgl. max")
+    _freq_axis(axs[0], 20, min(20000, sr / 2), axis="y")
+    axs[0].set_xlim(0, zoom)
+    axs[0].set_xticks(np.arange(0, zoom + 0.1, 5))
+    axs[0].set_ylabel("Hz")
+    axs[0].set_title(f"Image 4 – punch pod lupa: spektrogram reasygnowany 0–{zoom:.0f} ms (ostre linie = dokladne czestotliwosci)")
+    if res["type"] == "kick" and kp:
+        tt = np.linspace(0, zoom / 1000, 300)
+        axs[0].plot(tt * 1000, f_model(kp["model"], kp["params"], tt), color="cyan", ls="--", lw=1.2, label="model F0")
+        axs[0].legend(loc="upper right")
+        tmx = min(L_ms, 200)
+        tt2 = np.linspace(0, tmx / 1000, 400)
+        axs[1].plot(tt2 * 1000, f_model(kp["model"], kp["params"], tt2), color="tab:red", lw=2.5, label=f"model {kp['model']} (przejscia przez zero)")
+        axs[1].plot(kp["zc_t"] * 1000, kp["zc_f"], ".", color="0.45", ms=4, label="pojedyncze okresy")
+        yc = P.get("yin_chk")
+        if yc:
+            axs[1].plot(yc["_t"] * 1000, yc["_f"], "x", color="tab:green", ms=4, label="YIN 5 rozdzielczosci (kontrola)")
+        _freq_axis(axs[1], max(20, kp["f_end_model"] / 1.5), min(sr / 2, max(kp["f_start_model"], np.max(kp["zc_f"][:5])) * 1.5), axis="y")
+        axs[1].set_xlim(0, tmx)
+        axs[1].legend(loc="upper right")
+        pyc = res["pitch"].get("yin_check")
+        axs[1].set_title("Pitch: model vs niezalezna kontrola" + (f" (mediana odchylki {pyc['median_abs_cents']:.0f} c)" if pyc and pyc.get("median_abs_cents") is not None else ""))
+    else:
+        tz = np.arange(len(seg)) / sr * 1000
+        axs[1].plot(tz, seg, color="k", lw=1)
+        axs[1].set_xlim(0, zoom)
+        axs[1].set_title("Przebieg")
+    axs[1].set_xlabel("ms")
+    fig.tight_layout()
+    fp = os.path.join(out, "4_punch_lupa.png")
+    fig.savefig(fp)
+    plt.close(fig)
+    files.append(fp)
     return files
 
 
@@ -1372,6 +1737,12 @@ def compare(resA, resB, out):
     if da and dbb:
         add("centroid widma Hz (mediana)", da["centroid_hz"]["median"], dbb["centroid_hz"]["median"], kind="cents", n=0)
         add("plaskosc widma (mediana)", da["flatness"]["median"], dbb["flatness"]["median"], "", 3)
+    if resA.get("percussive") and resB.get("percussive"):
+        add("udzial perkusyjny %", resA["percussive"]["percussive_pct"], resB["percussive"]["percussive_pct"], " pp", 0)
+        add("perkusyjny 0-30 ms %", resA["percussive"]["percussive_pct_0_30ms"], resB["percussive"]["percussive_pct_0_30ms"], " pp", 0)
+    if resA.get("sharpness") and resB.get("sharpness"):
+        add("ostrosc mediana acum", resA["sharpness"]["sharpness_acum_median"], resB["sharpness"]["sharpness_acum_median"], "", 2)
+        add("ostrosc max acum", resA["sharpness"]["sharpness_acum_max"], resB["sharpness"]["sharpness_acum_max"], "", 2)
     sa, sb = resA.get("stereo"), resB.get("stereo")
     if sa and sb and sa.get("bands") and sb.get("bands"):
         add("korelacja <120 Hz", sa["bands"][0]["correlation"], sb["bands"][0]["correlation"], "", 2)
@@ -1475,6 +1846,461 @@ def compare(resA, resB, out):
     plt.close(fig)
 
 
+# ----------------------------------------------------------------------------- testy wtyczek offline (jak Plugin Doctor)
+
+STEP_LEVELS = list(range(-36, 1, 3))
+
+
+def test_layout(sr):
+    """Deterministyczny sygnal testowy: lista segmentow (nazwa, start, dlugosc, parametry) + sygnal mono."""
+    segs = []
+    parts = []
+    pos = [int(0.5 * sr)]
+    parts.append(np.zeros(pos[0]))
+
+    def add(name, y, gap=1.0, **kw):
+        segs.append({"name": name, "start": pos[0], "len": len(y), **kw})
+        parts.append(y)
+        g = np.zeros(int(gap * sr))
+        parts.append(g)
+        pos[0] += len(y) + len(g)
+
+    def fade(y, ms=5):
+        n = int(sr * ms / 1000)
+        w = np.ones(len(y))
+        r = 0.5 - 0.5 * np.cos(np.linspace(0, np.pi, n))
+        w[:n] = r
+        w[-n:] = r[::-1]
+        return y * w
+
+    imp = np.zeros(int(0.01 * sr))
+    imp[0] = 0.5
+    add("impulse", imp, gap=1.0, amp=0.5)
+    T = 8.0
+    f1, f2 = 20.0, min(20000.0, 0.45 * sr)
+    t = np.arange(int(T * sr)) / sr
+    R = math.log(f2 / f1)
+    sw = 0.5 * np.sin(2 * np.pi * f1 * T / R * (np.exp(t * R / T) - 1))
+    add("sweep", fade(sw, 2), gap=1.5, f1=f1, f2=f2, T=T, amp=0.5)
+    for f in (100.0, 1000.0):
+        for lv in STEP_LEVELS:
+            tt = np.arange(int(0.4 * sr)) / sr
+            add(f"step_{int(f)}_{lv}", fade(10 ** (lv / 20) * np.sin(2 * np.pi * f * tt)), gap=0.15, freq=f, level=lv)
+    for f in (5000.0, 7000.0, 11000.0):
+        tt = np.arange(int(0.5 * sr)) / sr
+        add(f"hf_{int(f)}", fade(0.5 * np.sin(2 * np.pi * f * tt)), gap=0.3, freq=f, level=-6)
+    T2 = 3.0
+    t = np.arange(int(T2 * sr)) / sr
+    R2 = math.log(f2 / 5000)
+    add("hf_sweep", fade(0.5 * np.sin(2 * np.pi * 5000 * T2 / R2 * (np.exp(t * R2 / T2) - 1))), gap=1.0, f1=5000, f2=f2, T=T2)
+    t = np.arange(int(1.0 * sr)) / sr
+    add("imd", fade(0.4 * np.sin(2 * np.pi * 60 * t) + 0.1 * np.sin(2 * np.pi * 7000 * t)), gap=1.0)
+    t = np.arange(int(6.0 * sr)) / sr
+    lvl = -60 + 60 * t / 6.0
+    add("ramp", fade(10 ** (lvl / 20) * np.sin(2 * np.pi * 1000 * t)), gap=1.0, f=1000, lo=-60, hi=0)
+    t = np.arange(int(3.5 * sr)) / sr
+    env = np.where(t < 1.0, -30, np.where(t < 2.0, -10, -30))
+    add("bursts", fade(10 ** (env / 20) * np.sin(2 * np.pi * 1000 * t)), gap=1.0, t_up=1.0, t_down=2.0)
+    rng = np.random.default_rng(12345)
+    wn = rng.standard_normal(int(4.0 * sr))
+    pk = np.fft.rfft(wn)
+    fr = np.fft.rfftfreq(len(wn), 1 / sr)
+    pk[1:] /= np.sqrt(fr[1:])
+    pk[0] = 0
+    pn = np.fft.irfft(pk, len(wn))
+    pn *= 10 ** (-18 / 20) / np.std(pn)
+    add("pink", fade(pn, 20), gap=1.5)
+    return segs, np.concatenate(parts)
+
+
+def gen_tests(out, sr):
+    os.makedirs(out, exist_ok=True)
+    segs, y = test_layout(sr)
+    stereo = np.stack([y, y], 1).astype(np.float32)
+    name = f"doomscope_test_{sr}.wav"
+    wavfile.write(os.path.join(out, name), sr, stereo)
+    json.dump({"version": VERSION, "sr": sr, "length_s": len(y) / sr, "segments": segs}, open(os.path.join(out, "manifest.json"), "w"), indent=1)
+    txt = f"""DOOMSCOPE – test wtyczki ({len(y) / sr:.0f} s, {sr} Hz, float 32-bit stereo)
+
+1. FL Studio: projekt w {sr} Hz. Wrzuc {name} na Playlist DOKLADNIE od poczatku taktu 1 (bez przesuniecia).
+2. Kanal miksera z tym klipem: SAMA testowana wtyczka (efekt), nic wiecej. Master bez limitera / efektow.
+3. Export -> WAV, 32-bit float (albo 24-bit), ta sama czestotliwosc, "Leave remainder" / tail = cut albo wait – obojetne.
+4. Wyslij wynik (np. moja_wtyczka_out.wav). Analiza: python doomscope.py plugin-test moja_wtyczka_out.wav
+   (latencja wtyczki jest wykrywana z impulsu; PDC w FL moze ja juz skompensowac – oba przypadki dzialaja)
+Mozna testowac rozne ustawienia (np. DRIVE min / max) – osobny eksport na kazde ustawienie.
+Tylko dla EFEKTOW (EQ, przester, kompresor, reverb...). Instrumentow (4GE, RE4GE) tak nie testujemy.
+"""
+    open(os.path.join(out, "JAK_TESTOWAC.txt"), "w").write(txt)
+    print(txt)
+    print(f"-> {out}/{name}, manifest.json, JAK_TESTOWAC.txt")
+
+
+def _bh_spectrum(seg, sr):
+    w = signal.windows.blackmanharris(len(seg))
+    X = np.fft.rfft(seg * w)
+    P = (np.abs(X) ** 2) * 2 / (len(seg) * np.sum(w ** 2))  # Parseval: suma binow skladowej = A^2/2
+    f = np.fft.rfftfreq(len(seg), 1 / sr)
+    return f, P
+
+
+def tone_metrics(seg, sr, f0, n_h=20):
+    f, P = _bh_spectrum(seg, sr)
+    df = f[1]
+    bw = 4  # biny wokol skladowej (okno Blackman-Harris ma glowny listek +-4 biny)
+    used = np.zeros(P.size, bool)
+    used[: int(10 / df) + bw] = True  # DC / infrasound
+    harm = []
+    for h in range(1, n_h + 1):
+        fh = h * f0
+        if fh >= sr / 2 - 2 * df * bw:
+            break
+        k = int(round(fh / df))
+        lo, hi = max(0, k - bw), min(P.size, k + bw + 1)
+        harm.append(P[lo:hi].sum())
+        used[lo:hi] = True
+    harm = np.array(harm)
+    rest = P[~used].sum()
+    spur = np.where(~used)[0]
+    top = []
+    if spur.size:
+        pk, _ = signal.find_peaks(np.where(used, 0, P))
+        for i in pk[np.argsort(P[pk])[::-1][:5]]:
+            top.append({"hz": float(f[i]), "db_rel_fund": float(pdb(P[i] / (harm[0] + EPS)))})
+    return {"fund_dbfs": float(pdb(harm[0] * 2)), "harm_db_rel": [float(pdb(h / (harm[0] + EPS))) for h in harm[1:10]],
+            "thd_pct": float(100 * math.sqrt(harm[1:].sum() / (harm[0] + EPS))),
+            "even_odd_db": float(pdb(harm[1::2].sum() / (harm[2::2].sum() + EPS))) if harm.size > 2 else None,
+            "noise_alias_db_rel": float(pdb(rest / (harm[0] + EPS))), "spurs": top}
+
+
+def plugin_test(path, out):
+    plt = _plt()
+    y, sr, info = load_audio(path)
+    segs, x = test_layout(sr)
+    ych = y
+    y = y.mean(axis=1)
+    os.makedirs(out, exist_ok=True)
+    rep = {"file": info["file"], "sr": sr}
+    # latencja z impulsu
+    s0 = segs[0]["start"]
+    win = y[max(0, s0 - int(0.2 * sr)): s0 + int(0.5 * sr)]
+    i_pk = int(np.argmax(np.abs(win)))
+    lat = i_pk - (s0 - max(0, s0 - int(0.2 * sr)))
+    rep["latency_samples"] = lat
+    rep["latency_ms"] = 1000 * lat / sr
+    rep["polarity"] = "odwrocona" if win[i_pk] < 0 else "normalna"
+    if len(y) < len(x) + lat:
+        y = np.pad(y, (0, len(x) + lat - len(y) + 1))
+    ya = y[lat: lat + len(x)] if lat >= 0 else np.pad(y, (-lat, 0))[: len(x)]
+    S = {s["name"]: s for s in segs}
+    seg = lambda n, a=0.0, b=None: (x[S[n]["start"] + int(a * sr): S[n]["start"] + (int(b * sr) if b is not None else S[n]["len"])],
+                                    ya[S[n]["start"] + int(a * sr): S[n]["start"] + (int(b * sr) if b is not None else S[n]["len"])])
+    # odpowiedz liniowa ze sweepu (dekonwolucja Farina przez dzielenie widm), kalibrowana na sygnale wejsciowym
+    sw = S["sweep"]
+    a0, a1 = sw["start"], sw["start"] + sw["len"] + int(1.5 * sr)
+    xin, yout = x[a0:a1], ya[a0:a1]
+    n = 1 << int(math.ceil(math.log2(len(xin) * 2)))
+    X = np.fft.rfft(xin, n)
+    fr = np.fft.rfftfreq(n, 1 / sr)
+    # miekkie krawedzie pasma (1/2 okt. cosinus) -> zwarta odpowiedz impulsowa, bez dzwonienia
+    taper = np.zeros_like(fr)
+    lo_a, lo_b = sw["f1"], sw["f1"] * 2 ** 0.5
+    hi_b, hi_a = sw["f2"] / 2 ** 0.5, sw["f2"]
+    mid = (fr >= lo_b) & (fr <= hi_b)
+    taper[mid] = 1
+    m1 = (fr > lo_a) & (fr < lo_b)
+    taper[m1] = 0.5 - 0.5 * np.cos(np.pi * np.log(fr[m1] / lo_a) / np.log(lo_b / lo_a))
+    m2 = (fr > hi_b) & (fr < hi_a)
+    taper[m2] = 0.5 + 0.5 * np.cos(np.pi * np.log(fr[m2] / hi_b) / np.log(hi_a / hi_b))
+    Xinv = np.conj(X) / (np.abs(X) ** 2 + 1e-10 * np.max(np.abs(X) ** 2)) * taper
+    pre = int(0.005 * sr)
+    post = int(0.3 * sr)
+    tl = int(0.05 * sr)
+
+    def lin_resp(sig):
+        ir_ = np.fft.irfft(np.fft.rfft(sig, n) * Xinv, n)
+        lin_ = np.concatenate([ir_[-pre:], ir_[:post]])
+        neg_ = ir_[-int(sw["T"] * sr * 0.9): -pre]
+        w_ = np.ones(post)
+        w_[-tl:] = np.hanning(2 * tl)[tl:]
+        buf = np.zeros(1 << 16)
+        buf[:post] = ir_[:post] * w_
+        buf[-pre:] = ir_[-pre:] * np.hanning(2 * pre)[:pre]  # ujemny czas na KONCU bufora (kolowo)
+        H_ = np.fft.rfft(buf)
+        return H_, float(np.sum(neg_ ** 2) / (np.sum(lin_ ** 2) + EPS))
+    Hy, neg_y = lin_resp(yout)
+    Hx, neg_x = lin_resp(xin)
+    fl = np.fft.rfftfreq(1 << 16, 1 / sr)
+    msk = (fl >= 25) & (fl <= sw["f2"] / 1.5)
+    Hl = np.where(msk, Hy / (Hx + EPS), 0)
+    rep["sweep_distortion_energy_db"] = float(pdb(max(neg_y - neg_x, 1e-12)))
+    mag_s = pdb(frac_octave_smooth(fl[msk], np.abs(Hl[msk]) ** 2, 12))
+    fm = fl[msk]
+    fgrid = np.geomspace(fm[0], fm[-1], 600)
+    Hc = Hl[msk]
+    re_s = np.interp(fgrid, fm, frac_octave_smooth(fm, Hc.real, 24))
+    im_s = np.interp(fgrid, fm, frac_octave_smooth(fm, Hc.imag, 24))
+    ph_g = np.unwrap(np.angle(re_s + 1j * im_s))
+    gd_g = -np.gradient(ph_g, 2 * np.pi * fgrid)
+    phase = np.interp(fm, fgrid, ph_g)
+    pts = [25, 30, 50, 80, 100, 150, 200, 300, 500, 800, 1000, 2000, 3000, 5000, 8000, 10000, 12000]
+    rep["freq_response_db"] = {str(p): float(np.interp(p, fm, mag_s)) for p in pts if fm[0] <= p <= fm[-1]}
+    rep["group_delay_ms"] = {str(p): float(1000 * np.interp(p, fgrid, gd_g)) for p in (50, 100, 1000, 10000) if fm[0] <= p <= fm[-1]}
+    # stopnie sinusow
+    steps = {}
+    for f in (100, 1000):
+        rows = []
+        for lv in STEP_LEVELS:
+            xi, yo = seg(f"step_{f}_{lv}", 0.1, 0.35)
+            tm = tone_metrics(yo, sr, f)
+            tm["in_dbfs"] = lv
+            tm["gain_db"] = tm["fund_dbfs"] - lv
+            rows.append(tm)
+        steps[str(f)] = rows
+    rep["steps"] = steps
+    g0 = steps["1000"][0]["gain_db"]
+    sat = next((r["in_dbfs"] for r in steps["1000"] if r["thd_pct"] > 1.0), None)
+    comp = next((r["in_dbfs"] for r in steps["1000"] if r["gain_db"] < g0 - 1.0), None)
+    rep["summary_levels"] = {"gain_low_level_db": g0, "thd_over_1pct_from_dbfs": sat, "gain_drop_1db_from_dbfs": comp}
+    # aliasing
+    hf = {}
+    for f in (5000, 7000, 11000):
+        _, yo = seg(f"hf_{f}", 0.1, 0.45)
+        hf[str(f)] = tone_metrics(yo, sr, f)
+    rep["aliasing"] = hf
+    # IMD SMPTE
+    _, yo = seg("imd", 0.1, 0.9)
+    fI, PI = _bh_spectrum(yo, sr)
+    df = fI[1]
+
+    def pw(fq):
+        k = int(round(fq / df))
+        return PI[max(0, k - 4): k + 5].sum()
+    side = sum(pw(7000 + s * k * 60) for k in (1, 2, 3) for s in (-1, 1))
+    rep["imd_smpte_pct"] = float(100 * math.sqrt(side / (pw(7000) + EPS)))
+    # ramp -> krzywa statyczna
+    xi, yo = seg("ramp")
+    hop = int(0.02 * sr)
+    nfr = len(xi) // hop
+    lv_in = -60 + 60 * (np.arange(nfr) + 0.5) * hop / len(xi)
+    rin = np.array([math.sqrt(np.mean(xi[i * hop:(i + 1) * hop] ** 2)) for i in range(nfr)])
+    rout = np.array([math.sqrt(np.mean(yo[i * hop:(i + 1) * hop] ** 2)) for i in range(nfr)])
+    curve_gain = db(rout / (rin + EPS))
+    rep["static_curve"] = {str(l): float(np.interp(l, lv_in, db(rout) + 3.01)) for l in range(-60, 1, 6)}
+    # bursty -> atak / release
+    xi, yo = seg("bursts")
+    e_in = rms_env(xi, sr, 2)
+    e_out = rms_env(yo, sr, 2)
+    gdb = db(e_out / (e_in + EPS))
+    tb = np.arange(len(gdb)) / sr
+    up, dn = int(1.0 * sr), int(2.0 * sr)
+    g_hi = np.median(gdb[dn - int(0.3 * sr): dn - int(0.02 * sr)])
+    g_lo = np.median(gdb[up - int(0.3 * sr): up - int(0.02 * sr)])
+    g_lo2 = np.median(gdb[-int(0.4 * sr): -int(0.05 * sr)])
+
+    def settle(start, stop, target):
+        seg_ = np.abs(gdb[start:stop] - target) > 1.0
+        idx = np.flatnonzero(seg_)
+        return 1000 * (idx[-1] + 1) / sr if idx.size else 0.0
+    rep["dynamics"] = {"gain_at_-30_db": float(g_lo), "gain_at_-10_db": float(g_hi), "gain_reduction_db": float(g_lo - g_hi),
+                       "attack_ms_to_1db": settle(up + int(0.003 * sr), dn - int(0.05 * sr), g_hi) if abs(g_lo - g_hi) > 1.5 else None,
+                       "release_ms_to_1db": settle(dn + int(0.003 * sr), len(gdb) - int(0.05 * sr), g_lo2) if abs(g_lo - g_hi) > 1.5 else None}
+    # szum rozowy: transfer Welch + koherencja
+    xi, yo = seg("pink", 0.1, 3.9)
+    nper = 1 << int(round(math.log2(0.1 * sr)))
+    fw, Pxy = signal.csd(xi, yo, sr, nperseg=nper)
+    _, Pxx = signal.welch(xi, sr, nperseg=nper)
+    _, Coh = signal.coherence(xi, yo, sr, nperseg=nper)
+    Hn = db(np.abs(Pxy) / (Pxx + EPS))
+    mm = (fw >= 50) & (fw <= min(16000, sr / 2 * 0.9))
+    rep["noise_coherence_median"] = float(np.median(Coh[mm]))
+    rep["noise_coherence_min_band"] = float(fw[mm][np.argmin(Coh[mm])])
+    # stereo wyjscia
+    if ych.shape[1] == 2:
+        Ls, Rs = ych[:, 0], ych[:, 1]
+        rep["output_side_to_mid_db"] = float(pdb(np.sum((Ls - Rs) ** 2) / (np.sum((Ls + Rs) ** 2) + EPS)))
+
+    # ---- raport
+    L = [f"# DOOMSCOPE – test wtyczki: {info['file']}", f"{sr} Hz · latencja {lat} probek ({rep['latency_ms']:.2f} ms) · polaryzacja {rep['polarity']}"
+         + (f" · stereo S/M {rep['output_side_to_mid_db']:.1f} dB" if "output_side_to_mid_db" in rep else "")]
+    sl = rep["summary_levels"]
+    L.append("\n## Najwazniejsze")
+    L.append(f"- wzmocnienie przy cichym sygnale (1 kHz, -36 dBFS): {sl['gain_low_level_db']:+.2f} dB")
+    L.append(f"- przester (THD > 1%) zaczyna sie od wejscia: {fmt(sl['thd_over_1pct_from_dbfs'], 0)} dBFS · spadek wzmocnienia o 1 dB od: {fmt(sl['gain_drop_1db_from_dbfs'], 0)} dBFS")
+    L.append(f"- aliasing+szum (ton 11 kHz, -6 dBFS): {hf['11000']['noise_alias_db_rel']:.1f} dB wzgl. tonu · 5 kHz: {hf['5000']['noise_alias_db_rel']:.1f} dB · IMD SMPTE {rep['imd_smpte_pct']:.2f}%")
+    d_ = rep["dynamics"]
+    L.append(f"- dynamika: wzmocnienie przy -30 dBFS {d_['gain_at_-30_db']:+.1f} dB, przy -10 dBFS {d_['gain_at_-10_db']:+.1f} dB (redukcja {d_['gain_reduction_db']:.1f} dB) · "
+             f"atak {fmt(d_['attack_ms_to_1db'], 1)} ms · release {fmt(d_['release_ms_to_1db'], 0)} ms (do 1 dB od wartosci koncowej)")
+    L.append(f"- liniowosc / stalosc w czasie: koherencja szumu mediana {rep['noise_coherence_median']:.3f} (1 = liniowa i stala; nizej = przester / modulacja / reverb)"
+             f" · energia znieksztalcen w sweepie {rep['sweep_distortion_energy_db']:.1f} dB wzgl. liniowej")
+    L.append("\n## Charakterystyka czestotliwosciowa (sweep, wygladzona 1/12 okt., dB)")
+    L.append("| Hz | " + " | ".join(rep["freq_response_db"].keys()) + " |")
+    L.append("|---|" + "---|" * len(rep["freq_response_db"]))
+    L.append("| dB | " + " | ".join(f"{v:+.1f}" for v in rep["freq_response_db"].values()) + " |")
+    L.append("opoznienie grupowe [ms]: " + ", ".join(f"{k} Hz: {v:.2f}" for k, v in rep["group_delay_ms"].items()))
+    for f in ("100", "1000"):
+        L.append(f"\n## Sinus {f} Hz – poziom wejscia vs wynik")
+        L.append("| wejscie dBFS | wyjscie dBFS | wzmocn. dB | THD % | H2 | H3 | parz./nieparz. dB | szum+alias dB |")
+        L.append("|---|---|---|---|---|---|---|---|")
+        for r_ in steps[f]:
+            h = r_["harm_db_rel"] + [None, None]
+            L.append(f"| {r_['in_dbfs']} | {r_['fund_dbfs']:.1f} | {r_['gain_db']:+.2f} | {r_['thd_pct']:.2f} | {fmt(h[0], 0)} | {fmt(h[1], 0)} | {fmt(r_['even_odd_db'], 1)} | {r_['noise_alias_db_rel']:.0f} |")
+    L.append("\n## Aliasing (tony -6 dBFS; wszystko poza harmonicznymi = aliasing lub szum)")
+    for f, m_ in hf.items():
+        L.append(f"- {f} Hz: szum+alias {m_['noise_alias_db_rel']:.1f} dB, THD {m_['thd_pct']:.2f}% · najwieksze prazki: "
+                 + ", ".join(f"{s_['hz']:.0f} Hz {s_['db_rel_fund']:.0f} dB" for s_ in m_["spurs"][:4]))
+    L.append("\n## Krzywa statyczna (rampa 1 kHz; wejscie dBFS -> wyjscie dBFS sinusa)")
+    L.append(", ".join(f"{k}->{v:.1f}" for k, v in rep["static_curve"].items()))
+    open(os.path.join(out, "plugin_test.md"), "w").write("\n".join(L) + "\n")
+    json.dump(jsonable(rep), open(os.path.join(out, "plugin_test.json"), "w"), indent=1)
+
+    # ---- wykresy
+    fig, axs = plt.subplots(2, 1, figsize=(14, 9))
+    axs[0].plot(fm, mag_s, lw=2, label="sweep (1/12 okt.)")
+    axs[0].plot(fw[mm], Hn[mm], lw=1, alpha=0.6, label="szum rozowy (Welch)")
+    _freq_axis(axs[0], 20, min(20000, sr / 2))
+    lo_ = math.floor(min(mag_s.min(), -6) / 3) * 3
+    hi_ = math.ceil(max(mag_s.max(), 6) / 3) * 3
+    axs[0].set_ylim(max(lo_, -48), min(hi_, 30))
+    axs[0].set_ylabel("dB")
+    axs[0].legend(loc="lower left")
+    axs[0].set_title(f"Image 1 – {info['file']}: charakterystyka czestotliwosciowa (latencja {lat} probek)")
+    axs[1].plot(fm, np.degrees(np.angle(np.exp(1j * phase))), lw=1.2, color="tab:purple", label="faza [°]")
+    ax2 = axs[1].twinx()
+    ax2.plot(fw[mm], Coh[mm], color="tab:green", lw=1, alpha=0.8, label="koherencja")
+    ax2.set_ylim(0, 1.05)
+    ax2.set_ylabel("koherencja")
+    _freq_axis(axs[1], 20, min(20000, sr / 2))
+    axs[1].set_ylim(-190, 190)
+    axs[1].set_yticks(range(-180, 181, 45))
+    axs[1].set_title("Faza (po usunieciu latencji) i koherencja szumu (1 = liniowo)")
+    fig.tight_layout()
+    fig.savefig(os.path.join(out, "pt1_charakterystyka.png"))
+    plt.close(fig)
+
+    fig, axs = plt.subplots(2, 1, figsize=(14, 9))
+    for f, c in (("100", "tab:blue"), ("1000", "tab:red")):
+        lv = [r_["in_dbfs"] for r_ in steps[f]]
+        axs[0].plot(lv, [max(r_["thd_pct"], 1e-3) for r_ in steps[f]], "o-", color=c, label=f"THD {f} Hz")
+        axs[1].plot(lv, [r_["gain_db"] for r_ in steps[f]], "o-", color=c, label=f"wzmocnienie {f} Hz")
+    axs[0].set_yscale("log")
+    axs[0].set_ylabel("THD %")
+    axs[0].legend()
+    axs[0].set_title("Image 2 – znieksztalcenia vs poziom wejscia")
+    axs[1].plot(lv_in, curve_gain, color="0.5", lw=1, label="rampa 1 kHz")
+    axs[1].set_xlabel("wejscie dBFS")
+    axs[1].set_ylabel("dB")
+    axs[1].legend()
+    axs[1].set_title("Wzmocnienie vs poziom (spadek = kompresja / nasycenie)")
+    for a in axs:
+        a.set_xticks(range(-60, 1, 6))
+    fig.tight_layout()
+    fig.savefig(os.path.join(out, "pt2_poziomy.png"))
+    plt.close(fig)
+
+    fig, axs = plt.subplots(2, 1, figsize=(14, 9))
+    _, yo = seg("hf_sweep")
+    nfft = 2048
+    fS, tS, ZS = signal.stft(yo, sr, nperseg=nfft, noverlap=nfft - 256)
+    SS = pdb(np.abs(ZS) ** 2)
+    m = axs[0].pcolormesh(tS, fS, SS - SS.max(), vmin=-100, vmax=0, cmap="magma", shading="auto", rasterized=True)
+    plt.colorbar(m, ax=axs[0], pad=0.01).set_label("dB")
+    axs[0].set_ylabel("Hz (liniowo)")
+    axs[0].set_xlabel("s")
+    axs[0].set_title("Image 3 – sweep 5 kHz→20 kHz przez wtyczke: linie opadajace / lustrzane = ALIASING")
+    _, yo = seg("hf_11000", 0.1, 0.45)
+    fA, PA_ = _bh_spectrum(yo, sr)
+    axs[1].plot(fA, pdb(PA_ / PA_.max()), lw=1)
+    axs[1].set_xlim(0, sr / 2)
+    axs[1].set_ylim(-140, 3)
+    axs[1].set_yticks(range(-140, 1, 20))
+    for k in range(1, int(sr / 2 / 11000) + 1):
+        axs[1].axvline(11000 * k, color="tab:green", ls=":", lw=1)
+    axs[1].set_title("Widmo tonu 11 kHz (zielone = harmoniczne; reszta prazkow = aliasing)")
+    axs[1].set_xlabel("Hz")
+    fig.tight_layout()
+    fig.savefig(os.path.join(out, "pt3_aliasing.png"))
+    plt.close(fig)
+
+    fig, axs = plt.subplots(2, 1, figsize=(14, 9))
+    axs[0].plot(lv_in, db(rout) + 3.01, lw=2, label="wyjscie")
+    axs[0].plot(lv_in, lv_in, ls="--", color="0.5", label="1:1")
+    axs[0].set_xlabel("wejscie dBFS (sinus 1 kHz)")
+    axs[0].set_ylabel("wyjscie dBFS")
+    axs[0].set_xticks(range(-60, 1, 6))
+    axs[0].legend()
+    axs[0].set_title("Image 4 – krzywa statyczna")
+    axs[1].plot(tb * 1000, gdb, lw=1.2)
+    axs[1].set_xlim(800, 2600)
+    axs[1].axvline(1000, color="tab:red", ls=":")
+    axs[1].axvline(2000, color="tab:red", ls=":")
+    axs[1].set_xlabel("ms (skok -30 -> -10 dBFS @1000, powrot @2000)")
+    axs[1].set_ylabel("wzmocnienie dB")
+    axs[1].set_title("Atak / release (wzmocnienie w czasie, obwiednia 2 ms)")
+    fig.tight_layout()
+    fig.savefig(os.path.join(out, "pt4_dynamika.png"))
+    plt.close(fig)
+    return rep
+
+
+def null_test(pa, pb, out):
+    plt = _plt()
+    a, sr, ia = load_audio(pa)
+    b, srb, ib = load_audio(pb)
+    if sr != srb:
+        raise SystemExit("Rozne sample rate.")
+    am, bm = a.mean(1), b.mean(1)
+    n = 1 << int(math.ceil(math.log2(len(am) + len(bm))))
+    c = np.fft.irfft(np.fft.rfft(am, n) * np.conj(np.fft.rfft(bm, n)), n)
+    lag = int(np.argmax(np.abs(c)))
+    if lag > n // 2:
+        lag -= n
+    if lag >= 0:
+        A, B = a[lag:], b
+    else:
+        A, B = a, b[-lag:]
+    N = min(len(A), len(B))
+    A, B = A[:N], B[:N]
+    g = np.sum(A * B) / (np.sum(B * B) + EPS)
+    res_ = A - g * B
+    out_db = float(pdb(np.sum(res_ ** 2) / (np.sum(A ** 2) + EPS)))
+    os.makedirs(out, exist_ok=True)
+    L = [f"# DOOMSCOPE – null test", f"A: {ia['file']} · B: {ib['file']}",
+         f"przesuniecie B: {lag} probek ({1000 * lag / sr:.2f} ms) · wzmocnienie B: {db(g):+.3f} dB · polaryzacja {'odwrocona' if g < 0 else 'ta sama'}",
+         f"**residuum: {out_db:.1f} dB wzgl. A** (< -90 = identyczne bitowo prawie; < -60 = niesłyszalne roznice; > -30 = wyraznie inne)",
+         f"residuum peak: {db(np.max(np.abs(res_))):.1f} dBFS", "", "| pasmo | residuum dB wzgl. A w pasmie |", "|---|---|"]
+    rm = res_.mean(1)
+    Am = A.mean(1)
+    for name, lo, hi in BANDS:
+        rb = sos_filter(rm, sr, lo=lo, hi=hi if hi < sr / 2 else None)
+        ab = sos_filter(Am, sr, lo=lo, hi=hi if hi < sr / 2 else None)
+        L.append(f"| {name} {lo}-{hi} | {pdb(np.sum(rb ** 2) / (np.sum(ab ** 2) + EPS)):.1f} |")
+    hop = int(0.05 * sr)
+    seg_db = [pdb(np.mean(rm[i:i + hop] ** 2) / (np.mean(Am ** 2) + EPS)) for i in range(0, N - hop, hop)]
+    if seg_db:
+        worst = int(np.argmax(seg_db))
+        L.append(f"\nnajglosniejsze residuum w {worst * 50}-{worst * 50 + 50} ms ({seg_db[worst]:.1f} dB wzgl. sredniej A)")
+    open(os.path.join(out, "null.md"), "w").write("\n".join(L) + "\n")
+    fig, ax = plt.subplots(2, 1, figsize=(14, 9))
+    t = np.arange(N) / sr
+    ax[0].plot(t, Am, lw=0.6, label="A")
+    ax[0].plot(t, rm, lw=0.6, color="tab:red", label="residuum A − g·B")
+    ax[0].legend()
+    ax[0].set_title(f"Image 1 – null test: residuum {out_db:.1f} dB")
+    f1, P1 = average_spectrum(Am, sr)
+    f2, P2 = average_spectrum(rm, sr)
+    mm = (f1 >= 20) & (f1 <= sr / 2)
+    ax[1].plot(f1[mm], pdb(frac_octave_smooth(f1[mm], P1[mm], 6)), label="A")
+    ax[1].plot(f2[mm], pdb(frac_octave_smooth(f2[mm], P2[mm], 6)), color="tab:red", label="residuum")
+    _freq_axis(ax[1], 20, min(20000, sr / 2))
+    ax[1].legend()
+    ax[1].set_title("Widmo A i residuum")
+    fig.tight_layout()
+    fig.savefig(os.path.join(out, "null.png"))
+    plt.close(fig)
+    print("\n".join(L))
+    return out_db
+
+
 # ----------------------------------------------------------------------------- selftest (syntetyczne sample o znanych parametrach)
 
 def synth_kick(sr=48000, f0=2000.0, fe=49.0, tau=0.02, drive=4.0, length=0.6, click=True, stereo_top=False):
@@ -1553,6 +2379,82 @@ def selftest():
     lv = h.get("levels_db_rel_h1", [0, 0, 0])
     check("pila: H2≈-6 dB, H3≈-9.5 dB", abs(lv[1] + 6.02) < 1.5 and abs(lv[2] + 9.54) < 1.5,
           f"H2 {lv[1]:.1f}, H3 {lv[2]:.1f}, parzyste/nieparzyste {fmt(h.get('even_odd_db'), 1)} dB")
+    # --- P1: reasygnacja, HPSS, ostrosc
+    fe_, te_ = reassign_point_check(48000)
+    check("spektrogram reasygnowany: sinus 1 kHz / impuls @50 ms", abs(fe_ - 1000) < 1.5 and abs(te_ - 0.05) < 0.0002, f"{fe_:.2f} Hz, {te_ * 1000:.3f} ms")
+    rng = np.random.default_rng(7)
+    tt = np.arange(sr) / sr
+    clicks = np.zeros(sr)
+    clicks[sr // 16:: sr // 8] = 1.0
+    clicks = sos_filter(clicks, sr, lo=500)
+    hp_c = hpss_share(clicks, sr)["percussive_pct"]
+    hp_s = hpss_share(np.sin(2 * np.pi * 220 * tt), sr)["percussive_pct"]
+    check("HPSS: kliki perkusyjne, sinus harmoniczny", hp_c > 80 and hp_s < 10, f"kliki {hp_c:.0f}%, sinus {hp_s:.0f}%")
+    nb = sos_filter(rng.standard_normal(2 * sr), sr, lo=920, hi=1080)
+    nb *= 10 ** (-34 / 20) / np.std(nb)
+    shv = sharpness_approx(nb, sr)["sharpness_acum_median"]
+    check("ostrosc: szum waskopasmowy 1 kHz 60 dB = 1 acum (DIN 45692)", abs(shv - 1) < 0.1, f"{shv:.2f} acum")
+
+    # --- testy wtyczek na syntetycznych 'wtyczkach' o znanych parametrach
+    with tempfile.TemporaryDirectory() as td:
+        srt = 44100
+        segs, xt = test_layout(srt)
+        X2 = np.stack([xt, xt], 1)
+
+        def run_fake(name, yv):
+            p_ = os.path.join(td, name + ".wav")
+            wavfile.write(p_, srt, yv.astype(np.float32))
+            return plugin_test(p_, os.path.join(td, name))
+        r_id = run_fake("ident", X2)
+        fr_ = r_id["freq_response_db"]
+        check("plugin-test: wtyczka przezroczysta", r_id["latency_samples"] == 0 and max(abs(v) for v in fr_.values()) < 0.1
+              and r_id["summary_levels"]["thd_over_1pct_from_dbfs"] is None,
+              f"latencja {r_id['latency_samples']}, charakterystyka max odchylka {max(abs(v) for v in fr_.values()):.2f} dB")
+        A_ = 10 ** (6 / 40)
+        w0 = 2 * np.pi * 1000 / srt
+        al = np.sin(w0) / 2
+        b_ = [1 + al * A_, -2 * np.cos(w0), 1 - al * A_]
+        a_ = [1 + al / A_, -2 * np.cos(w0), 1 - al / A_]
+        r_eq = run_fake("eq", signal.lfilter(b_, a_, X2, axis=0))
+        _, htrue = signal.freqz(b_, a_, [500.0, 1000.0, 2000.0], fs=srt)
+        errs = [r_eq["freq_response_db"][k] - v for k, v in zip(("500", "1000", "2000"), db(np.abs(htrue)))]
+        check("plugin-test: EQ peak +6 dB @1 kHz (sweep vs prawda)", max(abs(e) for e in errs) < 0.3, "bledy " + ", ".join(f"{e:+.2f}" for e in errs) + " dB")
+        yv = np.tanh(2 * X2) / np.tanh(2)
+        bb, aa = signal.butter(1, 8000 / (srt / 2))
+        yv = np.vstack([np.zeros((37, 2)), signal.lfilter(bb, aa, yv, axis=0)])
+        r_f = run_fake("tanh", yv)
+        sl = r_f["summary_levels"]
+        check("plugin-test: tanh(2x) + LP 8k + 37 probek opoznienia", abs(r_f["latency_samples"] - 37) <= 2 and abs(sl["gain_low_level_db"] - 6.33) < 0.15
+              and sl["thd_over_1pct_from_dbfs"] in (-15, -12) and r_f["aliasing"]["11000"]["noise_alias_db_rel"] > -40,
+              f"latencja {r_f['latency_samples']}, wzmocn. {sl['gain_low_level_db']:+.2f} dB (teoria +6.33), THD>1% od {sl['thd_over_1pct_from_dbfs']} dBFS, "
+              f"aliasing 11k {r_f['aliasing']['11000']['noise_alias_db_rel']:.0f} dB")
+        # kompresor: wzmocnienie zalezne od obwiedni (atak 5 ms, release 100 ms, prog -20 dB, 4:1)
+        env = np.zeros(len(xt))
+        aA, aR = math.exp(-1 / (0.005 * srt)), math.exp(-1 / (0.1 * srt))
+        e = 0.0
+        ax = np.abs(xt)
+        for i in range(len(xt)):
+            c_ = aA if ax[i] > e else aR
+            e = c_ * e + (1 - c_) * ax[i]
+            env[i] = e
+        lvl = db(env)
+        gr = np.where(lvl > -20, -(lvl + 20) * (1 - 1 / 4), 0)
+        r_c = run_fake("comp", X2 * (10 ** (gr / 20))[:, None])
+        dy = r_c["dynamics"]
+        check("plugin-test: kompresor 4:1 (wykrycie redukcji, ataku i release)", dy["gain_reduction_db"] > 4 and dy["attack_ms_to_1db"] is not None
+              and dy["release_ms_to_1db"] is not None and dy["release_ms_to_1db"] > dy["attack_ms_to_1db"],
+              f"redukcja {dy['gain_reduction_db']:.1f} dB, atak {fmt(dy['attack_ms_to_1db'], 1)} ms, release {fmt(dy['release_ms_to_1db'], 0)} ms")
+        # null test
+        pa_ = os.path.join(td, "na.wav")
+        pb_ = os.path.join(td, "nb.wav")
+        k_ = synth_kick(srt)
+        wavfile.write(pa_, srt, k_.astype(np.float32))
+        wavfile.write(pb_, srt, (np.vstack([np.zeros((100, 2)), k_ * 0.5])).astype(np.float32))
+        import contextlib
+        import io
+        with contextlib.redirect_stdout(io.StringIO()):
+            nd = null_test(pa_, pb_, os.path.join(td, "null"))
+        check("null test: ta sama probka przesunieta o 100 probek i -6 dB", nd < -100, f"residuum {nd:.1f} dB")
     print("\nWYNIK:", "wszystko OK" if ok else "SA BLEDY")
     return ok
 
@@ -1564,12 +2466,65 @@ def run_analyze(path, args, out):
     res = analyze(x, sr, info, args.type, args.bpm, args.key)
     os.makedirs(out, exist_ok=True)
     md = report_md(res)
+    if getattr(args, "ref", None):
+        prof = json.load(open(args.ref))
+        ap = against_profile(flat_metrics(res), prof)
+        res["vs_reference"] = ap
+        md += profile_md(ap, prof)
     with open(os.path.join(out, "report.md"), "w") as fh:
         fh.write(md)
     files = [] if args.no_plots else plot_report(res, out)
     with open(os.path.join(out, "report.json"), "w") as fh:
         json.dump(jsonable({k: v for k, v in res.items() if not k.startswith("_")}), fh, indent=1, ensure_ascii=False)
     return res, md, files
+
+
+AUDIO_EXT = (".wav", ".mp3", ".flac", ".aif", ".aiff", ".ogg", ".m4a")
+
+
+def expand_files(items):
+    out = []
+    for it in items:
+        if os.path.isdir(it):
+            for root, _, fs in os.walk(it):
+                out += [os.path.join(root, f) for f in sorted(fs) if f.lower().endswith(AUDIO_EXT)]
+        else:
+            out.append(it)
+    return out
+
+
+def run_profile(args):
+    files = expand_files(args.files)
+    if not files:
+        raise SystemExit("Brak plikow audio.")
+    os.makedirs(args.out, exist_ok=True)
+    rows, names = [], []
+    for f in files:
+        try:
+            x, sr, info = load_audio(f)
+            res = analyze(x, sr, info, args.type, args.bpm, None)
+        except (Exception, SystemExit) as e:
+            print(f"pomijam {f}: {e}")
+            continue
+        fm = flat_metrics(res)
+        fm["_type"] = res["type"]
+        rows.append(fm)
+        names.append(os.path.basename(f))
+        print(f"ok  {os.path.basename(f)}  typ={res['type']}  ogon={fmt(fm.get('tail_hz'), 2)} Hz  petla={fmt(fm.get('loop_lufs'), 1)} LUFS")
+    prof = build_profile(rows, names)
+    json.dump(prof, open(os.path.join(args.out, "profile.json"), "w"), indent=1, ensure_ascii=False)
+    keys = [k for k, *_ in METRICS]
+    with open(os.path.join(args.out, "metrics.csv"), "w") as fh:
+        fh.write("file,type," + ",".join(keys) + "\n")
+        for n, r in zip(names, rows):
+            fh.write(f"{n},{r['_type']}," + ",".join("" if r.get(k) is None else f"{r[k]:.4g}" for k in keys) + "\n")
+    L = [f"# DOOMSCOPE – profil referencji ({prof['n']} plikow)", "| metryka | p10 | mediana | p90 | min | max | n |", "|---|---|---|---|---|---|---|"]
+    for k, pm in prof["metrics"].items():
+        n = 2 if pm["unit"] in ("", "acum") else (0 if pm["unit"] in ("Hz", "ms") else 1)
+        L.append(f"| {pm['label']} [{pm['unit']}] | {pm['p10']:.{n}f} | {pm['median']:.{n}f} | {pm['p90']:.{n}f} | {pm['min']:.{n}f} | {pm['max']:.{n}f} | {pm['n']} |")
+    open(os.path.join(args.out, "profile.md"), "w").write("\n".join(L) + "\n")
+    print("\n".join(L))
+    print(f"-> {args.out}/profile.json, profile.md, metrics.csv  (uzycie: analyze plik.wav --ref {args.out}/profile.json)")
 
 
 def main():
@@ -1584,12 +2539,44 @@ def main():
         p.add_argument("--out", default=None)
         p.add_argument("--no-plots", action="store_true")
         p.add_argument("--quiet", action="store_true")
+        p.add_argument("--ref", default=None, help="profil referencji (profile.json z komendy profile)")
+    p = sub.add_parser("profile", help="folder / lista WAV-ow referencyjnych -> profile.json + metrics.csv")
+    p.add_argument("files", nargs="+")
+    p.add_argument("--type", default="auto", choices=["auto", "kick", "screech", "lead", "rbass", "tonal"])
+    p.add_argument("--bpm", type=float, default=None)
+    p.add_argument("--out", default="doomscope_profile")
+    p = sub.add_parser("gen-tests", help="sygnal testowy dla efektow (do FL)")
+    p.add_argument("--sr", type=int, default=44100)
+    p.add_argument("--out", default="doomscope_tests")
+    p = sub.add_parser("plugin-test", help="analiza eksportu sygnalu testowego przez wtyczke")
+    p.add_argument("file")
+    p.add_argument("--out", default=None)
+    p = sub.add_parser("null", help="null test dwoch renderow (regresja wersji wtyczki)")
+    p.add_argument("files", nargs=2)
+    p.add_argument("--out", default=None)
     sub.add_parser("selftest")
     args = ap.parse_args()
     if args.cmd == "selftest":
         sys.exit(0 if selftest() else 1)
-    if args.type in ("screech", "lead", "rbass"):
+    if getattr(args, "type", None) in ("screech", "lead", "rbass"):
         args.type = "tonal"
+    if args.cmd == "gen-tests":
+        gen_tests(args.out, args.sr)
+        return
+    if args.cmd == "plugin-test":
+        out = args.out or os.path.splitext(args.file)[0] + "_plugintest"
+        plugin_test(args.file, out)
+        print(open(os.path.join(out, "plugin_test.md")).read())
+        print(f"-> {out}/plugin_test.md, plugin_test.json, pt1_charakterystyka.png, pt2_poziomy.png, pt3_aliasing.png, pt4_dynamika.png")
+        return
+    if args.cmd == "null":
+        out = args.out or os.path.splitext(args.files[0])[0] + "_null"
+        null_test(args.files[0], args.files[1], out)
+        print(f"-> {out}/null.md, null.png")
+        return
+    if args.cmd == "profile":
+        run_profile(args)
+        return
     if args.cmd == "analyze":
         f = args.files[0]
         out = args.out or os.path.splitext(f)[0] + "_doomscope"

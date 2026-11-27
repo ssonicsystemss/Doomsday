@@ -27,7 +27,7 @@ from scipy import optimize, signal
 from scipy.io import wavfile
 from scipy.ndimage import uniform_filter1d, median_filter
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 BANDS = [("SUB", 20, 60), ("LOW", 60, 150), ("LOWMID", 150, 500),
@@ -347,6 +347,89 @@ def kick_pitch(mono, sr, onset, end_idx):
         "t_to_fend_plus5_ms": 1000 * t_plus5,
         "zc_t": t_zc, "zc_f": f_zc,
     }
+
+
+def sub_tail_pitch(mono, sr, onset, end):
+    """Nuta ogona mierzona TYLKO w pasmie subu (LP 130 Hz) dlugim oknem YIN (~190 ms) – odporne na przester i warstwy.
+    Wynik: mediana, rozrzut (p10-p90 w centach), udzial dzwiecznych ramek, mediany w 3 oknach (dryf)."""
+    L = end - onset
+    a = onset + max(int(0.06 * sr), int(0.25 * L))
+    b = onset + int(0.85 * L)
+    if b - a < int(0.08 * sr):
+        return None
+    y = sos_filter(mono[a:b], sr, hi=130, order=6)
+    frame = 1 << int(round(math.log2(0.19 * sr)))
+    t, f, c = yin_track(y, sr, fmin=25, fmax=125, frame=frame, hop=max(64, int(sr * 0.004)))
+    keep = (t >= frame / 2 / sr) & (t <= (len(y) - frame / 2) / sr)  # tylko pelne ramki
+    f = f[keep]
+    v = np.isfinite(f)
+    if v.sum() < 5:
+        return None
+    fv = f[v]
+    med = float(np.median(fv))
+    cents = 1200 * np.log2(fv / med)
+    thirds = [float(np.median(p)) for p in np.array_split(fv, 3) if len(p)]
+    return {"f0_hz": med, "note": hz_to_note(med), "spread_cents": float(np.percentile(cents, 90) - np.percentile(cents, 10)),
+            "voiced_pct": float(100 * v.mean()), "thirds_hz": thirds,
+            "drift_cents": float(1200 * math.log2(thirds[-1] / thirds[0])) if len(thirds) > 1 else 0.0,
+            "window_ms": [1000 * (a - onset) / sr, 1000 * (b - onset) / sr]}
+
+
+def kick_pitch_yin(mono, sr, onset, end, f_tail):
+    """Zapasowa krzywa pitchu kicka, gdy przejscia przez zero zawioda (mocny przester, warstwy):
+    YIN w 5 rozdzielczosciach na sygnale LP 3 kHz, wymuszony spadek (kick nie rosnie), dopasowanie modelu exp do log f."""
+    y = sos_filter(mono[onset:end], sr, hi=min(3000, 0.45 * sr), order=4)
+    hop = max(16, int(sr * 0.001))
+    sizes = [1 << int(round(math.log2(s * sr / 44100))) for s in (4096, 2048, 1024, 512, 256)]
+    tracks = []
+    for N in sizes:
+        _, ff, _ = yin_track(y, sr, fmin=max(20, 2 * sr / N), fmax=min(6000, sr / 4), frame=N, hop=hop, thresh=0.2)
+        tracks.append(np.where(ff >= 2.5 * sr / N, ff, np.nan))
+    Lf = min(len(t_) for t_ in tracks)
+    out = np.full(Lf, np.nan)
+    for i in range(Lf):
+        for ff in reversed(tracks):
+            if np.isfinite(ff[i]):
+                out[i] = ff[i]
+                break
+    times = np.arange(Lf) * hop / sr
+    # bledy oktawowe w ogonie i ponizej ogona -> odrzuc; potem wymus spadek od poczatku
+    out[(out < f_tail * 0.8)] = np.nan
+    late = times > 0.15
+    out[late & (np.abs(1200 * np.log2(np.where(np.isfinite(out), out, f_tail) / f_tail)) > 300)] = np.nan
+    v = np.isfinite(out)
+    if v.sum() < 10:
+        return None
+    mono_f = np.fmin.accumulate(np.where(v, out, np.inf))
+    mono_f[~np.isfinite(mono_f)] = np.nan
+    tv, fv = times[v], mono_f[v]
+    head = tv <= 0.25
+    if head.sum() < 5:
+        return None
+    f0_guess = float(np.nanmax(fv[head]))
+
+    def res_(p):
+        f0, tau = p
+        return np.log(f_tail + (f0 - f_tail) * np.exp(-tv[head] / tau)) - np.log(fv[head])
+    try:
+        sol = optimize.least_squares(res_, [max(f0_guess, f_tail * 1.5), 0.02], bounds=([f_tail * 1.01, 1e-4], [20000, 1.0]))
+        f0, tau = sol.x
+        rms_c = float(1200 * np.sqrt(np.mean(sol.fun ** 2)) / math.log(2))
+    except Exception:
+        return None
+    params = [f_tail, float(f0), float(tau)]
+    tt = np.linspace(0, (end - onset) / sr, 4000)
+    ff_ = f_model("exp", params, tt)
+    st_above = 12 * np.log2(ff_ / f_tail)
+    settle = tt[np.flatnonzero(st_above > 1)[-1]] if (st_above > 1).any() else 0.0
+    t5 = tt[np.flatnonzero(ff_ > f_tail + 5)[-1]] if (ff_ > f_tail + 5).any() else 0.0
+    half = f_tail + (f0 - f_tail) / 2
+    t_half = tt[np.flatnonzero(ff_ > half)[-1]] if (ff_ > half).any() else 0.0
+    return {"model": "exp", "params": params, "source": "YIN (przejscia przez zero zawiodly)",
+            "fits": {"exp(YIN)": {"rms_cycles": None, "aic": None, "rms_cents": rms_c}},
+            "f_end_model": f_tail, "f_start_model": float(f0), "f_first_cycle": f0_guess,
+            "drop_semitones": float(12 * math.log2(f0 / f_tail)), "t_half_ms": 1000 * t_half,
+            "settle_1st_ms": 1000 * settle, "t_to_fend_plus5_ms": 1000 * t5, "zc_t": tv, "zc_f": fv}
 
 
 def tail_tuning(mono, sr, onset, t0_ms, t1_ms, f_guess):
@@ -962,12 +1045,22 @@ def analyze(x, sr, info, stype="auto", bpm=None, key=None):
 
     # --- pitch
     kp = kick_pitch(mono, sr, onset, end)
+    st_sub = sub_tail_pitch(mono, sr, onset, end)
+    def _model_vs_sub(k_, s_):
+        # model (przejscia przez zero) w TYM SAMYM oknie co pomiar subu -> zgodny? (dziala tez gdy ogon wciaz zjezdza)
+        tw = np.linspace(s_["window_ms"][0], s_["window_ms"][1], 200) / 1000
+        return abs(1200 * math.log2(float(np.median(f_model(k_["model"], k_["params"], tw))) / s_["f0_hz"]))
+    zc_ok = bool(kp and kp["drop_semitones"] >= 12 and kp["f_end_model"] < 130 and kp["fits"][kp["model"]]["rms_cycles"] < 0.5
+                 and (st_sub is None or _model_vs_sub(kp, st_sub) < 60))
+    sub_kickish = bool(st_sub and st_sub["voiced_pct"] > 50 and st_sub["spread_cents"] < 120 and 25 < st_sub["f0_hz"] < 125
+                       and res["envelope"]["attack_10_90_ms"] < 10 and res["timing"]["sound_length_ms"] < 1500)
     tonal_t = tonal_f = None
     if stype == "auto":
-        if kp and kp["drop_semitones"] >= 12 and kp["f_end_model"] < 130 and kp["fits"][kp["model"]]["rms_cycles"] < 0.5:
-            stype = "kick"
-        else:
-            stype = "tonal"
+        stype = "kick" if (zc_ok or sub_kickish) else "tonal"
+    if stype == "kick" and not zc_ok and st_sub:
+        kp_y = kick_pitch_yin(mono, sr, onset, end, st_sub["f0_hz"])
+        if kp_y:
+            kp = kp_y
     res["type"] = stype
     pitch = {}
     f_track = None
@@ -988,12 +1081,17 @@ def analyze(x, sr, info, stype="auto", bpm=None, key=None):
         kp["tail_still_gliding"] = bool(still_gliding)
         tun = tail_tuning(mono, sr, onset, t_a, min(t_b, L_ms), fe)
         pitch = {k: v for k, v in kp.items() if k not in ("zc_t", "zc_f")}
+        if st_sub:
+            pitch["tail_sub"] = st_sub
         pitch["curve_ms"] = {str(tp_): float(f_model(kp["model"], kp["params"], tp_ / 1000))
                              for tp_ in TIME_POINTS_MS if tp_ <= res["timing"]["sound_length_ms"]}
+        if st_sub and (not tun or kp.get("source")):  # model zweryfikowany wzgl. subu -> zostaje pomiar analityczny (dokladniejszy przy zjezdzie)
+            tun = {"f0": st_sub["f0_hz"], "drift_cents": st_sub["drift_cents"], "window_ms": st_sub["window_ms"], "src": "pasmo subu (LP 130 Hz, YIN 190 ms)"}
         if tun:
             pitch["tail"] = {"f0_hz": tun["f0"], "note": hz_to_note(tun["f0"]),
-                             "still_gliding": kp["tail_still_gliding"],
-                             "drift_cents": tun["drift_cents"], "window_ms": tun["window_ms"]}
+                             "still_gliding": kp["tail_still_gliding"] and not tun.get("src"),
+                             "drift_cents": tun["drift_cents"], "window_ms": tun["window_ms"],
+                             "source": tun.get("src", "sygnal analityczny podstawowej")}
             pc = key_to_pc(key)
             if pc is not None:
                 midi = 69 + 12 * math.log2(tun["f0"] / 440)
@@ -1011,6 +1109,9 @@ def analyze(x, sr, info, stype="auto", bpm=None, key=None):
         frame = 2048 if sr <= 50000 else 4096
         hop = max(64, int(sr * 0.003))
         tonal_t, tonal_f, conf = yin_track(mono[onset:end], sr, frame=frame, hop=hop)
+        if np.isfinite(tonal_f).sum() > 3 and np.nanmedian(tonal_f) < 3.0 * sr / frame:  # niski ton: okno za krotkie (min ~2 okresy)
+            frame *= 2
+            tonal_t, tonal_f, conf = yin_track(mono[onset:end], sr, fmin=25, frame=frame, hop=hop)
         v = np.isfinite(tonal_f)
         pitch["voiced_pct"] = float(100 * v.mean())
         if v.sum() > 3:
@@ -1322,14 +1423,17 @@ def report_md(res):
     p = res["pitch"]
     L.append("\n## Pitch")
     if res["type"] == "kick" and "model" in p:
-        L.append(f"model zjazdu: **{p['model']}** · parametry {[round(v, 5) for v in p['params']]}")
-        L.append("dopasowania (rms w cyklach / AIC): " + ", ".join(f"{k}: {v['rms_cycles']} / {v['aic']}" for k, v in p["fits"].items()))
+        if p.get("source"):
+            L.append(f"**krzywa z zapasowej metody: {p['source']}** – mniej dokladna w pierwszych ~10 ms; model exp dopasowany do YIN (rms {p['fits']['exp(YIN)']['rms_cents']:.0f} c)")
+        else:
+            L.append(f"model zjazdu: **{p['model']}** · parametry {[round(v, 5) for v in p['params']]}")
+            L.append("dopasowania (rms w cyklach / AIC): " + ", ".join(f"{k}: {v['rms_cycles']} / {v['aic']}" for k, v in p["fits"].items()))
         L.append(f"start (model, t=0): {fmt(p['f_start_model'], 0)} Hz ({note_str(p['f_start_model'])}) · pierwszy pelny cykl: {fmt(p['f_first_cycle'], 0)} Hz")
         L.append(f"koniec (model): {fmt(p['f_end_model'], 2)} Hz ({note_str(p['f_end_model'])}) · zjazd {fmt(p['drop_semitones'], 1)} polt.")
         L.append(f"polowa zjazdu @ {fmt(p['t_half_ms'], 1)} ms · do 1 poltonu od ogona @ {fmt(p['settle_1st_ms'], 1)} ms · do 3 centow @ {fmt(p.get('settle_3c_ms'), 1)} ms · do ogon+5 Hz @ {fmt(p['t_to_fend_plus5_ms'], 1)} ms")
         if p.get("tail"):
             t = p["tail"]
-            L.append(f"**ogon: {t['f0_hz']:.2f} Hz = {t['note']['note']} {t['note']['cents']:+.1f} c** (okno {fmt(t['window_ms'][0], 0)}-{fmt(t['window_ms'][1], 0)} ms, dryf {t['drift_cents']:+.1f} c"
+            L.append(f"**ogon: {t['f0_hz']:.2f} Hz = {t['note']['note']} {t['note']['cents']:+.1f} c** ({t.get('source', '')}; okno {fmt(t['window_ms'][0], 0)}-{fmt(t['window_ms'][1], 0)} ms, dryf {t['drift_cents']:+.1f} c"
                      + (f", wzgl. tonacji {t['vs_key_cents']:+.0f} c" if "vs_key_cents" in t else "") + ")")
     elif p.get("median_f0_hz"):
         L.append(f"mediana F0 {p['median_f0_hz']:.2f} Hz = {note_str(p['median_f0_hz'])} · dzwieczne {p['voiced_pct']:.0f}% klatek")
@@ -1347,6 +1451,9 @@ def report_md(res):
         L.append("|---|" + "---|" * len(p["curve_ms"]))
         L.append("| F0 [Hz] | " + " | ".join(fmt(v, 0) for v in p["curve_ms"].values()) + " |")
         L.append("| nuta | " + " | ".join(note_str(v) for v in p["curve_ms"].values()) + " |")
+    ts_ = p.get("tail_sub")
+    if ts_:
+        L.append(f"ogon w pasmie subu: {ts_['f0_hz']:.2f} Hz = {note_str(ts_['f0_hz'])} · rozrzut p10-p90 {ts_['spread_cents']:.0f} c · tercje {', '.join(f'{v:.2f}' for v in ts_['thirds_hz'])} Hz")
     yc = p.get("yin_check")
     if yc:
         L.append(f"kontrola niezalezna (YIN 5 rozdzielczosci, {yc['frames']} ramek): odchylka od modelu mediana {fmt(yc['median_abs_cents'], 0)} c, p90 {fmt(yc['p90_abs_cents'], 0)} c, bledy oktawowe {yc['octave_error_pct']:.0f}%"

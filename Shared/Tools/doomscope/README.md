@@ -45,6 +45,15 @@ Filtr K = współczynniki ITU, 997 Hz → −3,01 LUFS, true peak, 4 syntetyczne
 harmoniczne piły, reasygnacja (sinus / impuls), HPSS, ostrość 1 acum, plugin-test na wtyczkach o znanych parametrach
 (przezroczysta 0,00 dB, EQ +6 dB błąd ≤0,01 dB, tanh +6,28 dB vs teoria 6,33, opóźnienie, aliasing, kompresor 4:1), null test.
 
+## Test na ślepo (2026-11-27) i lekcje
+`FourGE/build/.../RenderTest <out> --blind <dir> [n]` = n zupełnie nowych kicków z 4GE (losowy styl, seed, AMOUNT, nuta MIDI,
+RANDOMIZE 1–3×), przepis w `_SECRET.txt` – do sprawdzania DOOMSCOPE bez znajomości odpowiedzi.
+Pierwszy test (6 kicków) wykazał w v0.2: tylko 1/6 rozpoznany jako kick, 2/6 złe nuty (E1 czytane jako F1/F#1 – okno YIN 2048
+nie widzi < ~43 Hz). v0.2.1: ogon mierzony w paśmie subu (LP 130 Hz, YIN ~190 ms), zapasowa krzywa pitchu z YIN gdy przejścia
+przez zero zawodzą (mocny przester / warstwy) → 6/6 kick, 6/6 właściwa nuta (±20 c).
+Działało od początku: „trzaski” (ZAAG TRASK) widoczne w przebiegu i spektrogramie, warstwy tonalne (TOK ~730 Hz, SCREECH ~920 Hz).
+Słabe: pierwsze ~10 ms krzywej pitchu przy zapasowej metodzie; reasygnacja poniżej ~150 Hz (za krótkie okno) faluje.
+
 ## Ograniczenia
 - Progi w „Uwagach” to hipotezy – lepiej porównywać z referencjami (`profile`, `compare`).
 - Ostrość to przybliżenie (do porównań między samplami, nie certyfikowany ISO 532-1).

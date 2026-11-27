@@ -196,6 +196,36 @@ int main (int argc, char** argv)
         printf ("preset -> RANDOMIZE style check done\n");
         return 0;
     }
+    if (argc > 3 && String (argv[2]) == "--blind")                            // RenderTest <out> --blind <dir> [n]: n brand-new kicks (random style + seed +
+    {                                                                          // amount + note, RANDOMIZE 1-3x) for a blind DOOMSCOPE test; the recipe goes to _SECRET.txt
+        const File dir (File::getCurrentWorkingDirectory().getChildFile (argv[3])); dir.createDirectory();
+        const int n = argc > 4 ? String (argv[4]).getIntValue() : 6;
+        Random rng (Time::currentTimeMillis());
+        String secret;
+        for (int k = 0; k < n; ++k)
+        {
+            GeProcessor p; p.prepareToPlay (44100.0, 512);
+            const int st = rng.nextInt (fge::style::NumStyles);
+            fge::style::apply (p, st, false);
+            p.apvts.state.setProperty ("vrStyle", st, nullptr);
+            const auto f0 = p.frame();
+            const int rounds = 1 + rng.nextInt (3);
+            const double amount = 0.6 + 0.4 * rng.nextDouble();
+            p.apvts.state.setProperty ("vrAmount", amount, nullptr);
+            for (int r = 0; r < rounds; ++r) { p.apvts.state.setProperty ("vrSeed", 1 + rng.nextInt (9998), nullptr); p.randomizeSound(); }
+            const int note = 28 + rng.nextInt (7);
+            const auto x = renderKick (p.frame(), note, 44100.0, 0.8, -1, 1.f, &p.shapes(), 0.0, -1.0, nullptr, &p.oscData(), &p.distData(), nullptr, &p.modAudioCopy(), &p.samples().ptrs);
+            const String name = String ("blind_") + String::charToString ((juce_wchar) ('A' + k));
+            writeWav (dir.getChildFile (name + ".wav"), x);
+            const auto f1 = p.frame();
+            secret << name << ": style " << fge::style::names()[st] << ", MIDI note " << note << ", RANDOMIZE x" << rounds << ", amount " << String (amount, 2) << "\n  ";
+            for (int i = 0; i < P::count; ++i) if (std::abs (f1[i] - f0[i]) > 1e-4f) secret << def (i).id << " " << String (f0[i], 3) << "->" << String (f1[i], 3) << ", ";
+            secret << "\n\n";
+        }
+        dir.getChildFile ("_SECRET.txt").replaceWithText (secret);
+        printf ("%d kicks written to %s (recipe in _SECRET.txt - do not read before the blind analysis)\n", n, dir.getFullPathName().toRawUTF8());
+        return 0;
+    }
     if (argc > 2 && String (argv[2]) == "--bench") { GeProcessor p; cpuStress (p); printf ("%.1f %% of one core\n", 100.0 * cpuTime (p, argc > 3 ? String (argv[3]).getDoubleValue() : 2.0)); return 0; }
     if (argc > 2 && String (argv[2]) == "--cookbench")                         // how long one full cook takes (module 09 decides per-block re-cooking)
     {

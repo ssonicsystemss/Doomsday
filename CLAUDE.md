@@ -29,7 +29,8 @@ programmer – answer in Polish, simply; judge sound by his ears, not only by te
    install, Windows test traps) + `INDEX.md` – check before releasing a build.
 3. The plugin's `README.md` (features, presets) and its `Tests/RenderTest.cpp` (what is already checked).
 4. Analysis / matching tools (Python): `ForgeOfWrath/Tools` (kick matching vs references, A/B mp3, reference feature CSVs),
-   `Tools/screech` (Prophecy of Scream screech matching), `Shared/Tools` (small band / f0 reports). Reference WAVs are the owner's – not in git.
+   `Tools/screech` (Prophecy of Scream screech matching), `Shared/Tools` (small band / f0 reports) + **`Shared/Tools/doomscope`
+   = DOOMSCOPE, the main analyzer for judging any WAV the owner sends (`analyze` / `compare` / `selftest`; numbers in report.md, PNGs secondary)**. Reference WAVs are the owner's – not in git.
 
 ## Build / test (Linux container)
 - JUCE: `ln -sfn /home/claude/AncientDrums/JUCE <Plugin>/JUCE` (or clone JUCE 8.0.10); **remove the symlink before committing**.

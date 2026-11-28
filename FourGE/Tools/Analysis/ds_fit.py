@@ -23,7 +23,9 @@ def compare(a, ref, bpm):
         m = re.search(r'\| ' + re.escape(name) + r'[^|]*\| ([^|]+) \| ([^|]+) \|', t)
         try: return float(m.group(1)), float(m.group(2))
         except Exception: return None
-    return bands, {k: row(k) for k in ['crest 0-15 ms dB', 'atak 10-90% ms', 'perkusyjny 0-30 ms %', 'centroid widma Hz (mediana)', 'crest dB']}
+    return bands, {k: row(k) for k in ['crest 0-15 ms dB', 'atak 10-90% ms', 'perkusyjny 0-30 ms %', 'centroid widma Hz (mediana)', 'crest dB',
+                                       'THD %', 'parzyste/nieparzyste dB', 'energia nieharmoniczna dB', 'udzial SUB %', 'udzial LOW %', 'udzial LOWMID %',
+                                       'udzial CRUNCH %', 'udzial PRESENCE %']}
 
 def score(bands, rows):
     b = np.array([np.clip(v, -20, 20) for f, v in bands.items() if 40 <= f <= 12700])
@@ -32,6 +34,8 @@ def score(bands, rows):
         r = rows.get(k)
         if r: s.append((r[1] - r[0]) / scale)
     add('crest 0-15 ms dB', 1.0); add('crest dB', 1.0); add('perkusyjny 0-30 ms %', 3.0)
+    add('THD %', 6.0); add('parzyste/nieparzyste dB', 1.5); add('energia nieharmoniczna dB', 2.0)
+    for k in ['udzial SUB %', 'udzial LOW %', 'udzial LOWMID %', 'udzial CRUNCH %', 'udzial PRESENCE %']: add(k, 2.0)
     r = rows.get('atak 10-90% ms')
     if r: s.append(np.clip((np.log2(max(r[1], 0.5)) - np.log2(max(r[0], 0.5))) * 3, -20, 20))
     r = rows.get('centroid widma Hz (mediana)')

@@ -63,3 +63,8 @@ MASTER SAFETY CLIP on + master +4 dB in the presets (the final squaring at the h
 Presets: "HARDCORE - OPS 31" (the rebuild) and "HARDCORE - Aggressive" (more 2nd tone 0.75, shallower dip 0.4).
 Tools (throw-away, /tmp): zero-crossing pitch, crossings / rail share per 20 ms, 5 bands per window, a Python sketch before C++.
 Still different by numbers: the ref has ~3 dB more 20-400 Hz and rounded humps after each switch (not a pure square).
+
+## PRE NOISE (owner 2026-11-28: "punch musi byc gloska CZ")
+`hc_pn_mix` / `hc_pn_hold` / `hc_pn_len` / `hc_pn_hz` / `hc_pn_grain`: band-passed noise (Q 0.8 at PN TONE, optionally sample-and-held
+= GRAIN) added BEFORE the PRE-EQ and DRIVE 1, held for PN HOLD, then decaying over PN LEN - distorted together with the tone = the "cz"
+(TEXTURE is after the clip = hiss). Not scaled by the PUNCH / BODY / TAIL gains (its own level), only by ATTACK and PRE DECAY.

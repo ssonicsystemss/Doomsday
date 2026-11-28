@@ -46,6 +46,7 @@ namespace fge::dsp::hardcore
         bool msOwn = false;
         float clip2Db = 0.f, lpHz = 20000.f;
         float fuzzBias = 0.f;
+        float pnMix = 0.f, pnHoldMs = 10.f, pnLenMs = 40.f, pnHz = 2500.f, pnGrain = 0.f;   // PRE NOISE (owner 2026-11-28 "punch musi byc gloska CZ"): band noise INTO the drives
         float harmDb = 0.f; int harmN = 1;                         // MILLENNIUM spec 11: HARMONIC EMPHASIS before the distortion (a bell at 1x / 2x / 3x / 4x the note, follows the note)
         float compAmt = 0.f, compAtkMs = 50.f, compRelMs = 120.f;
         float clickLenMs = 0.12f, clickNoise = 0.f;
@@ -88,7 +89,7 @@ namespace fge::dsp::hardcore
         void reset()
         {
             p = pc = pm = 0.0; blk = 0; seed = 0x5eedbeefu; rms = 0.05f; crush = 0.f; crushN = 0;
-            for (auto* b : { &eLow, &eLm, &eMid, &eHm, &eHigh, &dc1, &betw, &pLow, &pBody, &pMid, &pCr, &pHigh, &crHp, &crLp, &txBp, &dcOut, &lp1, &lp2, &eHarm }) b->clear(); cEnv = 0.f; fdA.reset(); fdB.reset();
+            for (auto* b : { &eLow, &eLm, &eMid, &eHm, &eHigh, &dc1, &betw, &pLow, &pBody, &pMid, &pCr, &pHigh, &crHp, &crLp, &txBp, &dcOut, &lp1, &lp2, &eHarm, &pnBp }) b->clear(); pnN = 0; pnHeld = 0.f; cEnv = 0.f; fdA.reset(); fdB.reset();
         }
 
         float process (const Settings& s, float ms, float noteHz)
@@ -105,6 +106,16 @@ namespace fge::dsp::hardcore
             // ---- MID SCREAM joins BEFORE the pre EQ / drive: the two tones are distorted together
             const float msNow = s.msMix > 0.f ? midScream (s, ms) * atk * (s.msOwn ? 1.f : segGain) * preEnv : 0.f;
             if (! s.msPost) x += msNow;   // (MIX = its level against the note: 0.3 = spikes near the note's edges)
+            // ---- PRE NOISE (the "CZ"): band-passed (optionally sample-and-held = grain) noise, held then decayed, distorted WITH the tone
+            if (s.pnMix > 0.f)
+            {
+                const float t = ms - s.pnHoldMs, e = t <= 0.f ? 1.f : std::exp (-t * 2.3f / std::max (1.f, s.pnLenMs));
+                if (e > 1.0e-4f)
+                {
+                    if (pnN-- <= 0) { pnN = (int) (s.pnGrain * s.pnGrain * fs / 1500.0); pnHeld = noise(); }
+                    x += pnBp.tick (s.pnGrain > 0.f ? pnHeld : noise()) * 2.f * s.pnMix * e * atk * preEnv;
+                }
+            }
             // ---- PRE-EQ (before the distortion: which band gets turned into harmonics)
             x = eHigh.tick (eHm.tick (eMid.tick (eLm.tick (eLow.tick (x)))));
             if (s.harmDb != 0.f) x = eHarm.tick (x);
@@ -327,10 +338,11 @@ namespace fge::dsp::hardcore
             { const float thr = 1.f - 0.8f * std::clamp (s.compAmt, 0.f, 1.f); cMake = 1.f / (thr + (1.f - thr) * 0.25f); }
             crHp.hp (fs, 150.0, 0.7071); crLp.lp (fs, std::min (9000.0, fs * 0.45), 0.7071);
             txBp.bp (fs, 3500.0, 1.0);
+            pnBp.bp (fs, std::clamp ((double) s.pnHz, 100.0, fs * 0.45), 0.8);
         }
 
         double fs = 48000.0, p = 0.0, pc = 0.0, hz = 100.0, endHz = 50.0;
-        int blk = 0, crushN = 0;
+        int blk = 0, crushN = 0, pnN = 0; float pnHeld = 0.f;
         uint32_t seed = 0x5eedbeefu;
         float crNow = 0.f;
     public:
@@ -343,6 +355,6 @@ namespace fge::dsp::hardcore
         float clickEnv = 0.f, clickSign = 1.f, clickDecay = 0.99f, clickBalNow = 0.f;
         float preEnv = 1.f, segOut = 1.f;
         float segGain = 1.f, outEnv = 1.f, g1 = 1.f, g2 = 1.f, gc = 1.f, gPos = 1.f, gNeg = 1.f, rms = 0.05f, crush = 0.f;
-        bq::Biquad eLow, eLm, eMid, eHm, eHigh, dc1, dcOut, betw, pLow, pBody, pMid, pCr, pHigh, crHp, crLp, txBp;
+        bq::Biquad eLow, eLm, eMid, eHm, eHigh, dc1, dcOut, betw, pLow, pBody, pMid, pCr, pHigh, crHp, crLp, txBp, pnBp;
     };
 }

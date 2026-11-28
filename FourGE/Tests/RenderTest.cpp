@@ -1353,6 +1353,7 @@ int main (int argc, char** argv)
                     if (sid == "hc_click_len" || sid == "hc_click_noise" || sid == "hc_click_bal") { set2 ("hc_ms_click", 1.f); set2 ("hc_ms_mix", 1.f); set2 ("hc_ms_track", 1.f); set2 ("hc_ms_harm", 2.f); }
                     if (sid == "hc_ms_click") { set2 ("hc_ms_mix", 1.f); set2 ("hc_ms_track", 1.f); set2 ("hc_ms_harm", 2.f); }
                     if (sid == "hc_btw_hz") set2 ("hc_btw_db", 12.f);
+                    if (sid.startsWith ("hc_pn_") && sid != "hc_pn_mix") { set2 ("hc_pn_mix", 1.f); set2 ("hc_d1", 6.f); set2 ("hc_d2", 0.f); set2 ("hc_clip", 0.f); }
                     if (sid == "hc_post_crunch_hz") set2 ("hc_post_crunch", 12.f);
                     if (sid.startsWith ("hc_eq_") && sid.endsWith ("_hz")) set2 (sid.replace ("_hz", "_db"), 12.f);
                     if (sid.startsWith ("hc_eq_") || sid.startsWith ("hc_post") || sid == "hc_btw_db" || sid == "hc_btw_hz") { set2 ("hc_d1", 0.f); set2 ("hc_d2", 0.f); set2 ("hc_clip", 0.f); set2 ("hc_stages", 0.f); set2 ("hc_clip_mode", 1.f); }

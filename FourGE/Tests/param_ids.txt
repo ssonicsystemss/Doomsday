@@ -4241,3 +4241,8 @@ hc_fd_bias
 hc_out_punch_db
 hc_out_body_db
 hc_ms_post
+hc_pn_mix
+hc_pn_hold
+hc_pn_len
+hc_pn_hz
+hc_pn_grain

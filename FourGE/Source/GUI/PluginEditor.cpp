@@ -650,7 +650,8 @@ GeCanvas::GeCanvas (GeProcessor& p) : proc (p), presetBar (p, true)
             d.push_back (toggle ("hc_cr_on", "CRUNCH", Toggle::Chip, col)); d.push_back (combo ("hc_cr_src"));
             for (auto [id, lab] : LZ { { "hc_cr_start", "START" }, { "hc_cr_len", "LENGTH" }, { "hc_cr_mix", "MIX" } }) d.push_back (knob (id, lab, col));
             d.push_back (combo ("hc_tx_type"));
-            for (auto [id, lab] : LZ { { "hc_tx_mix", "TEXTURE" }, { "hc_tx_len", "TEX LEN" } }) d.push_back (knob (id, lab, col));
+            for (auto [id, lab] : LZ { { "hc_tx_mix", "TEXTURE" }, { "hc_tx_len", "TEX LEN" }, { "hc_pn_mix", "PRE NOISE" }, { "hc_pn_hold", "PN HOLD" }, { "hc_pn_len", "PN LEN" },
+                                       { "hc_pn_hz", "PN TONE" }, { "hc_pn_grain", "PN GRAIN" } }) d.push_back (knob (id, lab, col));
             d.push_back (nullptr);
             d.push_back (combo ("hc_cr_pmode"));
             for (auto [id, lab] : LZ { { "hc_cr_pitch", "PITCH" }, { "hc_cr_pamt", "PITCH AMT" }, { "hc_cr_ptime", "PITCH TIME" }, { "hc_cr_drive", "DRIVE" }, { "hc_cr_asym", "ASYMMETRY" },

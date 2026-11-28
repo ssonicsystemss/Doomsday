@@ -1066,7 +1066,12 @@ namespace fge
     F (hcFdBias, "hc_fd_bias", "HC Fast Dist Bias", Unit::Bip, -1.0f, 1.0f, 0.0f, 0.0f, FNone) \
     F (hcOutPunch, "hc_out_punch_db", "HC Out Punch", Unit::Db, -40.0f, 6.0f, 0.0f, 0.0f, FNone) \
     F (hcOutBody, "hc_out_body_db", "HC Out Body", Unit::Db, -40.0f, 6.0f, 0.0f, 0.0f, FNone) \
-    B (hcMsPost, "hc_ms_post", "HC Mid Scream After Drive", false, FNone)
+    B (hcMsPost, "hc_ms_post", "HC Mid Scream After Drive", false, FNone) \
+    F (hcPnMix, "hc_pn_mix", "HC Pre Noise", Unit::Pct, 0.0f, 2.0f, 0.0f, 0.0f, FNone) \
+    F (hcPnHold, "hc_pn_hold", "HC Pre Noise Hold", Unit::Ms, 0.0f, 80.0f, 10.0f, 0.0f, FNone) \
+    F (hcPnLen, "hc_pn_len", "HC Pre Noise Length", Unit::Ms, 2.0f, 200.0f, 40.0f, 40.0f, FNone) \
+    F (hcPnHz, "hc_pn_hz", "HC Pre Noise Tone", Unit::Hz, 300.0f, 9000.0f, 2500.0f, 2500.0f, FNone) \
+    F (hcPnGrain, "hc_pn_grain", "HC Pre Noise Grain", Unit::Pct, 0.0f, 1.0f, 0.0f, 0.0f, FNone)
     // ---- APPEND NEW MODULES BELOW (module 03 ...) - never insert above
 
     // per part pitch envelope (module 02, 5 + 6): ENABLE / AMOUNT / TIME SCALE / OFFSET + the LINK system

@@ -565,3 +565,6 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
 - RenderTest pitch checks by zero crossings must low-pass first: odd-heavy tails cross zero at 3x the note.
 - Owner tip: Ancient Drums "Marble Snap" punch (sine 1.76 kHz -> 120 Hz in 12 ms + a 2 ms HP noise burst, through tanh) = a crack
   source; candidate for the gabber's missing 0-30 ms percussive share (ref 53 %, ours 8 %).
+- **4GE MILLENNIUM punch (owner 2026-11-28):** the DOOMSCOPE fit "spoko" but "punch jak dluga szeroka plastikowa rura" = a held low
+  tone (~117 Hz, 74 ms) made of pitch-synced clicks. Matching the ref's pitch (400 Hz glide) = "w zla strone". He wants the punch to be
+  the consonant "CZ" = noise distorted together with the tone -> PRE NOISE (noise BEFORE the drive), never a cleaner / higher tone.

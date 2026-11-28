@@ -3243,8 +3243,12 @@ int main (int argc, char** argv)
                 for (int i = b.getNumSamples() - 1; i > 0; --i) if (std::abs (b.getSample (0, i)) > 0.01f * b.getMagnitude (0, 0, b.getNumSamples())) return (float) i / 44.1f;
                 return 0.f;
             };
-            auto f0 = [] (const AudioBuffer<float>& b, float fromMs, float toMs)
+            auto f0 = [] (const AudioBuffer<float>& src, float fromMs, float toMs)
             {
+                // (zero crossings of the FUNDAMENTAL: 4 one-pole low-passes at 90 Hz first - the GABBER profile's odd harmonics
+                //  (MID SCREAM FOLLOW PITCH, the owner's kick-8 rebuild 2026-11-28) cross zero more often than the note)
+                AudioBuffer<float> b (src); float z[4] {}; const float c = 1.f - std::exp (-2.f * 3.14159265f * 90.f / 44100.f);
+                for (int i = 0; i < b.getNumSamples(); ++i) { float x = b.getSample (0, i); for (auto& zz : z) { zz += c * (x - zz); x = zz; } b.setSample (0, i, x); }
                 int n = 0, first = -1, last = -1;
                 for (int i = (int) (fromMs * 44.1f); i < (int) (toMs * 44.1f) - 1; ++i)
                     if (b.getSample (0, i) < 0.f && b.getSample (0, i + 1) >= 0.f) { if (first < 0) first = i; last = i; ++n; }

@@ -556,3 +556,12 @@ bitcrush na ogonie, punch strojony do ogona, ogon ściszany od punchu.** **Pełn
   and the windowed bands; sketch it in Python (sin(note) + r(t) * sin(12th harmonic) -> clip), then the same in the engine.
 - The metric fit argued for wrong values twice (drop +70 st / harmonic 14 vs the measured +64 / 12): measure directly, fit only the rest.
 - Give 2-3 variants in one A/B file and let him pick ("2 i 3 lepiej") instead of arguing with numbers.
+
+## 4GE GABBER "git wyszedl" (owner 2026-11-28, ref hardcore-gabber-kick-8)
+- Rounds of fitting numbers (bands / RMS) gave "zla barwa"; DOOMSCOPE compare showed WHY: our THD 89 %, 250-500 Hz 18 % vs 8 %,
+  a drifting tail (the analyser lost the octave) vs the ref's steady odd-dominant note. Fix = a steady pitch (one slow 20 st glide),
+  MID SCREAM FOLLOW PITCH 2x (clicks twice per cycle = the "e / a" honk), ONE soft drive stage, no between EQ / no 2nd drive.
+- Range trap: hc_time max = 100 ms - CLI values above it are clamped silently; write the clamped value into the profile.
+- RenderTest pitch checks by zero crossings must low-pass first: odd-heavy tails cross zero at 3x the note.
+- Owner tip: Ancient Drums "Marble Snap" punch (sine 1.76 kHz -> 120 Hz in 12 ms + a 2 ms HP noise burst, through tanh) = a crack
+  source; candidate for the gabber's missing 0-30 ms percussive share (ref 53 %, ours 8 %).

@@ -116,12 +116,14 @@ namespace fge
                 for (auto& [id, x] : more) fp.values.push_back ({ id, x });
                 return fp;
             };
-            l.push_back (hard ("GABBER - Crushed 909", fge::style::Gabber, {}));
+            l.push_back (hard ("GABBER - Crushed 909", fge::style::Gabber, { { "core_master", 0.f }, { "master_safety_clip", 1.f }, { "hc_d1", 12.f }, { "hc_post_crunch", 10.f }, { "hc_ms_mix", 1.f } }));   // (harder: variant gz_2)
             l.push_back (hard ("MILLENNIUM - Heavy Dark", fge::style::Millennium, {}));
             l.push_back (hard ("HARDCORE - Aggressive", fge::style::Hardcore, { { "core_master", 4.f }, { "master_safety_clip", 1.f }, { "hc_ms_mix", 0.75f }, { "hc_ms_dip", 0.4f } }));
             l.push_back (hard ("UPTEMPO - Forward", fge::style::Uptempo, {}));
             l.push_back (hard ("UPTEMPO - Burst By Velocity", fge::style::Uptempo, { { "hc_burst", 4.f } }));
             l.push_back (hard ("HARDCORE - OPS 31", fge::style::Hardcore, { { "core_master", 4.f }, { "master_safety_clip", 1.f } }));   // the owner's ref rebuilt (A/B 2026-11-24)
+            l.push_back (hard ("GABBER - Kick 8", fge::style::Gabber, { { "core_master", 0.f }, { "master_safety_clip", 1.f } }));   // the owner's ref rebuilt with DOOMSCOPE (2026-11-28, "git wyszedl")
+            l.push_back (hard ("GABBER - Kick 8 Fast", fge::style::Gabber, { { "core_master", 0.f }, { "master_safety_clip", 1.f }, { "hc_drop", 24.f }, { "hc_ms_mix", 1.f }, { "hc_click_bal", 0.2f } }));   // (variant v2a)
             return l; }();
         return list;
     }
